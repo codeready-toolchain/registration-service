@@ -1,0 +1,33 @@
+dist: xenial
+
+language: go
+
+env:
+  - GO111MODULE=on
+
+go:
+  - 1.12.x
+
+git:
+  depth: 1
+
+#before_install:
+  # hack to fix build error https://github.com/golang/go/issues/27215#issuecomment-451342769
+  #- go get -u github.com/go-bindata/go-bindata
+  #- go get -u github.com/go-bindata/go-bindata/...
+
+script:
+  - "make depend"
+  - "make build"
+  - "make test"
+  - "make image"
+
+branches:
+  only:
+    - master
+
+deploy:
+  provider: script
+  script: bash docker_push.sh
+  on:
+    branch: master

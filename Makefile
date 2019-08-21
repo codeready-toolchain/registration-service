@@ -30,6 +30,15 @@ depend:
 	@echo INSTALLING DEPENDENCIES...
 	@env GO111MODULE=off go get -v $(DEPEND)
 
+.PHONY: format
+format:
+	gofmt -s -l -w $(shell find  . -name '*.go' | grep -vEf .gofmt_exclude)
+
+.PHONY: image
+image:
+	docker build -t kleinhenz/registration-service:0.1 .
+	docker tag kleinhenz/registration-service:0.1 kleinhenz/registration-service:latest
+
 build: build-prod
 
 build-dev:

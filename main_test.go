@@ -38,7 +38,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		if val != true {
 			t.Errorf("handler returned unexpected body: got %v want true", val)
 		}
-	}	else {
+	} else {
 		t.Error("handler did not return 'alive' value in response")
 	}
 }

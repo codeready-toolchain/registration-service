@@ -16,7 +16,7 @@ RUN apk --no-cache add ca-certificates
 
 EXPOSE 8080
 
-COPY --from=build-env /go/src/github.com/codeready-toolchain/registration-service/registration-service /usr/local/bin/
-USER 10001
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 
 ENTRYPOINT [ "/usr/local/bin/registration-service" ]

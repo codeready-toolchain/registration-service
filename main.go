@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
-//	"crypto/tls"
+	//	"crypto/tls"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -75,7 +75,7 @@ func main() {
 		}
 		if _, err := os.Stat(*certPath); os.IsNotExist(err) {
 			log.Fatalf("given certificate file does not exist: '%s'.", *certPath)
-		} 
+		}
 		if _, err := os.Stat(*keyPath); os.IsNotExist(err) {
 			log.Fatalf("given key file does not exist: '%s'.", *keyPath)
 		}
@@ -114,7 +114,7 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 	if *isInsecure {
-		log.Fatal(srv.ListenAndServe())	
+		log.Fatal(srv.ListenAndServe())
 	}
-	log.Fatal(srv.ListenAndServeTLS(*certPath, *keyPath))	
+	log.Fatal(srv.ListenAndServeTLS(*certPath, *keyPath))
 }

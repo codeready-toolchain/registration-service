@@ -14,7 +14,8 @@ LABEL maintainer "Michael Kleinhenz <kleinhenz@redhat.com>" \
 
 RUN apk --no-cache add ca-certificates
 
-EXPOSE 8080
+EXPOSE 8000
+COPY --from=build-env /go/src/github.com/codeready-toolchain/registration-service/registration-service /usr/local/bin/
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser

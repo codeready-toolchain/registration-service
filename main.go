@@ -1,77 +1,83 @@
-//go:generate go run -tags=dev static/assets_generate.go
-
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"flag"
 	"log"
 	"net/http"
-	"path/filepath"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/static"
-
-	"github.com/gorilla/mux"
+	"github.com/codeready-toolchain/registration-service/configuration"
+	"github.com/codeready-toolchain/registration-service/registrationserver"
 )
 
-// spaHandler implements the http.Handler interface, so we can use it
-// to respond to HTTP requests. The path to the static directory and
-// path to the index file within that static directory are used to
-// serve the SPA in the given static directory.
-type spaHandler struct {
-	Assets http.FileSystem
-}
-
-// ServeHTTP inspects the URL path to locate a file within the static dir
-// on the SPA handler. If a file is found, it will be served. If not, the
-// file located at the index path on the SPA handler will be served. This
-// is suitable behavior for serving an SPA (single page application).
-func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// get the absolute path to prevent directory traversal
-	path, err := filepath.Abs(r.URL.Path)
-	if err != nil {
-		// no absolute path, respond with a 400 bad request and stop
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// check if the file exists in the assets
-	_, err = h.Assets.Open(path)
-	if err != nil {
-		// file does not exist, redirect to index
-		log.Printf("File %s does not exist.", path)
-		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
-		return
-	}
-
-	// otherwise, use http.FileServer to serve the static dir
-	http.FileServer(h.Assets).ServeHTTP(w, r)
-}
-
-// HealthCheckHandler returns a default heath check result.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	// default handler for system health
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"alive": true})
-}
-
 func main() {
-	// create new Gorilla router
-	router := mux.NewRouter()
+	// Parse flags
+	var configFilePath string
+	flag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
+	flag.Parse()
 
-	// create the routes for the api endpoints
-	router.HandleFunc("/api/health", HealthCheckHandler)
-
-	// create the route for static content, served from /
-	spa := spaHandler{Assets: static.Assets}
-	router.PathPrefix("/").Handler(spa)
-
-	// finally, create and start the service
-	srv := &http.Server{
-		Handler:      router,
-		Addr:         "0.0.0.0:8000",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+	// Override default -config switch with environment variable only if -config
+	// switch was not explicitly given via the command line.
+	configSwitchIsSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "config" {
+			configSwitchIsSet = true
+		}
+	})
+	if !configSwitchIsSet {
+		if envConfigPath, ok := os.LookupEnv(configuration.EnvPrefix + "_CONFIG_FILE_PATH"); ok {
+			configFilePath = envConfigPath
+		}
 	}
-	log.Fatal(srv.ListenAndServe())
+
+	srv, err := registrationserver.New(configFilePath)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	err = srv.SetupRoutes()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	routesToPrint, err := srv.GetRegisteredRoutes()
+	if err != nil {
+		panic(err.Error())
+	}
+	srv.Logger().Print(routesToPrint)
+
+	// listen concurrently to allow for graceful shutdown
+	go func() {
+		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
+		if err := srv.HTTPServer().ListenAndServe(); err != nil {
+			srv.Logger().Println(err)
+		}
+	}()
+
+	gracefulShutdown(srv.HTTPServer(), srv.Logger(), srv.Config().GetGracefulTimeout())
+}
+
+func gracefulShutdown(hs *http.Server, logger *log.Logger, timeout time.Duration) {
+	// For a channel used for notification of just one signal value, a buffer of
+	// size 1 is sufficient.
+	stop := make(chan os.Signal, 1)
+
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM
+	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	sigReceived := <-stop
+	logger.Printf("Signal received: %+v", sigReceived)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	logger.Printf("\nShutdown with timeout: %s\n", timeout)
+	if err := hs.Shutdown(ctx); err != nil {
+		logger.Printf("Shutdown error: %v\n", err)
+	} else {
+		logger.Println("Server stopped.")
+	}
 }

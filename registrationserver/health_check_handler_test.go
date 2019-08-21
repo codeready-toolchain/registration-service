@@ -1,10 +1,12 @@
-package main
+package registrationserver_test
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/codeready-toolchain/registration-service/registrationserver"
 )
 
 func TestHealthCheckHandler(t *testing.T) {
@@ -17,7 +19,8 @@ func TestHealthCheckHandler(t *testing.T) {
 
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(HealthCheckHandler)
+	srv := &registrationserver.RegistrationServer{}
+	handler := http.HandlerFunc(srv.HealthCheckHandler)
 
 	// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 	// directly and pass in our Request and ResponseRecorder.

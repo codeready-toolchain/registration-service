@@ -4,9 +4,13 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
+	//	"crypto/tls"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/static"
@@ -56,6 +60,27 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	// create the command line flags
+	isInsecure := flag.Bool("insecure", false, "service should run as a http service.")
+	certPath := flag.String("cert", "", "path to ssl certificate.")
+	keyPath := flag.String("key", "", "path to ssl key.")
+	port := flag.Int("port", -1, "use port for service")
+	flag.Parse()
+
+	// some sanity checks
+	if !*isInsecure {
+		if *certPath == "" || *keyPath == "" {
+			log.Fatal("when running in https mode, certificate and key path needs to be given")
+		}
+		if _, err := os.Stat(*certPath); os.IsNotExist(err) {
+			log.Fatalf("given certificate file does not exist: '%s'.", *certPath)
+		}
+		if _, err := os.Stat(*keyPath); os.IsNotExist(err) {
+			log.Fatalf("given key file does not exist: '%s'.", *keyPath)
+		}
+	}
+
 	// create new Gorilla router
 	router := mux.NewRouter()
 
@@ -66,12 +91,30 @@ func main() {
 	spa := spaHandler{Assets: static.Assets}
 	router.PathPrefix("/").Handler(spa)
 
+	// assign default ports
+	if *port == -1 && *isInsecure {
+		*port = 80
+	} else if *port == -1 {
+		*port = 443
+	}
+
+	// some initial log output
+	log.Printf("registration service starting on port %d", *port)
+	if *isInsecure {
+		log.Println("running in insecure mode, http only.")
+	} else {
+		log.Println("running in secure mode, https only.")
+	}
+
 	// finally, create and start the service
 	srv := &http.Server{
 		Handler:      router,
-		Addr:         "0.0.0.0:8000",
+		Addr:         "0.0.0.0:" + strconv.Itoa(*port),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	log.Fatal(srv.ListenAndServe())
+	if *isInsecure {
+		log.Fatal(srv.ListenAndServe())
+	}
+	log.Fatal(srv.ListenAndServeTLS(*certPath, *keyPath))
 }

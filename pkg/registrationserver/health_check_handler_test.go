@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/registrationserver"
+	"github.com/codeready-toolchain/registration-service/pkg/registrationserver"
 )
 
 func TestHealthCheckHandler(t *testing.T) {

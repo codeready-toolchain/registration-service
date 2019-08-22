@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	errs "github.com/pkg/errors"

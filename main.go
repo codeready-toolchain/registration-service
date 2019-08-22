@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/configuration"
-	"github.com/codeready-toolchain/registration-service/registrationserver"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/registrationserver"
 )
 
 func main() {

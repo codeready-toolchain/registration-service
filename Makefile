@@ -52,7 +52,7 @@ build-prod:
 
 clean:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		rm -f static/generated_assets.go && \
+		rm -f pkg/static/generated_assets.go && \
 		rm -f registration-service
 
 test: test-prod

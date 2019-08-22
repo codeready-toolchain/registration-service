@@ -1,4 +1,4 @@
-//go:generate go run -tags=dev static/assets_generate.go
+//go:generate go run -tags=dev pkg/static/assets_generate.go
 
 package registrationserver
 
@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/static"
+	"github.com/codeready-toolchain/registration-service/pkg/static"
 )
 
 // spaHandler implements the http.Handler interface, so we can use it

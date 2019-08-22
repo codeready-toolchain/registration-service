@@ -12,7 +12,7 @@ import (
 
 const (
 	// EnvPrefix will be used for environment variable name prefixing.
-	EnvPrefix = "APP"
+	EnvPrefix = "REGISTRATION"
 
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value

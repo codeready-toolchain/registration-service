@@ -19,7 +19,8 @@ export GO111MODULE=on
 # Standard dependencies are installed via go get
 DEPEND=\
 	github.com/gorilla/mux \
-	github.com/shurcooL/vfsgen
+	github.com/shurcooL/vfsgen \
+	github.com/stretchr/testify
 
 .phony: all depend test build clean
 

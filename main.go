@@ -3,16 +3,16 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"log"
-	//	"crypto/tls"
+
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/health"
 	"github.com/codeready-toolchain/registration-service/static"
 
 	"github.com/gorilla/mux"
@@ -52,13 +52,6 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(h.Assets).ServeHTTP(w, r)
 }
 
-// HealthCheckHandler returns a default heath check result.
-func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	// default handler for system health
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"alive": true})
-}
-
 func main() {
 
 	// create the command line flags
@@ -66,6 +59,7 @@ func main() {
 	certPath := flag.String("cert", "", "path to ssl certificate.")
 	keyPath := flag.String("key", "", "path to ssl key.")
 	port := flag.Int("port", -1, "use port for service")
+	isTestMode := flag.Bool("test", false, "service should run in test mode.")
 	flag.Parse()
 
 	// some sanity checks
@@ -85,7 +79,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// create the routes for the api endpoints
-	router.HandleFunc("/api/health", HealthCheckHandler)
+	router.HandleFunc("/api/health", health.NewHealthService(*isTestMode).Handler)
 
 	// create the route for static content, served from /
 	spa := spaHandler{Assets: static.Assets}

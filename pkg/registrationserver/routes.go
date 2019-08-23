@@ -1,4 +1,4 @@
-//go:generate go run -tags=dev pkg/static/assets_generate.go
+//go:generate go run -tags=dev ../../pkg/static/assets_generate.go
 
 package registrationserver
 

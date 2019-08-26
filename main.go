@@ -16,6 +16,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/registrationserver"
 )
 
+// Version is the service version
+const Version string = "0.0.1"
+
 func main() {
 	// Parse flags
 	var configFilePath string
@@ -40,6 +43,9 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	// setting the version of the service from the const value
+	srv.Config().GetViperInstance().Set(configuration.VersionKey, Version)
 
 	err = srv.SetupRoutes()
 	if err != nil {

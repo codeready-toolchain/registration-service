@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/health"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 )
 
@@ -50,7 +51,9 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
-		srv.router.HandleFunc("/api/health", srv.HealthCheckHandler).
+		healthService := health.New(srv.logger, srv.Config())
+
+		srv.router.HandleFunc("/api/health", healthService.HealthCheckHandler).
 			Name("health").
 			Methods("GET")
 

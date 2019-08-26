@@ -7,7 +7,7 @@ bin/
 tmp/
 *.key
 *.crt
-static/generated_assets.go
+pkg/static/generated_assets.go
 registration-service
 
 # Created by https://www.gitignore.io/api/go,vim,git,macos,linux,emacs,windows,eclipse,intellij+all,visualstudiocode

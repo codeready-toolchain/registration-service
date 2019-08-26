@@ -20,3 +20,7 @@ tbd
 === End-to-End tests
 
 tbd
+
+=== VSCode Testing
+
+You need to switch on modules support in the context your VSCode is running for getting the internal testing from withing VSCode to work.

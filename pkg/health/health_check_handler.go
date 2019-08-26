@@ -42,5 +42,9 @@ func (srv *Service) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	json.NewEncoder(w).Encode(healthInfo)
+	err := json.NewEncoder(w).Encode(healthInfo)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 }

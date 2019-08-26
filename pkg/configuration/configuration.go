@@ -71,7 +71,7 @@ const (
 	DefaultTestingMode = false
 
 	varVersion = VersionKey
-	// DefaultVersion specifies the path to the server key
+	// DefaultVersion specifies default version
 	DefaultVersion = "0.0.0-noversion"
 )
 

@@ -1,0 +1,11 @@
+graceful_timeout: "15s"
+log.level: "info"
+log.json: false
+http.address: "0.0.0.0:8080"
+http.insecure: true
+http.cert_path: "server.rsa.crt"
+http.key_path: "server.rsa.key"
+http.compress: false
+http.idle_timeout: "15s"
+http.write_timeout: "15s"
+http.read_timeout: "15s"

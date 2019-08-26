@@ -32,7 +32,7 @@ func getDefaultConfiguration(t *testing.T) *configuration.Registry {
 func getFileConfiguration(t *testing.T, content string) *configuration.Registry {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")
 	require.NoError(t, err)
-	//defer os.Remove(tmpFile.Name())
+	defer os.Remove(tmpFile.Name())
 	_, err = tmpFile.Write([]byte(content))
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())

@@ -23,4 +23,4 @@ tbd
 
 === VSCode Testing
 
-You need to switch on modules support in the context your VSCode is running for getting the internal testing from withing VSCode to work.
+You need to switch on modules support in the context your VSCode is running in order to get internal testing from within VSCode to work.

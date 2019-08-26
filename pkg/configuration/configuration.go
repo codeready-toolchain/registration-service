@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	// EnvPrefix will be used for environment variable name prefixing.
+	// EnvPrefix will be used for environment variable name prefixing
 	EnvPrefix = "REGISTRATION"
+
+	// VersionKey is the key for the version config value
+	VersionKey = "version"
 
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value
@@ -50,6 +53,26 @@ const (
 	varHTTPReadTimeout = "http.read_timeout"
 	// DefaultHTTPReadTimeout specifies the default timeout for HTTP reads
 	DefaultHTTPReadTimeout = time.Second * 15
+
+	varHTTPInsecure = "http.insecure"
+	// DefaultHTTPInsecure specifies whether the services should run with SSL on or off
+	DefaultHTTPInsecure = false
+
+	varHTTPCertPath = "http.cert_path"
+	// DefaultHTTPCertPath specifies the path to the server certificate
+	DefaultHTTPCertPath = "server.rsa.crt"
+
+	varHTTPKeyPath = "http.key_path"
+	// DefaultHTTPKeyPath specifies the path to the server key
+	DefaultHTTPKeyPath = "server.rsa.key"
+
+	varTestingMode = "testingmode"
+	// DefaultTestingMode specifies whether the services should run in testing mode
+	DefaultTestingMode = false
+
+	varVersion = VersionKey
+	// DefaultVersion specifies default version
+	DefaultVersion = "0.0.0-noversion"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -58,10 +81,8 @@ type Registry struct {
 	v *viper.Viper
 }
 
-// New creates a configuration reader object using a configurable configuration
-// file path. If the provided config file path is empty, a default configuration
-// will be created.
-func New(configFilePath string) (*Registry, error) {
+// CreateEmptyRegistry creates an initial, empty registry.
+func CreateEmptyRegistry() (*Registry) {
 	c := Registry{
 		v: viper.New(),
 	}
@@ -70,7 +91,14 @@ func New(configFilePath string) (*Registry, error) {
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
+	return &c
+}
 
+// New creates a configuration reader object using a configurable configuration
+// file path. If the provided config file path is empty, a default configuration
+// will be created.
+func New(configFilePath string) (*Registry, error) {
+	c := CreateEmptyRegistry()
 	if configFilePath != "" {
 		c.v.SetConfigType("yaml")
 		c.v.SetConfigFile(configFilePath)
@@ -79,7 +107,12 @@ func New(configFilePath string) (*Registry, error) {
 			return nil, errs.Wrap(err, "failed to read config file")
 		}
 	}
-	return &c, nil
+	return c, nil
+}
+
+// GetViperInstance returns the underlying Viper instance.
+func (c *Registry) GetViperInstance() (*viper.Viper){
+	return c.v
 }
 
 func (c *Registry) setConfigDefaults() {
@@ -93,6 +126,11 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogLevel, DefaultLogLevel)
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
+	c.v.SetDefault(varHTTPInsecure, DefaultHTTPInsecure)
+	c.v.SetDefault(varHTTPCertPath, DefaultHTTPCertPath)
+	c.v.SetDefault(varHTTPKeyPath, DefaultHTTPKeyPath)
+	c.v.SetDefault(varTestingMode, DefaultTestingMode)
+	c.v.SetDefault(varVersion, DefaultVersion)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -138,4 +176,33 @@ func (c *Registry) IsLogJSON() bool {
 // for existing connections to finish - e.g. 15s or 1m
 func (c *Registry) GetGracefulTimeout() time.Duration {
 	return c.v.GetDuration(varGracefulTimeout)
+}
+
+// IsHTTPInsecure returns if the service should run without SSL (as set via 
+// config file or environment variable)
+func (c *Registry) IsHTTPInsecure() bool {
+	return c.v.GetBool(varHTTPInsecure)
+}
+
+// GetHTTPCertPath returns the path to the server certificate (as set via 
+// config file or environment variable)
+func (c *Registry) GetHTTPCertPath() string {
+	return c.v.GetString(varHTTPCertPath)
+}
+
+// GetHTTPKeyPath returns the path to the server key (as set via 
+// config file or environment variable)
+func (c *Registry) GetHTTPKeyPath() string {
+	return c.v.GetString(varHTTPKeyPath)
+}
+
+// IsTestingMode returns if the service should run in testing mode (as set via 
+// config file or environment variable)
+func (c *Registry) IsTestingMode() bool {
+	return c.v.GetBool(varTestingMode)
+}
+
+// GetVersion returns if the service version (set internally)
+func (c *Registry) GetVersion() string {
+	return c.v.GetString(varVersion)
 }

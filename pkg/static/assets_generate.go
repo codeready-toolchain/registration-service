@@ -14,7 +14,7 @@ func main() {
 		PackageName:  "static",
 		BuildTags:    "!dev",
 		VariableName: "Assets",
-		Filename:     "../static/generated_assets.go",
+		Filename:     "pkg/static/generated_assets.go",
 	})
 	if err != nil {
 		log.Fatalln(err)

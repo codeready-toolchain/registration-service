@@ -65,7 +65,7 @@ require (
 	honnef.co/go/tools v0.0.1-2019.2.2 // indirect
 	k8s.io/api v0.0.0-20190820101039-d651a1528133 // indirect
 	k8s.io/apimachinery v0.0.0-20190823012420-8ca64af22337 // indirect
-	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/client-go v0.0.0-20190620085101-78d2af792bab
 	k8s.io/gengo v0.0.0-20190822140433-26a664648505 // indirect
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf // indirect
 	k8s.io/utils v0.0.0-20190809000727-6c36bc71fc4a // indirect

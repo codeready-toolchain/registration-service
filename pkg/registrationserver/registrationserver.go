@@ -25,7 +25,7 @@ var (
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 )
 
-// AppServer bundles configuration, logging, and HTTP server objects in a single
+// RegistrationServer bundles configuration, logging, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
 	config     *configuration.Registry
@@ -36,7 +36,7 @@ type RegistrationServer struct {
 	routesSetup sync.Once
 }
 
-// New creates a new AppServer object with reasonable defaults.
+// New creates a new RegistrationServer object with reasonable defaults.
 func New(configFilePath string) (*RegistrationServer, error) {
 	srv := &RegistrationServer{
 		router: mux.NewRouter(),

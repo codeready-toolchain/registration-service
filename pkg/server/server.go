@@ -28,7 +28,7 @@ type RegistrationServer struct {
 func New(configFilePath string) (*RegistrationServer, error) {
 	srv := &RegistrationServer{
 		router: mux.NewRouter(),
-		logger: log.New(os.Stderr, "", 0),
+		logger: log.New(os.Stdout, "", 0),
 	}
 	config, err := configuration.New(configFilePath)
 	if err != nil {

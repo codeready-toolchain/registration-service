@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/registrationserver"
+	"github.com/codeready-toolchain/registration-service/pkg/server"
 )
 
 // Version is the service version
@@ -75,7 +75,7 @@ func main() {
 			}
 		}
 	}()
-  
+
 	gracefulShutdown(srv.HTTPServer(), srv.Logger(), srv.Config().GetGracefulTimeout())
 }
 

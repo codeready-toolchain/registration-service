@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/codeready-toolchain/registration-service/pkg"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/testutils"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

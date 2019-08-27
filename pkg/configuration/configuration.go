@@ -10,6 +10,17 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	// Commit current build commit set by build script
+	Commit = "0"
+	// BuildTime set by build script in ISO 8601 (UTC) format:
+	// YYYY-MM-DDThh:mm:ssTZD (see https://www.w3.org/TR/NOTE-datetime for
+	// details)
+	BuildTime = "0"
+	// StartTime in ISO 8601 (UTC) format
+	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+)
+
 const (
 	// EnvPrefix will be used for environment variable name prefixing
 	EnvPrefix = "REGISTRATION"
@@ -82,7 +93,7 @@ type Registry struct {
 }
 
 // CreateEmptyRegistry creates an initial, empty registry.
-func CreateEmptyRegistry() (*Registry) {
+func CreateEmptyRegistry() *Registry {
 	c := Registry{
 		v: viper.New(),
 	}
@@ -111,7 +122,7 @@ func New(configFilePath string) (*Registry, error) {
 }
 
 // GetViperInstance returns the underlying Viper instance.
-func (c *Registry) GetViperInstance() (*viper.Viper){
+func (c *Registry) GetViperInstance() *viper.Viper {
 	return c.v
 }
 
@@ -178,25 +189,25 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 	return c.v.GetDuration(varGracefulTimeout)
 }
 
-// IsHTTPInsecure returns if the service should run without SSL (as set via 
+// IsHTTPInsecure returns if the service should run without SSL (as set via
 // config file or environment variable)
 func (c *Registry) IsHTTPInsecure() bool {
 	return c.v.GetBool(varHTTPInsecure)
 }
 
-// GetHTTPCertPath returns the path to the server certificate (as set via 
+// GetHTTPCertPath returns the path to the server certificate (as set via
 // config file or environment variable)
 func (c *Registry) GetHTTPCertPath() string {
 	return c.v.GetString(varHTTPCertPath)
 }
 
-// GetHTTPKeyPath returns the path to the server key (as set via 
+// GetHTTPKeyPath returns the path to the server key (as set via
 // config file or environment variable)
 func (c *Registry) GetHTTPKeyPath() string {
 	return c.v.GetString(varHTTPKeyPath)
 }
 
-// IsTestingMode returns if the service should run in testing mode (as set via 
+// IsTestingMode returns if the service should run in testing mode (as set via
 // config file or environment variable)
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)

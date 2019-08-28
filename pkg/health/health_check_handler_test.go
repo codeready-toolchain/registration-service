@@ -18,10 +18,8 @@ func TestHealthCheckHandler(t *testing.T) {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
 	req, err := http.NewRequest("GET", "/api/health", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	require.NoError(t, err)
+	
 	// create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()
@@ -68,7 +66,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
+			require.NoError(t, err)
 		}
 		val, ok := data["alive"]
 		assert.True(t, ok, "no alive key in health response")
@@ -88,7 +86,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
+			require.NoError(t, err)
 		}
 		val, ok := data["revision"]
 		assert.True(t, ok, "no revision key in health response")
@@ -108,7 +106,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
+			require.NoError(t, err)
 		}
 		val, ok := data["build_time"]
 		assert.True(t, ok, "no build_time key in health response")
@@ -128,7 +126,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
+			require.NoError(t, err)
 		}
 		val, ok := data["start_time"]
 		assert.True(t, ok, "no start_time key in health response")

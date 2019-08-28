@@ -76,5 +76,63 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.True(t, valBool, "alive is false in test mode health response")
 	})
 
+	t.Run("revision", func(t *testing.T) {	
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
+		// directly and pass in our Request and ResponseRecorder.
+		handler.ServeHTTP(rr, req)
+		// Check the status code is what we expect.
+		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		// Check the response body is what we expect.
+		var data map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
+			t.Fatal(err)
+		}
+		val, ok := data["revision"]
+		assert.True(t, ok, "no revision key in health response")
+		valString, ok := val.(string)
+		assert.True(t, ok, "returned 'revision' value is not of type 'string'")
+		assert.Equal(t, configuration.Commit, valString, "wrong revision in health response, got %s want %s", valString, configuration.Commit)
+	})
 
+	t.Run("build time", func(t *testing.T) {	
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
+		// directly and pass in our Request and ResponseRecorder.
+		handler.ServeHTTP(rr, req)
+		// Check the status code is what we expect.
+		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		// Check the response body is what we expect.
+		var data map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
+			t.Fatal(err)
+		}
+		val, ok := data["build_time"]
+		assert.True(t, ok, "no build_time key in health response")
+		valString, ok := val.(string)
+		assert.True(t, ok, "returned 'build_time' value is not of type 'string'")
+		assert.Equal(t, configuration.BuildTime, valString, "wrong build_time in health response, got %s want %s", valString, configuration.BuildTime)
+	})
+
+	t.Run("start time", func(t *testing.T) {	
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
+		// directly and pass in our Request and ResponseRecorder.
+		handler.ServeHTTP(rr, req)
+		// Check the status code is what we expect.
+		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		// Check the response body is what we expect.
+		var data map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
+			t.Fatal(err)
+		}
+		val, ok := data["start_time"]
+		assert.True(t, ok, "no start_time key in health response")
+		valString, ok := val.(string)
+		assert.True(t, ok, "returned 'start_time' value is not of type 'string'")
+		assert.Equal(t, configuration.StartTime, valString, "wrong start_time in health response, got %s want %s", valString, configuration.StartTime)
+	})
 }

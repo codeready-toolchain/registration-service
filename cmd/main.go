@@ -53,6 +53,7 @@ func main() {
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
+		srv.Logger().Printf("Service Revision %s built on %s...", configuration.Commit, configuration.BuildTime)
 		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
 			srv.Logger().Println(err)

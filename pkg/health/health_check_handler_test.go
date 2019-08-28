@@ -28,31 +28,10 @@ func TestHealthCheckHandler(t *testing.T) {
 	// set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
-	configRegistry.GetViperInstance().Set("version", "0.0.0-testingmode")
 
 	// create handler instance.
 	healthService := health.New(logger, configRegistry)
 	handler := http.HandlerFunc(healthService.HealthCheckHandler)
-
-	t.Run("health in testing mode", func(t *testing.T) {	
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
-		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusInternalServerError, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
-		// Check the response body is what we expect.
-		var data map[string]interface{}
-		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
-		}
-		val, ok := data["version"]
-		assert.True(t, ok, "no version key in health response")
-		valString, ok := val.(string)
-		assert.True(t, ok, "returned 'version' value is not of type 'string'")
-		assert.Equal(t, valString, configRegistry.GetVersion())
-	})
 
 	t.Run("health in testing mode", func(t *testing.T) {	
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

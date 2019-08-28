@@ -296,35 +296,3 @@ func TestIsTestingMode(t *testing.T) {
 		assert.Equal(t, newVal, config.IsTestingMode())
 	})
 }
-
-func TestGetVersion(t *testing.T) {
-	key := configuration.EnvPrefix + "_" + "HTTP_KEY_PATH"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
-	defer resetFunc()
-
-	t.Run("default", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultVersion, config.GetHTTPKeyPath())
-	})
-
-	t.Run("file", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		config := getFileConfiguration(t, `http.key_path: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
-	})
-
-	t.Run("env overwrite", func(t *testing.T) {
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
-	})
-}

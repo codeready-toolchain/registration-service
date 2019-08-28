@@ -28,7 +28,6 @@ func (srv *Service) getHealthInfo() map[string]interface{} {
 	// TODO: this need to get actual health info.
 	m["alive"] = !srv.config.IsTestingMode()
 	m["testingmode"] = srv.config.IsTestingMode()
-	m["version"] = srv.config.GetVersion()
 	return m
 }
 

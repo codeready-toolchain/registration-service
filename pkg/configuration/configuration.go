@@ -25,9 +25,6 @@ const (
 	// EnvPrefix will be used for environment variable name prefixing
 	EnvPrefix = "REGISTRATION"
 
-	// VersionKey is the key for the version config value
-	VersionKey = "version"
-
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value
 	varHTTPAddress = "http.address"
@@ -68,10 +65,6 @@ const (
 	varTestingMode = "testingmode"
 	// DefaultTestingMode specifies whether the services should run in testing mode
 	DefaultTestingMode = false
-
-	varVersion = VersionKey
-	// DefaultVersion specifies default version
-	DefaultVersion = "0.0.0-noversion"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -126,7 +119,6 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
-	c.v.SetDefault(varVersion, DefaultVersion)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -180,7 +172,3 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
-// GetVersion returns if the service version (set internally)
-func (c *Registry) GetVersion() string {
-	return c.v.GetString(varVersion)
-}

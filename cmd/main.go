@@ -59,18 +59,9 @@ func main() {
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		if srv.Config().IsHTTPInsecure() {
-			srv.Logger().Println("WARNING: running in insecure mode, http only.")
-			srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
-			if err := srv.HTTPServer().ListenAndServe(); err != nil {
-				srv.Logger().Println(err)
-			}
-		} else {
-			srv.Logger().Println("running in secure mode, https only.")
-			srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
-			if err := srv.HTTPServer().ListenAndServeTLS(srv.Config().GetHTTPCertPath(), srv.Config().GetHTTPKeyPath()); err != nil {
-				srv.Logger().Println(err)
-			}
+		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
+		if err := srv.HTTPServer().ListenAndServe(); err != nil {
+			srv.Logger().Println(err)
 		}
 	}()
 

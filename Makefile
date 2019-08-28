@@ -41,7 +41,7 @@ image:
 	docker tag kleinhenz/registration-service:0.1 kleinhenz/registration-service:latest
 
 generate:
-	go run -tags=dev pkg/static/assets_generate.go
+	go run -tags=dev static/assets_generate.go
 
 build: build-prod
 

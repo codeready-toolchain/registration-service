@@ -1,5 +1,3 @@
-//go:generate go run -tags=dev pkg/static/assets_generate.go
-
 package main
 
 import (

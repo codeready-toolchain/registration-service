@@ -39,15 +39,17 @@ image:
 	docker build -t kleinhenz/registration-service:0.1 .
 	docker tag kleinhenz/registration-service:0.1 kleinhenz/registration-service:latest
 
+generate:
+	go run -tags=dev pkg/static/assets_generate.go
+
 build: build-prod
 
 build-dev:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		go build -tags dev
 
-build-prod:
+build-prod: generate
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		go generate && \
 		go build
 
 clean:
@@ -61,7 +63,6 @@ test-dev:
 	@echo TESTING with fs assets...
 	@go test -count=1 -tags dev ./...
 
-test-prod:
+test-prod: generate
 	@echo TESTING with bundled assets...
-	@go generate && \
 	go test -count=1 ./...

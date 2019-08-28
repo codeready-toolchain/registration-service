@@ -9,11 +9,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 )
 
-// spaHandler implements the http.Handler interface, so we can use it
+// SpaHandler implements the http.Handler interface, so we can use it
 // to respond to HTTP requests. The path to the static directory and
 // path to the index file within that static directory are used to
 // serve the SPA in the given static directory.
-type spaHandler struct {
+type SpaHandler struct {
 	Assets http.FileSystem
 }
 
@@ -21,7 +21,7 @@ type spaHandler struct {
 // on the SPA handler. If a file is found, it will be served. If not, the
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
-func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h SpaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// get the absolute path to prevent directory traversal
 	path, err := filepath.Abs(r.URL.Path)
 	if err != nil {
@@ -57,11 +57,11 @@ func (srv *RegistrationServer) SetupRoutes() error {
 			Name("health").
 			Methods("GET")
 
-		// ADD YOUR OWN ROUTES HERE
+		// ADD YOUR OWN ROUTES HERE - DON'T FORGET TO ADD A TEST TABLE ENTRY
 
 		// create the route for static content, served from /
-		spa := spaHandler{Assets: static.Assets}
-		srv.router.PathPrefix("/").Handler(spa)
+		spa := SpaHandler{Assets: static.Assets}
+		srv.router.PathPrefix("/").Name("static").Methods("GET").Handler(spa)
 	})
 	return err
 }

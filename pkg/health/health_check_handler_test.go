@@ -11,6 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/health"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHealthCheckHandler(t *testing.T) {
@@ -33,7 +34,7 @@ func TestHealthCheckHandler(t *testing.T) {
 	healthService := health.New(logger, configRegistry)
 	handler := http.HandlerFunc(healthService.HealthCheckHandler)
 
-	t.Run("health in testing mode", func(t *testing.T) {	
+	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
@@ -44,7 +45,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &data); err != nil {
-			t.Fatal(err)
+			require.NoError(t, err)
 		}
 		val, ok := data["alive"]
 		assert.True(t, ok, "no alive key in health response")
@@ -53,7 +54,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.False(t, valBool, "alive is true in test mode health response")
 	})
 
-	t.Run("health in production mode", func(t *testing.T) {	
+	t.Run("health in production mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		// setting production mode
@@ -76,7 +77,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.True(t, valBool, "alive is false in test mode health response")
 	})
 
-	t.Run("revision", func(t *testing.T) {	
+	t.Run("revision", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
@@ -96,7 +97,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.Equal(t, configuration.Commit, valString, "wrong revision in health response, got %s want %s", valString, configuration.Commit)
 	})
 
-	t.Run("build time", func(t *testing.T) {	
+	t.Run("build time", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
@@ -116,7 +117,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.Equal(t, configuration.BuildTime, valString, "wrong build_time in health response, got %s want %s", valString, configuration.BuildTime)
 	})
 
-	t.Run("start time", func(t *testing.T) {	
+	t.Run("start time", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method

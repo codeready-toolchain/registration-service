@@ -1,3 +1,4 @@
+
 #! /usr/bin/make
 #
 # Makefile for registration-service
@@ -47,11 +48,12 @@ build: build-prod
 
 build-dev:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		go build -v ${LDFLAGS} -tags dev -o registration-service ${PACKAGE_NAME}/cmd
+		go build -tags dev
 
-build-prod: generate
+build-prod:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		go build -v ${LDFLAGS} -o registration-service ${PACKAGE_NAME}/cmd
+		go generate && \
+		go build
 
 clean:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \

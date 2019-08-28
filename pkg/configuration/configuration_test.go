@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/codeready-toolchain/registration-service/pkg"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -276,98 +276,6 @@ func TestGetHTTPCompressResponses(t *testing.T) {
 	})
 }
 
-func TestIsHTTPInsecure(t *testing.T) {
-	key := configuration.EnvPrefix + "_" + "HTTP_INSECURE"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
-	defer resetFunc()
-
-	t.Run("default", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPInsecure, config.IsHTTPInsecure())
-	})
-
-	t.Run("file", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		newVal := !configuration.DefaultHTTPInsecure
-		config := getFileConfiguration(t, `http.insecure: "`+strconv.FormatBool(newVal)+`"`)
-		assert.Equal(t, newVal, config.IsHTTPInsecure())
-	})
-
-	t.Run("env overwrite", func(t *testing.T) {
-		newVal := !configuration.DefaultHTTPInsecure
-		os.Setenv(key, strconv.FormatBool(newVal))
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.IsHTTPInsecure())
-	})
-}
-
-func TestGetHTTPCertPath(t *testing.T) {
-	key := configuration.EnvPrefix + "_" + "HTTP_CERT_PATH"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
-	defer resetFunc()
-
-	t.Run("default", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPCertPath, config.GetHTTPCertPath())
-	})
-
-	t.Run("file", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		config := getFileConfiguration(t, `http.cert_path: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetHTTPCertPath())
-	})
-
-	t.Run("env overwrite", func(t *testing.T) {
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPCertPath())
-	})
-}
-
-func TestGetHTTPKeyPath(t *testing.T) {
-	key := configuration.EnvPrefix + "_" + "HTTP_KEY_PATH"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
-	defer resetFunc()
-
-	t.Run("default", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPKeyPath, config.GetHTTPKeyPath())
-	})
-
-	t.Run("file", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		config := getFileConfiguration(t, `http.key_path: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
-	})
-
-	t.Run("env overwrite", func(t *testing.T) {
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
-	})
-}
-
 func TestIsTestingMode(t *testing.T) {
 	key := configuration.EnvPrefix + "_" + "TESTINGMODE"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
@@ -386,37 +294,5 @@ func TestIsTestingMode(t *testing.T) {
 		newVal := !configuration.DefaultTestingMode
 		config := getFileConfiguration(t, `testingmode: "`+strconv.FormatBool(newVal)+`"`)
 		assert.Equal(t, newVal, config.IsTestingMode())
-	})
-}
-
-func TestGetVersion(t *testing.T) {
-	key := configuration.EnvPrefix + "_" + "HTTP_KEY_PATH"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
-	defer resetFunc()
-
-	t.Run("default", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPKeyPath, config.GetHTTPKeyPath())
-	})
-
-	t.Run("file", func(t *testing.T) {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		config := getFileConfiguration(t, `http.key_path: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
-	})
-
-	t.Run("env overwrite", func(t *testing.T) {
-		u, err := uuid.NewV4()
-		require.NoError(t, err)
-		newVal := u.String()
-		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPKeyPath())
 	})
 }

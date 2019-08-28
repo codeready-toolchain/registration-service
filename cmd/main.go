@@ -1,12 +1,9 @@
-//go:generate go run -tags=dev pkg/static/assets_generate.go
-
 package main
 
 import (
 	"context"
 	"flag"
 	"log"
-	//	"crypto/tls"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,9 +13,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 )
-
-// Version is the service version
-const Version string = "0.0.1"
 
 func main() {
 	// Parse flags
@@ -45,9 +39,6 @@ func main() {
 		panic(err.Error())
 	}
 
-	// setting the version of the service from the const value
-	srv.Config().GetViperInstance().Set(configuration.VersionKey, Version)
-
 	err = srv.SetupRoutes()
 	if err != nil {
 		panic(err.Error())
@@ -57,22 +48,15 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	srv.Logger().Print("Configured routes:")
 	srv.Logger().Print(routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		if srv.Config().IsHTTPInsecure() {
-			srv.Logger().Println("WARNING: running in insecure mode, http only.")
-			srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
-			if err := srv.HTTPServer().ListenAndServe(); err != nil {
-				srv.Logger().Println(err)
-			}
-		} else {
-			srv.Logger().Println("running in secure mode, https only.")
-			srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
-			if err := srv.HTTPServer().ListenAndServeTLS(srv.Config().GetHTTPCertPath(), srv.Config().GetHTTPKeyPath()); err != nil {
-				srv.Logger().Println(err)
-			}
+		srv.Logger().Printf("Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
+		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
+		if err := srv.HTTPServer().ListenAndServe(); err != nil {
+			srv.Logger().Println(err)
 		}
 	}()
 

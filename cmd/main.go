@@ -49,11 +49,12 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	srv.Logger().Print("Configured routes:")
 	srv.Logger().Print(routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		srv.Logger().Printf("Service Revision %s built on %s...", configuration.Commit, configuration.BuildTime)
+		srv.Logger().Printf("Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
 		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
 			srv.Logger().Println(err)

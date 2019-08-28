@@ -77,7 +77,7 @@ func (srv *RegistrationServer) GetRegisteredRoutes() (string, error) {
 	var sb strings.Builder
 	err := srv.router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 
-		sb.WriteString("\nROUTE: ")
+		sb.WriteString("ROUTE: ")
 		pathTemplate, err := route.GetPathTemplate()
 		if err == nil {
 			sb.WriteString("\tPath template: ")
@@ -108,6 +108,7 @@ func (srv *RegistrationServer) GetRegisteredRoutes() (string, error) {
 			sb.WriteString("\n\tMethods: ")
 			sb.WriteString(strings.Join(methods, ","))
 		}
+		sb.WriteString("\n")
 		return nil
 	})
 	return sb.String(), err

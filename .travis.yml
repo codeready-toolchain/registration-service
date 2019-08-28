@@ -7,7 +7,11 @@ env:
 
 go:
   - 1.12.x
+  - tip
 
+before_install:
+  - go get -t -v ./...
+  
 git:
   depth: 1
 
@@ -31,3 +35,6 @@ deploy:
   script: bash docker_push.sh
   on:
     branch: master
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

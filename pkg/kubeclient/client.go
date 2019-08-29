@@ -33,7 +33,7 @@ func getOpenshiftAPIConfig(host string, bearerToken string) rest.Config {
 		Host:        host,
 		BearerToken: bearerToken,
 		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
+			Insecure: false,
 		},
 	}
 }

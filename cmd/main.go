@@ -48,8 +48,7 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	srv.Logger().Print("Configured routes:")
-	srv.Logger().Print(routesToPrint)
+	srv.Logger().Printf("Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {

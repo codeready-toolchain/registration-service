@@ -66,12 +66,5 @@ clean:
 		rm -f pkg/static/generated_assets.go && \
 		rm -f registration-service
 
-test: test-prod
-
-test-dev:
-	@echo TESTING with fs assets...
-	@go test -count=1 -tags dev ./...
-
-test-prod: generate
-	@echo TESTING with bundled assets...
+test: generate
 	go test -count=1 ./...

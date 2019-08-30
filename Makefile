@@ -39,32 +39,41 @@ depend:
 	@echo INSTALLING DEPENDENCIES...
 	@env GO111MODULE=off go get -v $(DEPEND)
 
+# formats go code
 .PHONY: format
 format:
 	gofmt -s -l -w $(shell find  . -name '*.go' | grep -vEf .gofmt_exclude)
 
+# builds docker image
 .PHONY: image
 image:
 	docker build -t kleinhenz/registration-service:0.1 .
 	docker tag kleinhenz/registration-service:0.1 kleinhenz/registration-service:latest
 
+# generates the asset bundle to be packaged with the binary
 generate:
 	go run -tags=dev pkg/static/assets_generate.go
 
+# builds the production binary
 build: build-prod
 
+# buils a development binary that has no bundled assets but reads them
+# from the filesystem. Use only for development.
 build-dev:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		go build -v ${LDFLAGS} -tags dev -o registration-service ${PACKAGE_NAME}/cmd
 
+# builds the production binary with bundled assets
 build-prod: generate
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		go build -v ${LDFLAGS} -o registration-service ${PACKAGE_NAME}/cmd
 
+# cleans up, removes generated asset bundle
 clean:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		rm -f pkg/static/generated_assets.go && \
 		rm -f registration-service
 
+# runs all tests with bundled assets
 test: generate
 	go test -count=1 ./...

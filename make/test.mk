@@ -16,5 +16,3 @@ test: generate
       rm profile.out ; \
     fi ; \
 	done
-
-	@#go test -count=1 -coverprofile=$(COV_DIR)/coverage.txt -covermode=atomic $(shell go list ./... | grep -v /test)

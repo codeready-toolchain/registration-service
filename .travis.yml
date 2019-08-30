@@ -7,6 +7,12 @@ env:
 
 go:
   - 1.12.x
+  - tip
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - go: tip
 
 git:
   depth: 1
@@ -31,3 +37,6 @@ deploy:
   script: bash docker_push.sh
   on:
     branch: master
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

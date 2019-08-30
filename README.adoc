@@ -5,7 +5,7 @@ image:https://godoc.org/github.com/codeready-toolchain/registration-service?stat
 image:https://codecov.io/gh/codeready-toolchain/registration-service/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/codeready-toolchain/registration-service"]
 image:https://travis-ci.org/codeready-toolchain/registration-service.svg?branch=master[TravisCI,link="https://travis-ci.org/codeready-toolchain/registration-service"]
 
-This is the CodeReady Toolchain Registration Service repository.
+This is the CodeReady Toolchain Registration Service repository. It implements the registration flow for the Toolchain SaaS.
 
 == Build
 
@@ -13,14 +13,50 @@ Requires Go version 1.12.6 - download for your development environment https://g
 
 This repository uses https://github.com/golang/go/wiki/Modules[Go modules]. You may need to `export GO111MODULE=on` to turn modules support "on".
 
+To build, execute:
+
+```
+make build
+```
+
+This builds the executable with bundled assets. Only the binary needs to be deployed, all static assets are bundled with the binary.
+
+To just generate the asset bundle, execute:
+
+```
+make generate
+```
+
+This creates the asset bundle in the `static` package. Do not change the asset bundle file(s), changes will be lost on the next build.
+
 == Development
 
-tbd
+To make development on the static content easier, a development binary can be built using:
 
-=== End-to-End tests
+```
+make build-dev
+```
 
-tbd
+The resulting binare *does not use bundled assets* but reads static content directly from `pkg/assets`. *Do not deploy the dev binary*. 
 
-=== VSCode Testing
 
-You need to switch on modules support in the context your VSCode is running in order to get internal testing from within VSCode to work.
+
+=== Tests
+
+Tests are run by executing:
+
+```
+make test
+```
+
+Tests are run with bundled assets, see above.
+
+=== VSCode Testing/Debugging
+
+To use the internal test runner and debug features of VSCode, you need to make sure that VSCode runs in a context where Go Modules are enabled. To do this, run:
+
+```
+export GO111MODULE=on
+```
+
+Before running VSCode from that shell.

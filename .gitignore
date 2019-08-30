@@ -5,7 +5,9 @@ out/
 coverage.txt
 bin/
 tmp/
-static/generated_assets.go
+*.key
+*.crt
+pkg/static/generated_assets.go
 registration-service
 *.key
 *.crt

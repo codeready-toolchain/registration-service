@@ -171,4 +171,3 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
-

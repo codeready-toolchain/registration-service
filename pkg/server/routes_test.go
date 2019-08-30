@@ -66,7 +66,7 @@ func TestStaticContent(t *testing.T) {
 	var statictests = []struct {
 		name    string
 		urlPath string
-		fsPath	string
+		fsPath  string
 		method  string
 		status  int
 	}{
@@ -85,15 +85,15 @@ func TestStaticContent(t *testing.T) {
 			// Check the status code is what we expect.
 			assert.Equal(t, tt.status, rr.Code, "handler returned wrong status code: got %v want %v", rr.Code, tt.status)
 			// Check the response body is what we expect.
-			if tt.fsPath!="" {
+			if tt.fsPath != "" {
 				buf := bytes.NewBuffer(nil)
 				file, err := static.Assets.Open(tt.fsPath)
 				require.NoError(t, err)
 				io.Copy(buf, file)
 				file.Close()
-				assert.Equal(t, buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))			
+				assert.Equal(t, buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))
 			} else {
-				assert.Equal(t, []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))			
+				assert.Equal(t, []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))
 			}
 		})
 	}

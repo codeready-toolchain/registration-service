@@ -1,6 +1,7 @@
 package registrationserver
 
 import (
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -21,12 +22,12 @@ type SpaHandler struct {
 // on the SPA handler. If a file is found, it will be served. If not, the
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
-func (h SpaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h SpaHandler) ServeHTTP(ctx *gin.Context) {
 	// get the absolute path to prevent directory traversal
-	path, err := filepath.Abs(r.URL.Path)
+	path, err := filepath.Abs(ctx.Request.URL.Path)
 	if err != nil {
 		// no absolute path, respond with a 400 bad request and stop
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(ctx.Writer, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -35,12 +36,12 @@ func (h SpaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// file does not exist, redirect to index
 		log.Printf("File %s does not exist.", path)
-		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		http.Redirect(ctx.Writer, ctx.Request, "/index.html", http.StatusSeeOther)
 		return
 	}
 
 	// otherwise, use http.FileServer to serve the static dir
-	http.FileServer(h.Assets).ServeHTTP(w, r)
+	http.FileServer(h.Assets).ServeHTTP(ctx.Writer, ctx.Request)
 }
 
 // SetupRoutes registers handlers for various URL paths. You can call this
@@ -53,15 +54,17 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// please leave it as is.
 		healthService := health.New(srv.logger, srv.Config())
 
-		srv.router.HandleFunc("/api/health", healthService.HealthCheckHandler).
-			Name("health").
-			Methods("GET")
+		v1 := srv.router.Group("/api/v1")
+		{
+			v1.GET("/health", healthService.HealthCheckHandler)
+		}
 
 		// ADD YOUR OWN ROUTES HERE - DON'T FORGET TO ADD A TEST TABLE ENTRY
 
 		// create the route for static content, served from /
 		spa := SpaHandler{Assets: static.Assets}
-		srv.router.PathPrefix("/").Name("static").Methods("GET").Handler(spa)
+
+		srv.router.GET("/", spa.ServeHTTP)
 	})
 	return err
 }

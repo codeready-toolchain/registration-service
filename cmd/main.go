@@ -44,7 +44,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	routesToPrint, err := srv.GetRegisteredRoutes()
+	routesToPrint := srv.GetRegisteredRoutes()
 	if err != nil {
 		panic(err.Error())
 	}

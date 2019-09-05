@@ -21,4 +21,7 @@ func TestServer(t *testing.T) {
 	// check that there are routes registered
 	routes := srv.GetRegisteredRoutes()
 	require.NotEmpty(t, routes)
+
+	// check that Engine() returns the router object
+	require.NotNil(t, srv.Engine())
 }

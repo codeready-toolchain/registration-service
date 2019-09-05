@@ -22,14 +22,16 @@ func TestStaticContent(t *testing.T) {
 
 	// setting up the table test
 	var statictests = []struct {
-		name    string
-		urlPath string
-		fsPath  string
-		method  string
-		status  int
+		name             string
+		urlPath          string
+		fsPath           string
+		expectedContents string
+		method           string
+		status           int
 	}{
-		{"Root", "/", "index.html", "GET", http.StatusOK},
-		{"Path /index.html", "/index.html", "", "GET", http.StatusOK},
+		{"Root", "/", "index.html", "", "GET", http.StatusOK},
+		{"Path /index.html", "/index.html", "", "", "GET", http.StatusOK},
+		{"Path /nonexistent", "/nonexistent", "", "<a href=\"/index.html\">See Other</a>.\n\n", "GET", http.StatusSeeOther},
 	}
 	for _, tt := range statictests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,6 +54,8 @@ func TestStaticContent(t *testing.T) {
 				io.Copy(buf, file)
 				file.Close()
 				assert.Equal(t, buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))
+			} else if tt.expectedContents != "" {
+				require.Equal(t, tt.expectedContents, rr.Body.String())
 			} else {
 				assert.Equal(t, []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))
 			}

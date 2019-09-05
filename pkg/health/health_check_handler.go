@@ -2,6 +2,7 @@ package health
 
 import (
 	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 
@@ -35,18 +36,18 @@ func (srv *Service) getHealthInfo() map[string]interface{} {
 }
 
 // HealthCheckHandler returns a default heath check result.
-func (srv *Service) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (srv *Service) HealthCheckHandler(ctx *gin.Context) {
 	// default handler for system health
-	w.Header().Set("Content-Type", "application/json")
+	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := srv.getHealthInfo()
 	if healthInfo["alive"].(bool) {
-		w.WriteHeader(http.StatusOK)
+		ctx.Writer.WriteHeader(http.StatusOK)
 	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+		ctx.Writer.WriteHeader(http.StatusInternalServerError)
 	}
-	err := json.NewEncoder(w).Encode(healthInfo)
+	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(ctx.Writer, err.Error(), 500)
 		return
 	}
 }

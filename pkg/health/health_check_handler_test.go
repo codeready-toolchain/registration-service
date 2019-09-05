@@ -2,6 +2,7 @@ package health_test
 
 import (
 	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -30,14 +31,15 @@ func TestHealthCheckHandler(t *testing.T) {
 
 	// create handler instance.
 	healthService := health.New(logger, configRegistry)
-	handler := http.HandlerFunc(healthService.HealthCheckHandler)
+	handler := gin.HandlerFunc(healthService.HealthCheckHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(t, rr.Code, http.StatusInternalServerError, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
@@ -57,6 +59,8 @@ func TestHealthCheckHandler(t *testing.T) {
 	t.Run("health in production mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
 
 		// setting production mode
 		configRegistry.GetViperInstance().Set("testingmode", false)
@@ -64,7 +68,7 @@ func TestHealthCheckHandler(t *testing.T) {
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
+		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
@@ -84,10 +88,12 @@ func TestHealthCheckHandler(t *testing.T) {
 	t.Run("revision", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
+		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
@@ -107,10 +113,12 @@ func TestHealthCheckHandler(t *testing.T) {
 	t.Run("build time", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
+		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
@@ -130,10 +138,12 @@ func TestHealthCheckHandler(t *testing.T) {
 	t.Run("start time", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler.ServeHTTP(rr, req)
+		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)

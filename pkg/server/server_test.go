@@ -18,8 +18,10 @@ func TestServer(t *testing.T) {
 	err = srv.SetupRoutes()
 	require.NoError(t, err)
 
-	// check if there is an error when retriving the routes,
-	// note that the actual routes are tested elsewhere.
-	_, err = srv.GetRegisteredRoutes()
-	require.NoError(t, err)
+	// check that there are routes registered
+	routes := srv.GetRegisteredRoutes()
+	require.NotEmpty(t, routes)
+
+	// check that Engine() returns the router object
+	require.NotNil(t, srv.Engine())
 }

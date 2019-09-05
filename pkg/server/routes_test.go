@@ -15,48 +15,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 )
 
-func TestRoutes(t *testing.T) {
-	// we're using the example config for the configuration here as the
-	// specific config params do not matter for testing the routes setup.
-	srv, err := registrationserver.New("../../example-config.yml")
-	require.NoError(t, err)
-
-	// setting up the routes
-	srv.SetupRoutes()
-
-	// setting up the table test
-	/*var routetests = []struct {
-		path   string
-		method string
-	}{
-		{"/api/v1/health", "GET"},
-		{"/", "GET"},
-	}*/
-
-	// This doesn't seem to be a particularly useful test - discuss removing it
-	/*
-		for _, tt := range routetests {
-			t.Run(tt.pathTemplate, func(t *testing.T) {
-				route := srv.Engine().GetRoute(tt.name)
-				pathTemplate, err := route.GetPathTemplate()
-				require.NoError(t, err)
-				assert.Equal(t, tt.pathTemplate, pathTemplate, "pathTemplate for route '%s' wrong: got %s want %s", tt.name, pathTemplate, tt.pathTemplate)
-				pathRegexp, err := route.GetPathRegexp()
-				require.NoError(t, err)
-				assert.Equal(t, tt.pathRegexp, pathRegexp, "pathRegexp '%s' wrong: got %s want %s", tt.name, pathRegexp, tt.pathRegexp)
-				queriesTemplates, err := route.GetQueriesTemplates()
-				require.NoError(t, err)
-				assert.Equal(t, tt.queriesTemplates, queriesTemplates, "queriesTemplates for route '%s' wrong: got %s want %s", tt.name, queriesTemplates, tt.queriesTemplates)
-				queriesRegexps, err := route.GetQueriesRegexp()
-				require.NoError(t, err)
-				assert.Equal(t, tt.queriesRegexps, queriesRegexps, "queriesRegexps for route '%s' wrong: got %s want %s", tt.name, queriesRegexps, tt.queriesRegexps)
-				methods, err := route.GetMethods()
-				require.NoError(t, err)
-				assert.Equal(t, tt.methods, methods, "methods for route '%s' wrong: got %s want %s", tt.name, methods, tt.methods)
-			})
-		}*/
-}
-
 func TestStaticContent(t *testing.T) {
 
 	// create handler instance.

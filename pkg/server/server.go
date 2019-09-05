@@ -2,6 +2,7 @@ package registrationserver
 
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	"io"
@@ -43,9 +44,9 @@ func New(configFilePath string) (*RegistrationServer, error) {
 		IdleTimeout:  srv.config.GetHTTPIdleTimeout(),
 		Handler:      srv.router,
 	}
-	//if srv.config.GetHTTPCompressResponses() {
-	//		srv.router.Use(handlers.CompressHandler)
-	//	}
+	if srv.config.GetHTTPCompressResponses() {
+		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
+	}
 	return srv, nil
 }
 

@@ -45,9 +45,6 @@ func main() {
 	}
 
 	routesToPrint := srv.GetRegisteredRoutes()
-	if err != nil {
-		panic(err.Error())
-	}
 	srv.Logger().Printf("Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown

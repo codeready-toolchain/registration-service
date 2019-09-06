@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/health"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	//"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 )
 
@@ -54,12 +54,16 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
 		healthService := health.New(srv.logger, srv.Config())
-		signupService := signup.New(srv.logger, srv.Config())
+		// TODO uncomment these once the services are available
+		//signupService := signup.NewSignupService(srv.logger, srv.Config())
+		//signupCallbackService := signup.NewSignupCallbackService(srv.logger, srv.Config())
 
 		v1 := srv.router.Group("/api/v1")
 		{
 			v1.GET("/health", healthService.HealthCheckHandler)
-			v1.POST("/signup", signupService.HandleRequest)
+			// TODO uncomment these once the services are available
+			//v1.GET("/signup", signupService.HandleRequest)
+			//v1.POST("/signup_callback", signupCallbackService.HandleRequest)
 		}
 
 		// create the route for static content, served from /

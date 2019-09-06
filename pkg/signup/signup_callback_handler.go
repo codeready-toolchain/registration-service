@@ -8,22 +8,22 @@ import (
 	"net/http"
 )
 
-// SignupService implements the signup endpoint, which is invoked for new user registrations.
-type SignupService struct {
+// SignupCallbackService implements the signup callback endpoint.
+type SignupCallbackService struct {
 	config *configuration.Registry
 	logger *log.Logger
 }
 
-// NewSignupService returns a new SignupService instance.
-func NewSignupService(logger *log.Logger, config *configuration.Registry) *SignupService {
-	return &SignupService{
+// NewSignupCallbackService returns a new SignupCallbackService instance.
+func NewSignupCallbackService(logger *log.Logger, config *configuration.Registry) *SignupCallbackService {
+	return &SignupCallbackService{
 		logger: logger,
 		config: config,
 	}
 }
 
 // HandleRequest returns a default heath check result.
-func (srv *SignupService) HandleRequest(ctx *gin.Context) {
+func (srv *SignupCallbackService) HandleRequest(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)

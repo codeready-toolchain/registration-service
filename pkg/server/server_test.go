@@ -3,9 +3,8 @@ package registrationserver_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer(t *testing.T) {

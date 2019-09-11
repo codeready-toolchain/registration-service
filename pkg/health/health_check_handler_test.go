@@ -2,7 +2,6 @@ package health_test
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/health"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ import (
 func TestHealthCheckHandler(t *testing.T) {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest("GET", "/api/v1/health", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	require.NoError(t, err)
 
 	// create logger and registry.
@@ -30,8 +30,8 @@ func TestHealthCheckHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// create handler instance.
-	healthService := health.New(logger, configRegistry)
-	handler := gin.HandlerFunc(healthService.HealthCheckHandler)
+	healthService := health.NewHealthCheckService(logger, configRegistry)
+	handler := gin.HandlerFunc(healthService.GetHealthCheckHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

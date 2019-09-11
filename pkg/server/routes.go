@@ -1,14 +1,15 @@
 package registrationserver
 
 import (
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/health"
-	//"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/keycloak"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	"github.com/gin-gonic/gin"
 )
 
 // SpaHandler implements the http.Handler interface, so we can use it
@@ -53,17 +54,15 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
-		healthService := health.New(srv.logger, srv.Config())
-		// TODO uncomment these once the services are available
-		//signupService := signup.NewSignupService(srv.logger, srv.Config())
-		//signupCallbackService := signup.NewSignupCallbackService(srv.logger, srv.Config())
+		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
+		keycloakService := keycloak.NewKeycloakService(srv.logger, srv.Config())
+		signupService := signup.NewSignupService(srv.logger, srv.Config())
 
 		v1 := srv.router.Group("/api/v1")
 		{
-			v1.GET("/health", healthService.HealthCheckHandler)
-			// TODO uncomment these once the services are available
-			//v1.GET("/signup", signupService.HandleRequest)
-			//v1.POST("/signup_callback", signupCallbackService.HandleRequest)
+			v1.GET("/health", healthService.GetHealthCheckHandler)
+			v1.GET("/keycloak", keycloakService.GetKeycloakHandler)
+			v1.POST("/signup", signupService.CreateSignupHandler)
 		}
 
 		// create the route for static content, served from /

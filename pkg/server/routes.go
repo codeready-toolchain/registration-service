@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/health"
-	"github.com/codeready-toolchain/registration-service/pkg/keycloak"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 	"github.com/gin-gonic/gin"
@@ -25,10 +24,10 @@ type SpaHandler struct {
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
 func (h SpaHandler) ServeHTTP(ctx *gin.Context) {
-	// Get the absolute path to prevent directory traversal.
+	// Get the absolute path to prevent directory traversal
 	path, err := filepath.Abs(ctx.Request.URL.Path)
 	if err != nil {
-		// No absolute path, respond with a 400 bad request and stop.
+		// No absolute path, respond with a 400 bad request and stop
 		http.Error(ctx.Writer, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -55,13 +54,11 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
 		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
-		keycloakService := keycloak.NewKeycloakService(srv.logger, srv.Config())
 		signupService := signup.NewSignupService(srv.logger, srv.Config())
 
 		v1 := srv.router.Group("/api/v1")
 		{
 			v1.GET("/health", healthService.GetHealthCheckHandler)
-			v1.GET("/keycloak", keycloakService.GetKeycloakHandler)
 			v1.POST("/signup", signupService.CreateSignupHandler)
 		}
 

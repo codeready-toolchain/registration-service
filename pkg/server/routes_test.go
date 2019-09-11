@@ -16,10 +16,10 @@ import (
 
 func TestStaticContent(t *testing.T) {
 
-	// create handler instance.
+	// Create handler instance.
 	spa := registrationserver.SpaHandler{Assets: static.Assets}
 
-	// setting up the table test
+	// Setting up the table test
 	var statictests = []struct {
 		name             string
 		urlPath          string

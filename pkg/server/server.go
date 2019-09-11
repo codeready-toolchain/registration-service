@@ -51,22 +51,22 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	return srv, nil
 }
 
-// Logger returns the app server's log object
+// Logger returns the app server's log object.
 func (srv *RegistrationServer) Logger() *log.Logger {
 	return srv.logger
 }
 
-// Config returns the app server's config object
+// Config returns the app server's config object.
 func (srv *RegistrationServer) Config() *configuration.Registry {
 	return srv.config
 }
 
-// HTTPServer returns the app server's HTTP server
+// HTTPServer returns the app server's HTTP server.
 func (srv *RegistrationServer) HTTPServer() *http.Server {
 	return srv.httpServer
 }
 
-// Router returns the app server's HTTP router
+// Router returns the app server's HTTP router.
 func (srv *RegistrationServer) Engine() *gin.Engine {
 	return srv.router
 }

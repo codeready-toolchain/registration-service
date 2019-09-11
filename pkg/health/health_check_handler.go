@@ -37,7 +37,7 @@ func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
 
 // HealthCheckHandler returns a default heath check result.
 func (srv *HealthCheckService) GetHealthCheckHandler(ctx *gin.Context) {
-	// default handler for system health
+	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := srv.getHealthInfo()
 	if healthInfo["alive"].(bool) {

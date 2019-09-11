@@ -21,15 +21,15 @@ func TestHealthCheckHandler(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	require.NoError(t, err)
 
-	// create logger and registry.
+	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()
 
-	// set the config for testing mode, the handler may use this.
+	// Set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// create handler instance.
+	// Create handler instance.
 	healthService := health.NewHealthCheckService(logger, configRegistry)
 	handler := gin.HandlerFunc(healthService.GetHealthCheckHandler)
 
@@ -62,7 +62,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		// setting production mode
+		// Setting production mode
 		configRegistry.GetViperInstance().Set("testingmode", false)
 		assert.False(t, configRegistry.IsTestingMode(), "testing mode not set correctly to false")
 

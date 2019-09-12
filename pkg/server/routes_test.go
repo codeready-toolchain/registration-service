@@ -31,6 +31,7 @@ func TestStaticContent(t *testing.T) {
 		{"Root", "/", "index.html", "", "GET", http.StatusOK},
 		{"Path /index.html", "/index.html", "", "", "GET", http.StatusOK},
 		{"Path /nonexistent", "/nonexistent", "", "<a href=\"/index.html\">See Other</a>.\n\n", "GET", http.StatusSeeOther},
+		{"Favicon", "/favicon.ico", "/favicon.ico", "", "GET", http.StatusOK},
 	}
 	for _, tt := range statictests {
 		t.Run(tt.name, func(t *testing.T) {

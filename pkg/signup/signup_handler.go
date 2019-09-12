@@ -23,8 +23,8 @@ func NewSignupService(logger *log.Logger, config *configuration.Registry) *Signu
 	}
 }
 
-// CreateSignupHandler returns signup info.
-func (srv *SignupService) CreateSignupHandler(ctx *gin.Context) {
+// PostSignupHandler returns signup info.
+func (srv *SignupService) PostSignupHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)

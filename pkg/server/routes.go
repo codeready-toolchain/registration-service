@@ -59,7 +59,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		v1 := srv.router.Group("/api/v1")
 		{
 			v1.GET("/health", healthService.GetHealthCheckHandler)
-			v1.POST("/signup", signupService.CreateSignupHandler)
+			v1.POST("/signup", signupService.PostSignupHandler)
 		}
 
 		// Create the route for static content, served from /

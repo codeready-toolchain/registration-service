@@ -30,7 +30,7 @@ func TestSignupHandler(t *testing.T) {
 
 	// Create handler instance.
 	signupService := signup.NewSignupService(logger, configRegistry)
-	handler := gin.HandlerFunc(signupService.CreateSignupHandler)
+	handler := gin.HandlerFunc(signupService.PostSignupHandler)
 
 	t.Run("signup", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

@@ -11,11 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SpaHandler implements the http.Handler interface, so we can use it
+// StaticHandler implements the http.Handler interface, so we can use it
 // to respond to HTTP requests. The path to the static directory and
 // path to the index file within that static directory are used to
 // serve the SPA in the given static directory.
-type SpaHandler struct {
+type StaticHandler struct {
 	Assets http.FileSystem
 }
 
@@ -23,7 +23,7 @@ type SpaHandler struct {
 // on the SPA handler. If a file is found, it will be served. If not, the
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
-func (h SpaHandler) ServeHTTP(ctx *gin.Context) {
+func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	// Get the absolute path to prevent directory traversal
 	path, err := filepath.Abs(ctx.Request.URL.Path)
 	if err != nil {
@@ -63,9 +63,9 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		}
 
 		// Create the route for static content, served from /
-		spa := SpaHandler{Assets: static.Assets}
-
-		srv.router.GET("/", spa.ServeHTTP)
+		static := StaticHandler{Assets: static.Assets}
+		// capturing all non-matching routes, assuming them to be static content
+		srv.router.NoRoute(static.ServeHTTP)
 	})
 	return err
 }

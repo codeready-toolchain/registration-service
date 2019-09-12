@@ -9,22 +9,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SignupService implements the signup endpoint, which is invoked for new user registrations.
-type SignupService struct {
+// Service implements the signup endpoint, which is invoked for new user registrations.
+type Service struct {
 	config *configuration.Registry
 	logger *log.Logger
 }
 
-// NewSignupService returns a new SignupService instance.
-func NewSignupService(logger *log.Logger, config *configuration.Registry) *SignupService {
-	return &SignupService{
+// New returns a new Service instance.
+func New(logger *log.Logger, config *configuration.Registry) *Service {
+	return &Service{
 		logger: logger,
 		config: config,
 	}
 }
 
 // PostSignupHandler returns signup info.
-func (srv *SignupService) PostSignupHandler(ctx *gin.Context) {
+func (srv *Service) PostSignupHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)

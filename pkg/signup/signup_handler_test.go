@@ -29,7 +29,7 @@ func TestSignupHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	signupService := signup.NewSignupService(logger, configRegistry)
+	signupService := signup.New(logger, configRegistry)
 	handler := gin.HandlerFunc(signupService.PostSignupHandler)
 
 	t.Run("signup", func(t *testing.T) {

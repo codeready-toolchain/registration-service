@@ -10,7 +10,7 @@ import (
 func TestServer(t *testing.T) {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv, err := registrationserver.New("../../example-config.yml")
+	srv, err := server.New("../../example-config.yml")
 	require.NoError(t, err)
 
 	// Setting up the routes.

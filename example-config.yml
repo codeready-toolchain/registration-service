@@ -7,3 +7,9 @@ http.compress: false
 http.idle_timeout: "15s"
 http.write_timeout: "15s"
 http.read_timeout: "15s"
+auth_client.config.realm: "myRealm"
+auth_client.config.auth-server-url: "https://auth.service/auth"
+auth_client.config.ssl-required: "none"
+auth_client.config.resource: "registrationService"
+auth_client.config.public-client: true
+auth_client.config.confidential-port: 0

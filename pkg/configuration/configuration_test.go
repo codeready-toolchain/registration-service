@@ -2,6 +2,7 @@ package configuration_test
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strconv"
 	"testing"
@@ -295,4 +296,188 @@ func TestIsTestingMode(t *testing.T) {
 		config := getFileConfiguration(t, `testingmode: "`+strconv.FormatBool(newVal)+`"`)
 		assert.Equal(t, newVal, config.IsTestingMode())
 	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		newVal := !configuration.DefaultTestingMode
+		os.Setenv(key, strconv.FormatBool(newVal))
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.IsTestingMode())
+	})
+}
+
+func TestGetAuthClientConfig(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_AUTH-SERVER-URL"
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigAuthServerURL, config.GetAuthClientConfigAuthServerURL())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.config.auth-server-url: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigAuthServerURL())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigAuthServerURL())
+	})
+}
+
+func TestGetAuthClientConfigRealm(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_REALM"
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigRealm, config.GetAuthClientConfigRealm())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.config.realm: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigRealm())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigRealm())
+	})
+}
+
+func TestGetAuthClientConfigSSLRequired(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_SSL-REQUIRED"
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigSSLRequired, config.GetAuthClientConfigSSLRequired())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.config.ssl-required: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigSSLRequired())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigSSLRequired())
+	})
+}
+
+func TestGetAuthClientConfigResource(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RESOURCE"
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigResource, config.GetAuthClientConfigResource())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.config.resource: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigResource())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigResource())
+	})
+}
+
+func TestGetAuthClientConfigPublicResource(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_PUBLIC-CLIENT"
+	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	defer resetFunc()
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigPublicClient, config.IsAuthClientConfigPublicClient())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		newVal := !configuration.DefaultAuthClientConfigPublicClient
+		config := getFileConfiguration(t, `auth_client.config.public-client: "`+strconv.FormatBool(newVal)+`"`)
+		assert.Equal(t, newVal, config.IsAuthClientConfigPublicClient())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		newVal := !configuration.DefaultAuthClientConfigPublicClient
+		os.Setenv(key, strconv.FormatBool(newVal))
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.IsAuthClientConfigPublicClient())
+	})
+}
+
+func TestGetAuthClientConfigConfidentialPort(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONFIDENTIAL-PORT"
+	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	defer resetFunc()
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigConfidentialPort, config.GetAuthClientConfigConfidentialPort())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		newVal := rand.Int63n(100)
+		config := getFileConfiguration(t, `auth_client.config.confidential-port: "`+strconv.FormatInt(newVal, 10)+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigConfidentialPort())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		newVal := rand.Int63n(100)
+		os.Setenv(key, strconv.FormatInt(newVal, 10))
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigConfidentialPort())
+	})
+
 }

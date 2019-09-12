@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/health"
+	"github.com/codeready-toolchain/registration-service/pkg/authconfig"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 	"github.com/gin-gonic/gin"
@@ -54,11 +55,13 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
 		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
+		authconfigService := authconfig.New(srv.logger, srv.Config())
 		signupService := signup.NewSignupService(srv.logger, srv.Config())
 
 		v1 := srv.router.Group("/api/v1")
 		{
 			v1.GET("/health", healthService.GetHealthCheckHandler)
+			v1.GET("/authconfig", authconfigService.AuthconfigHandler)
 			v1.POST("/signup", signupService.PostSignupHandler)
 		}
 

@@ -34,7 +34,7 @@ func main() {
 		}
 	}
 
-	srv, err := registrationserver.New(configFilePath)
+	srv, err := server.New(configFilePath)
 	if err != nil {
 		panic(err.Error())
 	}

@@ -1,4 +1,4 @@
-package registrationserver_test
+package server_test
 
 import (
 	"bytes"

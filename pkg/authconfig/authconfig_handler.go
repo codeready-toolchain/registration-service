@@ -24,11 +24,23 @@ func New(logger *log.Logger, config *configuration.Registry) *Service {
 	}
 }
 
+func (srv *Service) getAuthClientConfig() map[string]interface{} {
+	m := make(map[string]interface{})
+	m["realm"] = srv.config.GetAuthClientConfigRealm()
+	m["auth-server-url"] = srv.config.GetAuthClientConfigAuthServerURL()
+	m["ssl-required"] = srv.config.GetAuthClientConfigSSLRequired()
+	m["resource"] = srv.config.GetAuthClientConfigResource()
+	m["public-client"] = srv.config.IsAuthClientConfigPublicClient()
+	m["confidential-port"] = srv.config.GetAuthClientConfigConfidentialPort()
+	return m
+}
+
 // AuthconfigHandler returns signup info.
 func (srv *Service) AuthconfigHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-
-	err := json.NewEncoder(ctx.Writer).Encode(nil)
+	ctx.Writer.WriteHeader(http.StatusOK)
+	authClientConfig := srv.getAuthClientConfig()
+	err := json.NewEncoder(ctx.Writer).Encode(authClientConfig)
 	if err != nil {
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return

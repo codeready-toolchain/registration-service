@@ -11,29 +11,29 @@ import (
 )
 
 var (
-	// Commit current build commit set by build script
+	// Commit current build commit set by build script.
 	Commit = "0"
 	// BuildTime set by build script in ISO 8601 (UTC) format:
 	// YYYY-MM-DDThh:mm:ssTZD (see https://www.w3.org/TR/NOTE-datetime for
-	// details)
+	// details).
 	BuildTime = "0"
-	// StartTime in ISO 8601 (UTC) format
+	// StartTime in ISO 8601 (UTC) format.
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 )
 
 const (
-	// EnvPrefix will be used for environment variable name prefixing
+	// EnvPrefix will be used for environment variable name prefixing.
 	EnvPrefix = "REGISTRATION"
 
 	// Constants for viper variable names. Will be used to set
-	// default values as well as to get each value
+	// default values as well as to get each value.
 	varHTTPAddress = "http.address"
 	// DefaultHTTPAddress is the address and port string that your service will
 	// be exported to by default.
 	DefaultHTTPAddress = "0.0.0.0:8080"
 
 	varHTTPIdleTimeout = "http.idle_timeout"
-	// DefaultHTTPIdleTimeout specifies the default timeout for HTTP idling
+	// DefaultHTTPIdleTimeout specifies the default timeout for HTTP idling.
 	DefaultHTTPIdleTimeout = time.Second * 15
 
 	varHTTPCompressResponses = "http.compress"
@@ -51,19 +51,19 @@ const (
 
 	varGracefulTimeout = "graceful_timeout"
 	// DefaultGracefulTimeout is the duration for which the server gracefully
-	// wait for existing connections to finish - e.g. 15s or 1m
+	// wait for existing connections to finish - e.g. 15s or 1m.
 	DefaultGracefulTimeout = time.Second * 15
 
 	varHTTPWriteTimeout = "http.write_timeout"
-	// DefaultHTTPWriteTimeout specifies the default timeout for HTTP writes
+	// DefaultHTTPWriteTimeout specifies the default timeout for HTTP writes.
 	DefaultHTTPWriteTimeout = time.Second * 15
 
 	varHTTPReadTimeout = "http.read_timeout"
-	// DefaultHTTPReadTimeout specifies the default timeout for HTTP reads
+	// DefaultHTTPReadTimeout specifies the default timeout for HTTP reads.
 	DefaultHTTPReadTimeout = time.Second * 15
 
 	varTestingMode = "testingmode"
-	// DefaultTestingMode specifies whether the services should run in testing mode
+	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 )
 
@@ -95,7 +95,7 @@ func New(configFilePath string) (*Registry, error) {
 		c.v.SetConfigType("yaml")
 		c.v.SetConfigFile(configFilePath)
 		err := c.v.ReadInConfig() // Find and read the config file
-		if err != nil {           // Handle errors reading the config file
+		if err != nil {           // Handle errors reading the config file.
 			return nil, errs.Wrap(err, "failed to read config file")
 		}
 	}
@@ -122,7 +122,7 @@ func (c *Registry) setConfigDefaults() {
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
-// environment variable) that the app-server binds to (e.g. "0.0.0.0:8080")
+// environment variable) that the app-server binds to (e.g. "0.0.0.0:8080").
 func (c *Registry) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }
@@ -133,41 +133,41 @@ func (c *Registry) GetHTTPCompressResponses() bool {
 	return c.v.GetBool(varHTTPCompressResponses)
 }
 
-// GetHTTPWriteTimeout returns the duration for which
+// GetHTTPWriteTimeout returns the duration for the write timeout.
 func (c *Registry) GetHTTPWriteTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPWriteTimeout)
 }
 
-// GetHTTPReadTimeout returns the duration for which
+// GetHTTPReadTimeout returns the duration for the read timeout.
 func (c *Registry) GetHTTPReadTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPReadTimeout)
 }
 
-// GetHTTPIdleTimeout returns the duration for which
+// GetHTTPIdleTimeout returns the duration for the idle timeout.
 func (c *Registry) GetHTTPIdleTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPIdleTimeout)
 }
 
 // GetLogLevel returns the loggging level (as set via config file or environment
-// variable)
+// variable).
 func (c *Registry) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
 }
 
 // IsLogJSON returns if we should log json format (as set via config file or
-// environment variable)
+// environment variable).
 func (c *Registry) IsLogJSON() bool {
 	return c.v.GetBool(varLogJSON)
 }
 
 // GetGracefulTimeout returns the duration for which the server gracefully wait
-// for existing connections to finish - e.g. 15s or 1m
+// for existing connections to finish - e.g. 15s or 1m.
 func (c *Registry) GetGracefulTimeout() time.Duration {
 	return c.v.GetDuration(varGracefulTimeout)
 }
 
 // IsTestingMode returns if the service should run in testing mode (as set via
-// config file or environment variable)
+// config file or environment variable).
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }

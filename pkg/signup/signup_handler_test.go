@@ -1,35 +1,36 @@
 package signup_test
 
 import (
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignupHandler(t *testing.T) {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest("GET", "/api/v1/signup", nil)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup", nil)
 	require.NoError(t, err)
 
-	// create logger and registry.
+	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()
 
-	// set the config for testing mode, the handler may use this.
+	// Set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// create handler instance.
+	// Create handler instance.
 	signupService := signup.NewSignupService(logger, configRegistry)
-	handler := gin.HandlerFunc(signupService.HandleRequest)
+	handler := gin.HandlerFunc(signupService.PostSignupHandler)
 
 	t.Run("signup", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

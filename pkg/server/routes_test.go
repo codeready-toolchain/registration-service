@@ -2,25 +2,24 @@ package registrationserver_test
 
 import (
 	"bytes"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStaticContent(t *testing.T) {
 
-	// create handler instance.
+	// Create handler instance.
 	spa := registrationserver.SpaHandler{Assets: static.Assets}
 
-	// setting up the table test
+	// Setting up the table test
 	var statictests = []struct {
 		name             string
 		urlPath          string

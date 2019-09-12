@@ -2,29 +2,29 @@ package health
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"log"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/gin-gonic/gin"
 )
 
-// Service implements the service health endpoint.
-type Service struct {
+// HealthCheckService implements the service health endpoint.
+type HealthCheckService struct {
 	config *configuration.Registry
 	logger *log.Logger
 }
 
-// New returns a new healthService instance.
-func New(logger *log.Logger, config *configuration.Registry) *Service {
-	r := new(Service)
-	r.logger = logger
-	r.config = config
-	return r
+// NewHealthCheckService returns a new HealthCheckService instance.
+func NewHealthCheckService(logger *log.Logger, config *configuration.Registry) *HealthCheckService {
+	return &HealthCheckService{
+		logger: logger,
+		config: config,
+	}
 }
 
 // getHealthInfo returns the health info.
-func (srv *Service) getHealthInfo() map[string]interface{} {
+func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
 	m := make(map[string]interface{})
 	// TODO: this need to get actual health info.
 	m["alive"] = !srv.config.IsTestingMode()
@@ -36,8 +36,8 @@ func (srv *Service) getHealthInfo() map[string]interface{} {
 }
 
 // HealthCheckHandler returns a default heath check result.
-func (srv *Service) HealthCheckHandler(ctx *gin.Context) {
-	// default handler for system health
+func (srv *HealthCheckService) GetHealthCheckHandler(ctx *gin.Context) {
+	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := srv.getHealthInfo()
 	if healthInfo["alive"].(bool) {
@@ -47,7 +47,7 @@ func (srv *Service) HealthCheckHandler(ctx *gin.Context) {
 	}
 	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		http.Error(ctx.Writer, err.Error(), 500)
+		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

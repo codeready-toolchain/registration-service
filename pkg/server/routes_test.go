@@ -17,7 +17,7 @@ import (
 func TestStaticContent(t *testing.T) {
 
 	// Create handler instance.
-	spa := registrationserver.SpaHandler{Assets: static.Assets}
+	static := registrationserver.StaticHandler{Assets: static.Assets}
 
 	// Setting up the table test
 	var statictests = []struct {
@@ -31,6 +31,7 @@ func TestStaticContent(t *testing.T) {
 		{"Root", "/", "index.html", "", "GET", http.StatusOK},
 		{"Path /index.html", "/index.html", "", "", "GET", http.StatusOK},
 		{"Path /nonexistent", "/nonexistent", "", "<a href=\"/index.html\">See Other</a>.\n\n", "GET", http.StatusSeeOther},
+		{"Favicon", "/favicon.ico", "/favicon.ico", "", "GET", http.StatusOK},
 	}
 	for _, tt := range statictests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -42,7 +43,7 @@ func TestStaticContent(t *testing.T) {
 			ctx.Request = req
 			// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 			// directly and pass in our Request and ResponseRecorder.
-			spa.ServeHTTP(ctx)
+			static.ServeHTTP(ctx)
 			// Check the status code is what we expect.
 			assert.Equal(t, tt.status, rr.Code, "handler returned wrong status code: got %v want %v", rr.Code, tt.status)
 			// Check the response body is what we expect.

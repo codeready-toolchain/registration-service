@@ -1,4 +1,4 @@
-package registrationserver
+package server
 
 import (
 	"io"

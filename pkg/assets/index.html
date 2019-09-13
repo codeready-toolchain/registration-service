@@ -1,3 +1,46 @@
+<head>
+  <script type="text/javascript">
+
+  // this needs to be retrieved from the backend as part of the
+  // auth configuration (see https://github.com/codeready-toolchain/registration-service/pull/17)
+  var authLibraryURL="http://foo/foo2.js"
+
+  // this loads the js library at location 'url' dynamically and
+  // calls 'cbSuccess' when the library was loaded successfully
+  // and 'cbError' when there was an error loading the library.
+  function loadAuthLibrary(url, cbSuccess, cbError) {
+    var script = document.createElement('script');
+    script.setAttribute('src', url);
+    script.setAttribute('type', 'text/javascript');
+    var loaded = false;
+    var loadFunction = function () {
+      if (loaded) return;
+      loaded = true;
+      cbSuccess();
+    };
+    var errorFunction = function (error) {
+      if (loaded) return;
+      cbError(error)
+    };
+    script.onerror = errorFunction;
+    script.onload = loadFunction;
+    script.onreadystatechange = loadFunction;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  };
+
+  // load   
+  loadAuthLibrary(authLibraryURL, function() {
+    // success
+    alert("Library load success!")
+    // do something with the library
+    fooBar()
+  }, function(error) {
+    // error
+    alert("Library load error!")
+    // do something with the error
+  });
+</script>
+</head>
 <body>
   <h1>Hello World</h1>
 </body>

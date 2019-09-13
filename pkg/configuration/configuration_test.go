@@ -296,3 +296,35 @@ func TestIsTestingMode(t *testing.T) {
 		assert.Equal(t, newVal, config.IsTestingMode())
 	})
 }
+
+func TestGetAuthClientLibraryURL(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_LIBRARY_URL"
+	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	defer resetFunc()
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientLibraryURL, config.GetAuthClientLibraryURL())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.library_url: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientLibraryURL())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientLibraryURL())
+	})
+}

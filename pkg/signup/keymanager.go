@@ -25,6 +25,7 @@ type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
 }
 
+// KeyManager manages the public keys for token validation.
 type KeyManager struct {
 	config *configuration.Registry
 	logger *log.Logger
@@ -33,13 +34,34 @@ type KeyManager struct {
 
 // NewKeyManager creates a new KeyManager and retrieves the public keys from the given URL.
 func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyManager, error) {
+	if logger == nil {
+		return nil, errors.New("no logger given when creating KeyManager")
+	}
+	if config == nil {
+		return nil, errors.New("no config given when creating KeyManager")
+	}
+	isTesting := config.IsTestingMode()
 	keysEndpointURL := config.GetAuthClientPublicKeysURL()
 	km := &KeyManager{
 		logger: logger,
 		config: config,
+		keyMap: make(map[string]*rsa.PublicKey),
 	}
 	// fetch raw keys
-	keys, err := km.fetchKeys(keysEndpointURL)
+	var keys []*PublicKey
+	var err error
+	if !isTesting {
+		keys, err = km.fetchKeys(keysEndpointURL)	
+	} else {
+		keysRaw := config.GetViperInstance().Get("testkeys")
+		if keysRaw != nil {
+			keysStr, ok := keysRaw.(string)
+			if !ok {
+				return nil, errors.New("error casting testkeys to string")
+			}
+			keys, err = km.fetchKeysFromBytes([]byte(keysStr))	
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +117,17 @@ func (km *KeyManager) unmarshalKey(jsonData []byte) (*PublicKey, error) {
 	return &PublicKey{key.KeyID, rsaKey}, nil
 }
 
+// unmarshalls the keys from a byte array.
+func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error) {
+	keys, err := km.unmarshalKeys(keysBytes)
+	if err != nil {
+		return nil, err
+	}
+	km.logger.Println(len(keys), "public keys loaded")
+	// return the retrieved keys
+	return keys, nil
+}
+
 // fetchKeys fetches the keys from the given URL, unmarshalling them.
 func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// use httpClient to perform request
@@ -135,14 +168,5 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 		return nil, errors.New("unable to obtain public keys from remote service")
 	}
 	// unmarshal the keys
-	keys, err := km.unmarshalKeys([]byte(bodyString))
-	if err != nil {
-		return nil, err
-	}
-	km.logger.Println(map[string]interface{}{
-		"url":            keysEndpointURL,
-		"number_of_keys": len(keys),
-	}, "public keys loaded")
-	// return the retrieved keys
-	return keys, nil
+	return km.fetchKeysFromBytes([]byte(bodyString))
 }

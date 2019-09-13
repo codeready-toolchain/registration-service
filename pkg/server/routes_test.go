@@ -1,4 +1,4 @@
-package registrationserver_test
+package server_test
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ import (
 func TestStaticContent(t *testing.T) {
 
 	// Create handler instance.
-	static := registrationserver.StaticHandler{Assets: static.Assets}
+	static := server.StaticHandler{Assets: static.Assets}
 
 	// Setting up the table test
 	var statictests = []struct {

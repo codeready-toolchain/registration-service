@@ -5,22 +5,31 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-gonic/gin"
+
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
 // SignupService implements the signup endpoint, which is invoked for new user registrations.
 type SignupService struct {
 	config *configuration.Registry
 	logger *log.Logger
+	keyManager *KeyManager
 }
 
 // NewSignupService returns a new SignupService instance.
-func NewSignupService(logger *log.Logger, config *configuration.Registry) *SignupService {
-	return &SignupService{
+func NewSignupService(logger *log.Logger, config *configuration.Registry) (*SignupService, error) {
+	service := &SignupService{
 		logger: logger,
 		config: config,
 	}
+	// create new KeyManager
+	keyManager, err := NewKeyManager(logger, config)
+	service.keyManager = keyManager
+	if err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
 // PostSignupHandler returns signup info.

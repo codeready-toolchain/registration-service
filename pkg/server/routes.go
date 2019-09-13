@@ -54,8 +54,12 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
 		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
-		signupService := signup.NewSignupService(srv.logger, srv.Config())
-
+		signupService, err := signup.NewSignupService(srv.logger, srv.Config())
+		if err != nil {
+			// error creating signup service, bail out.
+			log.Fatal(err)
+		}
+		
 		v1 := srv.router.Group("/api/v1")
 		{
 			v1.GET("/health", healthService.GetHealthCheckHandler)

@@ -40,11 +40,13 @@ func (srv *Service) AuthconfigHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeader(http.StatusOK)
 	configStr := srv.config.GetAuthClientConfigAuthJSON()
  	if !srv.isJSON(configStr) {
+		srv.logger.Println("config JSON not valid, responding with server error.")
 		http.Error(ctx.Writer, "auth client config is in wrong format (json unmarshal failed)", http.StatusInternalServerError)
 		return
 	}
 	_, err := ctx.Writer.WriteString(srv.config.GetAuthClientConfigAuthJSON())
 	if err != nil {
+		srv.logger.Println("error writing response body", err.Error())
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return
 	}	

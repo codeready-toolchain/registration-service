@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+
+	"github.com/gin-gonic/gin"
 )
 
 // SignupService implements the signup endpoint, which is invoked for new user registrations.

@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+
 	"gopkg.in/square/go-jose.v2"
 )
 
@@ -51,8 +52,10 @@ func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyMana
 	var keys []*PublicKey
 	var err error
 	if !isTesting {
+		logger.Println("fetching public keys from url", keysEndpointURL)
 		keys, err = km.fetchKeys(keysEndpointURL)	
 	} else {
+		logger.Println("test mode, fetching public keys from config field 'testkeys'")
 		keysRaw := config.GetViperInstance().Get("testkeys")
 		if keysRaw != nil {
 			keysStr, ok := keysRaw.(string)
@@ -142,11 +145,11 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	}
 	// cleanup and close after being done
 	defer func() {
-		ioutil.ReadAll(res.Body)
-		if err != io.EOF {
+		_, err := ioutil.ReadAll(res.Body)
+		if err != io.EOF && err != nil {
 			km.logger.Println("failed read remaining data before closing response")
 		}
-		err := res.Body.Close()
+		err = res.Body.Close()
 		if err != nil {
 			km.logger.Println("failed to close response after reading")
 		}

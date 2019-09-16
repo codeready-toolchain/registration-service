@@ -4,9 +4,9 @@ import (
 	"errors"
 	"log"
 
-	jwt "github.com/dgrijalva/jwt-go"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 // TokenClaims represents access token claims
@@ -32,7 +32,7 @@ type Permissions struct {
 	Expiry          int64    `json:"exp"`
 }
 
-// TokenParser represents a token.
+// TokenParser represents a parser for JWT tokens.
 type TokenParser struct {
 	config     *configuration.Registry
 	logger     *log.Logger

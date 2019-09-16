@@ -8,6 +8,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/health"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+
 	"github.com/gin-gonic/gin"
 )
 

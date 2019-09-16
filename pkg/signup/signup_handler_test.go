@@ -28,12 +28,12 @@ func TestSignupHandler(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create handler instance.
-	signupService, err := signup.NewSignupService(logger, configRegistry)
-	require.NoError(t, err)
-	handler := gin.HandlerFunc(signupService.PostSignupHandler)
+	t.Run("signup handler", func(t *testing.T) {
+		// Create handler instance.
+		signupService, err := signup.NewSignupService(logger, configRegistry)
+		require.NoError(t, err)
+		handler := gin.HandlerFunc(signupService.PostSignupHandler)
 
-	t.Run("signup", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -43,5 +43,11 @@ func TestSignupHandler(t *testing.T) {
 
 		// Check the status code is what we expect.
 		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("invalid arguments for handler", func(t *testing.T) {
+		// Create handler instance.
+		_, err := signup.NewSignupService(nil, nil)
+		require.Error(t, err)
 	})
 }

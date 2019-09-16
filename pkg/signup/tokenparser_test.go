@@ -40,6 +40,15 @@ func TestTokenParser(t *testing.T) {
 	tokenParser, err := signup.NewTokenParser(logger, configRegistry, keyManager)
 	require.NoError(t, err)
 
+	t.Run("invalid arguments to new", func(t *testing.T) {
+		_, err := signup.NewTokenParser(nil, configRegistry, keyManager)
+		require.Error(t, err)
+		_, err = signup.NewTokenParser(logger, nil, keyManager)
+		require.Error(t, err)
+		_, err = signup.NewTokenParser(logger, configRegistry, nil)
+		require.Error(t, err)
+	})
+
 	t.Run("parse valid tokens", func(t *testing.T) {
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {

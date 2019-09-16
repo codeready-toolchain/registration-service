@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/authconfig"
@@ -45,8 +44,14 @@ func TestAuthClientConfigHandler(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	// Check the response body is what we expect.
+	// get config values from endpoint response
 	var data map[string]interface{}
 	err = json.Unmarshal(rr.Body.Bytes(), &data)
+	require.NoError(t, err)
+
+	// get the configured values
+	var config map[string]interface{}
+	err = json.Unmarshal([]byte(configRegistry.GetAuthClientConfigAuthJSON()), &config)
 	require.NoError(t, err)
 
 	t.Run("realm", func(t *testing.T) {
@@ -54,7 +59,7 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		assert.True(t, ok, "no 'realm' key in authconfig response")
 		valString, ok := val.(string)
 		assert.True(t, ok, "returned 'realm' value is not of type 'string'")
-		assert.Equal(t, configRegistry.GetAuthClientConfigRealm(), valString, "wrong 'realm' in authconfig response, got %s want %s", valString, configRegistry.GetAuthClientConfigRealm())
+		assert.Equal(t, config["realm"], valString, "wrong 'realm' in authconfig response, got %s want %s", valString, config["realm"])
 	})
 
 	t.Run("auth-server-url", func(t *testing.T) {
@@ -62,7 +67,7 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		assert.True(t, ok, "no 'auth-server-url' key in authconfig response")
 		valString, ok := val.(string)
 		assert.True(t, ok, "returned 'auth-server-url' value is not of type 'string'")
-		assert.Equal(t, configRegistry.GetAuthClientConfigAuthServerURL(), valString, "wrong 'auth-server-url' in authconfig response, got %s want %s", valString, configRegistry.GetAuthClientConfigAuthServerURL())
+		assert.Equal(t, config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response, got %s want %s", valString, config["auth-server-url"])
 	})
 
 	t.Run("ssl-required", func(t *testing.T) {
@@ -70,7 +75,7 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		assert.True(t, ok, "no 'ssl-required' key in authconfig response")
 		valString, ok := val.(string)
 		assert.True(t, ok, "returned 'ssl-required' value is not of type 'string'")
-		assert.Equal(t, configRegistry.GetAuthClientConfigSSLRequired(), valString, "wrong 'ssl-required' in authconfig response, got %s want %s", valString, configRegistry.GetAuthClientConfigSSLRequired())
+		assert.Equal(t, config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response, got %s want %s", valString, config["ssl-required"])
 	})
 
 	t.Run("resource", func(t *testing.T) {
@@ -78,7 +83,7 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		assert.True(t, ok, "no 'resource' key in authconfig response")
 		valString, ok := val.(string)
 		assert.True(t, ok, "returned 'resource' value is not of type 'string'")
-		assert.Equal(t, configRegistry.GetAuthClientConfigResource(), valString, "wrong 'resource' in authconfig response, got %s want %s", valString, configRegistry.GetAuthClientConfigResource())
+		assert.Equal(t, config["resource"], valString, "wrong 'resource' in authconfig response, got %s want %s", valString, config["resource"])
 	})
 
 	t.Run("public-client", func(t *testing.T) {
@@ -86,16 +91,14 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		assert.True(t, ok, "no 'public-client' key in authconfig response")
 		valBool, ok := val.(bool)
 		assert.True(t, ok, "returned 'public-client' value is not of type 'bool'")
-		assert.Equal(t, configRegistry.IsAuthClientConfigPublicClient(), valBool, "wrong 'public-client' in authconfig response, got %s want %s", valBool, configRegistry.IsAuthClientConfigPublicClient())
+		assert.Equal(t, config["public-client"], valBool, "wrong 'public-client' in authconfig response, got %s want %s", valBool, config["public-client"])
 	})
 
 	t.Run("confidential-port", func(t *testing.T) {
 		val, ok := data["confidential-port"]
-		log.Println(reflect.TypeOf(val).String())
 		assert.True(t, ok, "no 'confidential-port' key in authconfig response")
 		valFloat, ok := val.(float64)
 		assert.True(t, ok, "returned 'confidential-port' value is not of type 'float64'")
-		valInt := int64(valFloat)
-		assert.Equal(t, configRegistry.GetAuthClientConfigConfidentialPort(), valInt, "wrong 'confidential-port' in authconfig response, got %s want %s", valInt, configRegistry.GetAuthClientConfigConfidentialPort())
+		assert.Equal(t, config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response, got %s want %s", valFloat, config["confidential-port"])
 	})
 }

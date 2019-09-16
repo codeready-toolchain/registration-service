@@ -24,25 +24,28 @@ func New(logger *log.Logger, config *configuration.Registry) *Service {
 	}
 }
 
-func (srv *Service) getAuthClientConfig() map[string]interface{} {
-	m := make(map[string]interface{})
-	m["realm"] = srv.config.GetAuthClientConfigRealm()
-	m["auth-server-url"] = srv.config.GetAuthClientConfigAuthServerURL()
-	m["ssl-required"] = srv.config.GetAuthClientConfigSSLRequired()
-	m["resource"] = srv.config.GetAuthClientConfigResource()
-	m["public-client"] = srv.config.IsAuthClientConfigPublicClient()
-	m["confidential-port"] = srv.config.GetAuthClientConfigConfidentialPort()
-	return m
+func (srv *Service) isJSON(s string) bool {
+	var elements map[string]interface{}
+	err := json.Unmarshal([]byte(s), &elements)
+	if err!=nil {
+		srv.logger.Println("error parsing auth config JSON:", err.Error())
+		return false
+	}
+	return true
 }
 
 // AuthconfigHandler returns signup info.
 func (srv *Service) AuthconfigHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 	ctx.Writer.WriteHeader(http.StatusOK)
-	authClientConfig := srv.getAuthClientConfig()
-	err := json.NewEncoder(ctx.Writer).Encode(authClientConfig)
+	configStr := srv.config.GetAuthClientConfigAuthJSON()
+ 	if !srv.isJSON(configStr) {
+		http.Error(ctx.Writer, "auth client config is in wrong format (json unmarshal failed)", http.StatusInternalServerError)
+		return
+	}
+	_, err := ctx.Writer.WriteString(srv.config.GetAuthClientConfigAuthJSON())
 	if err != nil {
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return
-	}
+	}	
 }

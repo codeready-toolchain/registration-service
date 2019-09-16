@@ -66,29 +66,9 @@ const (
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 
-	varAuthClientConfigRealm = "auth_client.config.realm"
-	// DefaultAuthClientConfigRealm specifies the default auth realm.
-	DefaultAuthClientConfigRealm = "myRealm"
-
-	varAuthClientConfigAuthServerURL = "auth_client.config.auth-server-url"
-	// DefaultAuthClientConfigAuthServerURL specifies the default auth server URL.
-	DefaultAuthClientConfigAuthServerURL = "https://auth.service/auth"
-
-	varAuthClientConfigSSLRequired = "auth_client.config.ssl-required"
-	// DefaultAuthClientConfigSSLRequired specifies the default auth ssl setting.
-	DefaultAuthClientConfigSSLRequired = "none"
-
-	varAuthClientConfigResource = "auth_client.config.resource"
-	// DefaultAuthClientConfigResource specifies the default auth resource.
-	DefaultAuthClientConfigResource = "registrationService"
-
-	varAuthClientConfigPublicClient = "auth_client.config.public-client"
-	// DefaultAuthClientConfigPublicClient specifies the default auth public client setting.
-	DefaultAuthClientConfigPublicClient = true
-
-	varAuthClientConfigConfidentialPort = "auth_client.config.confidential-port"
-	// DefaultAuthClientConfigConfidentialPort specifies the default auth confidential port.
-	DefaultAuthClientConfigConfidentialPort = int64(0)
+	varAuthClientConfigJSON = "auth_client.config.json"
+	// DefaultAuthClientConfigJSON specifies the auth client config.
+	DefaultAuthClientConfigJSON = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -143,12 +123,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
-	c.v.SetDefault(varAuthClientConfigAuthServerURL, DefaultAuthClientConfigAuthServerURL)
-	c.v.SetDefault(varAuthClientConfigConfidentialPort, DefaultAuthClientConfigConfidentialPort)
-	c.v.SetDefault(varAuthClientConfigPublicClient, DefaultAuthClientConfigPublicClient)
-	c.v.SetDefault(varAuthClientConfigRealm, DefaultAuthClientConfigRealm)
-	c.v.SetDefault(varAuthClientConfigResource, DefaultAuthClientConfigResource)
-	c.v.SetDefault(varAuthClientConfigSSLRequired, DefaultAuthClientConfigSSLRequired)
+	c.v.SetDefault(varAuthClientConfigJSON, DefaultAuthClientConfigJSON)
 
 }
 
@@ -203,38 +178,8 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
-// GetAuthClientConfigAuthServerURL returns the auth config server URL (as 
+// GetAuthClientConfigAuthJSON returns the auth config config (as 
 // set via config file or environment variable).
-func (c *Registry) GetAuthClientConfigAuthServerURL() string {
-	return c.v.GetString(varAuthClientConfigAuthServerURL)
-}
-
-// GetAuthClientConfigConfidentialPort returns the confidential port (as set 
-// via config file or environment variable).
-func (c *Registry) GetAuthClientConfigConfidentialPort() int64 {
-	return c.v.GetInt64(varAuthClientConfigConfidentialPort)
-}
-
-// IsAuthClientConfigPublicClient returns the public client setting (as set via 
-// config file or environment variable).
-func (c *Registry) IsAuthClientConfigPublicClient() bool {
-	return c.v.GetBool(varAuthClientConfigPublicClient)
-}
-
-// GetAuthClientConfigRealm returns the auth realm (as set via config file or environment
-// variable).
-func (c *Registry) GetAuthClientConfigRealm() string {
-	return c.v.GetString(varAuthClientConfigRealm)
-}
-
-// GetAuthClientConfigResource returns the auth resource (as set via 
-// config file or environment variable).
-func (c *Registry) GetAuthClientConfigResource() string {
-	return c.v.GetString(varAuthClientConfigResource)
-}
-
-// GetAuthClientConfigSSLRequired returns the ssl required auth config (as 
-// set via config file or environment variable).
-func (c *Registry) GetAuthClientConfigSSLRequired() string {
-	return c.v.GetString(varAuthClientConfigSSLRequired)
+func (c *Registry) GetAuthClientConfigAuthJSON() string {
+	return c.v.GetString(varAuthClientConfigJSON)
 }

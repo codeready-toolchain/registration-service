@@ -137,7 +137,32 @@ func TestKeyFetching(t *testing.T) {
 		// this needs to fail with an error
 		require.Error(t, err)
 	})
+
+	t.Run("parse keys, invalid url", func(t *testing.T) {
+		// Set the config for testing mode, the handler may use this.
+		notAnURL := "not an url"
+		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
+		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
+
+		// Create KeyManager instance.
+		_, err := signup.NewKeyManager(logger, configRegistry)
+		// this needs to fail with an error
+		require.Error(t, err)
+	})
+
+	t.Run("parse keys, server not reachable", func(t *testing.T) {
+		// Set the config for testing mode, the handler may use this.
+		anURL := "http://www.google.com/"
+		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", anURL)
+		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
+
+		// Create KeyManager instance.
+		_, err := signup.NewKeyManager(logger, configRegistry)
+		// this needs to fail with an error
+		require.Error(t, err)
+	})
 }
+
 func TestKeyManagerKeyParsing(t *testing.T) {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)

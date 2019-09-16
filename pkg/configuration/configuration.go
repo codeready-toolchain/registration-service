@@ -65,6 +65,10 @@ const (
 	varTestingMode = "testingmode"
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
+
+	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
+	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
+	DefaultAuthClientPublicKeysURL = "http://keycloak.service/auth/realms/myRealm/protocol/openid-connect/certs"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -119,6 +123,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
+	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -170,4 +175,10 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 // config file or environment variable).
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
+}
+
+// GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 
+// or environment variable).
+func (c *Registry) GetAuthClientPublicKeysURL() string {
+	return c.v.GetString(varAuthClientPublicKeysURL)
 }

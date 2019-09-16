@@ -127,12 +127,8 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
-<<<<<<< HEAD
 	c.v.SetDefault(varAuthClientConfigJSON, DefaultAuthClientConfigJSON)
-
-=======
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
->>>>>>> upstream/master
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -186,15 +182,13 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
-<<<<<<< HEAD
 // GetAuthClientConfigAuthJSON returns the auth config config (as 
 // set via config file or environment variable).
 func (c *Registry) GetAuthClientConfigAuthJSON() string {
 	return c.v.GetString(varAuthClientConfigJSON)
-=======
+	
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 
 // or environment variable).
 func (c *Registry) GetAuthClientPublicKeysURL() string {
 	return c.v.GetString(varAuthClientPublicKeysURL)
->>>>>>> upstream/master
 }

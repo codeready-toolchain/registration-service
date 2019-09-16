@@ -29,6 +29,32 @@ const (
 		jwt1 = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTEifQ.eyJqdGkiOiIwMjgyYjI5Yy01MTczLTQyZDgtODE0NS1iNDVmYTFlMzUzOGMiLCJleHAiOjAsIm5iZiI6MCwiaWF0IjoxNTE3MDE1OTUyLCJpc3MiOiJ0ZXN0IiwiYXVkIjoiY29kZXJlYWR5LXJlZ2lzdHJhdGlvbi1zZXJ2aWNlIiwic3ViIjoiMjM5ODQzOTgtODU1YS00MmQ2LWE3ZmUtOTM2YmI0ZTkyYTBkIiwidHlwIjoiQmVhcmVyIiwic2Vzc2lvbl9zdGF0ZSI6ImVhZGMwNjZjLTEyMzQtNGE1Ni05ZjM1LWNlNzA3YjU3YTRlMCIsImFjciI6IjAiLCJhbGxvd2VkLW9yaWdpbnMiOlsiKiJdLCJhcHByb3ZlZCI6dHJ1ZSwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJUZXN0MSBVc2VyMSIsImNvbXBhbnkiOiJUZXN0IENvbXBhbnkgMSIsInByZWZlcnJlZF91c2VybmFtZSI6InRlc3R1c2VyMSIsImdpdmVuX25hbWUiOiJUZXN0MSIsImZhbWlseV9uYW1lIjoiVXNlcjEiLCJlbWFpbCI6InRlc3R1c2VyMUB0ZXN0LnQifQ.XoLc1_ESvotJwwfK-zsyu4wySeFalGuHWB1cHRVBPKmztOPgQUGOb4zplhyKAuPPf0x3WGV50ESNW9t-YZoD-DJceMJY_AOzt0LBAoGoeovsVHbrHNGgMDEJsgjQd_beMQsqVGeJrReN9hnqZ8iPz1itMzzTUskG1TQylcr_ez4"
 )
 
+func TestKeyManager(t *testing.T) {
+	// Create logger and registry.
+	logger := log.New(os.Stderr, "", 0)
+	configRegistry := configuration.CreateEmptyRegistry()
+
+	// Set the config for testing mode, the handler may use this.
+	configRegistry.GetViperInstance().Set("testingmode", true)
+	configRegistry.GetViperInstance().Set("testkeys", keyJSON)
+	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+
+	t.Run("missing logger", func(t *testing.T) {
+		_, err := signup.NewKeyManager(nil, configRegistry)
+		require.Error(t, err)
+	})
+
+	t.Run("missing config", func(t *testing.T) {
+		_, err := signup.NewKeyManager(logger, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("missing logger and config", func(t *testing.T) {
+		_, err := signup.NewKeyManager(nil, nil)
+		require.Error(t, err)
+	})
+}
+
 func TestKeyFetching(t *testing.T) {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
@@ -66,6 +92,29 @@ func TestKeyFetching(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("parse keys, invalid response status code", func(t *testing.T) {
+		// setup http service serving the test keys
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, `{some: "invalid", "json"}`)
+		}))
+		defer ts.Close()
+
+		// check if service runs
+		_, err := http.Get(ts.URL)
+		require.NoError(t, err)
+
+		// Set the config for testing mode, the handler may use this.
+		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+
+		// Create KeyManager instance.
+		_, err = signup.NewKeyManager(logger, configRegistry)
+		// this needs to fail with an error
+		require.Error(t, err)
+	})
+
 	t.Run("parse keys, invalid response", func(t *testing.T) {
 		// setup http service serving the test keys
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +138,7 @@ func TestKeyFetching(t *testing.T) {
 		require.Error(t, err)
 	})
 }
-func TestKeyManager(t *testing.T) {
+func TestKeyManagerKeyParsing(t *testing.T) {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()

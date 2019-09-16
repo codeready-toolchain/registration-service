@@ -186,7 +186,8 @@ func (c *Registry) IsTestingMode() bool {
 // set via config file or environment variable).
 func (c *Registry) GetAuthClientConfigAuthJSON() string {
 	return c.v.GetString(varAuthClientConfigJSON)
-	
+}
+
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 
 // or environment variable).
 func (c *Registry) GetAuthClientPublicKeysURL() string {

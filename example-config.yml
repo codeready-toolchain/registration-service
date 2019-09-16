@@ -16,3 +16,4 @@ auth_client.config.json: >
     "public-client": true, 
     "confidential-port": 0 
   }
+auth_client.public_keys_url: "http://localhost:8080/auth/realms/demoRealm/protocol/openid-connect/certs"

@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+
 	"gopkg.in/square/go-jose.v2"
 )
 

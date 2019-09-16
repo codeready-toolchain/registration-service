@@ -30,18 +30,6 @@ const (
 )
 
 func TestKeyFetching(t *testing.T) {
-	// setup http service serving the test keys
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, keyJSON)
-	}))
-	defer ts.Close()
-
-	// check if service runs
-	_, err := http.Get(ts.URL)
-	require.NoError(t, err)
-
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()
@@ -50,20 +38,55 @@ func TestKeyFetching(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", false)
 	assert.False(t, configRegistry.IsTestingMode(), "testing mode not set correctly to false")
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
-	assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+	t.Run("parse keys, valid response", func(t *testing.T) {
+		// setup http service serving the test keys
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, keyJSON)
+		}))
+		defer ts.Close()
 
-	// Create KeyManager instance.
-	keyManager, err := signup.NewKeyManager(logger, configRegistry)
-	require.NoError(t, err)
+		// check if service runs
+		_, err := http.Get(ts.URL)
+		require.NoError(t, err)
 
-	t.Run("parse keys", func(t *testing.T) {
+		// Set the config for testing mode, the handler may use this.
+		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+
+		// Create KeyManager instance.
+		keyManager, err := signup.NewKeyManager(logger, configRegistry)
+		require.NoError(t, err)
+
 		// just check if the keys are parsed correctly
-		_, err := keyManager.Key(keyKID0)
+		_, err = keyManager.Key(keyKID0)
 		require.NoError(t, err)
 		_, err = keyManager.Key(keyKID1)
 		require.NoError(t, err)
+	})
+
+	t.Run("parse keys, invalid response", func(t *testing.T) {
+		// setup http service serving the test keys
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{some: "invalid", "json"}`)
+		}))
+		defer ts.Close()
+
+		// check if service runs
+		_, err := http.Get(ts.URL)
+		require.NoError(t, err)
+
+		// Set the config for testing mode, the handler may use this.
+		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+
+		// Create KeyManager instance.
+		_, err = signup.NewKeyManager(logger, configRegistry)
+		// this needs to fail with an error
+		require.Error(t, err)
 	})
 }
 

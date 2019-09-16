@@ -69,6 +69,10 @@ const (
 	varAuthClientLibraryURL = "auth_client.library_url"
 	// DefaultAuthClientLibraryURL is the default auth library location.
 	DefaultAuthClientLibraryURL = "https://keycloak.service/auth/js/keycloak.js"
+	
+	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
+	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
+	DefaultAuthClientPublicKeysURL = "http://keycloak.service/auth/realms/myRealm/protocol/openid-connect/certs"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -124,6 +128,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
 	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
+	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -181,4 +186,10 @@ func (c *Registry) IsTestingMode() bool {
 // config file or environment variable).
 func (c *Registry) GetAuthClientLibraryURL() string {
 	return c.v.GetString(varAuthClientLibraryURL)
+}
+
+// GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 
+// or environment variable).
+func (c *Registry) GetAuthClientPublicKeysURL() string {
+	return c.v.GetString(varAuthClientPublicKeysURL)
 }

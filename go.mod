@@ -22,8 +22,6 @@ require (
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
-	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0
@@ -41,6 +39,9 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190918080820-40952ff8d5b6 // indirect
 	k8s.io/apimachinery v0.0.0-20190917163033-a891081239f5
 	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/api v0.0.0-20190820101039-d651a1528133 // indirect
+	k8s.io/apimachinery v0.0.0-20190823012420-8ca64af22337
+	k8s.io/client-go v0.0.0-20190819141724-e14f31a72a77
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf // indirect
 	k8s.io/utils v0.0.0-20190809000727-6c36bc71fc4a // indirect
 	sigs.k8s.io/controller-runtime v0.1.12
@@ -60,3 +61,5 @@ replace (
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20190510232812-a01b7d5d6c22
 	k8s.io/kubernetes => k8s.io/kubernetes v1.14.1
 )
+
+replace k8s.io/api => k8s.io/api v0.0.0-20181213150558-05914d821849

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
@@ -38,6 +39,10 @@ func New(configFilePath string) (*RegistrationServer, error) {
 		return nil, errs.Wrapf(err, "failed to create a new configuration registry from file %q", configFilePath)
 	}
 	srv.config = config
+
+	// initialize default KeyManager
+	auth.DefaultKeyManager(srv.logger, config)
+
 	srv.httpServer = &http.Server{
 		Addr: srv.config.GetHTTPAddress(),
 		// Good practice to set timeouts to avoid Slowloris attacks.

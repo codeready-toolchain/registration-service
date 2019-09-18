@@ -41,7 +41,6 @@ func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyMana
 	if config == nil {
 		return nil, errors.New("no config given when creating KeyManager")
 	}
-	isTesting := config.IsTestingMode()
 	keysEndpointURL := config.GetAuthClientPublicKeysURL()
 	km := &KeyManager{
 		logger: logger,
@@ -49,28 +48,18 @@ func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyMana
 		keyMap: make(map[string]*rsa.PublicKey),
 	}
 	// fetch raw keys
-	var keys []*PublicKey
-	var err error
-	if !isTesting {
+	if keysEndpointURL != "" {
 		logger.Println("fetching public keys from url", keysEndpointURL)
-		keys, err = km.fetchKeys(keysEndpointURL)	
-	} else {
-		logger.Println("test mode, fetching public keys from config field 'testkeys'")
-		keysRaw := config.GetViperInstance().Get("testkeys")
-		if keysRaw != nil {
-			keysStr, ok := keysRaw.(string)
-			if !ok {
-				return nil, errors.New("error casting testkeys to string")
-			}
-			keys, err = km.fetchKeysFromBytes([]byte(keysStr))	
+		keys, err := km.fetchKeys(keysEndpointURL)	
+		if err != nil {
+			return nil, err
 		}
-	}
-	if err != nil {
-		return nil, err
-	}
-	// add them to the kid map
-	for _, key := range keys {
-		km.keyMap[key.KeyID] = key.Key
+		// add them to the kid map
+		for _, key := range keys {
+			km.keyMap[key.KeyID] = key.Key
+		}	
+	} else {
+		logger.Println("no public key url given, not fetching keys")
 	}
 	return km, nil
 }

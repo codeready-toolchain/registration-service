@@ -9,6 +9,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,13 @@ func TestSignupHandler(t *testing.T) {
 	// Set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+
+	// startup public key service
+	tokengenerator := testutils.NewTokenGenerator()
+	keysEndpointURL := tokengenerator.GetKeyService()
+	// set the key service url in the config
+	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+	assert.Equal(t, keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
 	t.Run("signup handler", func(t *testing.T) {
 		// Create handler instance.

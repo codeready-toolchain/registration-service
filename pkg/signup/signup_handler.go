@@ -33,7 +33,7 @@ func NewSignupService(logger *log.Logger, config *configuration.Registry) (*Sign
 func (srv *SignupService) PostSignupHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 
-	// the KeyManager can be accessed here: auth.KeyManager
+	// the KeyManager can be accessed here: auth.DefaultKeyManager()
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)
 	if err != nil {

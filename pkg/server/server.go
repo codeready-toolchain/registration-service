@@ -41,7 +41,7 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	srv.config = config
 
 	// initialize default KeyManager
-	auth.DefaultKeyManager(srv.logger, config)
+	auth.DefaultKeyManagerWithConfig(srv.logger, config)
 
 	srv.httpServer = &http.Server{
 		Addr: srv.config.GetHTTPAddress(),

@@ -30,8 +30,8 @@ func TestHealthCheckHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheck := controller.NewHealthCheck(logger, configRegistry)
-	handler := gin.HandlerFunc(healthCheck.GetHealthCheckHandler)
+	healthCheckCtrl := controller.NewHealthCheck(logger, configRegistry)
+	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

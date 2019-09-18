@@ -52,13 +52,13 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
-		healthCheck := controller.NewHealthCheck(srv.logger, srv.Config())
-		signup := controller.NewSignup(srv.logger, srv.Config())
+		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
+		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
 		v1 := srv.router.Group("/api/v1")
 		{
-			v1.GET("/health", healthCheck.GetHealthCheckHandler)
-			v1.POST("/signup", signup.PostSignupHandler)
+			v1.GET("/health", healthCheckCtrl.GetHandler)
+			v1.POST("/signup", signupCtrl.PostHandler)
 		}
 
 		// Create the route for static content, served from /

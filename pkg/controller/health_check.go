@@ -35,8 +35,8 @@ func (srv *HealthCheck) getHealthInfo() map[string]interface{} {
 	return m
 }
 
-// GetHealthCheckHandler returns a default heath check result.
-func (srv *HealthCheck) GetHealthCheckHandler(ctx *gin.Context) {
+// GetHandler returns a default heath check result.
+func (srv *HealthCheck) GetHandler(ctx *gin.Context) {
 	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := srv.getHealthInfo()

@@ -15,7 +15,7 @@ type AuthConfig struct {
 	logger *log.Logger
 }
 
-// NewAuthConfig returns a new Service instance.
+// NewAuthConfig returns a new AuthConfig instance.
 func NewAuthConfig(logger *log.Logger, config *configuration.Registry) *AuthConfig {
 	return &AuthConfig{
 		logger: logger,
@@ -23,7 +23,7 @@ func NewAuthConfig(logger *log.Logger, config *configuration.Registry) *AuthConf
 	}
 }
 
-// AuthconfigHandler returns signup info.
+// AuthconfigHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", ac.config.GetAuthClientConfigAuthContentType())
 	ctx.Writer.WriteHeader(http.StatusOK)

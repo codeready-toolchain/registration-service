@@ -1,4 +1,4 @@
-package signup_test
+package controller_test
 
 import (
 	"log"
@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +29,7 @@ func TestSignupHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	signupService := signup.NewSignupService(logger, configRegistry)
+	signupService := controller.NewSignupService(logger, configRegistry)
 	handler := gin.HandlerFunc(signupService.PostSignupHandler)
 
 	t.Run("signup", func(t *testing.T) {

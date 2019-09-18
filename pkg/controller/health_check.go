@@ -1,4 +1,4 @@
-package health
+package controller
 
 import (
 	"encoding/json"

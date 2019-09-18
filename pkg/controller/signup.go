@@ -1,4 +1,4 @@
-package signup
+package controller
 
 import (
 	"encoding/json"

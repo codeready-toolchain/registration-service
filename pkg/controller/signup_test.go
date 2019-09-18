@@ -28,7 +28,7 @@ func TestSignupHandler(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create handler instance.
+	// Create signup instance.
 	signup := controller.NewSignup(logger, configRegistry)
 	handler := gin.HandlerFunc(signup.PostSignupHandler)
 

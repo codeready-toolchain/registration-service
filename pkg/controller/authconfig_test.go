@@ -1,4 +1,4 @@
-package authconfig_test
+package controller_test
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/pkg/authconfig"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -30,8 +30,8 @@ func TestAuthClientConfigHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authconfigService := authconfig.New(logger, configRegistry)
-	handler := gin.HandlerFunc(authconfigService.AuthconfigHandler)
+	authConfigCtrl := controller.NewAuthConfig(logger, configRegistry)
+	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	t.Run("valid json config", func(t *testing.T) {
 

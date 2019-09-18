@@ -45,6 +45,9 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		// Check the status code is what we expect.
 		require.Equal(t, http.StatusOK, rr.Code)
 
+		// check response content-type.
+		require.Equal(t, configRegistry.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
+
 		// Check the response body is what we expect.
 		// get config values from endpoint response
 		var data map[string]interface{}

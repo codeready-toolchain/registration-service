@@ -25,7 +25,7 @@ func New(logger *log.Logger, config *configuration.Registry) *Service {
 
 // AuthconfigHandler returns signup info.
 func (srv *Service) AuthconfigHandler(ctx *gin.Context) {
-	ctx.Writer.Header().Set("Content-Type", "application/json")
+	ctx.Writer.Header().Set("Content-Type", srv.config.GetAuthClientConfigAuthContentType())
 	ctx.Writer.WriteHeader(http.StatusOK)
 	_, err := ctx.Writer.WriteString(srv.config.GetAuthClientConfigAuthRaw())
 	if err != nil {

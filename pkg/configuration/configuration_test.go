@@ -304,7 +304,7 @@ func TestIsTestingMode(t *testing.T) {
 	})
 }
 
-func TestGetAuthClientConfig(t *testing.T) {
+func TestGetAuthClientConfigRaw(t *testing.T) {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
 	t.Run("default", func(t *testing.T) {
@@ -331,6 +331,36 @@ func TestGetAuthClientConfig(t *testing.T) {
 		os.Setenv(key, newVal)
 		config := getDefaultConfiguration(t)
 		assert.Equal(t, newVal, config.GetAuthClientConfigAuthRaw())
+	})
+}
+
+func TestGetAuthClientConfigContentType(t *testing.T) {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
+
+	t.Run("default", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, configuration.DefaultAuthClientConfigContentType, config.GetAuthClientConfigAuthContentType())
+	})
+
+	t.Run("file", func(t *testing.T) {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		config := getFileConfiguration(t, `auth_client.config.content_type: "`+newVal+`"`)
+		assert.Equal(t, newVal, config.GetAuthClientConfigAuthContentType())
+	})
+
+	t.Run("env overwrite", func(t *testing.T) {
+		u, err := uuid.NewV4()
+		require.NoError(t, err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := getDefaultConfiguration(t)
+		assert.Equal(t, newVal, config.GetAuthClientConfigAuthContentType())
 	})
 }
 

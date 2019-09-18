@@ -7,7 +7,7 @@ http.compress: false
 http.idle_timeout: "15s"
 http.write_timeout: "15s"
 http.read_timeout: "15s"
-auth_client.config.json: >
+auth_client.config.raw: >
   {
     "realm":"myRealm",
     "auth-server-url":"https://auth.service/auth",

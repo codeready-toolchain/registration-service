@@ -66,9 +66,9 @@ const (
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 
-	varAuthClientConfigJSON = "auth_client.config.json"
-	// DefaultAuthClientConfigJSON specifies the auth client config.
-	DefaultAuthClientConfigJSON = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
+	varAuthClientConfigRaw = "auth_client.config.raw"
+	// DefaultAuthClientConfigRaw specifies the auth client config.
+	DefaultAuthClientConfigRaw = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
 	
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
@@ -127,7 +127,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
-	c.v.SetDefault(varAuthClientConfigJSON, DefaultAuthClientConfigJSON)
+	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 }
 
@@ -182,10 +182,10 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
-// GetAuthClientConfigAuthJSON returns the auth config config (as 
+// GetAuthClientConfigAuthRaw returns the auth config config (as 
 // set via config file or environment variable).
-func (c *Registry) GetAuthClientConfigAuthJSON() string {
-	return c.v.GetString(varAuthClientConfigJSON)
+func (c *Registry) GetAuthClientConfigAuthRaw() string {
+	return c.v.GetString(varAuthClientConfigRaw)
 }
 
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 

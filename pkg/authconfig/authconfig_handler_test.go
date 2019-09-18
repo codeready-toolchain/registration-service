@@ -53,7 +53,7 @@ func TestAuthClientConfigHandler(t *testing.T) {
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(configRegistry.GetAuthClientConfigAuthJSON()), &config)
+		err = json.Unmarshal([]byte(configRegistry.GetAuthClientConfigAuthRaw()), &config)
 		require.NoError(t, err)
 
 		t.Run("realm", func(t *testing.T) {
@@ -103,22 +103,5 @@ func TestAuthClientConfigHandler(t *testing.T) {
 			assert.True(t, ok, "returned 'confidential-port' value is not of type 'float64'")
 			assert.Equal(t, config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response, got %s want %s", valFloat, config["confidential-port"])
 		})
-	})
-
-	t.Run("invalid json config", func(t *testing.T) {
-		// set json config to something invalid
-		invalidJSON := `{ this: "is", "invalid": json }`
-		configRegistry.GetViperInstance().Set("auth_client.config.json", invalidJSON)
-		assert.Equal(t, invalidJSON, configRegistry.GetAuthClientConfigAuthJSON(), "json config not set correctly to test value")
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
-
-		handler(ctx)
-
-		// Check the status code is what we expect.
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
 	})
 }

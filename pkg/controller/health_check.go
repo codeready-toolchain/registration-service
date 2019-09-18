@@ -9,22 +9,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// HealthCheckService implements the service health endpoint.
-type HealthCheckService struct {
+// HealthCheck implements the health endpoint.
+type HealthCheck struct {
 	config *configuration.Registry
 	logger *log.Logger
 }
 
-// NewHealthCheckService returns a new HealthCheckService instance.
-func NewHealthCheckService(logger *log.Logger, config *configuration.Registry) *HealthCheckService {
-	return &HealthCheckService{
+// HealthCheck returns a new HealthCheck instance.
+func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthCheck {
+	return &HealthCheck{
 		logger: logger,
 		config: config,
 	}
 }
 
 // getHealthInfo returns the health info.
-func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
+func (srv *HealthCheck) getHealthInfo() map[string]interface{} {
 	m := make(map[string]interface{})
 	// TODO: this need to get actual health info.
 	m["alive"] = !srv.config.IsTestingMode()
@@ -36,7 +36,7 @@ func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
 }
 
 // HealthCheckHandler returns a default heath check result.
-func (srv *HealthCheckService) GetHealthCheckHandler(ctx *gin.Context) {
+func (srv *HealthCheck) GetHealthCheckHandler(ctx *gin.Context) {
 	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := srv.getHealthInfo()

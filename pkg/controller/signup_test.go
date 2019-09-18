@@ -29,8 +29,8 @@ func TestSignupHandler(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	signupService := controller.NewSignupService(logger, configRegistry)
-	handler := gin.HandlerFunc(signupService.PostSignupHandler)
+	signup := controller.NewSignup(logger, configRegistry)
+	handler := gin.HandlerFunc(signup.PostSignupHandler)
 
 	t.Run("signup", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

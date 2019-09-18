@@ -29,9 +29,9 @@ func TestHealthCheckHandler(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create handler instance.
-	healthService := controller.NewHealthCheckService(logger, configRegistry)
-	handler := gin.HandlerFunc(healthService.GetHealthCheckHandler)
+	// Create health check instance.
+	healthCheck := controller.NewHealthCheck(logger, configRegistry)
+	handler := gin.HandlerFunc(healthCheck.GetHealthCheckHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

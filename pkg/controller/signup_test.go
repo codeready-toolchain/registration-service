@@ -11,6 +11,7 @@ import (
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

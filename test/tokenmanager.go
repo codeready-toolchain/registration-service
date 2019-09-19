@@ -121,15 +121,15 @@ func (tg *TokenManager) GetKeyService() string {
 		w.WriteHeader(http.StatusOK)
 		keySet := &WebKeySet{}
 		for kid, key := range tg.keyMap {
-			thisKey, err := jwk.New(&key.PublicKey)
+			newKey, err := jwk.New(&key.PublicKey)
 			if err != nil {
 				panic(fmt.Sprintf("fatal error adding keys to key service: %s", err.Error()))
 			}
-			err = thisKey.Set(jwk.KeyIDKey, kid)	
+			err = newKey.Set(jwk.KeyIDKey, kid)	
 			if err != nil {
 				panic(fmt.Sprintf("fatal error setting kid %s on key: %s", kid, err.Error()))
 			}
-			keySet.Keys = append(keySet.Keys, thisKey)
+			keySet.Keys = append(keySet.Keys, newKey)
 		}
 		jsonKeyData, err := json.Marshal(keySet)
 		if err != nil {

@@ -38,7 +38,7 @@ func TestCreateUserSignup(t *testing.T) {
 
 }
 
-func newTestSignupClient(t *testing.T, initObjs ...runtime.Object) signup.SignupClient {
+func newTestSignupClient(t *testing.T, initObjs ...runtime.Object) signup.UserSignupClient {
 	client, err := signup.NewSignupClient()
 	require.NoError(t, err)
 

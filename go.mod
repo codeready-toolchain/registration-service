@@ -3,18 +3,17 @@ module github.com/codeready-toolchain/registration-service
 go 1.12
 
 require (
-	github.com/codeready-toolchain/api v0.0.0-20190910110833-66e1ab342d1e
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
 	cloud.google.com/go v0.38.0 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20190910110833-66e1ab342d1e
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20190917153404-e09c4e7d2a7e // indirect
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20190917153404-e09c4e7d2a7e
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0 // indirect
 	github.com/go-logr/zapr v0.1.0 // indirect
 	github.com/go-openapi/spec v0.19.2 // indirect
+	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/lestrrat-go/jwx v0.9.0

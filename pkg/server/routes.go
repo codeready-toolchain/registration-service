@@ -5,9 +5,13 @@ import (
 	"net/http"
 	"path/filepath"
 
+<<<<<<< HEAD
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/health"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+=======
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
+>>>>>>> upstream/master
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 
 	"github.com/gin-gonic/gin"
@@ -55,12 +59,8 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
-		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
-		signupService, err := signup.NewSignupService(srv.logger, srv.Config())
-		if err != nil {
-			// error creating signup service, bail out.
-			log.Fatal(err)
-		}
+		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
+		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
 		// get the auth middleware
 		authMiddleware, err := auth.NewAuthMiddleware(srv.logger, srv.config)

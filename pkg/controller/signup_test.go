@@ -1,4 +1,4 @@
-package signup_test
+package controller_test
 
 import (
 	"log"
@@ -10,6 +10,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,10 +39,9 @@ func TestSignupHandler(t *testing.T) {
 	assert.Equal(t, keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
 	t.Run("signup handler", func(t *testing.T) {
-		// Create handler instance.
-		signupService, err := signup.NewSignupService(logger, configRegistry)
-		require.NoError(t, err)
-		handler := gin.HandlerFunc(signupService.PostSignupHandler)
+		// Create signup instance.
+		signupCtrl := controller.NewSignup(logger, configRegistry)
+		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()

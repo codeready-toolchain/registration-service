@@ -66,6 +66,10 @@ const (
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 
+	varAuthClientLibraryURL = "auth_client.library_url"
+	// DefaultAuthClientLibraryURL is the default auth library location.
+	DefaultAuthClientLibraryURL = "https://keycloak.service/auth/js/keycloak.js"
+	
 	varAuthClientConfigRaw = "auth_client.config.raw"
 	// DefaultAuthClientConfigRaw specifies the auth client config.
 	DefaultAuthClientConfigRaw = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
@@ -131,6 +135,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
+	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
 	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
@@ -185,6 +190,12 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 // config file or environment variable).
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
+}
+
+// GetAuthClientLibraryURL returns the auth library location (as set via 
+// config file or environment variable).
+func (c *Registry) GetAuthClientLibraryURL() string {
+	return c.v.GetString(varAuthClientLibraryURL)
 }
 
 // GetAuthClientConfigAuthContentType returns the auth config config content type (as 

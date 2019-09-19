@@ -20,9 +20,11 @@ func TestTokenManagerKeys(t *testing.T) {
 		kid0 := uuid.NewV4().String()
 		key0, err := tokenManager.AddPrivateKey(kid0)
 		require.NoError(t, err)
+		require.NotNil(t, key0)
 		kid1 := uuid.NewV4().String()
 		key1, err := tokenManager.AddPrivateKey(kid1)
 		require.NoError(t, err)
+		require.NotNil(t, key1)
 		// check key equality by comparing the modulus
 		require.NotEqual(t, key0.N, key1.N)
 	})
@@ -32,9 +34,11 @@ func TestTokenManagerKeys(t *testing.T) {
 		kid0 := uuid.NewV4().String()
 		key0, err := tokenManager.AddPrivateKey(kid0)
 		require.NoError(t, err)
+		require.NotNil(t, key0)
 		kid1 := uuid.NewV4().String()
 		key1, err := tokenManager.AddPrivateKey(kid1)
 		require.NoError(t, err)
+		require.NotNil(t, key1)
 		key0Retrieved, err := tokenManager.Key(kid0)
 		require.NoError(t, err)
 		// check key equality by comparing the modulus
@@ -51,6 +55,7 @@ func TestTokenManagerTokens(t *testing.T) {
 	kid0 := uuid.NewV4().String()
 	key0, err := tokenManager.AddPrivateKey(kid0)
 	require.NoError(t, err)
+	require.NotNil(t, key0)
 
 	t.Run("create token", func(t *testing.T) {
 		username := uuid.NewV4().String()
@@ -98,9 +103,11 @@ func TestTokenManagerKeyService(t *testing.T) {
 	kid0 := uuid.NewV4().String()
 	key0, err := tokenManager.AddPrivateKey(kid0)
 	require.NoError(t, err)
+	require.NotNil(t, key0)
 	kid1 := uuid.NewV4().String()
 	key1, err := tokenManager.AddPrivateKey(kid1)
 	require.NoError(t, err)
+	require.NotNil(t, key1)
 
 	t.Run("key fetching", func(t *testing.T) {
 		keysEndpointURL := tokenManager.GetKeyService()

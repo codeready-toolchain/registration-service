@@ -1,4 +1,4 @@
-testingmode: false
+testingmode: true
 graceful_timeout: "15s"
 log.level: "info"
 log.json: false
@@ -7,4 +7,4 @@ http.compress: false
 http.idle_timeout: "15s"
 http.write_timeout: "15s"
 http.read_timeout: "15s"
-auth_client.public_keys_url: "http://localhost:8080/auth/realms/demoRealm/protocol/openid-connect/certs"
+auth_client.public_keys_url: ""

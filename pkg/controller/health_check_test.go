@@ -1,4 +1,4 @@
-package health_test
+package controller_test
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/health"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,9 +29,9 @@ func TestHealthCheckHandler(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create handler instance.
-	healthService := health.NewHealthCheckService(logger, configRegistry)
-	handler := gin.HandlerFunc(healthService.GetHealthCheckHandler)
+	// Create health check instance.
+	healthCheckCtrl := controller.NewHealthCheck(logger, configRegistry)
+	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

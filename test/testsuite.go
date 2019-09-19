@@ -11,7 +11,7 @@ package testutils
  // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	ConfigRegistry *configuration.Registry
+	Config *configuration.Registry
 	Logger         *log.Logger
 }
 
@@ -19,16 +19,16 @@ type UnitTestSuite struct {
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	s.Logger = log.New(os.Stderr, "", 0)
-	s.ConfigRegistry = configuration.CreateEmptyRegistry()
+	s.Config = configuration.CreateEmptyRegistry()
 
  	// set the config for testing mode
-	s.ConfigRegistry.GetViperInstance().Set("testingmode", true)
-	//assert.True(t, s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	s.Config.GetViperInstance().Set("testingmode", true)
+	//assert.True(t, s.Config.IsTestingMode(), "testing mode not set correctly to true")
 }
 
  // TearDownSuite tears down the test suite.
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
-	s.ConfigRegistry = nil
+	s.Config = nil
 	s.Logger = nil
 }

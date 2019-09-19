@@ -34,10 +34,10 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	logger := log.New(os.Stderr, "", 0)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := controller.NewAuthConfig(logger, s.ConfigRegistry)
+	authConfigCtrl := controller.NewAuthConfig(logger, s.Config)
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
@@ -53,7 +53,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		// check response content-type.
-		require.Equal(s.T(), s.ConfigRegistry.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
+		require.Equal(s.T(), s.Config.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
@@ -63,7 +63,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(s.ConfigRegistry.GetAuthClientConfigAuthRaw()), &config)
+		err = json.Unmarshal([]byte(s.Config.GetAuthClientConfigAuthRaw()), &config)
 		require.NoError(s.T(), err)
 
 		s.Run("realm", func() {

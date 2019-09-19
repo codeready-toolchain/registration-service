@@ -33,10 +33,10 @@ func (s *TestSignupSuite) TestSignupHandler() {
 	logger := log.New(os.Stderr, "", 0)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(logger, s.ConfigRegistry)
+	signupCtrl := controller.NewSignup(logger, s.Config)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	s.Run("signup", func() {

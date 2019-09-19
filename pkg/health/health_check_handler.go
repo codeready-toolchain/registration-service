@@ -27,7 +27,7 @@ func NewHealthCheckService(logger *log.Logger, config *configuration.Registry) *
 func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
 	m := make(map[string]interface{})
 	// TODO: this need to get actual health info.
-	m["alive"] = !srv.config.IsTestingMode()
+	m["alive"] = true
 	m["testingmode"] = srv.config.IsTestingMode()
 	m["revision"] = configuration.Commit
 	m["build_time"] = configuration.BuildTime
@@ -35,7 +35,7 @@ func (srv *HealthCheckService) getHealthInfo() map[string]interface{} {
 	return m
 }
 
-// HealthCheckHandler returns a default heath check result.
+// GetHealthCheckHandler returns a default heath check result.
 func (srv *HealthCheckService) GetHealthCheckHandler(ctx *gin.Context) {
 	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")

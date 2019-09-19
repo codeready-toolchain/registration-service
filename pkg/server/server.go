@@ -43,6 +43,9 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	// initialize default KeyManager
 	auth.DefaultKeyManagerWithConfig(srv.logger, config)
 
+	// initialize auth middleware
+	auth.DefaultAuthMiddlewareWithConfig(srv.logger, config)
+
 	srv.httpServer = &http.Server{
 		Addr: srv.config.GetHTTPAddress(),
 		// Good practice to set timeouts to avoid Slowloris attacks.
@@ -72,7 +75,7 @@ func (srv *RegistrationServer) HTTPServer() *http.Server {
 	return srv.httpServer
 }
 
-// Router returns the app server's HTTP router.
+// Engine returns the app server's HTTP router.
 func (srv *RegistrationServer) Engine() *gin.Engine {
 	return srv.router
 }

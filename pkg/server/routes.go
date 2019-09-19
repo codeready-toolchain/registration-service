@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/health"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
@@ -60,12 +61,19 @@ func (srv *RegistrationServer) SetupRoutes() error {
 			// error creating signup service, bail out.
 			log.Fatal(err)
 		}
-		
-		v1 := srv.router.Group("/api/v1")
-		{
-			v1.GET("/health", healthService.GetHealthCheckHandler)
-			v1.POST("/signup", signupService.PostSignupHandler)
-		}
+
+		// get the auth middleware
+		authMiddleware, err := auth.DefaultAuthMiddleware()
+
+		// public routes
+		publicV1 := srv.router.Group("/api/v1")
+		publicV1.GET("/health", healthService.GetHealthCheckHandler)
+
+		// private routes
+		privateV1 := srv.router.Group("/api/v1")
+		privateV1.Use(authMiddleware.MiddlewareFunc())
+		privateV1.GET("/signup", signupService.PostSignupHandler)
+		privateV1.POST("/signup", signupService.PostSignupHandler)
 
 		// Create the route for static content, served from /
 		static := StaticHandler{Assets: static.Assets}

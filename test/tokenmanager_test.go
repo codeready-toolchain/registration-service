@@ -41,10 +41,12 @@ func TestTokenManagerKeys(t *testing.T) {
 		require.NotNil(t, key1)
 		key0Retrieved, err := tokenManager.Key(kid0)
 		require.NoError(t, err)
+		require.NotNil(t, key0Retrieved)
 		// check key equality by comparing the modulus
 		require.Equal(t, key0.N, key0Retrieved.N)
 		key1Retrieved, err := tokenManager.Key(kid1)
 		require.NoError(t, err)
+		require.NotNil(t, key1Retrieved)
 		// check key equality by comparing the modulus
 		require.Equal(t, key1.N, key1Retrieved.N)
 	})

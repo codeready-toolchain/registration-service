@@ -32,14 +32,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(logger, configRegistry)
+	healthCheckCtrl := controller.NewHealthCheck(logger, s.ConfigRegistry)
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {
@@ -72,8 +70,8 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		ctx.Request = req
 
 		// Setting production mode
-		configRegistry.GetViperInstance().Set("testingmode", false)
-		assert.False(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to false")
+		s.ConfigRegistry.GetViperInstance().Set("testingmode", false)
+		assert.False(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to false")
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.

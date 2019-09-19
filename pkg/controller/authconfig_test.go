@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -33,14 +32,12 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := controller.NewAuthConfig(logger, configRegistry)
+	authConfigCtrl := controller.NewAuthConfig(logger, s.ConfigRegistry)
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
@@ -56,7 +53,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		// check response content-type.
-		require.Equal(s.T(), configRegistry.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
+		require.Equal(s.T(), s.ConfigRegistry.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
@@ -66,7 +63,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(configRegistry.GetAuthClientConfigAuthRaw()), &config)
+		err = json.Unmarshal([]byte(s.ConfigRegistry.GetAuthClientConfigAuthRaw()), &config)
 		require.NoError(s.T(), err)
 
 		s.Run("realm", func() {

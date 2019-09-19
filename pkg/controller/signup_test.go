@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
@@ -32,14 +31,12 @@ func (s *TestSignupSuite) TestSignupHandler() {
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.ConfigRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(logger, configRegistry)
+	signupCtrl := controller.NewSignup(logger, s.ConfigRegistry)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	s.Run("signup", func() {

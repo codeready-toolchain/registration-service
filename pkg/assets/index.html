@@ -3,7 +3,7 @@
 
   // this needs to be retrieved from the backend as part of the
   // auth configuration (see https://github.com/codeready-toolchain/registration-service/pull/17)
-  var authLibraryURL="http://foo/foo2.js"
+  var authLibraryURL="http://my.client/client.js"
 
   // this loads the js library at location 'url' dynamically and
   // calls 'cbSuccess' when the library was loaded successfully
@@ -33,7 +33,6 @@
     // success
     alert("Library load success!")
     // do something with the library
-    fooBar()
   }, function(error) {
     // error
     alert("Library load error!")

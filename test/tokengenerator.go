@@ -91,7 +91,7 @@ func (tg *TokenGenerator) GenerateSignedToken(identity Identity, kid string, ext
 	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
 	token.Claims.(jwt.MapClaims)["exp"] = time.Now().Unix() + 60*60*24*30
 	token.Claims.(jwt.MapClaims)["nbf"] = 0
-	token.Claims.(jwt.MapClaims)["iss"] = "fabric8-auth"
+	token.Claims.(jwt.MapClaims)["iss"] = "codeready-toolchain"
 	token.Claims.(jwt.MapClaims)["typ"] = "Bearer"
 	token.Claims.(jwt.MapClaims)["approved"] = true
 	token.Claims.(jwt.MapClaims)["name"] = "Test User"

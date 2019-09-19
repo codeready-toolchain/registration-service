@@ -5,10 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-<<<<<<< HEAD
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-=======
->>>>>>> upstream/master
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -124,16 +123,17 @@ func (tg *TokenGenerator) GetKeyService() string {
 		for kid, key := range tg.keyMap {
 			thisKey, err := jwk.New(&key.PublicKey)
 			if err != nil {
-				fmt.Printf("fatal error adding keys to key service: %s", err.Error())
-				os.Exit(-1)
+				panic(fmt.Sprintf("fatal error adding keys to key service: %s", err.Error()))
 			}
-			thisKey.Set(jwk.KeyIDKey, kid)	
+			err = thisKey.Set(jwk.KeyIDKey, kid)	
+			if err != nil {
+				panic(fmt.Sprintf("fatal error setting kid %s on key: %s", kid, err.Error()))
+			}
 			keySet.Keys = append(keySet.Keys, thisKey)
 		}
 		jsonKeyData, err := json.Marshal(keySet)
 		if err != nil {
-			fmt.Printf("fatal error creating key service: %s", err.Error())
-			os.Exit(-1)
+			panic(fmt.Sprintf("fatal error creating key service: %s", err.Error()))
 		}
 		fmt.Fprintln(w, string(jsonKeyData))
 	}))

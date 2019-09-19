@@ -5,13 +5,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-<<<<<<< HEAD
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/health"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-=======
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
->>>>>>> upstream/master
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 
 	"github.com/gin-gonic/gin"
@@ -63,22 +58,23 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
 		// get the auth middleware
-		authMiddleware, err := auth.NewAuthMiddleware(srv.logger, srv.config)
-
+		var authMiddleware *auth.JWTMiddleware
+		authMiddleware, err = auth.NewAuthMiddleware(srv.logger, srv.config)
+	
 		// public routes
 		publicV1 := srv.router.Group("/api/v1")
-		publicV1.GET("/health", healthService.GetHealthCheckHandler)
+		publicV1.GET("/health", healthCheckCtrl.GetHandler)
 
 		// private routes
 		privateV1 := srv.router.Group("/api/v1")
 		privateV1.Use(authMiddleware.HandlerFunc())
-		privateV1.POST("/signup", signupService.PostSignupHandler)
+		privateV1.POST("/signup", signupCtrl.PostHandler)
 
 		// if we are in testing mode, we also add a private health route for testing
 		if srv.Config().IsTestingMode() {
-			privateV1.GET("/health_private", signupService.PostSignupHandler)	
+			privateV1.GET("/health_private", healthCheckCtrl.GetHandler)
 		}
-		
+
 		// Create the route for static content, served from /
 		static := StaticHandler{Assets: static.Assets}
 		// capturing all non-matching routes, assuming them to be static content

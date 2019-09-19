@@ -218,6 +218,7 @@ func TestKeyFetching(t *testing.T) {
 					return keyManager.Key(tt.kid)
 				})
 				require.Error(t, err)
+				require.EqualError(t, err, "crypto/rsa: verification error")
 			})
 		}
 	})

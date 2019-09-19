@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	
@@ -52,11 +51,5 @@ func TestSignupHandler(t *testing.T) {
 
 		// Check the status code is what we expect.
 		require.Equal(t, http.StatusOK, rr.Code)
-	})
-
-	t.Run("invalid arguments for handler", func(t *testing.T) {
-		// Create handler instance.
-		_, err := signup.NewSignupService(nil, nil)
-		require.Error(t, err)
 	})
 }

@@ -1,39 +1,54 @@
 package signup
 
 import (
+	"context"
 	"fmt"
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	//"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
 	"strings"
 )
 
-type signupClient struct {
-	ClientSet *kubernetes.Clientset
-}
-
-func NewSignupClient() (*signupClient, error) {
+func NewSignupClient() (*signupClientImpl, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	scheme := runtime.NewScheme()
+	crtapi.SchemeBuilder.AddToScheme(scheme)
+	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
+	config.GroupVersion = &crtapi.SchemeGroupVersion
+	config.APIPath = "/apis"
+	config.ContentType = runtime.ContentTypeJSON
+	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+
+	client, err := rest.RESTClientFor(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &signupClient{
-		ClientSet: clientset,
+	/*
+		clientset, err := apiextension.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}*/
+
+	return &signupClientImpl{
+		Clientset: client,
 	}, nil
 }
 
-func (c *signupClient) CreateUserSignup(username, userID string) error {
+func (c *signupClientImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
 	name, err := c.transformAndValidateUserName(username)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	userSignup := &crtapi.UserSignup{
@@ -48,15 +63,15 @@ func (c *signupClient) CreateUserSignup(username, userID string) error {
 		},
 	}
 
-	req := c.ClientSet.RESTClient().Post()
-	req.Name("UserSignup")
-	req.Body(userSignup)
-	result := req.Do()
+	created, err := c.Clientset.ApiextensionsV1().CustomResourceDefinitions().Create(userSignup.(*apiextensionv1.CustomResourceDefinition))
+	if err != nil {
+		return nil, err
+	}
 
-	return result.Error()
+	return created.(*crtapi.UserSignup), nil
 }
 
-func (c *signupClient) transformAndValidateUserName(username string) (string, error) {
+func (c *signupClientImpl) transformAndValidateUserName(username string) (string, error) {
 	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
 
 	iteration := 0
@@ -81,11 +96,10 @@ func (c *signupClient) transformAndValidateUserName(username string) (string, er
 	return transformed, nil
 }
 
-func (c *signupClient) getUserSignup(name string) (*crtapi.UserSignup, error) {
+func (c *signupClientImpl) getUserSignup(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 
-	err := c.ClientSet.
-		RESTClient().
+	err := c.Client.
 		Get().
 		Resource("UserSignup").
 		Do().

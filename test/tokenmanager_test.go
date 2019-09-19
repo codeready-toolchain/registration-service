@@ -112,7 +112,9 @@ func TestTokenManagerKeyService(t *testing.T) {
 	require.NotNil(t, key1)
 
 	t.Run("key fetching", func(t *testing.T) {
-		keysEndpointURL := tokenManager.GetKeyService()
+		ks := tokenManager.NewKeyServer()
+		defer ks.Close()
+		keysEndpointURL := ks.URL
 		httpClient := http.DefaultClient
 		req, err := http.NewRequest("GET", keysEndpointURL, nil)
 		require.NoError(t, err)

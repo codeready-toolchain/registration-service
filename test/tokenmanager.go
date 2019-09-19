@@ -114,9 +114,9 @@ func (tg *TokenManager) GenerateSignedToken(identity Identity, kid string, extra
 	return tokenStr, nil
 }
 
-// GetKeyService creates a http key service and return the URL
-func (tg *TokenManager) GetKeyService() string {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// NewKeyServer creates and starts an http key server
+func (tg *TokenManager) NewKeyServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		keySet := &WebKeySet{}
@@ -140,5 +140,4 @@ func (tg *TokenManager) GetKeyService() string {
 		}
 		fmt.Fprintln(w, string(jsonKeyData))
 	}))
-	return ts.URL
 }

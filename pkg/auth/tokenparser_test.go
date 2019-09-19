@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	uuid "github.com/satori/go.uuid"
 
@@ -56,19 +56,18 @@ func TestTokenParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// startup public key service
-	keysEndpointURL := tokengenerator.GetKeyService()	
+	keysEndpointURL := tokengenerator.GetKeyService()
 
 	// set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
-	// set the key service url in the config	
+	// set the key service url in the config
 	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 	assert.Equal(t, keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
 	// create KeyManager instance.
 	keyManager, err := auth.NewKeyManager(logger, configRegistry)
 	require.NoError(t, err)
-
 
 	// create TokenParser instance.
 	tokenParser, err := auth.NewTokenParser(logger, configRegistry, keyManager)
@@ -107,5 +106,6 @@ func TestTokenParser(t *testing.T) {
 	t.Run("parse invalid token", func(t *testing.T) {
 		_, err := tokenParser.FromString(jwt_invalid)
 		require.Error(t, err)
+		require.EqualError(t, err, "token does not comply to expected claims: email missing")
 	})
 }

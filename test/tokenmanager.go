@@ -123,17 +123,20 @@ func (tg *TokenManager) GetKeyService() string {
 		for kid, key := range tg.keyMap {
 			newKey, err := jwk.New(&key.PublicKey)
 			if err != nil {
-				panic(fmt.Sprintf("fatal error adding keys to key service: %s", err.Error()))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 			err = newKey.Set(jwk.KeyIDKey, kid)	
 			if err != nil {
-				panic(fmt.Sprintf("fatal error setting kid %s on key: %s", kid, err.Error()))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 			keySet.Keys = append(keySet.Keys, newKey)
 		}
 		jsonKeyData, err := json.Marshal(keySet)
 		if err != nil {
-			panic(fmt.Sprintf("fatal error creating key service: %s", err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		fmt.Fprintln(w, string(jsonKeyData))
 	}))

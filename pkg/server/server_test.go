@@ -4,23 +4,33 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestServer(t *testing.T) {
+type TestServerSuite struct {
+	testutils.UnitTestSuite
+}
+
+func TestRunServerSuite(t *testing.T) {
+	suite.Run(t, &TestServerSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
 	srv, err := server.New("../../example-config.yml")
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// Setting up the routes.
 	err = srv.SetupRoutes()
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()
-	require.NotEmpty(t, routes)
+	require.NotEmpty(s.T(), routes)
 
 	// Check that Engine() returns the router object.
-	require.NotNil(t, srv.Engine())
+	require.NotNil(s.T(), srv.Engine())
 }

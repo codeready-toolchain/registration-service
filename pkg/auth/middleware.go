@@ -2,127 +2,122 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"time"
+	"net/http"
+	"strings"
 
-	ginjwt "github.com/appleboy/gin-jwt/v2"
-	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
-// AuthMiddleware is the default auth middleware instance
-var defaultAuthMiddleware *ginjwt.GinJWTMiddleware
+const (
+	// UsernameKey is the context key for preferred_username claim
+	UsernameKey = "username"
+	// EmailKey is the context key for email claim
+	EmailKey = "email"
+	// JWTClaimsKey is the context key for the claims struct
+	JWTClaimsKey = "jwtClaims"
+)
 
-// DefaultAuthMiddlewareWithConfig creates and stores a new auth middleware. Note that
-// repeated calls to this will have no effect.
-func DefaultAuthMiddlewareWithConfig(logger *log.Logger, config *configuration.Registry) (*ginjwt.GinJWTMiddleware, error) {
-	var err error
-	if defaultAuthMiddleware == nil {
-		defaultAuthMiddleware, err = NewAuthMiddleware(logger, config)
-		return defaultAuthMiddleware, err
+// JWTMiddleware is the JWT token validation middleware
+type JWTMiddleware struct {
+	config      *configuration.Registry
+	logger      *log.Logger
+	keyManager  *KeyManager
+	tokenParser *TokenParser
+}
+
+// NewAuthMiddleware returns a new middleware for JWT authentication
+func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWTMiddleware, error) {
+	if logger == nil || config == nil {
+		return nil, errors.New("missing parameters for NewAuthMiddleware")
 	}
-	return defaultAuthMiddleware, nil
-}
-
-// DefaultAuthMiddleware returns the existing auth middleware.
-func DefaultAuthMiddleware() (*ginjwt.GinJWTMiddleware, error) {
-	if defaultAuthMiddleware == nil {
-		return nil, errors.New("no default auth middleware created, call `DefaultKeyManagerWithConfig()` first")
+	// wire up the key and token management
+	keyManagerInstance, err := NewKeyManager(logger, config)
+	if err != nil {
+		return nil, err
 	}
-	return defaultAuthMiddleware, nil
+	tokenParserInstance, err := NewTokenParser(logger, config, keyManagerInstance)
+	if err != nil {
+		return nil, err
+	}
+	return &JWTMiddleware{
+		logger:      logger,
+		config:      config,
+		keyManager:  keyManagerInstance,
+		tokenParser: tokenParserInstance,
+	}, nil
 }
 
-type User struct {
-	UserName  string
-	FirstName string
-	LastName  string
+func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
+	// token lookup order: header: Authorization, query: token
+	// try header field "Authorization" (will be "" when n/a)
+	headerToken := c.GetHeader("Authorization")
+	if headerToken != "" {
+		if strings.HasPrefix(headerToken, "Bearer ") {
+			// it is a bearer token, split it up and return it
+			s := strings.Fields(headerToken)
+			if len(s) == 2 {
+				return s[1], nil
+			}
+			// we're failing fast here, if there is an Authorization header, it is used or it fails
+			return "", errors.New("found bearer token header, but no token:" + headerToken)
+		}
+		// see above, failing fast
+		return "", errors.New("found unknown authorization header:" + headerToken)
+	}
+	// next, try GET param "token" (will return "" if n/a)
+	paramToken := c.Query("token")
+	if paramToken != "" {
+		return paramToken, nil
+	}
+	return "", errors.New("no token found")
 }
 
-type login struct {
-	Username string `form:"username" json:"username" binding:"required"`
-	Password string `form:"password" json:"password" binding:"required"`
+func (m *JWTMiddleware) respondWithError(c *gin.Context, code int, message interface{}) {
+	c.AbortWithStatusJSON(code, gin.H{"error": message})
 }
 
-// NewAuthMiddleware creates a new auth middleware.
-func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*ginjwt.GinJWTMiddleware, error) {
-	var identityKey = "id"
-	return ginjwt.New(&ginjwt.GinJWTMiddleware{
-		Realm:       "test zone",
-		Key:         []byte("secret key"),
-		Timeout:     time.Hour,
-		MaxRefresh:  time.Hour,
-		IdentityKey: identityKey,
-		PayloadFunc: func(data interface{}) ginjwt.MapClaims {
-			fmt.Println("############################## PayloadFunc")
-			// PayloadFunc: maps the claims in the JWT
-			if v, ok := data.(*User); ok {
-				return ginjwt.MapClaims{
-					identityKey: v.UserName,
-				}
-			}
-			return ginjwt.MapClaims{}
-		},
-		IdentityHandler: func(c *gin.Context) interface{} {
-			fmt.Println("############################## IdentityHandler")
-			// IdentityHandler: extracts identity from claims.
-			claims := ginjwt.ExtractClaims(c)
-			return &User{
-				UserName: claims[identityKey].(string),
-			}
-		},
-		Authenticator: func(c *gin.Context) (interface{}, error) {
-			fmt.Println("############################## Authenticator")
-			var loginVals login
-			if err := c.ShouldBind(&loginVals); err != nil {
-				return "", jwt.ErrMissingLoginValues
-			}
-			userID := loginVals.Username
-			password := loginVals.Password
-
-			if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
-				return &User{
-					UserName:  userID,
-					LastName:  "Bo-Yi",
-					FirstName: "Wu",
-				}, nil
-			}
-
-			return nil, jwt.ErrFailedAuthentication
-		},
-		Authorizator: func(data interface{}, c *gin.Context) bool {
-			fmt.Println("############################## Authorizator")
-			// Authorizator: receives identity and handles authorization logic.
-			if v, ok := data.(*User); ok && v.UserName == "admin" {
-				return true
-			}
-
-			return false
-		},
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			fmt.Println("############################## Unauthorized")
-			// Unauthorized: handles unauthorized logic.
-			c.JSON(code, gin.H{
-				"code":    code,
-				"message": message,
-			})
-		},
-		// TokenLookup is a string in the form of "<source>:<name>" that is used
-		// to extract token from the request.
-		// Optional. Default value "header:Authorization".
-		// Possible values:
-		// - "header:<name>"
-		// - "query:<name>"
-		// - "cookie:<name>"
-		// - "param:<name>"
-		TokenLookup: "header: Authorization, query: token, cookie: jwt",
-		// TokenLookup: "query:token",
-		// TokenLookup: "cookie:token",
-		// TokenHeadName is a string in the header. Default value is "Bearer"
-		TokenHeadName: "Bearer",
-		// TimeFunc provides the current time. You can override it to use another time value. This is useful for testing or if your server uses a different time zone than your tokens.
-		TimeFunc: time.Now,
-	})
+// HandlerFunc returns the HanderFunc.
+func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// check if we have a token
+		tokenStr, err := m.extractToken(c)
+		if err != nil {
+			m.respondWithError(c, http.StatusForbidden, err.Error())
+			c.Abort()
+			return
+		}
+		// next, check the token
+		token, err := m.tokenParser.FromString(tokenStr)
+		if err != nil {
+			m.respondWithError(c, http.StatusForbidden, err.Error())
+			c.Abort()
+			return
+		}
+		// validate time claims
+		if token.Valid() != nil {
+			m.respondWithError(c, http.StatusForbidden, "token has invalid time claims")
+			c.Abort()
+			return
+		}
+		// check if we have the needed claims for username and email
+		if token.Username == "" {
+			m.respondWithError(c, http.StatusForbidden, "token does not have preferred_username set")
+			c.Abort()
+			return
+		}
+		if token.Email == "" {
+			m.respondWithError(c, http.StatusForbidden, "token does not have email set")
+			c.Abort()
+			return
+		}
+		// all checks done, add username and email to the context
+		c.Set(UsernameKey, token.Username)
+		c.Set(EmailKey, token.Email)
+		// for convenience, add the claims to the context
+		c.Set(JWTClaimsKey, token)
+		c.Next()
+	}
 }

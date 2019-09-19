@@ -63,7 +63,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		}
 
 		// get the auth middleware
-		authMiddleware, err := auth.DefaultAuthMiddleware()
+		authMiddleware, err := auth.NewAuthMiddleware(srv.logger, srv.config)
 
 		// public routes
 		publicV1 := srv.router.Group("/api/v1")
@@ -71,10 +71,14 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// private routes
 		privateV1 := srv.router.Group("/api/v1")
-		privateV1.Use(authMiddleware.MiddlewareFunc())
-		privateV1.GET("/signup", signupService.PostSignupHandler)
+		privateV1.Use(authMiddleware.HandlerFunc())
 		privateV1.POST("/signup", signupService.PostSignupHandler)
 
+		// if we are in testing mode, we also add a private health route for testing
+		if srv.Config().IsTestingMode() {
+			privateV1.GET("/health_private", signupService.PostSignupHandler)	
+		}
+		
 		// Create the route for static content, served from /
 		static := StaticHandler{Assets: static.Assets}
 		// capturing all non-matching routes, assuming them to be static content

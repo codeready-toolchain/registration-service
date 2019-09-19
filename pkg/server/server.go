@@ -43,9 +43,6 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	// initialize default KeyManager
 	auth.DefaultKeyManagerWithConfig(srv.logger, config)
 
-	// initialize auth middleware
-	auth.DefaultAuthMiddlewareWithConfig(srv.logger, config)
-
 	srv.httpServer = &http.Server{
 		Addr: srv.config.GetHTTPAddress(),
 		// Good practice to set timeouts to avoid Slowloris attacks.

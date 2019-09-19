@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/pkg/health"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,13 +54,25 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
-		healthService := health.NewHealthCheckService(srv.logger, srv.Config())
-		signupService := signup.NewSignupService(srv.logger, srv.Config())
+		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
+		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
-		v1 := srv.router.Group("/api/v1")
-		{
-			v1.GET("/health", healthService.GetHealthCheckHandler)
-			v1.POST("/signup", signupService.PostSignupHandler)
+		// get the auth middleware
+		var authMiddleware *auth.JWTMiddleware
+		authMiddleware, err = auth.NewAuthMiddleware(srv.logger, srv.config)
+	
+		// public routes
+		publicV1 := srv.router.Group("/api/v1")
+		publicV1.GET("/health", healthCheckCtrl.GetHandler)
+
+		// private routes
+		privateV1 := srv.router.Group("/api/v1")
+		privateV1.Use(authMiddleware.HandlerFunc())
+		privateV1.POST("/signup", signupCtrl.PostHandler)
+
+		// if we are in testing mode, we also add a private health route for testing
+		if srv.Config().IsTestingMode() {
+			privateV1.GET("/health_private", healthCheckCtrl.GetHandler)
 		}
 
 		// Create the route for static content, served from /

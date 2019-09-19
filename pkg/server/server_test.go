@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+
 	"github.com/stretchr/testify/require"
 )
 

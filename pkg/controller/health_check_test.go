@@ -1,4 +1,4 @@
-package health_test
+package controller_test
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/health"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,9 +29,9 @@ func TestHealthCheckHandler(t *testing.T) {
 	configRegistry.GetViperInstance().Set("testingmode", true)
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create handler instance.
-	healthService := health.NewHealthCheckService(logger, configRegistry)
-	handler := gin.HandlerFunc(healthService.GetHealthCheckHandler)
+	// Create health check instance.
+	healthCheckCtrl := controller.NewHealthCheck(logger, configRegistry)
+	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	t.Run("health in testing mode", func(t *testing.T) {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -42,7 +42,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusInternalServerError, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
+		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
@@ -53,7 +53,7 @@ func TestHealthCheckHandler(t *testing.T) {
 		assert.True(t, ok, "no alive key in health response")
 		valBool, ok := val.(bool)
 		assert.True(t, ok, "returned 'alive' value is not of type 'bool'")
-		assert.False(t, valBool, "alive is true in test mode health response")
+		assert.True(t, valBool, "alive is true in test mode health response")
 	})
 
 	t.Run("health in production mode", func(t *testing.T) {

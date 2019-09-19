@@ -66,6 +66,14 @@ const (
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 
+	varAuthClientConfigRaw = "auth_client.config.raw"
+	// DefaultAuthClientConfigRaw specifies the auth client config.
+	DefaultAuthClientConfigRaw = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
+
+	varAuthClientConfigContentType = "auth_client.config.content_type"
+	// DefaultAuthClientConfigContentType specifies the auth client config content type.
+	DefaultAuthClientConfigContentType = "application/json"
+
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
 	DefaultAuthClientPublicKeysURL = "http://keycloak.service/auth/realms/myRealm/protocol/openid-connect/certs"
@@ -123,6 +131,8 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
+	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
+	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 }
 
@@ -175,6 +185,18 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 // config file or environment variable).
 func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
+}
+
+// GetAuthClientConfigAuthContentType returns the auth config config content type (as 
+// set via config file or environment variable).
+func (c *Registry) GetAuthClientConfigAuthContentType() string {
+	return c.v.GetString(varAuthClientConfigContentType)
+}
+
+// GetAuthClientConfigAuthRaw returns the auth config config (as 
+// set via config file or environment variable).
+func (c *Registry) GetAuthClientConfigAuthRaw() string {
+	return c.v.GetString(varAuthClientConfigRaw)
 }
 
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file 

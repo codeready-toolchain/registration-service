@@ -60,8 +60,8 @@ func NewTokenManager() *TokenManager {
 	return tg
 }
 
-// CreateKey creates and stores a new key with the given kid.
-func (tg *TokenManager) CreateKey(kid string) (*rsa.PrivateKey, error) {
+// AddPrivateKey creates and stores a new key with the given kid.
+func (tg *TokenManager) AddPrivateKey(kid string) (*rsa.PrivateKey, error) {
 	reader := rand.Reader
 	key, err := rsa.GenerateKey(reader, bitSize)
 	if err != nil {

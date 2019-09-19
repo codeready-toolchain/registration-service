@@ -18,10 +18,10 @@ func TestTokenManagerKeys(t *testing.T) {
 	t.Run("create keys", func(t *testing.T) {
 		tokenManager := NewTokenManager()
 		kid0 := uuid.NewV4().String()
-		key0, err := tokenManager.CreateKey(kid0)
+		key0, err := tokenManager.AddPrivateKey(kid0)
 		require.NoError(t, err)
 		kid1 := uuid.NewV4().String()
-		key1, err := tokenManager.CreateKey(kid1)
+		key1, err := tokenManager.AddPrivateKey(kid1)
 		require.NoError(t, err)
 		// check key equality by comparing the modulus
 		require.NotEqual(t, key0.N, key1.N)
@@ -30,10 +30,10 @@ func TestTokenManagerKeys(t *testing.T) {
 	t.Run("get key", func(t *testing.T) {
 		tokenManager := NewTokenManager()
 		kid0 := uuid.NewV4().String()
-		key0, err := tokenManager.CreateKey(kid0)
+		key0, err := tokenManager.AddPrivateKey(kid0)
 		require.NoError(t, err)
 		kid1 := uuid.NewV4().String()
-		key1, err := tokenManager.CreateKey(kid1)
+		key1, err := tokenManager.AddPrivateKey(kid1)
 		require.NoError(t, err)
 		key0Retrieved, err := tokenManager.Key(kid0)
 		require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestTokenManagerKeys(t *testing.T) {
 func TestTokenManagerTokens(t *testing.T) {
 	tokenManager := NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	key0, err := tokenManager.CreateKey(kid0)
+	key0, err := tokenManager.AddPrivateKey(kid0)
 	require.NoError(t, err)
 
 	t.Run("create token", func(t *testing.T) {
@@ -96,10 +96,10 @@ func TestTokenManagerTokens(t *testing.T) {
 func TestTokenManagerKeyService(t *testing.T) {
 	tokenManager := NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	key0, err := tokenManager.CreateKey(kid0)
+	key0, err := tokenManager.AddPrivateKey(kid0)
 	require.NoError(t, err)
 	kid1 := uuid.NewV4().String()
-	key1, err := tokenManager.CreateKey(kid1)
+	key1, err := tokenManager.AddPrivateKey(kid1)
 	require.NoError(t, err)
 
 	t.Run("key fetching", func(t *testing.T) {

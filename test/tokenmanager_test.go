@@ -13,43 +13,43 @@ import (
 	jose "gopkg.in/square/go-jose.v2"
 )
 
-func TestTokenGeneratorKeys(t *testing.T) {
+func TestTokenManagerKeys(t *testing.T) {
 
 	t.Run("create keys", func(t *testing.T) {
-		tokengenerator := NewTokenGenerator()
+		tokenManager := NewTokenManager()
 		kid0 := uuid.NewV4().String()
-		key0, err := tokengenerator.CreateKey(kid0)
+		key0, err := tokenManager.CreateKey(kid0)
 		require.NoError(t, err)
 		kid1 := uuid.NewV4().String()
-		key1, err := tokengenerator.CreateKey(kid1)
+		key1, err := tokenManager.CreateKey(kid1)
 		require.NoError(t, err)
 		// check key equality by comparing the modulus
 		require.NotEqual(t, key0.N, key1.N)
 	})
 
 	t.Run("get key", func(t *testing.T) {
-		tokengenerator := NewTokenGenerator()
+		tokenManager := NewTokenManager()
 		kid0 := uuid.NewV4().String()
-		key0, err := tokengenerator.CreateKey(kid0)
+		key0, err := tokenManager.CreateKey(kid0)
 		require.NoError(t, err)
 		kid1 := uuid.NewV4().String()
-		key1, err := tokengenerator.CreateKey(kid1)
+		key1, err := tokenManager.CreateKey(kid1)
 		require.NoError(t, err)
-		key0Retrieved, err := tokengenerator.Key(kid0)
+		key0Retrieved, err := tokenManager.Key(kid0)
 		require.NoError(t, err)
 		// check key equality by comparing the modulus
 		require.Equal(t, key0.N, key0Retrieved.N)
-		key1Retrieved, err := tokengenerator.Key(kid1)
+		key1Retrieved, err := tokenManager.Key(kid1)
 		require.NoError(t, err)
 		// check key equality by comparing the modulus
 		require.Equal(t, key1.N, key1Retrieved.N)
 	})
 }
 
-func TestTokenGeneratorTokens(t *testing.T) {
-	tokengenerator := NewTokenGenerator()
+func TestTokenManagerTokens(t *testing.T) {
+	tokenManager := NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	key0, err := tokengenerator.CreateKey(kid0)
+	key0, err := tokenManager.CreateKey(kid0)
 	require.NoError(t, err)
 
 	t.Run("create token", func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestTokenGeneratorTokens(t *testing.T) {
 			Username: username,
 		}
 		// generate the token
-		encodedToken, err := tokengenerator.GenerateSignedToken(*identity0, kid0)
+		encodedToken, err := tokenManager.GenerateSignedToken(*identity0, kid0)
 		require.NoError(t, err)
 		// unmarshall it again
 		decodedToken, err := jwt.ParseWithClaims(encodedToken, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -79,7 +79,7 @@ func TestTokenGeneratorTokens(t *testing.T) {
 			Username: username,
 		}
 		// generate the token
-		encodedToken, err := tokengenerator.GenerateSignedToken(*identity0, kid0, WithEmailClaim(identity0.Username + "@email.tld"))
+		encodedToken, err := tokenManager.GenerateSignedToken(*identity0, kid0, WithEmailClaim(identity0.Username + "@email.tld"))
 		require.NoError(t, err)
 		// unmarshall it again
 		decodedToken, err := jwt.ParseWithClaims(encodedToken, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -93,17 +93,17 @@ func TestTokenGeneratorTokens(t *testing.T) {
 	})
 }
 
-func TestTokenGeneratorKeyService(t *testing.T) {
-	tokengenerator := NewTokenGenerator()
+func TestTokenManagerKeyService(t *testing.T) {
+	tokenManager := NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	key0, err := tokengenerator.CreateKey(kid0)
+	key0, err := tokenManager.CreateKey(kid0)
 	require.NoError(t, err)
 	kid1 := uuid.NewV4().String()
-	key1, err := tokengenerator.CreateKey(kid1)
+	key1, err := tokenManager.CreateKey(kid1)
 	require.NoError(t, err)
 
 	t.Run("key fetching", func(t *testing.T) {
-		keysEndpointURL := tokengenerator.GetKeyService()
+		keysEndpointURL := tokenManager.GetKeyService()
 		httpClient := http.DefaultClient
 		req, err := http.NewRequest("GET", keysEndpointURL, nil)
 		require.NoError(t, err)

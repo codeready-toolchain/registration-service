@@ -12,15 +12,24 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
+
+type TestConfigurationSuite struct {
+	testutils.UnitTestSuite
+}
+
+func TestRunConfigurationSuite(t *testing.T) {
+	suite.Run(t, &TestConfigurationSuite{testutils.UnitTestSuite{}})
+}
 
 // getDefaultConfiguration returns a configuration registry without anything but
 // defaults set. Remember that environment variables can overwrite defaults, so
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func getDefaultConfiguration(t *testing.T) *configuration.Registry {
+func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Registry {
 	config, err := configuration.New("")
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return config
 }
 
@@ -29,401 +38,401 @@ func getDefaultConfiguration(t *testing.T) *configuration.Registry {
 // getDefaultConfiguration() remember that environment variables can overwrite
 // defaults, so please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func getFileConfiguration(t *testing.T, content string) *configuration.Registry {
+func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Registry {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	defer os.Remove(tmpFile.Name())
 	_, err = tmpFile.Write([]byte(content))
-	require.NoError(t, err)
-	require.NoError(t, tmpFile.Close())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), tmpFile.Close())
 	config, err := configuration.New(tmpFile.Name())
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	return config
 }
 
-func TestNew(t *testing.T) {
-	t.Run("default configuration", func(t *testing.T) {
+func (s *TestConfigurationSuite) TestNew() {
+	s.Run("default configuration", func() {
 		reg, err := configuration.New("")
-		require.NoError(t, err)
-		require.NotNil(t, reg)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), reg)
 	})
-	t.Run("non existing file path", func(t *testing.T) {
+	s.Run("non existing file path", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		reg, err := configuration.New(u.String())
-		require.Error(t, err)
-		require.Nil(t, reg)
+		require.Error(s.T(), err)
+		require.Nil(s.T(), reg)
 	})
 }
 
-func TestGetHTTPAddress(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 	key := configuration.EnvPrefix + "_" + "HTTP_ADDRESS"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPAddress, config.GetHTTPAddress())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultHTTPAddress, config.GetHTTPAddress())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `http.address: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetHTTPAddress())
+		config := s.getFileConfiguration(`http.address: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetHTTPAddress())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPAddress())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetHTTPAddress())
 	})
 }
 
-func TestGetLogLevel(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetLogLevel() {
 	key := configuration.EnvPrefix + "_" + "LOG_LEVEL"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultLogLevel, config.GetLogLevel())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultLogLevel, config.GetLogLevel())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `log.level: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetLogLevel())
+		config := s.getFileConfiguration(`log.level: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetLogLevel())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetLogLevel())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetLogLevel())
 	})
 }
 
-func TestIsLogJSON(t *testing.T) {
+func (s *TestConfigurationSuite) TestIsLogJSON() {
 	key := configuration.EnvPrefix + "_" + "LOG_JSON"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultLogJSON, config.IsLogJSON())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultLogJSON, config.IsLogJSON())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultLogJSON
-		config := getFileConfiguration(t, `log.json: "`+strconv.FormatBool(newVal)+`"`)
-		assert.Equal(t, newVal, config.IsLogJSON())
+		config := s.getFileConfiguration(`log.json: "`+strconv.FormatBool(newVal)+`"`)
+		assert.Equal(s.T(), newVal, config.IsLogJSON())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := !configuration.DefaultLogJSON
 		os.Setenv(key, strconv.FormatBool(newVal))
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.IsLogJSON())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.IsLogJSON())
 	})
 }
 
-func TestGetGracefulTimeout(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 	key := configuration.EnvPrefix + "_" + "GRACEFUL_TIMEOUT"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultGracefulTimeout, config.GetGracefulTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultGracefulTimeout, config.GetGracefulTimeout())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
-		config := getFileConfiguration(t, `graceful_timeout: "`+newVal.String()+`"`)
-		assert.Equal(t, newVal, config.GetGracefulTimeout())
+		config := s.getFileConfiguration(`graceful_timeout: "`+newVal.String()+`"`)
+		assert.Equal(s.T(), newVal, config.GetGracefulTimeout())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := 666 * time.Second
 		os.Setenv(key, newVal.String())
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetGracefulTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetGracefulTimeout())
 	})
 }
 
-func TestGetHTTPWriteTimeout(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_WRITE_TIMEOUT"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPWriteTimeout, config.GetHTTPWriteTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultHTTPWriteTimeout, config.GetHTTPWriteTimeout())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
-		config := getFileConfiguration(t, `http.write_timeout: "`+newVal.String()+`"`)
-		assert.Equal(t, newVal, config.GetHTTPWriteTimeout())
+		config := s.getFileConfiguration(`http.write_timeout: "`+newVal.String()+`"`)
+		assert.Equal(s.T(), newVal, config.GetHTTPWriteTimeout())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := 666 * time.Second
 		os.Setenv(key, newVal.String())
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPWriteTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetHTTPWriteTimeout())
 	})
 }
 
-func TestGetHTTPReadTimeout(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_READ_TIMEOUT"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPReadTimeout, config.GetHTTPReadTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultHTTPReadTimeout, config.GetHTTPReadTimeout())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 444 * time.Second
-		config := getFileConfiguration(t, `http.read_timeout: "`+newVal.String()+`"`)
-		assert.Equal(t, newVal, config.GetHTTPReadTimeout())
+		config := s.getFileConfiguration(`http.read_timeout: "`+newVal.String()+`"`)
+		assert.Equal(s.T(), newVal, config.GetHTTPReadTimeout())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := 777 * time.Second
 		os.Setenv(key, newVal.String())
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPReadTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetHTTPReadTimeout())
 	})
 }
 
-func TestGetHTTPIdleTimeout(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_IDLE_TIMEOUT"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPIdleTimeout, config.GetHTTPIdleTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultHTTPIdleTimeout, config.GetHTTPIdleTimeout())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 111 * time.Second
-		config := getFileConfiguration(t, `http.idle_timeout: "`+newVal.String()+`"`)
-		assert.Equal(t, newVal, config.GetHTTPIdleTimeout())
+		config := s.getFileConfiguration(`http.idle_timeout: "`+newVal.String()+`"`)
+		assert.Equal(s.T(), newVal, config.GetHTTPIdleTimeout())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := 888 * time.Second
 		os.Setenv(key, newVal.String())
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPIdleTimeout())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetHTTPIdleTimeout())
 	})
 }
 
-func TestGetHTTPCompressResponses(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 	key := configuration.EnvPrefix + "_" + "HTTP_COMPRESS"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultHTTPCompressResponses, config.GetHTTPCompressResponses())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultHTTPCompressResponses, config.GetHTTPCompressResponses())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultHTTPCompressResponses
-		config := getFileConfiguration(t, `http.compress: "`+strconv.FormatBool(newVal)+`"`)
-		assert.Equal(t, newVal, config.GetHTTPCompressResponses())
+		config := s.getFileConfiguration(`http.compress: "`+strconv.FormatBool(newVal)+`"`)
+		assert.Equal(s.T(), newVal, config.GetHTTPCompressResponses())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := !configuration.DefaultHTTPCompressResponses
 		os.Setenv(key, strconv.FormatBool(newVal))
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetHTTPCompressResponses())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetHTTPCompressResponses())
 	})
 }
 
-func TestIsTestingMode(t *testing.T) {
+func (s *TestConfigurationSuite) TestIsTestingMode() {
 	key := configuration.EnvPrefix + "_" + "TESTINGMODE"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultTestingMode, config.IsTestingMode())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultTestingMode, config.IsTestingMode())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultTestingMode
-		config := getFileConfiguration(t, `testingmode: "`+strconv.FormatBool(newVal)+`"`)
-		assert.Equal(t, newVal, config.IsTestingMode())
+		config := s.getFileConfiguration(`testingmode: "`+strconv.FormatBool(newVal)+`"`)
+		assert.Equal(s.T(), newVal, config.IsTestingMode())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		newVal := !configuration.DefaultTestingMode
 		os.Setenv(key, strconv.FormatBool(newVal))
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.IsTestingMode())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.IsTestingMode())
 	})
 }
 
-func TestGetAuthClientConfigRaw(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `auth_client.config.raw: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetAuthClientConfigAuthRaw())
+		config := s.getFileConfiguration(`auth_client.config.raw: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetAuthClientConfigAuthRaw())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
 	})
 }
 
-func TestGetAuthClientConfigContentType(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultAuthClientConfigContentType, config.GetAuthClientConfigAuthContentType())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigContentType, config.GetAuthClientConfigAuthContentType())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `auth_client.config.content_type: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetAuthClientConfigAuthContentType())
+		config := s.getFileConfiguration(`auth_client.config.content_type: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthContentType())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetAuthClientConfigAuthContentType())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthContentType())
 	})
 }
 
-func TestGetAuthClientLibraryURL(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_LIBRARY_URL"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultAuthClientLibraryURL, config.GetAuthClientLibraryURL())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientLibraryURL, config.GetAuthClientLibraryURL())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `auth_client.library_url: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetAuthClientLibraryURL())
+		config := s.getFileConfiguration(`auth_client.library_url: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientLibraryURL())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetAuthClientLibraryURL())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientLibraryURL())
 	})
 }
 
-func TestGetAuthClientPublicKeysURL(t *testing.T) {
+func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_PUBLIC_KEYS_URL"
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
-	t.Run("default", func(t *testing.T) {
+	s.Run("default", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, configuration.DefaultAuthClientPublicKeysURL, config.GetAuthClientPublicKeysURL())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientPublicKeysURL, config.GetAuthClientPublicKeysURL())
 	})
 
-	t.Run("file", func(t *testing.T) {
+	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := getFileConfiguration(t, `auth_client.public_keys_url: "`+newVal+`"`)
-		assert.Equal(t, newVal, config.GetAuthClientPublicKeysURL())
+		config := s.getFileConfiguration(`auth_client.public_keys_url: "`+newVal+`"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientPublicKeysURL())
 	})
 
-	t.Run("env overwrite", func(t *testing.T) {
+	s.Run("env overwrite", func() {
 		u, err := uuid.NewV4()
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		newVal := u.String()
 		os.Setenv(key, newVal)
-		config := getDefaultConfiguration(t)
-		assert.Equal(t, newVal, config.GetAuthClientPublicKeysURL())
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientPublicKeysURL())
 	})
 }

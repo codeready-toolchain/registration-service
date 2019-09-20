@@ -9,31 +9,38 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestAuthClientConfigHandler(t *testing.T) {
+type TestAuthConfigSuite struct {
+	testutils.UnitTestSuite
+}
+
+ func TestRunAuthClientConfigSuite(t *testing.T) {
+	suite.Run(t, &TestAuthConfigSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/authconfig", nil)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := controller.NewAuthConfig(logger, configRegistry)
+	authConfigCtrl := controller.NewAuthConfig(logger, s.Config)
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
-	t.Run("valid json config", func(t *testing.T) {
+	s.Run("valid json config", func() {
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
@@ -43,68 +50,68 @@ func TestAuthClientConfigHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		require.Equal(t, http.StatusOK, rr.Code)
+		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		// check response content-type.
-		require.Equal(t, configRegistry.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
+		require.Equal(s.T(), s.Config.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
 		var data map[string]interface{}
 		err = json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(configRegistry.GetAuthClientConfigAuthRaw()), &config)
-		require.NoError(t, err)
+		err = json.Unmarshal([]byte(s.Config.GetAuthClientConfigAuthRaw()), &config)
+		require.NoError(s.T(), err)
 
-		t.Run("realm", func(t *testing.T) {
+		s.Run("realm", func() {
 			val, ok := data["realm"]
-			assert.True(t, ok, "no 'realm' key in authconfig response")
+			assert.True(s.T(), ok, "no 'realm' key in authconfig response")
 			valString, ok := val.(string)
-			assert.True(t, ok, "returned 'realm' value is not of type 'string'")
-			assert.Equal(t, config["realm"], valString, "wrong 'realm' in authconfig response, got %s want %s", valString, config["realm"])
+			assert.True(s.T(), ok, "returned 'realm' value is not of type 'string'")
+			assert.Equal(s.T(), config["realm"], valString, "wrong 'realm' in authconfig response, got %s want %s", valString, config["realm"])
 		})
 
-		t.Run("auth-server-url", func(t *testing.T) {
+		s.Run("auth-server-url", func() {
 			val, ok := data["auth-server-url"]
-			assert.True(t, ok, "no 'auth-server-url' key in authconfig response")
+			assert.True(s.T(), ok, "no 'auth-server-url' key in authconfig response")
 			valString, ok := val.(string)
-			assert.True(t, ok, "returned 'auth-server-url' value is not of type 'string'")
-			assert.Equal(t, config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response, got %s want %s", valString, config["auth-server-url"])
+			assert.True(s.T(), ok, "returned 'auth-server-url' value is not of type 'string'")
+			assert.Equal(s.T(), config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response, got %s want %s", valString, config["auth-server-url"])
 		})
 
-		t.Run("ssl-required", func(t *testing.T) {
+		s.Run("ssl-required", func() {
 			val, ok := data["ssl-required"]
-			assert.True(t, ok, "no 'ssl-required' key in authconfig response")
+			assert.True(s.T(), ok, "no 'ssl-required' key in authconfig response")
 			valString, ok := val.(string)
-			assert.True(t, ok, "returned 'ssl-required' value is not of type 'string'")
-			assert.Equal(t, config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response, got %s want %s", valString, config["ssl-required"])
+			assert.True(s.T(), ok, "returned 'ssl-required' value is not of type 'string'")
+			assert.Equal(s.T(), config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response, got %s want %s", valString, config["ssl-required"])
 		})
 
-		t.Run("resource", func(t *testing.T) {
+		s.Run("resource", func() {
 			val, ok := data["resource"]
-			assert.True(t, ok, "no 'resource' key in authconfig response")
+			assert.True(s.T(), ok, "no 'resource' key in authconfig response")
 			valString, ok := val.(string)
-			assert.True(t, ok, "returned 'resource' value is not of type 'string'")
-			assert.Equal(t, config["resource"], valString, "wrong 'resource' in authconfig response, got %s want %s", valString, config["resource"])
+			assert.True(s.T(), ok, "returned 'resource' value is not of type 'string'")
+			assert.Equal(s.T(), config["resource"], valString, "wrong 'resource' in authconfig response, got %s want %s", valString, config["resource"])
 		})
 
-		t.Run("public-client", func(t *testing.T) {
+		s.Run("public-client", func() {
 			val, ok := data["public-client"]
-			assert.True(t, ok, "no 'public-client' key in authconfig response")
+			assert.True(s.T(), ok, "no 'public-client' key in authconfig response")
 			valBool, ok := val.(bool)
-			assert.True(t, ok, "returned 'public-client' value is not of type 'bool'")
-			assert.Equal(t, config["public-client"], valBool, "wrong 'public-client' in authconfig response, got %s want %s", valBool, config["public-client"])
+			assert.True(s.T(), ok, "returned 'public-client' value is not of type 'bool'")
+			assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response, got %s want %s", valBool, config["public-client"])
 		})
 
-		t.Run("confidential-port", func(t *testing.T) {
+		s.Run("confidential-port", func() {
 			val, ok := data["confidential-port"]
-			assert.True(t, ok, "no 'confidential-port' key in authconfig response")
+			assert.True(s.T(), ok, "no 'confidential-port' key in authconfig response")
 			valFloat, ok := val.(float64)
-			assert.True(t, ok, "returned 'confidential-port' value is not of type 'float64'")
-			assert.Equal(t, config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response, got %s want %s", valFloat, config["confidential-port"])
+			assert.True(s.T(), ok, "returned 'confidential-port' value is not of type 'float64'")
+			assert.Equal(s.T(), config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response, got %s want %s", valFloat, config["confidential-port"])
 		})
 	})
 }

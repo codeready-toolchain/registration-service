@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+type SignupServiceConfiguration interface {
+	GetNamespace() string
+}
+
 type SignupService interface {
 	CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error)
 }
@@ -18,19 +22,19 @@ type signupServiceImpl struct {
 	client UserSignupClient
 }
 
-func NewSignupService(namespace string) (SignupService, error) {
-	config, err := rest.InClusterConfig()
+func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
+	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := NewUserSignupClient(config)
+	client, err := NewUserSignupClient(k8sConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	return &signupServiceImpl{
-		client: client.UserSignups(namespace),
+		client: client.UserSignups(cfg.GetNamespace()),
 	}, nil
 }
 

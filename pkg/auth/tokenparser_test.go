@@ -28,33 +28,6 @@ func TestTokenParser(t *testing.T) {
 	_, err = tokengenerator.AddPrivateKey(kid1)
 	require.NoError(t, err)
 
-	// create two test tokens, both valid
-	username0 := uuid.NewV4().String()
-	identity0 := &testutils.Identity{
-		ID:       uuid.NewV4(),
-		Username: username0,
-	}
-	email0 := identity0.Username + "@email.tld"
-	jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, testutils.WithEmailClaim(email0))
-	require.NoError(t, err)
-	username1 := uuid.NewV4().String()
-	identity1 := &testutils.Identity{
-		ID:       uuid.NewV4(),
-		Username: username1,
-	}
-	email1 := identity1.Username + "@email.tld"
-	jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, testutils.WithEmailClaim(email1))
-	require.NoError(t, err)
-
-	// create invalid test token (wrong set of claims, no email), signed with key1
-	username_invalid := uuid.NewV4().String()
-	identity_invalid := &testutils.Identity{
-		ID:       uuid.NewV4(),
-		Username: username_invalid,
-	}
-	jwt_invalid, err := tokengenerator.GenerateSignedToken(*identity_invalid, kid1)
-	require.NoError(t, err)
-
 	// startup public key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
@@ -83,6 +56,24 @@ func TestTokenParser(t *testing.T) {
 	})
 
 	t.Run("parse valid tokens", func(t *testing.T) {
+		// create two test tokens, both valid
+		username0 := uuid.NewV4().String()
+		identity0 := &testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		require.NoError(t, err)
+		username1 := uuid.NewV4().String()
+		identity1 := &testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: username1,
+		}
+		email1 := identity1.Username + "@email.tld"
+		jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, testutils.WithEmailClaim(email1))
+		require.NoError(t, err)
+
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
 			name     string
@@ -104,7 +95,16 @@ func TestTokenParser(t *testing.T) {
 	})
 
 	t.Run("parse invalid token", func(t *testing.T) {
-		_, err := tokenParser.FromString(jwt_invalid)
+		// create invalid test token (wrong set of claims, no email), signed with key1
+		username_invalid := uuid.NewV4().String()
+		identity_invalid := &testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: username_invalid,
+		}
+		jwt_invalid, err := tokengenerator.GenerateSignedToken(*identity_invalid, kid1)
+		require.NoError(t, err)
+
+		_, err = tokenParser.FromString(jwt_invalid)
 		require.Error(t, err)
 		require.EqualError(t, err, "token does not comply to expected claims: email missing")
 	})

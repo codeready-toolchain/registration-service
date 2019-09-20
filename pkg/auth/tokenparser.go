@@ -19,7 +19,6 @@ type TokenClaims struct {
 	EmailVerified bool           `json:"email_verified"`
 	Company       string         `json:"company"`
 	SessionState  string         `json:"session_state"`
-	Approved      bool           `json:"approved"`
 	jwt.StandardClaims
 }
 

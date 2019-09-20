@@ -20,16 +20,7 @@ type TokenClaims struct {
 	Company       string         `json:"company"`
 	SessionState  string         `json:"session_state"`
 	Approved      bool           `json:"approved"`
-	Permissions   *[]Permissions `json:"permissions"`
 	jwt.StandardClaims
-}
-
-// Permissions represents a "permissions" claim in the AuthorizationPayload
-type Permissions struct {
-	ResourceSetName *string  `json:"resource_set_name"`
-	ResourceSetID   *string  `json:"resource_set_id"`
-	Scopes          []string `json:"scopes"`
-	Expiry          int64    `json:"exp"`
 }
 
 // TokenParser represents a parser for JWT tokens.

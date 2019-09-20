@@ -55,6 +55,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// /status is something you should always have in any of your services,
 		// please leave it as is.
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
+		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
 		// get the auth middleware

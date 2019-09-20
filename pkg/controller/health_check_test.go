@@ -10,30 +10,37 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
+type TestHealthCheckSuite struct {
+	testutils.UnitTestSuite
+}
 
-func TestHealthCheckHandler(t *testing.T) {
+ func TestRunHealthCheckSuite(t *testing.T) {
+	suite.Run(t, &TestHealthCheckSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
-	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(logger, configRegistry)
+	healthCheckCtrl := controller.NewHealthCheck(logger, s.Config)
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
-	t.Run("health in testing mode", func(t *testing.T) {
+	s.Run("health in testing mode", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -42,50 +49,50 @@ func TestHealthCheckHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), rr.Code, http.StatusInternalServerError, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		val, ok := data["alive"]
-		assert.True(t, ok, "no alive key in health response")
+		assert.True(s.T(), ok, "no alive key in health response")
 		valBool, ok := val.(bool)
-		assert.True(t, ok, "returned 'alive' value is not of type 'bool'")
-		assert.True(t, valBool, "alive is true in test mode health response")
+		assert.True(s.T(), ok, "returned 'alive' value is not of type 'bool'")
+		assert.False(s.T(), valBool, "alive is true in test mode health response")
 	})
 
-	t.Run("health in production mode", func(t *testing.T) {
+	s.Run("health in production mode", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
 		// Setting production mode
-		configRegistry.GetViperInstance().Set("testingmode", false)
-		assert.False(t, configRegistry.IsTestingMode(), "testing mode not set correctly to false")
+		s.Config.GetViperInstance().Set("testingmode", false)
+		assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		val, ok := data["alive"]
-		assert.True(t, ok, "no alive key in health response")
+		assert.True(s.T(), ok, "no alive key in health response")
 		valBool, ok := val.(bool)
-		assert.True(t, ok, "returned 'alive' value is not of type 'bool'")
-		assert.True(t, valBool, "alive is false in test mode health response")
+		assert.True(s.T(), ok, "returned 'alive' value is not of type 'bool'")
+		assert.True(s.T(), valBool, "alive is false in test mode health response")
 	})
 
-	t.Run("revision", func(t *testing.T) {
+	s.Run("revision", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -96,21 +103,21 @@ func TestHealthCheckHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		val, ok := data["revision"]
-		assert.True(t, ok, "no revision key in health response")
+		assert.True(s.T(), ok, "no revision key in health response")
 		valString, ok := val.(string)
-		assert.True(t, ok, "returned 'revision' value is not of type 'string'")
-		assert.Equal(t, configuration.Commit, valString, "wrong revision in health response, got %s want %s", valString, configuration.Commit)
+		assert.True(s.T(), ok, "returned 'revision' value is not of type 'string'")
+		assert.Equal(s.T(), configuration.Commit, valString, "wrong revision in health response, got %s want %s", valString, configuration.Commit)
 	})
 
-	t.Run("build time", func(t *testing.T) {
+	s.Run("build time", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -121,21 +128,21 @@ func TestHealthCheckHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		val, ok := data["build_time"]
-		assert.True(t, ok, "no build_time key in health response")
+		assert.True(s.T(), ok, "no build_time key in health response")
 		valString, ok := val.(string)
-		assert.True(t, ok, "returned 'build_time' value is not of type 'string'")
-		assert.Equal(t, configuration.BuildTime, valString, "wrong build_time in health response, got %s want %s", valString, configuration.BuildTime)
+		assert.True(s.T(), ok, "returned 'build_time' value is not of type 'string'")
+		assert.Equal(s.T(), configuration.BuildTime, valString, "wrong build_time in health response, got %s want %s", valString, configuration.BuildTime)
 	})
 
-	t.Run("start time", func(t *testing.T) {
+	s.Run("start time", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -146,17 +153,17 @@ func TestHealthCheckHandler(t *testing.T) {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(t, rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		val, ok := data["start_time"]
-		assert.True(t, ok, "no start_time key in health response")
+		assert.True(s.T(), ok, "no start_time key in health response")
 		valString, ok := val.(string)
-		assert.True(t, ok, "returned 'start_time' value is not of type 'string'")
-		assert.Equal(t, configuration.StartTime, valString, "wrong start_time in health response, got %s want %s", valString, configuration.StartTime)
+		assert.True(s.T(), ok, "returned 'start_time' value is not of type 'string'")
+		assert.Equal(s.T(), configuration.StartTime, valString, "wrong start_time in health response, got %s want %s", valString, configuration.StartTime)
 	})
 }

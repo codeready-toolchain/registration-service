@@ -48,20 +48,20 @@ func NewIdentity() *Identity {
 	}
 }
 
-// TokenGenerator represents the test token and key manager.
-type TokenGenerator struct {
+// TokenManager represents the test token and key manager.
+type TokenManager struct {
 	keyMap map[string]*rsa.PrivateKey
 }
 
-// NewTokenGenerator creates a new TokenGenerator.
-func NewTokenGenerator() *TokenGenerator {
-	tg := &TokenGenerator{}
+// NewTokenManager creates a new TokenManager.
+func NewTokenManager() *TokenManager {
+	tg := &TokenManager{}
 	tg.keyMap = make(map[string]*rsa.PrivateKey)
 	return tg
 }
 
-// CreateKey creates and stores a new key with the given kid.
-func (tg *TokenGenerator) CreateKey(kid string) (*rsa.PrivateKey, error) {
+// AddPrivateKey creates and stores a new key with the given kid.
+func (tg *TokenManager) AddPrivateKey(kid string) (*rsa.PrivateKey, error) {
 	reader := rand.Reader
 	key, err := rsa.GenerateKey(reader, bitSize)
 	if err != nil {
@@ -72,7 +72,7 @@ func (tg *TokenGenerator) CreateKey(kid string) (*rsa.PrivateKey, error) {
 }
 
 // Key retrieves the key associated with the given kid.
-func (tg *TokenGenerator) Key(kid string) (*rsa.PrivateKey, error) {
+func (tg *TokenManager) Key(kid string) (*rsa.PrivateKey, error) {
 	key, ok := tg.keyMap[kid]
 	if !ok {
 		return nil, errors.New("given kid does not exist")
@@ -81,7 +81,7 @@ func (tg *TokenGenerator) Key(kid string) (*rsa.PrivateKey, error) {
 }
 
 // GenerateSignedToken generates a JWT user token and signs it using the default private key
-func (tg *TokenGenerator) GenerateSignedToken(identity Identity, kid string, extraClaims ...ExtraClaim) (string, error) {
+func (tg *TokenManager) GenerateSignedToken(identity Identity, kid string, extraClaims ...ExtraClaim) (string, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Claims.(jwt.MapClaims)["uuid"] = identity.ID
 	token.Claims.(jwt.MapClaims)["preferred_username"] = identity.Username
@@ -114,28 +114,30 @@ func (tg *TokenGenerator) GenerateSignedToken(identity Identity, kid string, ext
 	return tokenStr, nil
 }
 
-// GetKeyService creates a http key service and return the URL
-func (tg *TokenGenerator) GetKeyService() string {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// NewKeyServer creates and starts an http key server
+func (tg *TokenManager) NewKeyServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		keySet := &WebKeySet{}
 		for kid, key := range tg.keyMap {
-			thisKey, err := jwk.New(&key.PublicKey)
+			newKey, err := jwk.New(&key.PublicKey)
 			if err != nil {
-				panic(fmt.Sprintf("fatal error adding keys to key service: %s", err.Error()))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
-			err = thisKey.Set(jwk.KeyIDKey, kid)	
+			err = newKey.Set(jwk.KeyIDKey, kid)	
 			if err != nil {
-				panic(fmt.Sprintf("fatal error setting kid %s on key: %s", kid, err.Error()))
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
-			keySet.Keys = append(keySet.Keys, thisKey)
+			keySet.Keys = append(keySet.Keys, newKey)
 		}
 		jsonKeyData, err := json.Marshal(keySet)
 		if err != nil {
-			panic(fmt.Sprintf("fatal error creating key service: %s", err.Error()))
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		fmt.Fprintln(w, string(jsonKeyData))
 	}))
-	return ts.URL
 }

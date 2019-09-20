@@ -20,12 +20,12 @@ func TestTokenParser(t *testing.T) {
 	configRegistry := configuration.CreateEmptyRegistry()
 
 	// create test keys
-	tokengenerator := testutils.NewTokenGenerator()
+	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	_, err := tokengenerator.CreateKey(kid0)
+	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(t, err)
 	kid1 := uuid.NewV4().String()
-	_, err = tokengenerator.CreateKey(kid1)
+	_, err = tokengenerator.AddPrivateKey(kid1)
 	require.NoError(t, err)
 
 	// create two test tokens, both valid
@@ -56,7 +56,7 @@ func TestTokenParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// startup public key service
-	keysEndpointURL := tokengenerator.GetKeyService()
+	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// set the config for testing mode, the handler may use this.
 	configRegistry.GetViperInstance().Set("testingmode", true)

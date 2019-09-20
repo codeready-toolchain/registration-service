@@ -65,6 +65,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// public routes
 		publicV1 := srv.router.Group("/api/v1")
 		publicV1.GET("/health", healthCheckCtrl.GetHandler)
+		publicV1.GET("/authconfig", authConfigCtrl.GetHandler)
 
 		// private routes
 		privateV1 := srv.router.Group("/api/v1")

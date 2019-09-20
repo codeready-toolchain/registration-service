@@ -17,9 +17,9 @@ import (
 
 func TestAuthMiddleware(t *testing.T) {
 	// create a TokenGenerator and a key
-	tokengenerator := testutils.NewTokenGenerator()
+	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	_, err := tokengenerator.CreateKey(kid0)
+	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(t, err)
 	// create some test tokens
 	identity0 := testutils.Identity {
@@ -34,7 +34,7 @@ func TestAuthMiddleware(t *testing.T) {
 	tokenInvalidGarbage := uuid.NewV4().String()
 
 	// start key service
-	keysEndpointURL := tokengenerator.GetKeyService()
+	keysEndpointURL := tokengenerator.NewKeyServer().URL
 	// set the key service url in the config
 	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
 	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")

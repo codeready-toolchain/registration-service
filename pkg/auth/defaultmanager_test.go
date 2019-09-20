@@ -22,12 +22,12 @@ func TestKeyManagerDefaultKeyManagerCreation(t *testing.T) {
 	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 
 	t.Run("first creation", func(t *testing.T) {
-		_, err := auth.DefaultKeyManagerWithConfig(logger, configRegistry)
+		_, err := auth.InitializeDefaultKeyManager(logger, configRegistry)
 		require.NoError(t, err)
 	})
 
 	t.Run("second redundant creation", func(t *testing.T) {
-		_, err := auth.DefaultKeyManagerWithConfig(logger, configRegistry)
+		_, err := auth.InitializeDefaultKeyManager(logger, configRegistry)
 		require.Error(t, err)
 		require.Equal(t, "default KeyManager can be created only once", err.Error())
 	})

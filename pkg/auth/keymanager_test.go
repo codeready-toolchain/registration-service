@@ -31,16 +31,19 @@ func TestKeyManager(t *testing.T) {
 	t.Run("missing logger", func(t *testing.T) {
 		_, err := auth.NewKeyManager(nil, configRegistry)
 		require.Error(t, err)
+		require.Equal(t, "no logger given when creating KeyManager", err.Error())
 	})
 
 	t.Run("missing config", func(t *testing.T) {
 		_, err := auth.NewKeyManager(logger, nil)
 		require.Error(t, err)
+		require.Equal(t, "no config given when creating KeyManager", err.Error())
 	})
 
 	t.Run("missing logger and config", func(t *testing.T) {
 		_, err := auth.NewKeyManager(nil, nil)
 		require.Error(t, err)
+		require.Equal(t, "no logger given when creating KeyManager", err.Error())
 	})
 }
 

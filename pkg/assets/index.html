@@ -5,9 +5,11 @@
 
   // loads json data from url, the callback is called with
   // error and data, with data the parsed json.
-  var getJSON = function(url, callback) {
+  var getJSON = function(url, token, callback) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
+    if (token != null)
+      xhr.setRequestHeader("Authorization", "Bearer " + token)
     xhr.responseType = 'json';
     xhr.onload = function() {
       var status = xhr.status;
@@ -44,7 +46,7 @@
   };
 
   // main operation, load config, load client, run client
-  getJSON(configURL, function(err, data) {
+  getJSON(configURL, null, function(err, data) {
     if (err !== null) {
       console.log('error loading client config' + err);
       document.getElementById('errorStatus').textContent = error;
@@ -59,14 +61,13 @@
             keycloak.loadUserInfo().success(function(data){
               document.getElementById('loginStatus').textContent = "logged in as user " + data.preferred_username;
               document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
-              console.log(keycloak);
               // do an authenticated request
               // note, this only works if testingmode is set to true!
-              getJSON("/api/v1/health_private", function(err, data) {
-                if (err != nil) {
+              getJSON("/api/v1/health_private", keycloak.idToken, function(err, data) {
+                if (err != null) {
                   document.getElementById('errorStatus').textContent = error;
                 } else {
-                  console.log(data)
+                  document.getElementById('serviceResp').textContent = JSON.stringify(data, null, 2);
                 }
               })
             });
@@ -91,4 +92,5 @@
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>
   <p><button onclick="keycloak.logout()">Logout</button></p>
   <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
+  <p>Secured Service Response:<br><pre id="serviceResp">n/a</pre></p>
 </body>

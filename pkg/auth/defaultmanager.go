@@ -18,7 +18,7 @@ func DefaultKeyManagerWithConfig(logger *log.Logger, config *configuration.Regis
 		defaultKeyManager, err = NewKeyManager(logger, config)
 		return defaultKeyManager, err
 	}
-	return defaultKeyManager, nil
+	return nil, errors.New("default KeyManager can be created only once")
 }
 
 // DefaultKeyManager returns the existing KeyManager instance.

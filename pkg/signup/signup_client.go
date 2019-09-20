@@ -2,10 +2,11 @@ package signup
 
 import (
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
+	// See note below
+	//v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -47,8 +48,10 @@ func (c *UserSignupV1Alpha1Client) UserSignups(namespace string) UserSignupClien
 type UserSignupClient interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	Delete(name string, options *v1.DeleteOptions) error
+
+	// See note below
+	//Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	//Delete(name string, options *v1.DeleteOptions) error
 }
 
 type userSignupClientImpl struct {
@@ -78,6 +81,12 @@ func (c *userSignupClientImpl) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return result, err
 }
 
+/*
+
+// DO NOT REMOVE - while these functions are not currently required by registration service, we may decide to migrate
+// the UserSignupClient implementation to the common package.  In this case, all CRUD operations should be available
+// and so this commented code should remain as an example of how to provide complete CRUD functionality.
+
 func (c *userSignupClientImpl) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 	err := c.client.Put().
@@ -98,3 +107,4 @@ func (c *userSignupClientImpl) Delete(name string, options *v1.DeleteOptions) er
 		Do().
 		Error()
 }
+*/

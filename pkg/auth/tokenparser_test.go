@@ -49,10 +49,13 @@ func TestTokenParser(t *testing.T) {
 	t.Run("invalid arguments to new", func(t *testing.T) {
 		_, err := auth.NewTokenParser(nil, configRegistry, keyManager)
 		require.Error(t, err)
+		require.Equal(t, "no logger given when creating TokenParser", err.Error())
 		_, err = auth.NewTokenParser(logger, nil, keyManager)
 		require.Error(t, err)
+		require.Equal(t, "no config given when creating TokenParser", err.Error())
 		_, err = auth.NewTokenParser(logger, configRegistry, nil)
 		require.Error(t, err)
+		require.Equal(t, "no keyManager given when creating TokenParser", err.Error())
 	})
 
 	t.Run("parse valid tokens", func(t *testing.T) {

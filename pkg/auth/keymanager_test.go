@@ -122,6 +122,7 @@ func TestKeyFetching(t *testing.T) {
 		_, err = auth.NewKeyManager(logger, configRegistry)
 		// this needs to fail with an error
 		require.Error(t, err)
+		require.Equal(t, "unable to obtain public keys from remote service", err.Error())
 	})
 
 	t.Run("parse keys, invalid response", func(t *testing.T) {
@@ -145,6 +146,7 @@ func TestKeyFetching(t *testing.T) {
 		_, err = auth.NewKeyManager(logger, configRegistry)
 		// this needs to fail with an error
 		require.Error(t, err)
+		require.Equal(t, "invalid character 's' looking for beginning of object key string", err.Error())
 	})
 
 	t.Run("parse keys, invalid url", func(t *testing.T) {
@@ -157,6 +159,7 @@ func TestKeyFetching(t *testing.T) {
 		_, err := auth.NewKeyManager(logger, configRegistry)
 		// this needs to fail with an error
 		require.Error(t, err)
+		require.Equal(t, "Get not%20an%20url: unsupported protocol scheme \"\"", err.Error())
 	})
 
 	t.Run("parse keys, server not reachable", func(t *testing.T) {
@@ -169,6 +172,7 @@ func TestKeyFetching(t *testing.T) {
 		_, err := auth.NewKeyManager(logger, configRegistry)
 		// this needs to fail with an error
 		require.Error(t, err)
+		require.Equal(t, "invalid character '<' looking for beginning of value", err.Error())
 	})
 
 	t.Run("validate with valid keys", func(t *testing.T) {

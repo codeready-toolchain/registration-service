@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	jwt "github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
@@ -17,49 +16,56 @@ import (
 	//"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestKeyManager(t *testing.T) {
+type TestKeyManagerSuite struct {
+	testutils.UnitTestSuite
+}
+
+ func TestRunKeyManagerSuite(t *testing.T) {
+	suite.Run(t, &TestKeyManagerSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestKeyManagerSuite) TestKeyManager() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
 	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
-	assert.True(t, configRegistry.IsTestingMode(), "testing mode not set correctly to true")
+	s.Config.GetViperInstance().Set("testingmode", true)
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
-	t.Run("missing logger", func(t *testing.T) {
-		_, err := auth.NewKeyManager(nil, configRegistry)
-		require.Error(t, err)
-		require.Equal(t, "no logger given when creating KeyManager", err.Error())
+	s.Run("missing logger", func() {
+		_, err := auth.NewKeyManager(nil, s.Config)
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "no logger given when creating KeyManager", err.Error())
 	})
 
-	t.Run("missing config", func(t *testing.T) {
+	s.Run("missing config", func() {
 		_, err := auth.NewKeyManager(logger, nil)
-		require.Error(t, err)
-		require.Equal(t, "no config given when creating KeyManager", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "no config given when creating KeyManager", err.Error())
 	})
 
-	t.Run("missing logger and config", func(t *testing.T) {
+	s.Run("missing logger and config", func() {
 		_, err := auth.NewKeyManager(nil, nil)
-		require.Error(t, err)
-		require.Equal(t, "no logger given when creating KeyManager", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "no logger given when creating KeyManager", err.Error())
 	})
 }
 
-func TestKeyFetching(t *testing.T) {
+func (s *TestKeyManagerSuite) TestKeyFetching() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
-	configRegistry := configuration.CreateEmptyRegistry()
 
 	// create test keys
 	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	kid1 := uuid.NewV4().String()
 	_, err = tokengenerator.AddPrivateKey(kid1)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// create two test tokens, both valid
 	username0 := uuid.NewV4().String()
@@ -69,7 +75,7 @@ func TestKeyFetching(t *testing.T) {
 	}
 	email0 := identity0.Username + "@email.tld"
 	jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, testutils.WithEmailClaim(email0))
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 	username1 := uuid.NewV4().String()
 	identity1 := &testutils.Identity{
 		ID:       uuid.NewV4(),
@@ -77,31 +83,31 @@ func TestKeyFetching(t *testing.T) {
 	}
 	email1 := identity1.Username + "@email.tld"
 	jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, testutils.WithEmailClaim(email1))
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	// startup public key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// Set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", false)
-	assert.False(t, configRegistry.IsTestingMode(), "testing mode not set correctly to false")
+	s.Config.GetViperInstance().Set("testingmode", false)
+	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 	// set the key service url in the config
-	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-	assert.Equal(t, keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
+	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+	assert.Equal(s.T(), keysEndpointURL, s.Config.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
-	t.Run("parse keys, valid response", func(t *testing.T) {
+	s.Run("parse keys, valid response", func() {
 		// Create KeyManager instance.
-		keyManager, err := auth.NewKeyManager(logger, configRegistry)
-		require.NoError(t, err)
+		keyManager, err := auth.NewKeyManager(logger, s.Config)
+		require.NoError(s.T(), err)
 
 		// check if the keys are parsed correctly
 		_, err = keyManager.Key(kid0)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		_, err = keyManager.Key(kid1)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 	})
 
-	t.Run("parse keys, invalid response status code", func(t *testing.T) {
+	s.Run("parse keys, invalid response status code", func() {
 		// setup http service serving the test keys
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -112,20 +118,20 @@ func TestKeyFetching(t *testing.T) {
 
 		// check if service runs
 		_, err := http.Get(ts.URL)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(logger, configRegistry)
+		_, err = auth.NewKeyManager(logger, s.Config)
 		// this needs to fail with an error
-		require.Error(t, err)
-		require.Equal(t, "unable to obtain public keys from remote service", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "unable to obtain public keys from remote service", err.Error())
 	})
 
-	t.Run("parse keys, invalid response", func(t *testing.T) {
+	s.Run("parse keys, invalid response", func() {
 		// setup http service serving the test keys
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -136,50 +142,50 @@ func TestKeyFetching(t *testing.T) {
 
 		// check if service runs
 		_, err := http.Get(ts.URL)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(logger, configRegistry)
+		_, err = auth.NewKeyManager(logger, s.Config)
 		// this needs to fail with an error
-		require.Error(t, err)
-		require.Equal(t, "invalid character 's' looking for beginning of object key string", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "invalid character 's' looking for beginning of object key string", err.Error())
 	})
 
-	t.Run("parse keys, invalid url", func(t *testing.T) {
+	s.Run("parse keys, invalid url", func() {
 		// Set the config for testing mode, the handler may use this.
 		notAnURL := "not an url"
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(logger, configRegistry)
+		_, err := auth.NewKeyManager(logger, s.Config)
 		// this needs to fail with an error
-		require.Error(t, err)
-		require.Equal(t, "Get not%20an%20url: unsupported protocol scheme \"\"", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "Get not%20an%20url: unsupported protocol scheme \"\"", err.Error())
 	})
 
-	t.Run("parse keys, server not reachable", func(t *testing.T) {
+	s.Run("parse keys, server not reachable", func() {
 		// Set the config for testing mode, the handler may use this.
 		anURL := "http://www.google.com/"
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", anURL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", anURL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(logger, configRegistry)
+		_, err := auth.NewKeyManager(logger, s.Config)
 		// this needs to fail with an error
-		require.Error(t, err)
-		require.Equal(t, "invalid character '<' looking for beginning of value", err.Error())
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "invalid character '<' looking for beginning of value", err.Error())
 	})
 
-	t.Run("validate with valid keys", func(t *testing.T) {
+	s.Run("validate with valid keys", func() {
 		// Create KeyManager instance.
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(logger, configRegistry)
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		keyManager, err := auth.NewKeyManager(logger, s.Config)
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
@@ -191,22 +197,22 @@ func TestKeyFetching(t *testing.T) {
 			{"valid JWT 1", jwt1, kid1},
 		}
 		for _, tt := range statictests {
-			t.Run(tt.name, func(t *testing.T) {
+			s.Run(tt.name, func() {
 				_, err = jwt.Parse(tt.jwt, func(token *jwt.Token) (interface{}, error) {
 					kid := token.Header["kid"]
-					require.Equal(t, tt.kid, kid)
+					require.Equal(s.T(), tt.kid, kid)
 					return keyManager.Key(kid.(string))
 				})
-				require.NoError(t, err)
+				require.NoError(s.T(), err)
 			})
 		}
 	})
 
-	t.Run("validate with invalid keys", func(t *testing.T) {
+	s.Run("validate with invalid keys", func() {
 		// Create KeyManager instance.
-		configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-		assert.Equal(t, configRegistry.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(logger, configRegistry)
+		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		keyManager, err := auth.NewKeyManager(logger, s.Config)
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
@@ -218,14 +224,14 @@ func TestKeyFetching(t *testing.T) {
 			{"valid JWT 1", jwt1, kid0},
 		}
 		for _, tt := range statictests {
-			t.Run(tt.name, func(t *testing.T) {
+			s.Run(tt.name, func() {
 				_, err = jwt.Parse(tt.jwt, func(token *jwt.Token) (interface{}, error) {
 					kid := token.Header["kid"]
-					require.NotEqual(t, tt.kid, kid)
+					require.NotEqual(s.T(), tt.kid, kid)
 					return keyManager.Key(tt.kid)
 				})
-				require.Error(t, err)
-				require.EqualError(t, err, "crypto/rsa: verification error")
+				require.Error(s.T(), err)
+				require.EqualError(s.T(), err, "crypto/rsa: verification error")
 			})
 		}
 	})

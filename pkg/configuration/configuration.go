@@ -80,7 +80,7 @@ const (
 
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
-	DefaultAuthClientPublicKeysURL = "http://keycloak.service/auth/realms/myRealm/protocol/openid-connect/certs"
+	DefaultAuthClientPublicKeysURL = ""
 )
 
 // Registry encapsulates the Viper configuration registry which stores the

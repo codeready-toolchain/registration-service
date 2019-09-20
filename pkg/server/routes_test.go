@@ -9,12 +9,22 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestStaticContent(t *testing.T) {
+type TestRoutesSuite struct {
+	testutils.UnitTestSuite
+}
+
+func TestRunRoutesSuite(t *testing.T) {
+	suite.Run(t, &TestRoutesSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestRoutesSuite) TestStaticContent() {
 
 	// Create handler instance.
 	static := server.StaticHandler{Assets: static.Assets}
@@ -34,9 +44,9 @@ func TestStaticContent(t *testing.T) {
 		{"Favicon", "/favicon.ico", "/favicon.ico", "", "GET", http.StatusOK},
 	}
 	for _, tt := range statictests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.Run(tt.name, func() {
 			req, err := http.NewRequest(tt.method, tt.urlPath, nil)
-			require.NoError(t, err)
+			require.NoError(s.T(), err)
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 			rr := httptest.NewRecorder()
 			ctx, _ := gin.CreateTestContext(rr)
@@ -45,19 +55,19 @@ func TestStaticContent(t *testing.T) {
 			// directly and pass in our Request and ResponseRecorder.
 			static.ServeHTTP(ctx)
 			// Check the status code is what we expect.
-			assert.Equal(t, tt.status, rr.Code, "handler returned wrong status code: got %v want %v", rr.Code, tt.status)
+			assert.Equal(s.T(), tt.status, rr.Code, "handler returned wrong status code: got %v want %v", rr.Code, tt.status)
 			// Check the response body is what we expect.
 			if tt.fsPath != "" {
 				buf := bytes.NewBuffer(nil)
 				file, err := static.Assets.Open(tt.fsPath)
-				require.NoError(t, err)
+				require.NoError(s.T(), err)
 				io.Copy(buf, file)
 				file.Close()
-				assert.Equal(t, buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))
+				assert.Equal(s.T(), buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))
 			} else if tt.expectedContents != "" {
-				require.Equal(t, tt.expectedContents, rr.Body.String())
+				require.Equal(s.T(), tt.expectedContents, rr.Body.String())
 			} else {
-				assert.Equal(t, []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))
+				assert.Equal(s.T(), []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))
 			}
 		})
 	}

@@ -75,7 +75,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 		}
 		latch.Done()
 		// wait for the system to settle before checking the results
-		time.Sleep(time.Millisecond * 1000)
+		time.Sleep(time.Millisecond * 500)
 		// check if only one entry has a KeyManager and the two others have errs
 		fails := 0
 		success := 0

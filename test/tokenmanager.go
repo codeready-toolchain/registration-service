@@ -71,6 +71,11 @@ func (tg *TokenManager) AddPrivateKey(kid string) (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
+// RemovePrivateKey removes a key from the list of known keys.
+func (tg *TokenManager) RemovePrivateKey(kid string) {
+	delete(tg.keyMap, kid)
+}
+
 // Key retrieves the key associated with the given kid.
 func (tg *TokenManager) Key(kid string) (*rsa.PrivateKey, error) {
 	key, ok := tg.keyMap[kid]
@@ -80,8 +85,8 @@ func (tg *TokenManager) Key(kid string) (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
-// GenerateSignedToken generates a JWT user token and signs it using the default private key
-func (tg *TokenManager) GenerateSignedToken(identity Identity, kid string, extraClaims ...ExtraClaim) (string, error) {
+// GenerateToken generates a default token.
+func (tg *TokenManager) GenerateToken(identity Identity, kid string, extraClaims ...ExtraClaim) (*jwt.Token) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Claims.(jwt.MapClaims)["uuid"] = identity.ID
 	token.Claims.(jwt.MapClaims)["preferred_username"] = identity.Username
@@ -102,16 +107,27 @@ func (tg *TokenManager) GenerateSignedToken(identity Identity, kid string, extra
 	for _, extra := range extraClaims {
 		extra(token)
 	}
+	token.Header["kid"] = kid
+	return token
+}
+
+// SignToken signs a given token using the given private key.
+func (tg *TokenManager) SignToken(token *jwt.Token, kid string) (string, error) {
 	key, err := tg.Key(kid)
 	if err != nil {
 		return "", err
 	}
-	token.Header["kid"] = kid
 	tokenStr, err := token.SignedString(key)
 	if err != nil {
 		panic(errors.WithStack(err))
 	}
 	return tokenStr, nil
+}
+
+// GenerateSignedToken generates a JWT user token and signs it using the given private key.
+func (tg *TokenManager) GenerateSignedToken(identity Identity, kid string, extraClaims ...ExtraClaim) (string, error) {
+	token := tg.GenerateToken(identity, kid, extraClaims...)
+	return tg.SignToken(token, kid)
 }
 
 // NewKeyServer creates and starts an http key server

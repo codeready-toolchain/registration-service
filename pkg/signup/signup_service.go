@@ -18,8 +18,8 @@ type SignupService interface {
 	CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error)
 }
 
-type signupServiceImpl struct {
-	client UserSignupClient
+type SignupServiceImpl struct {
+	Client UserSignupClient
 }
 
 func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
@@ -33,12 +33,12 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 		return nil, err
 	}
 
-	return &signupServiceImpl{
-		client: client.UserSignups(cfg.GetNamespace()),
+	return &SignupServiceImpl{
+		Client: client.UserSignups(cfg.GetNamespace()),
 	}, nil
 }
 
-func (c *signupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
+func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
 	name, err := c.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (c *signupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 		},
 	}
 
-	created, err := c.client.Create(userSignup)
+	created, err := c.Client.Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +64,14 @@ func (c *signupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 	return created, nil
 }
 
-func (c *signupServiceImpl) transformAndValidateUserName(username string) (string, error) {
+func (c *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {
 	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
 
 	iteration := 0
 	transformed := replaced
 
 	for {
-		userSignup, err := c.client.Get(transformed)
+		userSignup, err := c.Client.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err

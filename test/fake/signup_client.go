@@ -2,6 +2,8 @@ package fake
 
 import (
 	"encoding/json"
+	"os"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/testing"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
@@ -25,14 +26,7 @@ type FakeUserSignupClient struct {
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
-	clientScheme := runtime.NewScheme()
-	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
-	if err != nil {
-		log.Error(err, "Error adding to scheme")
-		os.Exit(1)
-	}
-	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
-
+	clientScheme := scheme.Scheme
 	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
 		err := tracker.Add(obj)

@@ -48,7 +48,7 @@ func (s *TestTokenManagerSuite) TestTokenManagerKeys() {
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), key0Retrieved)
 		tokenManager.RemovePrivateKey(kid0)
-		key0Retrieved, err = tokenManager.Key(kid0)
+		_, err = tokenManager.Key(kid0)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "given kid does not exist", err.Error())
 	})

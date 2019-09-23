@@ -1,14 +1,12 @@
 package auth
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-//	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/stretchr/testify/assert"
@@ -76,15 +74,13 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 			}(i)
 		}
 		latch.Done()
-		// wait a few cycles before checking the results
+		// wait for the system to settle before checking the results
 		time.Sleep(time.Millisecond * 1000)
 		// check if only one entry has a KeyManager and the two others have errs
-		fmt.Println(holder)
 		fails := 0
 		success := 0
 		for i := 0; i < 3; i++ {
 			thisEntry := holder[i]
-			fmt.Println(thisEntry.KmErr)
 			if thisEntry.KeyMngr != nil && thisEntry.KmErr == nil {
 				success++
 			}

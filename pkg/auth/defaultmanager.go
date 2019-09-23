@@ -34,3 +34,8 @@ func DefaultKeyManager() (*KeyManager, error) {
 	}
 	return defaultKeyManager, nil
 }
+
+// not exported, only used for test, removes singleton.
+func resetDefaultKeyManager() {
+	defaultKeyManager = nil
+}

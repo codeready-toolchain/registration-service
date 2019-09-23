@@ -61,9 +61,3 @@ func DefaultTokenParser() (*TokenParser, error) {
 	}
 	return defaultTokenParser, nil
 }
-
-// not exported, only used for test, removes singleton.
-func resetDefaultManagers() {
-	defaultKeyManager = nil
-	defaultTokenParser = nil
-}

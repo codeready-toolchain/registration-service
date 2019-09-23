@@ -4,8 +4,6 @@ import (
 	"errors"
 	"log"
 	"sync"
-
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
 var mu sync.Mutex
@@ -15,7 +13,7 @@ var defaultKeyManager *KeyManager
 // InitializeDefaultKeyManager creates the default manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
 // It will try to create the default manager only once even if called multiple times.
-func InitializeDefaultKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyManager, error) {
+func InitializeDefaultKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyManager, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if defaultKeyManager == nil {

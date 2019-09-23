@@ -20,12 +20,18 @@ type TestDefaultManagerSuite struct {
 	suite.Run(t, &TestDefaultManagerSuite{testutils.UnitTestSuite{}})
 }
 
-func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManagerCreation() {
+func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
 	// Set the config for testing mode, the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+
+	s.Run("get before init", func() {
+		_, err := auth.DefaultKeyManager()
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "no default KeyManager created, call `InitializeDefaultKeyManager()` first", err.Error())
+	})
 
 	s.Run("first creation", func() {
 		_, err := auth.InitializeDefaultKeyManager(logger, s.Config)
@@ -36,5 +42,10 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManagerCreation() {
 		_, err := auth.InitializeDefaultKeyManager(logger, s.Config)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default KeyManager can be created only once", err.Error())
+	})
+
+	s.Run("retrieval", func() {
+		_, err := auth.DefaultKeyManager()
+		require.NoError(s.T(), err)
 	})
 }

@@ -112,3 +112,11 @@ func TestTokenParser(t *testing.T) {
 		require.EqualError(t, err, "token does not comply to expected claims: email missing")
 	})
 }
+
+/*
+No KID header in the token.
+Token signed by unknown key.
+Token signed by known key but the signature is invalid.
+Signature is good but token expired.
+Missing claims (individual tests for each missing claim)
+*/

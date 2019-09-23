@@ -228,7 +228,7 @@ func TestTokenParser(t *testing.T) {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(t, err)
-		require.EqualError(t, err, "token is expired by 1m0s")
+		require.True(t, strings.HasPrefix(err.Error(), "token is expired by "))
 	})
 
 	t.Run("signature is good but token not valid yet", func(t *testing.T) {

@@ -38,6 +38,21 @@ func (s *TestTokenManagerSuite) TestTokenManagerKeys() {
 		require.NotEqual(s.T(), key0.N, key1.N)
 	})
 
+	s.Run("remove keys", func() {
+		tokenManager := NewTokenManager()
+		kid0 := uuid.NewV4().String()
+		key0, err := tokenManager.AddPrivateKey(kid0)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), key0)
+		key0Retrieved, err := tokenManager.Key(kid0)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), key0Retrieved)
+		tokenManager.RemovePrivateKey(kid0)
+		_, err = tokenManager.Key(kid0)
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "given kid does not exist", err.Error())
+	})
+
 	s.Run("get key", func() {
 		tokenManager := NewTokenManager()
 		kid0 := uuid.NewV4().String()

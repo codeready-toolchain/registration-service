@@ -7,7 +7,9 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	errs "github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,22 +48,29 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	http.FileServer(h.Assets).ServeHTTP(ctx.Writer, ctx.Request)
 }
 
-// SetupRoutes registers handlers for various URL paths. You can call this
-// function more than once but only the first call will have an effect.
+// SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
 	var err error
 	srv.routesSetup.Do(func() {
+		// initialize default managers
+		keyManager, err := auth.InitializeDefaultKeyManager(srv.Logger(), srv.Config())
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init default key manager: %s", err.Error())
+		}
+		_, err = auth.InitializeDefaultTokenParser(srv.logger, keyManager)
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
+		}
 
-		// /status is something you should always have in any of your services,
-		// please leave it as is.
+		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
-		// get the auth middleware
-		var authMiddleware *auth.JWTMiddleware
-		authMiddleware, err = auth.NewAuthMiddleware(srv.logger, srv.config)
-	
+		// create the auth middleware
+		var authMiddleware *middleware.JWTMiddleware
+		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger, srv.config)
+
 		// public routes
 		publicV1 := srv.router.Group("/api/v1")
 		publicV1.GET("/health", healthCheckCtrl.GetHandler)

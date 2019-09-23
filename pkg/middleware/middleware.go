@@ -1,4 +1,4 @@
-package auth
+package middleware
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
@@ -24,8 +25,8 @@ const (
 type JWTMiddleware struct {
 	config      *configuration.Registry
 	logger      *log.Logger
-	keyManager  *KeyManager
-	tokenParser *TokenParser
+	keyManager  *auth.KeyManager
+	tokenParser *auth.TokenParser
 }
 
 // NewAuthMiddleware returns a new middleware for JWT authentication
@@ -34,11 +35,11 @@ func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWT
 		return nil, errors.New("missing parameters for NewAuthMiddleware")
 	}
 	// wire up the key and token management
-	keyManagerInstance, err := NewKeyManager(logger, config)
+	keyManagerInstance, err := auth.DefaultKeyManager()
 	if err != nil {
 		return nil, err
 	}
-	tokenParserInstance, err := NewTokenParser(logger, config, keyManagerInstance)
+	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
 	}

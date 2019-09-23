@@ -1,4 +1,4 @@
-package auth_test
+package middleware_test
 
 import (
 	"net/http"
@@ -16,11 +16,13 @@ import (
 )
 
 func TestAuthMiddleware(t *testing.T) {
+
 	// create a TokenGenerator and a key
 	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(t, err)
+
 	// create some test tokens
 	identity0 := testutils.Identity {
 		ID: uuid.NewV4(),
@@ -35,16 +37,17 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// start key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
-	// set the key service url in the config
-	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
-	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
 
 	// create server
 	srv, err := server.New("")
-	require.NoError(t, err)
-	assert.Equal(t, keysEndpointURL, srv.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
-	assert.True(t, srv.Config().IsTestingMode(), "key url not set correctly")
+	require.NoError(t, err)	
 
+	// set the key service url in the config
+	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
+	assert.Equal(t, keysEndpointURL, srv.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
+	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
+	assert.True(t, srv.Config().IsTestingMode(), "testing mode not set correctly")
+	
 	// Setting up the routes.
 	err = srv.SetupRoutes()
 	require.NoError(t, err)

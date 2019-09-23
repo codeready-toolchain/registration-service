@@ -68,6 +68,9 @@ func (tp *TokenParser) FromString(jwtEncoded string) (*TokenClaims, error) {
 		if claims.Email == "" {
 			return nil, errors.New("token does not comply to expected claims: email missing")
 		}
+		if claims.Subject == "" {
+			return nil, errors.New("token does not comply to expected claims: subject missing")
+		}
 		return claims, nil
 	}
 	return nil, errors.New("token does not comply to expected claims")

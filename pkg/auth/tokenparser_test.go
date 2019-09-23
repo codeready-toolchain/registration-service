@@ -190,6 +190,26 @@ func TestTokenParser(t *testing.T) {
 		require.EqualError(t, err, "token does not comply to expected claims: email missing")
 	})
 
+	t.Run("missing claim: sub", func(t *testing.T) {
+		username0 := uuid.NewV4().String()
+		identity0 := &testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+		// generate non-serialized token
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		// delete preferred_username
+		delete(jwt0.Claims.(jwt.MapClaims), "sub")
+		// serialize
+		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
+		require.NoError(t, err)
+		// validate token
+		_, err = tokenParser.FromString(jwt0string)
+		require.Error(t, err)
+		require.EqualError(t, err, "token does not comply to expected claims: subject missing")
+	})
+
 	t.Run("signature is good but token expired", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
 		identity0 := &testutils.Identity{

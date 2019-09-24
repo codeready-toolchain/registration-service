@@ -90,19 +90,11 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
 			return
 		}
-		// check if we have the needed claims for username and email
-		if token.Username == "" {
-			m.respondWithError(c, http.StatusUnauthorized, "token does not have preferred_username set")
-			return
-		}
-		if token.Email == "" {
-			m.respondWithError(c, http.StatusUnauthorized, "token does not have email set")
-			return
-		}
-		// all checks done, add username and email to the context
+		// all checks done, add username and email to the context.
+		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(UsernameKey, token.Username)
 		c.Set(EmailKey, token.Email)
-		// for convenience, add the claims to the context
+		// for convenience, add the claims to the context.
 		c.Set(JWTClaimsKey, token)
 		c.Next()
 	}

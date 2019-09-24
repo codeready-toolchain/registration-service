@@ -40,6 +40,7 @@ func TestCreateUserSignup(t *testing.T) {
 func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {
 	fake := fake.NewFakeUserSignupClient(TestNamespace)
 	return &signup.SignupServiceImpl{
-		Client: fake,
+		Namespace: TestNamespace,
+		Client:    fake,
 	}, fake
 }

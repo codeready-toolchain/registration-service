@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 

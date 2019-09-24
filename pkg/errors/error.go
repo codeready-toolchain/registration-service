@@ -8,19 +8,20 @@ import (
 )
 
 type Error struct {
-	Status      string
-	Code        int
-	Message     string
-	Description string
+	Status  string
+	Code    int
+	Message string
+	Details string
 }
 
-func EncodeError(ctx *gin.Context, err error, code int, description string) {
-	// construct an error struct out of err and ctx
+// EncodeError encodes a json error response.
+func EncodeError(ctx *gin.Context, err error, code int, details string) {
+	// construct an error.
 	errorStruct := &Error{
-		Status:      http.StatusText(code),
-		Code:        code,
-		Message:     err.Error(),
-		Description: description,
+		Status:  http.StatusText(code),
+		Code:    code,
+		Message: err.Error(),
+		Details: details,
 	}
 
 	// encode it

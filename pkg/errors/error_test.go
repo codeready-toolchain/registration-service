@@ -27,17 +27,17 @@ func (s *TestErrorsSuite) TestErrors() {
 	ctx, _ := gin.CreateTestContext(rr)
 
 	s.Run("check json error payload", func() {
-		description := "testing payload"
+		details := "testing payload"
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
 
-		err.EncodeError(ctx, errors.New(errMsg), code, description)
+		err.EncodeError(ctx, errors.New(errMsg), code, details)
 
 		res := err.Error{}
 		json.Unmarshal(rr.Body.Bytes(), &res)
 
 		assert.Equal(s.T(), res.Code, http.StatusInternalServerError)
-		assert.Equal(s.T(), res.Description, description)
+		assert.Equal(s.T(), res.Details, details)
 		assert.Equal(s.T(), res.Message, errMsg)
 		assert.Equal(s.T(), res.Status, http.StatusText(code))
 	})

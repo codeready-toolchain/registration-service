@@ -13,7 +13,7 @@ type TestUnsetEnvVarAndRestoreSuite struct {
 	UnitTestSuite
 }
 
- func TestRunUnsetEnvVarAndRestoreSuite(t *testing.T) {
+func TestRunUnsetEnvVarAndRestoreSuite(t *testing.T) {
 	suite.Run(t, &TestUnsetEnvVarAndRestoreSuite{UnitTestSuite{}})
 }
 

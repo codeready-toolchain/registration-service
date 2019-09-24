@@ -10,15 +10,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
-	jose "gopkg.in/square/go-jose.v2"
 	"github.com/stretchr/testify/suite"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 type TestTokenManagerSuite struct {
 	UnitTestSuite
 }
 
- func TestRunTokenManagerSuite(t *testing.T) {
+func TestRunTokenManagerSuite(t *testing.T) {
 	suite.Run(t, &TestTokenManagerSuite{UnitTestSuite{}})
 }
 
@@ -110,7 +110,7 @@ func (s *TestTokenManagerSuite) TestTokenManagerTokens() {
 			Username: username,
 		}
 		// generate the token
-		encodedToken, err := tokenManager.GenerateSignedToken(*identity0, kid0, WithEmailClaim(identity0.Username + "@email.tld"))
+		encodedToken, err := tokenManager.GenerateSignedToken(*identity0, kid0, WithEmailClaim(identity0.Username+"@email.tld"))
 		require.NoError(s.T(), err)
 		// unmarshall it again
 		decodedToken, err := jwt.ParseWithClaims(encodedToken, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AuthConfig implements the auth config endpoint, which is invoked to 
+// AuthConfig implements the auth config endpoint, which is invoked to
 // retrieve the auth config for the ui.
 type AuthConfig struct {
 	config *configuration.Registry
@@ -32,5 +32,5 @@ func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 		ac.logger.Println("error writing response body", err.Error())
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return
-	}	
+	}
 }

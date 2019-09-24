@@ -16,11 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
 type TestHealthCheckSuite struct {
 	testutils.UnitTestSuite
 }
 
- func TestRunHealthCheckSuite(t *testing.T) {
+func TestRunHealthCheckSuite(t *testing.T) {
 	suite.Run(t, &TestHealthCheckSuite{testutils.UnitTestSuite{}})
 }
 
@@ -49,7 +50,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusInternalServerError, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusInternalServerError)
+		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
 		var data map[string]interface{}
@@ -60,7 +61,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.True(s.T(), ok, "no alive key in health response")
 		valBool, ok := val.(bool)
 		assert.True(s.T(), ok, "returned 'alive' value is not of type 'bool'")
-		assert.False(s.T(), valBool, "alive is true in test mode health response")
+		assert.True(s.T(), valBool, "alive is false in test mode health response")
 	})
 
 	s.Run("health in production mode", func() {

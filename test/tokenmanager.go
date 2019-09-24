@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
-	"github.com/lestrrat-go/jwx/jwk"
 )
 
 const (
@@ -86,7 +86,7 @@ func (tg *TokenManager) Key(kid string) (*rsa.PrivateKey, error) {
 }
 
 // GenerateToken generates a default token.
-func (tg *TokenManager) GenerateToken(identity Identity, kid string, extraClaims ...ExtraClaim) (*jwt.Token) {
+func (tg *TokenManager) GenerateToken(identity Identity, kid string, extraClaims ...ExtraClaim) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Claims.(jwt.MapClaims)["uuid"] = identity.ID
 	token.Claims.(jwt.MapClaims)["preferred_username"] = identity.Username
@@ -142,7 +142,7 @@ func (tg *TokenManager) NewKeyServer() *httptest.Server {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			err = newKey.Set(jwk.KeyIDKey, kid)	
+			err = newKey.Set(jwk.KeyIDKey, kid)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

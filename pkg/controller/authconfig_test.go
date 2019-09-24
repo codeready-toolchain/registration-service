@@ -20,7 +20,7 @@ type TestAuthConfigSuite struct {
 	testutils.UnitTestSuite
 }
 
- func TestRunAuthClientConfigSuite(t *testing.T) {
+func TestRunAuthClientConfigSuite(t *testing.T) {
 	suite.Run(t, &TestAuthConfigSuite{testutils.UnitTestSuite{}})
 }
 

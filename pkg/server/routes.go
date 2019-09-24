@@ -5,8 +5,12 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	errs "github.com/pkg/errors"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,23 +48,43 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	http.FileServer(h.Assets).ServeHTTP(ctx.Writer, ctx.Request)
 }
 
-// SetupRoutes registers handlers for various URL paths. You can call this
-// function more than once but only the first call will have an effect.
+// SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
 	var err error
 	srv.routesSetup.Do(func() {
+		// initialize default managers
+		_, err = auth.InitializeDefaultTokenParser(srv.logger, srv.Config())
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
+			return
+		}
 
-		// /status is something you should always have in any of your services,
-		// please leave it as is.
+		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
-		v1 := srv.router.Group("/api/v1")
-		{
-			v1.GET("/health", healthCheckCtrl.GetHandler)
-			v1.GET("/authconfig", authConfigCtrl.GetHandler)
-			v1.POST("/signup", signupCtrl.PostHandler)
+		// create the auth middleware
+		var authMiddleware *middleware.JWTMiddleware
+		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init auth middleware: %s", err.Error())
+			return
+		}	
+
+		// unsecured routes
+		unsecuredV1 := srv.router.Group("/api/v1")
+		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
+		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
+
+		// secured routes
+		securedV1 := srv.router.Group("/api/v1")
+		securedV1.Use(authMiddleware.HandlerFunc())
+		securedV1.POST("/signup", signupCtrl.PostHandler)
+
+		// if we are in testing mode, we also add a secured health route for testing
+		if srv.Config().IsTestingMode() {
+			securedV1.GET("/auth_test", healthCheckCtrl.GetHandler)
 		}
 
 		// Create the route for static content, served from /

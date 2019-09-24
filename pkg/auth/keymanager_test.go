@@ -22,7 +22,7 @@ type TestKeyManagerSuite struct {
 	testutils.UnitTestSuite
 }
 
- func TestRunKeyManagerSuite(t *testing.T) {
+func TestRunKeyManagerSuite(t *testing.T) {
 	suite.Run(t, &TestKeyManagerSuite{testutils.UnitTestSuite{}})
 }
 

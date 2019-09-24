@@ -8,10 +8,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
+
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
 // RegistrationServer bundles configuration, logging, and HTTP server objects in a single
@@ -37,6 +38,7 @@ func New(configFilePath string) (*RegistrationServer, error) {
 		return nil, errs.Wrapf(err, "failed to create a new configuration registry from file %q", configFilePath)
 	}
 	srv.config = config
+
 	srv.httpServer = &http.Server{
 		Addr: srv.config.GetHTTPAddress(),
 		// Good practice to set timeouts to avoid Slowloris attacks.
@@ -66,7 +68,7 @@ func (srv *RegistrationServer) HTTPServer() *http.Server {
 	return srv.httpServer
 }
 
-// Router returns the app server's HTTP router.
+// Engine returns the app server's HTTP router.
 func (srv *RegistrationServer) Engine() *gin.Engine {
 	return srv.router
 }

@@ -54,14 +54,14 @@ func NewKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyMana
 	// fetch raw keys
 	if keysEndpointURL != "" {
 		logger.Println("fetching public keys from url", keysEndpointURL)
-		keys, err := km.fetchKeys(keysEndpointURL)	
+		keys, err := km.fetchKeys(keysEndpointURL)
 		if err != nil {
 			return nil, err
 		}
 		// add them to the kid map
 		for _, key := range keys {
 			km.keyMap[key.KeyID] = key.Key
-		}	
+		}
 	} else {
 		logger.Println("no public key url given, not fetching keys")
 	}
@@ -73,7 +73,7 @@ func (km *KeyManager) Key(kid string) (*rsa.PublicKey, error) {
 	key, ok := km.keyMap[kid]
 	if !ok {
 		return nil, errors.New("unknown kid")
-	}	
+	}
 	return key, nil
 }
 

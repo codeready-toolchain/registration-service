@@ -27,7 +27,7 @@ func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthC
 func (srv *HealthCheck) getHealthInfo() map[string]interface{} {
 	m := make(map[string]interface{})
 	// TODO: this need to get actual health info.
-	m["alive"] = !srv.config.IsTestingMode()
+	m["alive"] = true
 	m["testingmode"] = srv.config.IsTestingMode()
 	m["revision"] = configuration.Commit
 	m["build_time"] = configuration.BuildTime

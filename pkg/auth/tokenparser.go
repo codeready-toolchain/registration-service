@@ -9,13 +9,13 @@ import (
 
 // TokenClaims represents access token claims
 type TokenClaims struct {
-	Name          string         `json:"name"`
-	Username      string         `json:"preferred_username"`
-	GivenName     string         `json:"given_name"`
-	FamilyName    string         `json:"family_name"`
-	Email         string         `json:"email"`
-	EmailVerified bool           `json:"email_verified"`
-	Company       string         `json:"company"`
+	Name          string `json:"name"`
+	Username      string `json:"preferred_username"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Company       string `json:"company"`
 	jwt.StandardClaims
 }
 

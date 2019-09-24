@@ -16,6 +16,8 @@ const (
 	UsernameKey = "username"
 	// EmailKey is the context key for email claim
 	EmailKey = "email"
+	// SubKey is the context key for subject claim
+	SubKey = "subject"
 	// JWTClaimsKey is the context key for the claims struct
 	JWTClaimsKey = "jwtClaims"
 )
@@ -90,10 +92,11 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
 			return
 		}
-		// all checks done, add username and email to the context.
+		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(UsernameKey, token.Username)
 		c.Set(EmailKey, token.Email)
+		c.Set(SubKey, token.Subject)
 		// for convenience, add the claims to the context.
 		c.Set(JWTClaimsKey, token)
 		c.Next()

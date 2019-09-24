@@ -76,31 +76,31 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		// check if we have a token
 		tokenStr, err := m.extractToken(c)
 		if err != nil {
-			m.respondWithError(c, http.StatusForbidden, err.Error())
+			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			c.Abort()
 			return
 		}
 		// next, check the token
 		token, err := m.tokenParser.FromString(tokenStr)
 		if err != nil {
-			m.respondWithError(c, http.StatusForbidden, err.Error())
+			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			c.Abort()
 			return
 		}
 		// validate time claims
 		if token.Valid() != nil {
-			m.respondWithError(c, http.StatusForbidden, "token has invalid time claims")
+			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
 			c.Abort()
 			return
 		}
 		// check if we have the needed claims for username and email
 		if token.Username == "" {
-			m.respondWithError(c, http.StatusForbidden, "token does not have preferred_username set")
+			m.respondWithError(c, http.StatusUnauthorized, "token does not have preferred_username set")
 			c.Abort()
 			return
 		}
 		if token.Email == "" {
-			m.respondWithError(c, http.StatusForbidden, "token does not have email set")
+			m.respondWithError(c, http.StatusUnauthorized, "token does not have email set")
 			c.Abort()
 			return
 		}

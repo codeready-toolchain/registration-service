@@ -69,14 +69,14 @@ func TestAuthMiddleware(t *testing.T) {
 	}{
 		{"static, no auth", "/favicon.ico", "GET", "", http.StatusOK},
 		{"health, no auth", "/api/v1/health", "GET", "", http.StatusOK},
-		{"health_private, no auth, denied", "/api/v1/health_private", "GET", "", http.StatusForbidden},
+		{"health_private, no auth, denied", "/api/v1/health_private", "GET", "", http.StatusUnauthorized},
 		{"health_private, valid header auth", "/api/v1/health_private", "GET", "Bearer " + tokenValid, http.StatusOK},
-		{"health_private, invalid header auth, no email claim", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusForbidden},
-		{"health_private, invalid header auth, token garbage", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidGarbage, http.StatusForbidden},
-		{"health_private, invalid header auth, wrong header format", "/api/v1/health_private", "GET", tokenValid, http.StatusForbidden},
+		{"health_private, invalid header auth, no email claim", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
+		{"health_private, invalid header auth, token garbage", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
+		{"health_private, invalid header auth, wrong header format", "/api/v1/health_private", "GET", tokenValid, http.StatusUnauthorized},
 		{"health_private, valid param auth", "/api/v1/health_private?token=" + tokenValid, "GET", "", http.StatusOK},
-		{"health_private, invalid param auth, no email claim", "/api/v1/health_private?token=" + tokenInvalidNoEmail, "GET", "", http.StatusForbidden},
-		{"health_private, invalid param auth, token garbage", "/api/v1/health_private?token=" + tokenInvalidGarbage, "GET", "", http.StatusForbidden},
+		{"health_private, invalid param auth, no email claim", "/api/v1/health_private?token=" + tokenInvalidNoEmail, "GET", "", http.StatusUnauthorized},
+		{"health_private, invalid param auth, token garbage", "/api/v1/health_private?token=" + tokenInvalidGarbage, "GET", "", http.StatusUnauthorized},
 	}
 	for _, tt := range authtests {
 		t.Run(tt.name, func(t *testing.T) {

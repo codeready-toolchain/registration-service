@@ -156,7 +156,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 				}
 				srv.Engine().ServeHTTP(resp, req)
 				// Check the status code is what we expect.
-				assert.Equal(s.T(), tt.status, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, tt.status)
+				assert.Equal(s.T(), tt.status, resp.Code, "request returned wrong status code")
 			})
 		}
 	})

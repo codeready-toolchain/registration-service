@@ -11,6 +11,7 @@ import (
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 )
 
@@ -34,7 +35,8 @@ func (s *TestErrorsSuite) TestErrors() {
 		err.EncodeError(ctx, errors.New(errMsg), code, details)
 
 		res := err.Error{}
-		json.Unmarshal(rr.Body.Bytes(), &res)
+		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), res.Code, http.StatusInternalServerError)
 		assert.Equal(s.T(), res.Details, details)

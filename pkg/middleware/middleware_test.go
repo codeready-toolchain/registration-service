@@ -108,7 +108,8 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusOK, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, http.StatusOK)
 
-		json.Unmarshal(resp.Body.Bytes(), health)
+		err = json.Unmarshal(resp.Body.Bytes(), health)
+		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), health.Alive, true)
 		assert.Equal(s.T(), health.TestingMode, true)

@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
 const (
@@ -23,14 +22,13 @@ const (
 
 // JWTMiddleware is the JWT token validation middleware
 type JWTMiddleware struct {
-	config      *configuration.Registry
 	logger      *log.Logger
 	tokenParser *auth.TokenParser
 }
 
 // NewAuthMiddleware returns a new middleware for JWT authentication
-func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWTMiddleware, error) {
-	if logger == nil || config == nil {
+func NewAuthMiddleware(logger *log.Logger) (*JWTMiddleware, error) {
+	if logger == nil {
 		return nil, errors.New("missing parameters for NewAuthMiddleware")
 	}
 	tokenParserInstance, err := auth.DefaultTokenParser()
@@ -39,7 +37,6 @@ func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWT
 	}
 	return &JWTMiddleware{
 		logger:      logger,
-		config:      config,
 		tokenParser: tokenParserInstance,
 	}, nil
 }

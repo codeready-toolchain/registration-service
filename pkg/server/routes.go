@@ -69,7 +69,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
-		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger, srv.config)
+		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
 
 		// public routes
 		publicV1 := srv.router.Group("/api/v1")

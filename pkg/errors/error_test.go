@@ -10,8 +10,8 @@ import (
 	err "github.com/codeready-toolchain/registration-service/pkg/errors"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/suite"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
 )
 

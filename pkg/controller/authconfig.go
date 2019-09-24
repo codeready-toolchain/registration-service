@@ -15,7 +15,7 @@ type configResponse struct {
 	AuthClientConfigRaw string `json:"auth-client-config"`
 }
 
-// AuthConfig implements the auth config endpoint, which is invoked to 
+// AuthConfig implements the auth config endpoint, which is invoked to
 // retrieve the auth config for the ui.
 type AuthConfig struct {
 	config *configuration.Registry
@@ -33,9 +33,9 @@ func NewAuthConfig(logger *log.Logger, config *configuration.Registry) *AuthConf
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	configRespData := configResponse {
+	configRespData := configResponse{
 		AuthClientLibraryURL: ac.config.GetAuthClientLibraryURL(),
-		AuthClientConfigRaw: ac.config.GetAuthClientConfigAuthRaw(),
+		AuthClientConfigRaw:  ac.config.GetAuthClientConfigAuthRaw(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

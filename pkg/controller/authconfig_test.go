@@ -85,7 +85,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'realm' value is not of type 'string'")
 				assert.Equal(s.T(), config["realm"], valString, "wrong 'realm' in authconfig response")
 			})
-	
+
 			s.Run("auth-server-url", func() {
 				val, ok := data["auth-server-url"]
 				assert.True(s.T(), ok, "no 'auth-server-url' key in authconfig response")
@@ -93,7 +93,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'auth-server-url' value is not of type 'string'")
 				assert.Equal(s.T(), config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response")
 			})
-	
+
 			s.Run("ssl-required", func() {
 				val, ok := data["ssl-required"]
 				assert.True(s.T(), ok, "no 'ssl-required' key in authconfig response")
@@ -101,7 +101,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'ssl-required' value is not of type 'string'")
 				assert.Equal(s.T(), config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response")
 			})
-	
+
 			s.Run("resource", func() {
 				val, ok := data["resource"]
 				assert.True(s.T(), ok, "no 'resource' key in authconfig response")
@@ -109,7 +109,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'resource' value is not of type 'string'")
 				assert.Equal(s.T(), config["resource"], valString, "wrong 'resource' in authconfig response")
 			})
-	
+
 			s.Run("public-client", func() {
 				val, ok := data["public-client"]
 				assert.True(s.T(), ok, "no 'public-client' key in authconfig response")
@@ -117,14 +117,14 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'public-client' value is not of type 'bool'")
 				assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response")
 			})
-	
+
 			s.Run("confidential-port", func() {
 				val, ok := data["confidential-port"]
 				assert.True(s.T(), ok, "no 'confidential-port' key in authconfig response")
 				valFloat, ok := val.(float64)
 				assert.True(s.T(), ok, "returned 'confidential-port' value is not of type 'float64'")
 				assert.Equal(s.T(), config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response")
-			})	
+			})
 		})
 	})
 }

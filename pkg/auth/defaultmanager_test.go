@@ -24,8 +24,8 @@ func TestRunDefaultManagerSuite(t *testing.T) {
 
 func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	// reset the singletons
-	defaultKeyManager = nil
-	defaultTokenParser = nil
+	defaultKeyManagerHolder = nil
+	defaultTokenParserHolder = nil
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
@@ -34,31 +34,31 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("get before init", func() {
-		_, err := DefaultKeyManager()
+		_, err := defaultKeyManager()
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "no default KeyManager created, call `InitializeDefaultKeyManager()` first", err.Error())
 	})
 
 	s.Run("first creation", func() {
-		_, err := InitializeDefaultKeyManager(logger, s.Config)
+		_, err := initializeDefaultKeyManager(logger, s.Config)
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := InitializeDefaultKeyManager(logger, s.Config)
+		_, err := initializeDefaultKeyManager(logger, s.Config)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default KeyManager can be created only once", err.Error())
 	})
 
 	s.Run("retrieval", func() {
-		_, err := DefaultKeyManager()
+		_, err := defaultKeyManager()
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("parallel threads", func() {
 		// reset the singleton
-		defaultKeyManager = nil
-		defaultTokenParser = nil
+		defaultKeyManagerHolder = nil
+		defaultTokenParserHolder = nil
 		type kmErrHolder struct {
 			KeyMngr *KeyManager
 			KmErr   error
@@ -70,7 +70,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 			go func(i int) {
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				km, err := InitializeDefaultKeyManager(logger, s.Config)
+				km, err := initializeDefaultKeyManager(logger, s.Config)
 				thisHolder := &kmErrHolder{
 					KeyMngr: km,
 					KmErr:   err,
@@ -103,18 +103,14 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 
 func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
-	defaultKeyManager = nil
-	defaultTokenParser = nil
+	defaultKeyManagerHolder = nil
+	defaultTokenParserHolder = nil
 
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
 	// Set the config for testing mode, the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
-
-	// create KeyManager
-	keyManager, err := InitializeDefaultKeyManager(logger, s.Config)
-	require.NoError(s.T(), err)
 
 	s.Run("get before init", func() {
 		_, err := DefaultTokenParser()
@@ -123,12 +119,12 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	})
 
 	s.Run("first creation", func() {
-		_, err := InitializeDefaultTokenParser(logger, keyManager)
+		_, err := InitializeDefaultTokenParser(logger, s.Config)
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := InitializeDefaultTokenParser(logger, keyManager)
+		_, err := InitializeDefaultTokenParser(logger, s.Config)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default TokenParser can be created only once", err.Error())
 	})
@@ -140,11 +136,8 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 
 	s.Run("parallel threads", func() {
 		// reset the singletons
-		defaultKeyManager = nil
-		defaultTokenParser = nil
-		// create a key manager
-		keyManager, err := InitializeDefaultKeyManager(logger, s.Config)
-		require.NoError(s.T(), err)
+		defaultKeyManagerHolder = nil
+		defaultTokenParserHolder = nil
 		type tpErrHolder struct {
 			TokePrsr *TokenParser
 			TpErr    error
@@ -156,7 +149,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 			go func(i int) {
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				tp, err := InitializeDefaultTokenParser(logger, keyManager)
+				tp, err := InitializeDefaultTokenParser(logger, s.Config)
 				thisHolder := &tpErrHolder{
 					TokePrsr: tp,
 					TpErr:    err,

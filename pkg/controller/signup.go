@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,14 +25,14 @@ func NewSignup(logger *log.Logger, config *configuration.Registry) *Signup {
 }
 
 // PostHandler returns signup info.
-func (srv *Signup) PostHandler(ctx *gin.Context) {
+func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
 
 	// the KeyManager can be accessed here: auth.DefaultKeyManager()
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)
 	if err != nil {
-		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-		return
+		s.logger.Println("error writing response body", err.Error())
+		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

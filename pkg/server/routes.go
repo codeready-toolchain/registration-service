@@ -56,10 +56,12 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		keyManager, err := auth.InitializeDefaultKeyManager(srv.Logger(), srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default key manager: %s", err.Error())
+			return
 		}
 		_, err = auth.InitializeDefaultTokenParser(srv.logger, keyManager)
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
+			return
 		}
 
 		// creating the controllers

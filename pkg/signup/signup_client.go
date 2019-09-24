@@ -22,7 +22,8 @@ func NewUserSignupClient(cfg *rest.Config) (*UserSignupV1Alpha1Client, error) {
 	config.GroupVersion = &crtapi.SchemeGroupVersion
 	config.APIPath = "/apis"
 	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	client, err := rest.RESTClientFor(&config)
 	if err != nil {

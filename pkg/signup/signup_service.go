@@ -19,7 +19,8 @@ type SignupService interface {
 }
 
 type SignupServiceImpl struct {
-	Client UserSignupClient
+	Namespace string
+	Client    UserSignupClient
 }
 
 func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
@@ -34,7 +35,8 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 	}
 
 	return &SignupServiceImpl{
-		Client: client.UserSignups(cfg.GetNamespace()),
+		Namespace: cfg.GetNamespace(),
+		Client:    client.UserSignups(cfg.GetNamespace()),
 	}, nil
 }
 
@@ -46,7 +48,8 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: c.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
 			UserID:        userID,

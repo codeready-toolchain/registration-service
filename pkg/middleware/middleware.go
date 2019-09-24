@@ -82,11 +82,6 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
-		// validate time claims
-		if token.Valid() != nil {
-			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
-			return
-		}
 		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(UsernameKey, token.Username)

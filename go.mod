@@ -3,7 +3,6 @@ module github.com/codeready-toolchain/registration-service
 go 1.12
 
 require (
-	github.com/appleboy/gin-jwt/v2 v2.6.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
 	github.com/gin-contrib/gzip v0.0.1

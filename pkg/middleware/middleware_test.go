@@ -1,4 +1,4 @@
-package auth_test
+package middleware_test
 
 import (
 	"net/http"
@@ -16,14 +16,16 @@ import (
 )
 
 func TestAuthMiddleware(t *testing.T) {
+
 	// create a TokenGenerator and a key
 	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(t, err)
+
 	// create some test tokens
-	identity0 := testutils.Identity {
-		ID: uuid.NewV4(),
+	identity0 := testutils.Identity{
+		ID:       uuid.NewV4(),
 		Username: uuid.NewV4().String(),
 	}
 	emailClaim0 := testutils.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
@@ -35,15 +37,16 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// start key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
-	// set the key service url in the config
-	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
-	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
 
 	// create server
 	srv, err := server.New("")
 	require.NoError(t, err)
+
+	// set the key service url in the config
+	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
 	assert.Equal(t, keysEndpointURL, srv.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
-	assert.True(t, srv.Config().IsTestingMode(), "key url not set correctly")
+	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
+	assert.True(t, srv.Config().IsTestingMode(), "testing mode not set correctly")
 
 	// Setting up the routes.
 	err = srv.SetupRoutes()
@@ -58,22 +61,22 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// do some requests
 	var authtests = []struct {
-		name    		string
-		urlPath 		string
-		method  		string
-		tokenHeader	string
-		status  		int
+		name        string
+		urlPath     string
+		method      string
+		tokenHeader string
+		status      int
 	}{
 		{"static, no auth", "/favicon.ico", "GET", "", http.StatusOK},
 		{"health, no auth", "/api/v1/health", "GET", "", http.StatusOK},
-		{"health_private, no auth, denied", "/api/v1/health_private", "GET", "", http.StatusForbidden},
-		{"health_private, valid header auth", "/api/v1/health_private", "GET", "Bearer " + tokenValid, http.StatusOK},
-		{"health_private, invalid header auth, no email claim", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusForbidden},
-		{"health_private, invalid header auth, token garbage", "/api/v1/health_private", "GET", "Bearer " + tokenInvalidGarbage, http.StatusForbidden},
-		{"health_private, invalid header auth, wrong header format", "/api/v1/health_private", "GET", tokenValid, http.StatusForbidden},
-		{"health_private, valid param auth", "/api/v1/health_private?token=" + tokenValid, "GET", "", http.StatusOK},
-		{"health_private, invalid param auth, no email claim", "/api/v1/health_private?token=" + tokenInvalidNoEmail, "GET", "", http.StatusForbidden},
-		{"health_private, invalid param auth, token garbage", "/api/v1/health_private?token=" + tokenInvalidGarbage, "GET", "", http.StatusForbidden},
+		{"auth_test, no auth, denied", "/api/v1/auth_test", "GET", "", http.StatusUnauthorized},
+		{"auth_test, valid header auth", "/api/v1/auth_test", "GET", "Bearer " + tokenValid, http.StatusOK},
+		{"auth_test, invalid header auth, no email claim", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
+		{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
+		{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", "GET", tokenValid, http.StatusUnauthorized},
+		{"auth_test, valid param auth", "/api/v1/auth_test?token=" + tokenValid, "GET", "", http.StatusOK},
+		{"auth_test, invalid param auth, no email claim", "/api/v1/auth_test?token=" + tokenInvalidNoEmail, "GET", "", http.StatusUnauthorized},
+		{"auth_test, invalid param auth, token garbage", "/api/v1/auth_test?token=" + tokenInvalidGarbage, "GET", "", http.StatusUnauthorized},
 	}
 	for _, tt := range authtests {
 		t.Run(tt.name, func(t *testing.T) {

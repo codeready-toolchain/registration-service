@@ -34,9 +34,18 @@ func NewAuthConfig(logger *log.Logger, config *configuration.Registry) *AuthConf
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", ac.config.GetAuthClientConfigAuthContentType())
 	ctx.Writer.WriteHeader(http.StatusOK)
+<<<<<<< HEAD
 	configRespData := configResponse {
 		AuthClientLibraryURL: ac.config.GetAuthClientLibraryURL(),
 		AuthClientConfigRaw: ac.config.GetAuthClientConfigAuthRaw(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
+=======
+	_, err := ctx.Writer.WriteString(ac.config.GetAuthClientConfigAuthRaw())
+	if err != nil {
+		ac.logger.Println("error writing response body", err.Error())
+		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+>>>>>>> 3-middleware
 }

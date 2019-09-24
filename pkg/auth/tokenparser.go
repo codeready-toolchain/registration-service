@@ -4,55 +4,37 @@ import (
 	"errors"
 	"log"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
 // TokenClaims represents access token claims
 type TokenClaims struct {
-	Name          string         `json:"name"`
-	Username      string         `json:"preferred_username"`
-	GivenName     string         `json:"given_name"`
-	FamilyName    string         `json:"family_name"`
-	Email         string         `json:"email"`
-	EmailVerified bool           `json:"email_verified"`
-	Company       string         `json:"company"`
-	SessionState  string         `json:"session_state"`
-	Approved      bool           `json:"approved"`
-	Permissions   *[]Permissions `json:"permissions"`
+	Name          string `json:"name"`
+	Username      string `json:"preferred_username"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Company       string `json:"company"`
 	jwt.StandardClaims
-}
-
-// Permissions represents a "permissions" claim in the AuthorizationPayload
-type Permissions struct {
-	ResourceSetName *string  `json:"resource_set_name"`
-	ResourceSetID   *string  `json:"resource_set_id"`
-	Scopes          []string `json:"scopes"`
-	Expiry          int64    `json:"exp"`
 }
 
 // TokenParser represents a parser for JWT tokens.
 type TokenParser struct {
-	config     *configuration.Registry
 	logger     *log.Logger
 	keyManager *KeyManager
 }
 
 // NewTokenParser creates a new TokenParser.
-func NewTokenParser(logger *log.Logger, config *configuration.Registry, keyManager *KeyManager) (*TokenParser, error) {
+func NewTokenParser(logger *log.Logger, keyManager *KeyManager) (*TokenParser, error) {
 	if logger == nil {
 		return nil, errors.New("no logger given when creating TokenParser")
-	}
-	if config == nil {
-		return nil, errors.New("no config given when creating TokenParser")
 	}
 	if keyManager == nil {
 		return nil, errors.New("no keyManager given when creating TokenParser")
 	}
 	return &TokenParser{
 		logger:     logger,
-		config:     config,
 		keyManager: keyManager,
 	}, nil
 }
@@ -85,6 +67,9 @@ func (tp *TokenParser) FromString(jwtEncoded string) (*TokenClaims, error) {
 		}
 		if claims.Email == "" {
 			return nil, errors.New("token does not comply to expected claims: email missing")
+		}
+		if claims.Subject == "" {
+			return nil, errors.New("token does not comply to expected claims: subject missing")
 		}
 		return claims, nil
 	}

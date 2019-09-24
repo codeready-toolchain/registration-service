@@ -1,4 +1,4 @@
-package auth
+package middleware
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 )
 
 const (
@@ -16,36 +16,29 @@ const (
 	UsernameKey = "username"
 	// EmailKey is the context key for email claim
 	EmailKey = "email"
+	// SubKey is the context key for subject claim
+	SubKey = "subject"
 	// JWTClaimsKey is the context key for the claims struct
 	JWTClaimsKey = "jwtClaims"
 )
 
 // JWTMiddleware is the JWT token validation middleware
 type JWTMiddleware struct {
-	config      *configuration.Registry
 	logger      *log.Logger
-	keyManager  *KeyManager
-	tokenParser *TokenParser
+	tokenParser *auth.TokenParser
 }
 
 // NewAuthMiddleware returns a new middleware for JWT authentication
-func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWTMiddleware, error) {
-	if logger == nil || config == nil {
+func NewAuthMiddleware(logger *log.Logger) (*JWTMiddleware, error) {
+	if logger == nil {
 		return nil, errors.New("missing parameters for NewAuthMiddleware")
 	}
-	// wire up the key and token management
-	keyManagerInstance, err := NewKeyManager(logger, config)
-	if err != nil {
-		return nil, err
-	}
-	tokenParserInstance, err := NewTokenParser(logger, config, keyManagerInstance)
+	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
 	}
 	return &JWTMiddleware{
 		logger:      logger,
-		config:      config,
-		keyManager:  keyManagerInstance,
 		tokenParser: tokenParserInstance,
 	}, nil
 }
@@ -85,38 +78,26 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		// check if we have a token
 		tokenStr, err := m.extractToken(c)
 		if err != nil {
-			m.respondWithError(c, http.StatusForbidden, err.Error())
-			c.Abort()
+			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
 		// next, check the token
 		token, err := m.tokenParser.FromString(tokenStr)
 		if err != nil {
-			m.respondWithError(c, http.StatusForbidden, err.Error())
-			c.Abort()
+			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
 		// validate time claims
 		if token.Valid() != nil {
-			m.respondWithError(c, http.StatusForbidden, "token has invalid time claims")
-			c.Abort()
+			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
 			return
 		}
-		// check if we have the needed claims for username and email
-		if token.Username == "" {
-			m.respondWithError(c, http.StatusForbidden, "token does not have preferred_username set")
-			c.Abort()
-			return
-		}
-		if token.Email == "" {
-			m.respondWithError(c, http.StatusForbidden, "token does not have email set")
-			c.Abort()
-			return
-		}
-		// all checks done, add username and email to the context
+		// all checks done, add username, subject and email to the context.
+		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(UsernameKey, token.Username)
 		c.Set(EmailKey, token.Email)
-		// for convenience, add the claims to the context
+		c.Set(SubKey, token.Subject)
+		// for convenience, add the claims to the context.
 		c.Set(JWTClaimsKey, token)
 		c.Next()
 	}

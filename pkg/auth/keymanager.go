@@ -10,10 +10,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-
 	"gopkg.in/square/go-jose.v2"
 )
+
+// KeyManagerConfiguration represents a partition of the configuration
+// that is used for configuring the KeyManager.
+type KeyManagerConfiguration interface {
+	GetAuthClientPublicKeysURL() string
+}
 
 // PublicKey represents an RSA public key with a Key ID
 type PublicKey struct {
@@ -28,13 +32,13 @@ type JSONKeys struct {
 
 // KeyManager manages the public keys for token validation.
 type KeyManager struct {
-	config *configuration.Registry
+	config KeyManagerConfiguration
 	logger *log.Logger
 	keyMap map[string]*rsa.PublicKey
 }
 
 // NewKeyManager creates a new KeyManager and retrieves the public keys from the given URL.
-func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyManager, error) {
+func NewKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyManager, error) {
 	if logger == nil {
 		return nil, errors.New("no logger given when creating KeyManager")
 	}
@@ -50,14 +54,14 @@ func NewKeyManager(logger *log.Logger, config *configuration.Registry) (*KeyMana
 	// fetch raw keys
 	if keysEndpointURL != "" {
 		logger.Println("fetching public keys from url", keysEndpointURL)
-		keys, err := km.fetchKeys(keysEndpointURL)	
+		keys, err := km.fetchKeys(keysEndpointURL)
 		if err != nil {
 			return nil, err
 		}
 		// add them to the kid map
 		for _, key := range keys {
 			km.keyMap[key.KeyID] = key.Key
-		}	
+		}
 	} else {
 		logger.Println("no public key url given, not fetching keys")
 	}
@@ -69,7 +73,7 @@ func (km *KeyManager) Key(kid string) (*rsa.PublicKey, error) {
 	key, ok := km.keyMap[kid]
 	if !ok {
 		return nil, errors.New("unknown kid")
-	}	
+	}
 	return key, nil
 }
 

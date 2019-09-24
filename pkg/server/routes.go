@@ -7,7 +7,9 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	errs "github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,35 +48,48 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	http.FileServer(h.Assets).ServeHTTP(ctx.Writer, ctx.Request)
 }
 
-// SetupRoutes registers handlers for various URL paths. You can call this
-// function more than once but only the first call will have an effect.
+// SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
 	var err error
 	srv.routesSetup.Do(func() {
+		// initialize default managers
+		keyManager, err := auth.InitializeDefaultKeyManager(srv.Logger(), srv.Config())
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init default key manager: %s", err.Error())
+			return
+		}
+		_, err = auth.InitializeDefaultTokenParser(srv.logger, keyManager)
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
+			return
+		}
 
-		// /status is something you should always have in any of your services,
-		// please leave it as is.
+		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 
-		// get the auth middleware
-		var authMiddleware *auth.JWTMiddleware
-		authMiddleware, err = auth.NewAuthMiddleware(srv.logger, srv.config)
-	
-		// public routes
-		publicV1 := srv.router.Group("/api/v1")
-		publicV1.GET("/health", healthCheckCtrl.GetHandler)
-		publicV1.GET("/authconfig", authConfigCtrl.GetHandler)
+		// create the auth middleware
+		var authMiddleware *middleware.JWTMiddleware
+		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init auth middleware: %s", err.Error())
+			return
+		}	
 
-		// private routes
-		privateV1 := srv.router.Group("/api/v1")
-		privateV1.Use(authMiddleware.HandlerFunc())
-		privateV1.POST("/signup", signupCtrl.PostHandler)
+		// unsecured routes
+		unsecuredV1 := srv.router.Group("/api/v1")
+		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
+		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 
-		// if we are in testing mode, we also add a private health route for testing
+		// secured routes
+		securedV1 := srv.router.Group("/api/v1")
+		securedV1.Use(authMiddleware.HandlerFunc())
+		securedV1.POST("/signup", signupCtrl.PostHandler)
+
+		// if we are in testing mode, we also add a secured health route for testing
 		if srv.Config().IsTestingMode() {
-			privateV1.GET("/health_private", healthCheckCtrl.GetHandler)
+			securedV1.GET("/auth_test", healthCheckCtrl.GetHandler)
 		}
 
 		// Create the route for static content, served from /

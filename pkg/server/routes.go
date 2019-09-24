@@ -83,7 +83,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 		// if we are in testing mode, we also add a private health route for testing
 		if srv.Config().IsTestingMode() {
-			privateV1.GET("/health_private", healthCheckCtrl.GetHandler)
+			privateV1.GET("/auth_test", healthCheckCtrl.GetHandler)
 		}
 
 		// Create the route for static content, served from /

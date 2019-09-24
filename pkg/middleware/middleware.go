@@ -25,7 +25,6 @@ const (
 type JWTMiddleware struct {
 	config      *configuration.Registry
 	logger      *log.Logger
-	keyManager  *auth.KeyManager
 	tokenParser *auth.TokenParser
 }
 
@@ -34,11 +33,6 @@ func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWT
 	if logger == nil || config == nil {
 		return nil, errors.New("missing parameters for NewAuthMiddleware")
 	}
-	// wire up the key and token management
-	keyManagerInstance, err := auth.DefaultKeyManager()
-	if err != nil {
-		return nil, err
-	}
 	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -46,7 +40,6 @@ func NewAuthMiddleware(logger *log.Logger, config *configuration.Registry) (*JWT
 	return &JWTMiddleware{
 		logger:      logger,
 		config:      config,
-		keyManager:  keyManagerInstance,
 		tokenParser: tokenParserInstance,
 	}, nil
 }

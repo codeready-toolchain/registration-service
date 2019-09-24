@@ -10,10 +10,9 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	testutils "github.com/codeready-toolchain/registration-service/test"
-	jwt "github.com/dgrijalva/jwt-go"
-	uuid "github.com/satori/go.uuid"
 
-	//"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

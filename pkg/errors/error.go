@@ -24,7 +24,7 @@ func EncodeError(ctx *gin.Context, err error, code int, details string) {
 		Details: details,
 	}
 
-	// encode it
+	// encode it.
 	e := json.NewEncoder(ctx.Writer).Encode(errorStruct)
 	if e != nil {
 		http.Error(ctx.Writer, e.Error(), http.StatusInternalServerError)

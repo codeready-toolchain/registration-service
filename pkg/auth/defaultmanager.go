@@ -35,7 +35,7 @@ func initializeDefaultKeyManager(logger *log.Logger, config KeyManagerConfigurat
 	return nil, errors.New("default KeyManager can be created only once")
 }
 
-// DefaultKeyManager returns the existing KeyManager instance.
+// defaultKeyManager returns the existing KeyManager instance.
 func defaultKeyManager() (*KeyManager, error) {
 	if defaultKeyManagerHolder == nil {
 		return nil, errors.New("no default KeyManager created, call `InitializeDefaultKeyManager()` first")

@@ -2,20 +2,21 @@ testingmode: true
 graceful_timeout: "15s"
 log.level: "info"
 log.json: false
-http.address: "0.0.0.0:8080"
+http.address: "0.0.0.0:8000"
 http.compress: false
 http.idle_timeout: "15s"
 http.write_timeout: "15s"
 http.read_timeout: "15s"
-auth_client.library_url: "https://keycloak.service/auth/js/keycloak.js"
+auth_client.library_url: "http://localhost:8080/auth/js/keycloak.js"
 auth_client.config.content_type: "application/json"
 auth_client.config.raw: >
   {
-    "realm":"myRealm",
-    "auth-server-url":"https://auth.service/auth",
-    "ssl-required": "none", 
-    "resource": "registrationService", 
-    "public-client": true, 
-    "confidential-port": 0 
+    "realm": "demoRealm",
+    "auth-server-url": "http://localhost:8080/auth",
+    "ssl-required": "none",
+    "resource": "registrationService",
+    "public-client": true,
+    "confidential-port": 0,
+    "clientId": "registrationService"
   }
-auth_client.public_keys_url: ""
+auth_client.public_keys_url: "http://localhost:8080/auth/realms/demoRealm/protocol/openid-connect/certs"

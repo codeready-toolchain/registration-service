@@ -22,12 +22,10 @@ require (
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
-	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0
-	github.com/ugorji/go v1.1.7 // indirect
+	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20190907121410-71b5226ff739 // indirect
 	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
@@ -44,7 +42,6 @@ require (
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf // indirect
 	k8s.io/utils v0.0.0-20190809000727-6c36bc71fc4a // indirect
 	sigs.k8s.io/controller-runtime v0.1.12
-	sigs.k8s.io/kubefed v0.1.0-rc2
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 

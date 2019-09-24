@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	testutils "github.com/codeready-toolchain/registration-service/test"
@@ -96,35 +98,65 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// Check that Engine() returns the router object.
 	require.NotNil(s.T(), srv.Engine())
 
-	// do some requests
-	var authtests = []struct {
-		name        string
-		urlPath     string
-		method      string
-		tokenHeader string
-		status      int
-	}{
-		{"static, no auth", "/favicon.ico", "GET", "", http.StatusOK},
-		{"health, no auth", "/api/v1/health", "GET", "", http.StatusOK},
-		{"auth_test, no auth, denied", "/api/v1/auth_test", "GET", "", http.StatusUnauthorized},
-		{"auth_test, valid header auth", "/api/v1/auth_test", "GET", "Bearer " + tokenValid, http.StatusOK},
-		{"auth_test, invalid header auth, no email claim", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
-		{"auth_test, invalid header auth, expired", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidExpired, http.StatusUnauthorized},
-		{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
-		{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", "GET", tokenValid, http.StatusUnauthorized},
-		{"auth_test, invalid header auth, bearer but no token", "/api/v1/auth_test", "GET", "Bearer ", http.StatusUnauthorized},
-	}
-	for _, tt := range authtests {
-		s.Run(tt.name, func() {
-			resp := httptest.NewRecorder()
-			req, err := http.NewRequest(tt.method, tt.urlPath, nil)
-			require.NoError(s.T(), err)
-			if tt.tokenHeader != "" {
-				req.Header.Set("Authorization", tt.tokenHeader)
-			}
-			srv.Engine().ServeHTTP(resp, req)
-			// Check the status code is what we expect.
-			assert.Equal(s.T(), tt.status, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, tt.status)
-		})
-	}
+	s.Run("health check requests", func() {
+		health := &controller.HealthCheck{}
+		resp := httptest.NewRecorder()
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		require.NoError(s.T(), err)
+
+		srv.Engine().ServeHTTP(resp, req)
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusOK, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, http.StatusOK)
+
+		json.Unmarshal(resp.Body.Bytes(), health)
+
+		assert.Equal(s.T(), health.Alive, true)
+		assert.Equal(s.T(), health.TestingMode, true)
+		assert.Equal(s.T(), health.Revision, "0")
+		assert.NotEqual(s.T(), health.BuildTime, "")
+		assert.NotEqual(s.T(), health.StartTime, "")
+	})
+
+	s.Run("static request", func() {
+		resp := httptest.NewRecorder()
+		req, err := http.NewRequest(http.MethodGet, "/favicon.ico", nil)
+		require.NoError(s.T(), err)
+
+		srv.Engine().ServeHTTP(resp, req)
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusOK, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, http.StatusOK)
+	})
+
+	s.Run("auth requests", func() {
+
+		// do some requests
+		var authtests = []struct {
+			name        string
+			urlPath     string
+			method      string
+			tokenHeader string
+			status      int
+		}{
+			{"auth_test, no auth, denied", "/api/v1/auth_test", http.MethodGet, "", http.StatusUnauthorized},
+			{"auth_test, valid header auth", "/api/v1/auth_test", http.MethodGet, "Bearer " + tokenValid, http.StatusOK},
+			{"auth_test, invalid header auth, no email claim", "/api/v1/auth_test", http.MethodGet, "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
+			{"auth_test, invalid header auth, expired", "/api/v1/auth_test", http.MethodGet, "Bearer " + tokenInvalidExpired, http.StatusUnauthorized},
+			{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", http.MethodGet, "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
+			{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", http.MethodGet, tokenValid, http.StatusUnauthorized},
+			{"auth_test, invalid header auth, bearer but no token", "/api/v1/auth_test", http.MethodGet, "Bearer ", http.StatusUnauthorized},
+		}
+		for _, tt := range authtests {
+			s.Run(tt.name, func() {
+				resp := httptest.NewRecorder()
+				req, err := http.NewRequest(tt.method, tt.urlPath, nil)
+				require.NoError(s.T(), err)
+				if tt.tokenHeader != "" {
+					req.Header.Set("Authorization", tt.tokenHeader)
+				}
+				srv.Engine().ServeHTTP(resp, req)
+				// Check the status code is what we expect.
+				assert.Equal(s.T(), tt.status, resp.Code, "request returned wrong status code: got %v want %v", resp.Code, tt.status)
+			})
+		}
+	})
 }

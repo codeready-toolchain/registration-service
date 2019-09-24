@@ -53,15 +53,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		var data map[string]interface{}
+		data := &controller.HealthCheck{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val, ok := data["alive"]
-		assert.True(s.T(), ok, "no alive key in health response")
-		valBool, ok := val.(bool)
-		assert.True(s.T(), ok, "returned 'alive' value is not of type 'bool'")
-		assert.True(s.T(), valBool, "alive is false in test mode health response")
+		val := data.Alive
+		assert.True(s.T(), val, "alive is false in test mode health response")
 	})
 
 	s.Run("health in production mode", func() {
@@ -82,15 +79,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		var data map[string]interface{}
+		data := &controller.HealthCheck{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val, ok := data["alive"]
-		assert.True(s.T(), ok, "no alive key in health response")
-		valBool, ok := val.(bool)
-		assert.True(s.T(), ok, "returned 'alive' value is not of type 'bool'")
-		assert.True(s.T(), valBool, "alive is false in test mode health response")
+		val := data.Alive
+		assert.True(s.T(), val, "alive is false in test mode health response")
 	})
 
 	s.Run("revision", func() {
@@ -107,15 +101,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		var data map[string]interface{}
+		data := &controller.HealthCheck{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val, ok := data["revision"]
-		assert.True(s.T(), ok, "no revision key in health response")
-		valString, ok := val.(string)
-		assert.True(s.T(), ok, "returned 'revision' value is not of type 'string'")
-		assert.Equal(s.T(), configuration.Commit, valString, "wrong revision in health response, got %s want %s", valString, configuration.Commit)
+		val := data.Revision
+		assert.Equal(s.T(), configuration.Commit, val, "wrong revision in health response, got %s want %s", val, configuration.Commit)
 	})
 
 	s.Run("build time", func() {
@@ -132,15 +123,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		var data map[string]interface{}
+		data := &controller.HealthCheck{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val, ok := data["build_time"]
-		assert.True(s.T(), ok, "no build_time key in health response")
-		valString, ok := val.(string)
-		assert.True(s.T(), ok, "returned 'build_time' value is not of type 'string'")
-		assert.Equal(s.T(), configuration.BuildTime, valString, "wrong build_time in health response, got %s want %s", valString, configuration.BuildTime)
+		val := data.BuildTime
+		assert.Equal(s.T(), configuration.BuildTime, val, "wrong build_time in health response, got %s want %s", val, configuration.BuildTime)
 	})
 
 	s.Run("start time", func() {
@@ -157,14 +145,11 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		var data map[string]interface{}
+		data := &controller.HealthCheck{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val, ok := data["start_time"]
-		assert.True(s.T(), ok, "no start_time key in health response")
-		valString, ok := val.(string)
-		assert.True(s.T(), ok, "returned 'start_time' value is not of type 'string'")
-		assert.Equal(s.T(), configuration.StartTime, valString, "wrong start_time in health response, got %s want %s", valString, configuration.StartTime)
+		val := data.StartTime
+		assert.Equal(s.T(), configuration.StartTime, val, "wrong start_time in health response, got %s want %s", val, configuration.StartTime)
 	})
 }

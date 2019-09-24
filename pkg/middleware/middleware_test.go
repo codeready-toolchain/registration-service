@@ -74,9 +74,6 @@ func TestAuthMiddleware(t *testing.T) {
 		{"auth_test, invalid header auth, no email claim", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
 		{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
 		{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", "GET", tokenValid, http.StatusUnauthorized},
-		{"auth_test, valid param auth", "/api/v1/auth_test?token=" + tokenValid, "GET", "", http.StatusOK},
-		{"auth_test, invalid param auth, no email claim", "/api/v1/auth_test?token=" + tokenInvalidNoEmail, "GET", "", http.StatusUnauthorized},
-		{"auth_test, invalid param auth, token garbage", "/api/v1/auth_test?token=" + tokenInvalidGarbage, "GET", "", http.StatusUnauthorized},
 	}
 	for _, tt := range authtests {
 		t.Run(tt.name, func(t *testing.T) {

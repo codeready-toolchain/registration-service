@@ -26,7 +26,11 @@ type FakeUserSignupClient struct {
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
 	clientScheme := runtime.NewScheme()
-	crtapi.SchemeBuilder.AddToScheme(clientScheme)
+	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
+	if err != nil {
+		log.Error(err, "Error adding to scheme")
+		os.Exit(1)
+	}
 	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
 
 	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())

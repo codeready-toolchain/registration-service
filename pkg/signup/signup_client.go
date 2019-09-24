@@ -15,7 +15,10 @@ const (
 
 func NewUserSignupClient(cfg *rest.Config) (*UserSignupV1Alpha1Client, error) {
 	scheme := runtime.NewScheme()
-	crtapi.SchemeBuilder.AddToScheme(scheme)
+	err := crtapi.SchemeBuilder.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
 	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
 
 	config := *cfg

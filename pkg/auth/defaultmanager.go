@@ -6,6 +6,12 @@ import (
 	"sync"
 )
 
+// DefaultTokenParserConfiguration represents a partition of the configuration
+// that is used for configuring the default TokenParser.
+type DefaultTokenParserConfiguration interface {
+	GetAuthClientPublicKeysURL() string
+}
+
 var muKM sync.Mutex
 var muTP sync.Mutex
 
@@ -40,7 +46,7 @@ func defaultKeyManager() (*KeyManager, error) {
 // InitializeDefaultTokenParser creates the default token parser if it has not created yet.
 // This function must be called in main to make sure the default parser is created during service startup.
 // It will try to create the default parser only once even if called multiple times.
-func InitializeDefaultTokenParser(logger *log.Logger, config KeyManagerConfiguration) (*TokenParser, error) {
+func InitializeDefaultTokenParser(logger *log.Logger, config DefaultTokenParserConfiguration) (*TokenParser, error) {
 	muTP.Lock()
 	defer muTP.Unlock()
 	if defaultTokenParserHolder == nil {

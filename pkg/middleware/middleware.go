@@ -44,7 +44,7 @@ func NewAuthMiddleware(logger *log.Logger) (*JWTMiddleware, error) {
 }
 
 func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
-	// token lookup order: header: Authorization, query: token
+	// token lookup: header: Authorization
 	// try header field "Authorization" (will be "" when n/a)
 	headerToken := c.GetHeader("Authorization")
 	if headerToken != "" {
@@ -59,11 +59,6 @@ func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
 		}
 		// see above, failing fast
 		return "", errors.New("found unknown authorization header:" + headerToken)
-	}
-	// next, try GET param "token" (will return "" if n/a)
-	paramToken := c.Query("token")
-	if paramToken != "" {
-		return paramToken, nil
 	}
 	return "", errors.New("no token found")
 }
@@ -85,11 +80,6 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		token, err := m.tokenParser.FromString(tokenStr)
 		if err != nil {
 			m.respondWithError(c, http.StatusUnauthorized, err.Error())
-			return
-		}
-		// validate time claims
-		if token.Valid() != nil {
-			m.respondWithError(c, http.StatusUnauthorized, "token has invalid time claims")
 			return
 		}
 		// all checks done, add username, subject and email to the context.

@@ -53,7 +53,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		data := &controller.HealthCheck{}
+		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -79,7 +79,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		data := &controller.HealthCheck{}
+		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -101,7 +101,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		data := &controller.HealthCheck{}
+		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -123,7 +123,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		data := &controller.HealthCheck{}
+		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -145,7 +145,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
 
 		// Check the response body is what we expect.
-		data := &controller.HealthCheck{}
+		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 

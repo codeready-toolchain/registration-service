@@ -12,13 +12,17 @@ import (
 
 // HealthCheck implements the health endpoint.
 type HealthCheck struct {
-	config      *configuration.Registry
-	logger      *log.Logger
-	Alive       bool
-	TestingMode bool
-	Revision    string
-	BuildTime   string
-	StartTime   string
+	config *configuration.Registry
+	logger *log.Logger
+}
+
+// Health payload
+type Health struct {
+	Alive       bool   `json:"alive"`
+	TestingMode bool   `json:"testingMode"`
+	Revision    string `json:"revision"`
+	BuildTime   string `json:"buildTime"`
+	StartTime   string `json:"startTime"`
 }
 
 // HealthCheck returns a new HealthCheck instance.
@@ -30,8 +34,8 @@ func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthC
 }
 
 // getHealthInfo returns the health info.
-func (hc *HealthCheck) getHealthInfo() *HealthCheck {
-	return &HealthCheck{
+func (hc *HealthCheck) getHealthInfo() *Health {
+	return &Health{
 		Alive:       true,
 		TestingMode: hc.config.IsTestingMode(),
 		Revision:    configuration.Commit,

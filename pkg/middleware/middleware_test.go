@@ -99,7 +99,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	require.NotNil(s.T(), srv.Engine())
 
 	s.Run("health check requests", func() {
-		health := &controller.HealthCheck{}
+		health := &controller.Health{}
 		resp := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 		require.NoError(s.T(), err)

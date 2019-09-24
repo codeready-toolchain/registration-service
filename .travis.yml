@@ -27,6 +27,7 @@ script:
   - "make build"
   - "make test"
   - "make image"
+  - "make check-go-format"
 
 branches:
   only:

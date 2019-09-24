@@ -71,19 +71,19 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		var authMiddleware *middleware.JWTMiddleware
 		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
 
-		// public routes
-		publicV1 := srv.router.Group("/api/v1")
-		publicV1.GET("/health", healthCheckCtrl.GetHandler)
-		publicV1.GET("/authconfig", authConfigCtrl.GetHandler)
+		// unsecured routes
+		unsecuredV1 := srv.router.Group("/api/v1")
+		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
+		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 
-		// private routes
-		privateV1 := srv.router.Group("/api/v1")
-		privateV1.Use(authMiddleware.HandlerFunc())
-		privateV1.POST("/signup", signupCtrl.PostHandler)
+		// secured routes
+		securedV1 := srv.router.Group("/api/v1")
+		securedV1.Use(authMiddleware.HandlerFunc())
+		securedV1.POST("/signup", signupCtrl.PostHandler)
 
-		// if we are in testing mode, we also add a private health route for testing
+		// if we are in testing mode, we also add a secured health route for testing
 		if srv.Config().IsTestingMode() {
-			privateV1.GET("/auth_test", healthCheckCtrl.GetHandler)
+			securedV1.GET("/auth_test", healthCheckCtrl.GetHandler)
 		}
 
 		// Create the route for static content, served from /

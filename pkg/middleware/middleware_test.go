@@ -1,14 +1,18 @@
 package middleware_test
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +20,22 @@ import (
 )
 
 func TestAuthMiddleware(t *testing.T) {
+	t.Run("create without logger", func(t *testing.T) {
+		authMiddleware, err := middleware.NewAuthMiddleware(nil)
+		require.Nil(t, authMiddleware)
+		require.Error(t, err)
+		require.Equal(t, "missing parameters for NewAuthMiddleware", err.Error())
+	})
+	t.Run("create with DefaultTokenParser failing", func(t *testing.T) {
+		logger := log.New(os.Stderr, "", 0)
+		authMiddleware, err := middleware.NewAuthMiddleware(logger)
+		require.Nil(t, authMiddleware)
+		require.Error(t, err)
+		require.Equal(t, "no default TokenParser created, call `InitializeDefaultTokenParser()` first", err.Error())
+	})
+}
 
+func TestAuthMiddlewareService(t *testing.T) {
 	// create a TokenGenerator and a key
 	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
@@ -29,11 +48,20 @@ func TestAuthMiddleware(t *testing.T) {
 		Username: uuid.NewV4().String(),
 	}
 	emailClaim0 := testutils.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
+	// valid token
 	tokenValid, err := tokengenerator.GenerateSignedToken(identity0, kid0, emailClaim0)
 	require.NoError(t, err)
+	// invalid token - no email
 	tokenInvalidNoEmail, err := tokengenerator.GenerateSignedToken(identity0, kid0)
 	require.NoError(t, err)
+	// invalid token - garbage
 	tokenInvalidGarbage := uuid.NewV4().String()
+	// invalid token - expired
+	tokenInvalidExpiredJWT := tokengenerator.GenerateToken(identity0, kid0, emailClaim0)
+	tDiff := -60 * time.Second
+	tokenInvalidExpiredJWT.Claims.(jwt.MapClaims)["exp"] = time.Now().UTC().Add(tDiff).Unix()
+	tokenInvalidExpired, err := tokengenerator.SignToken(tokenInvalidExpiredJWT, kid0)
+	require.NoError(t, err)
 
 	// start key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
@@ -72,8 +100,10 @@ func TestAuthMiddleware(t *testing.T) {
 		{"auth_test, no auth, denied", "/api/v1/auth_test", "GET", "", http.StatusUnauthorized},
 		{"auth_test, valid header auth", "/api/v1/auth_test", "GET", "Bearer " + tokenValid, http.StatusOK},
 		{"auth_test, invalid header auth, no email claim", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidNoEmail, http.StatusUnauthorized},
+		{"auth_test, invalid header auth, expired", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidExpired, http.StatusUnauthorized},
 		{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", "GET", "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
 		{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", "GET", tokenValid, http.StatusUnauthorized},
+		{"auth_test, invalid header auth, bearer but no token", "/api/v1/auth_test", "GET", "Bearer ", http.StatusUnauthorized},
 	}
 	for _, tt := range authtests {
 		t.Run(tt.name, func(t *testing.T) {

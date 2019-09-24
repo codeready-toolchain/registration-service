@@ -81,7 +81,7 @@ func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`http.address: "`+newVal+`"`)
+		config := s.getFileConfiguration(`http.address: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetHTTPAddress())
 	})
 
@@ -113,7 +113,7 @@ func (s *TestConfigurationSuite) TestGetLogLevel() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`log.level: "`+newVal+`"`)
+		config := s.getFileConfiguration(`log.level: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetLogLevel())
 	})
 
@@ -143,7 +143,7 @@ func (s *TestConfigurationSuite) TestIsLogJSON() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultLogJSON
-		config := s.getFileConfiguration(`log.json: "`+strconv.FormatBool(newVal)+`"`)
+		config := s.getFileConfiguration(`log.json: "` + strconv.FormatBool(newVal) + `"`)
 		assert.Equal(s.T(), newVal, config.IsLogJSON())
 	})
 
@@ -169,7 +169,7 @@ func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
-		config := s.getFileConfiguration(`graceful_timeout: "`+newVal.String()+`"`)
+		config := s.getFileConfiguration(`graceful_timeout: "` + newVal.String() + `"`)
 		assert.Equal(s.T(), newVal, config.GetGracefulTimeout())
 	})
 
@@ -195,7 +195,7 @@ func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
-		config := s.getFileConfiguration(`http.write_timeout: "`+newVal.String()+`"`)
+		config := s.getFileConfiguration(`http.write_timeout: "` + newVal.String() + `"`)
 		assert.Equal(s.T(), newVal, config.GetHTTPWriteTimeout())
 	})
 
@@ -221,7 +221,7 @@ func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 444 * time.Second
-		config := s.getFileConfiguration(`http.read_timeout: "`+newVal.String()+`"`)
+		config := s.getFileConfiguration(`http.read_timeout: "` + newVal.String() + `"`)
 		assert.Equal(s.T(), newVal, config.GetHTTPReadTimeout())
 	})
 
@@ -247,7 +247,7 @@ func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 111 * time.Second
-		config := s.getFileConfiguration(`http.idle_timeout: "`+newVal.String()+`"`)
+		config := s.getFileConfiguration(`http.idle_timeout: "` + newVal.String() + `"`)
 		assert.Equal(s.T(), newVal, config.GetHTTPIdleTimeout())
 	})
 
@@ -273,7 +273,7 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultHTTPCompressResponses
-		config := s.getFileConfiguration(`http.compress: "`+strconv.FormatBool(newVal)+`"`)
+		config := s.getFileConfiguration(`http.compress: "` + strconv.FormatBool(newVal) + `"`)
 		assert.Equal(s.T(), newVal, config.GetHTTPCompressResponses())
 	})
 
@@ -301,7 +301,7 @@ func (s *TestConfigurationSuite) TestIsTestingMode() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultTestingMode
-		config := s.getFileConfiguration(`testingmode: "`+strconv.FormatBool(newVal)+`"`)
+		config := s.getFileConfiguration(`testingmode: "` + strconv.FormatBool(newVal) + `"`)
 		assert.Equal(s.T(), newVal, config.IsTestingMode())
 	})
 
@@ -329,7 +329,7 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config.raw: "`+newVal+`"`)
+		config := s.getFileConfiguration(`auth_client.config.raw: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
 	})
 
@@ -359,7 +359,7 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config.content_type: "`+newVal+`"`)
+		config := s.getFileConfiguration(`auth_client.config.content_type: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthContentType())
 	})
 
@@ -391,7 +391,7 @@ func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.library_url: "`+newVal+`"`)
+		config := s.getFileConfiguration(`auth_client.library_url: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetAuthClientLibraryURL())
 	})
 
@@ -423,7 +423,7 @@ func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.public_keys_url: "`+newVal+`"`)
+		config := s.getFileConfiguration(`auth_client.public_keys_url: "` + newVal + `"`)
 		assert.Equal(s.T(), newVal, config.GetAuthClientPublicKeysURL())
 	})
 

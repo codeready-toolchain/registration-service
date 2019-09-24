@@ -92,7 +92,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 			if thisEntry.KeyMngr == nil && thisEntry.KmErr != nil {
 				fails++
 			}
-			if (thisEntry.KeyMngr == nil && thisEntry.KmErr == nil) || (thisEntry.KeyMngr != nil && thisEntry.KmErr != nil)  {
+			if (thisEntry.KeyMngr == nil && thisEntry.KmErr == nil) || (thisEntry.KeyMngr != nil && thisEntry.KmErr != nil) {
 				require.Fail(s.T(), "unexpected return values when calling InitializeDefaultKeyManager")
 			}
 		}
@@ -147,7 +147,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		require.NoError(s.T(), err)
 		type tpErrHolder struct {
 			TokePrsr *TokenParser
-			TpErr   error
+			TpErr    error
 		}
 		latch := sync.WaitGroup{}
 		latch.Add(1)
@@ -159,7 +159,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 				tp, err := InitializeDefaultTokenParser(logger, keyManager)
 				thisHolder := &tpErrHolder{
 					TokePrsr: tp,
-					TpErr:   err,
+					TpErr:    err,
 				}
 				holder[i] = thisHolder
 			}(i)
@@ -178,7 +178,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 			if thisEntry.TokePrsr == nil && thisEntry.TpErr != nil {
 				fails++
 			}
-			if (thisEntry.TokePrsr == nil && thisEntry.TpErr == nil) || (thisEntry.TokePrsr != nil && thisEntry.TpErr != nil)  {
+			if (thisEntry.TokePrsr == nil && thisEntry.TpErr == nil) || (thisEntry.TokePrsr != nil && thisEntry.TpErr != nil) {
 				require.Fail(s.T(), "unexpected return values when calling InitializeDefaultTokenParser")
 			}
 		}

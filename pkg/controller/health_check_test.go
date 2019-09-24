@@ -16,11 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
 type TestHealthCheckSuite struct {
 	testutils.UnitTestSuite
 }
 
- func TestRunHealthCheckSuite(t *testing.T) {
+func TestRunHealthCheckSuite(t *testing.T) {
 	suite.Run(t, &TestHealthCheckSuite{testutils.UnitTestSuite{}})
 }
 

@@ -24,8 +24,8 @@ func TestAuthMiddleware(t *testing.T) {
 	require.NoError(t, err)
 
 	// create some test tokens
-	identity0 := testutils.Identity {
-		ID: uuid.NewV4(),
+	identity0 := testutils.Identity{
+		ID:       uuid.NewV4(),
 		Username: uuid.NewV4().String(),
 	}
 	emailClaim0 := testutils.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
@@ -40,14 +40,14 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// create server
 	srv, err := server.New("")
-	require.NoError(t, err)	
+	require.NoError(t, err)
 
 	// set the key service url in the config
 	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
 	assert.Equal(t, keysEndpointURL, srv.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
 	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
 	assert.True(t, srv.Config().IsTestingMode(), "testing mode not set correctly")
-	
+
 	// Setting up the routes.
 	err = srv.SetupRoutes()
 	require.NoError(t, err)
@@ -61,11 +61,11 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// do some requests
 	var authtests = []struct {
-		name    		string
-		urlPath 		string
-		method  		string
-		tokenHeader	string
-		status  		int
+		name        string
+		urlPath     string
+		method      string
+		tokenHeader string
+		status      int
 	}{
 		{"static, no auth", "/favicon.ico", "GET", "", http.StatusOK},
 		{"health, no auth", "/api/v1/health", "GET", "", http.StatusOK},

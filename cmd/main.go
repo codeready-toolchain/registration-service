@@ -33,7 +33,7 @@ func main() {
 			configFilePath = envConfigPath
 		}
 	}
-	
+
 	srv, err := server.New(configFilePath)
 	if err != nil {
 		panic(err.Error())

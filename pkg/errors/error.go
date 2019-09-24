@@ -8,10 +8,10 @@ import (
 )
 
 type Error struct {
-	Status  string
-	Code    int
-	Message string
-	Details string
+	Status  string `json:"status"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Details string `json:"details"`
 }
 
 // EncodeError encodes a json error response.

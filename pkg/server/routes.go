@@ -72,6 +72,10 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
 		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
+		if err != nil {
+			err = errs.Wrapf(err, "failed to init auth middleware: %s", err.Error())
+			return
+		}	
 
 		// unsecured routes
 		unsecuredV1 := srv.router.Group("/api/v1")

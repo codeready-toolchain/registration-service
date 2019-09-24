@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,7 +31,6 @@ func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	_, err := ctx.Writer.WriteString(ac.config.GetAuthClientConfigAuthRaw())
 	if err != nil {
 		ac.logger.Println("error writing response body", err.Error())
-		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-		return
+		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

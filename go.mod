@@ -33,6 +33,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1
+	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.0.0-20190820101039-d651a1528133 // indirect
 	k8s.io/apimachinery v0.0.0-20190823012420-8ca64af22337 // indirect
 	k8s.io/client-go v0.0.0-20190620085101-78d2af792bab

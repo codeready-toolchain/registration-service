@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +14,15 @@ import (
 type HealthCheck struct {
 	config *configuration.Registry
 	logger *log.Logger
+}
+
+// Health payload
+type Health struct {
+	Alive       bool   `json:"alive"`
+	TestingMode bool   `json:"testingMode"`
+	Revision    string `json:"revision"`
+	BuildTime   string `json:"buildTime"`
+	StartTime   string `json:"startTime"`
 }
 
 // HealthCheck returns a new HealthCheck instance.
@@ -24,30 +34,29 @@ func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthC
 }
 
 // getHealthInfo returns the health info.
-func (srv *HealthCheck) getHealthInfo() map[string]interface{} {
-	m := make(map[string]interface{})
-	// TODO: this need to get actual health info.
-	m["alive"] = true
-	m["testingmode"] = srv.config.IsTestingMode()
-	m["revision"] = configuration.Commit
-	m["build_time"] = configuration.BuildTime
-	m["start_time"] = configuration.StartTime
-	return m
+func (hc *HealthCheck) getHealthInfo() *Health {
+	return &Health{
+		Alive:       true,
+		TestingMode: hc.config.IsTestingMode(),
+		Revision:    configuration.Commit,
+		BuildTime:   configuration.BuildTime,
+		StartTime:   configuration.StartTime,
+	}
 }
 
 // GetHandler returns a default heath check result.
-func (srv *HealthCheck) GetHandler(ctx *gin.Context) {
+func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
 	// Default handler for system health
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	healthInfo := srv.getHealthInfo()
-	if healthInfo["alive"].(bool) {
+	healthInfo := hc.getHealthInfo()
+	if healthInfo.Alive {
 		ctx.Writer.WriteHeader(http.StatusOK)
 	} else {
 		ctx.Writer.WriteHeader(http.StatusInternalServerError)
 	}
 	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-		return
+		hc.logger.Println("error writing response body", err.Error())
+		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

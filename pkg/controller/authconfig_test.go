@@ -1,4 +1,4 @@
-package controller_test
+package controller
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := controller.NewAuthConfig(logger, s.Config)
+	authConfigCtrl := NewAuthConfig(logger, s.Config)
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
@@ -57,7 +57,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
-		var dataEnvelope map[string]interface{}
+		var dataEnvelope *configResponse
 		err = json.Unmarshal(rr.Body.Bytes(), &dataEnvelope)
 		require.NoError(s.T(), err)
 
@@ -67,22 +67,15 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 		require.NoError(s.T(), err)
 
 		s.Run("envelope client url", func() {
-			val, ok := dataEnvelope["auth-client-library-url"]
-			assert.True(s.T(), ok, "no 'auth-client-library-url' key in authconfig response")
-			valString, ok := val.(string)
-			assert.True(s.T(), ok, "returned 'auth-client-library-url' value is not of type 'string'")
-			assert.Equal(s.T(), s.Config.GetAuthClientLibraryURL(), valString, "wrong 'auth-client-library-url' in authconfig response, got %s want %s", valString, s.Config.GetAuthClientLibraryURL())
+			assert.Equal(s.T(), s.Config.GetAuthClientLibraryURL(), dataEnvelope.AuthClientLibraryURL, "wrong 'auth-client-library-url' in authconfig response")
 		})
 
 		s.Run("envelope client config", func() {
-			val, ok := dataEnvelope["auth-client-config"]
-			assert.True(s.T(), ok, "no 'auth-client-config' key in authconfig response")
-			valString, ok := val.(string)
-			assert.True(s.T(), ok, "returned 'auth-client-config' value is not of type 'string'")
+			assert.NotEmpty(s.T(), dataEnvelope.AuthClientLibraryURL, "no 'auth-client-config' key in authconfig response")
 
 			// deserialize the values in the string field
 			var data map[string]interface{}
-			err = json.Unmarshal([]byte(valString), &data)
+			err = json.Unmarshal([]byte(dataEnvelope.AuthClientConfigRaw), &data)
 			require.NoError(s.T(), err)
 
 			s.Run("realm", func() {
@@ -90,7 +83,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'realm' key in authconfig response")
 				valString, ok := val.(string)
 				assert.True(s.T(), ok, "returned 'realm' value is not of type 'string'")
-				assert.Equal(s.T(), config["realm"], valString, "wrong 'realm' in authconfig response, got %s want %s", valString, config["realm"])
+				assert.Equal(s.T(), config["realm"], valString, "wrong 'realm' in authconfig response")
 			})
 	
 			s.Run("auth-server-url", func() {
@@ -98,7 +91,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'auth-server-url' key in authconfig response")
 				valString, ok := val.(string)
 				assert.True(s.T(), ok, "returned 'auth-server-url' value is not of type 'string'")
-				assert.Equal(s.T(), config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response, got %s want %s", valString, config["auth-server-url"])
+				assert.Equal(s.T(), config["auth-server-url"], valString, "wrong 'auth-server-url' in authconfig response")
 			})
 	
 			s.Run("ssl-required", func() {
@@ -106,7 +99,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'ssl-required' key in authconfig response")
 				valString, ok := val.(string)
 				assert.True(s.T(), ok, "returned 'ssl-required' value is not of type 'string'")
-				assert.Equal(s.T(), config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response, got %s want %s", valString, config["ssl-required"])
+				assert.Equal(s.T(), config["ssl-required"], valString, "wrong 'ssl-required' in authconfig response")
 			})
 	
 			s.Run("resource", func() {
@@ -114,7 +107,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'resource' key in authconfig response")
 				valString, ok := val.(string)
 				assert.True(s.T(), ok, "returned 'resource' value is not of type 'string'")
-				assert.Equal(s.T(), config["resource"], valString, "wrong 'resource' in authconfig response, got %s want %s", valString, config["resource"])
+				assert.Equal(s.T(), config["resource"], valString, "wrong 'resource' in authconfig response")
 			})
 	
 			s.Run("public-client", func() {
@@ -122,7 +115,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'public-client' key in authconfig response")
 				valBool, ok := val.(bool)
 				assert.True(s.T(), ok, "returned 'public-client' value is not of type 'bool'")
-				assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response, got %s want %s", valBool, config["public-client"])
+				assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response")
 			})
 	
 			s.Run("confidential-port", func() {
@@ -130,7 +123,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "no 'confidential-port' key in authconfig response")
 				valFloat, ok := val.(float64)
 				assert.True(s.T(), ok, "returned 'confidential-port' value is not of type 'float64'")
-				assert.Equal(s.T(), config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response, got %s want %s", valFloat, config["confidential-port"])
+				assert.Equal(s.T(), config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response")
 			})	
 		})
 	})

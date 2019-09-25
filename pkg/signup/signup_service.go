@@ -25,7 +25,7 @@ type SignupService interface {
 
 type SignupServiceImpl struct {
 	Namespace string
-	Client    kubeclient.CRTClientInterface
+	Client    *kubeclient.CRTV1Alpha1Client
 }
 
 func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
@@ -41,7 +41,7 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 
 	return &SignupServiceImpl{
 		Namespace: cfg.GetNamespace(),
-		Client:    client.Client(),
+		Client:    client,
 	}, nil
 }
 
@@ -64,7 +64,7 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 		},
 	}
 
-	created, err := c.Client.CreateUserSignup(userSignup)
+	created, err := c.Client.UserSignups().Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (c *SignupServiceImpl) transformAndValidateUserName(username string) (strin
 	transformed := replaced
 
 	for {
-		userSignup, err := c.Client.GetUserSignup(transformed)
+		userSignup, err := c.Client.UserSignups().Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err

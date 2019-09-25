@@ -8,10 +8,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
-	userSignupResourcePlural = "usersignups"
-)
-
 func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Client, error) {
 	scheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(scheme)
@@ -47,41 +43,25 @@ type CRTV1Alpha1Client struct {
 	NS         string
 }
 
-func (c *CRTV1Alpha1Client) Client() CRTClientInterface {
-	return &crtClient{
-		client: c.RestClient,
-		ns:     c.NS,
+func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
+	return &userSignupClient{
+		crtClient: crtClient{
+			client: c.RestClient,
+			ns:     c.NS,
+		},
+	}
+}
+
+func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
+	return &masterUserRecordClient{
+		crtClient: crtClient{
+			client: c.RestClient,
+			ns:     c.NS,
+		},
 	}
 }
 
 type crtClient struct {
 	client rest.Interface
 	ns     string
-}
-
-type CRTClientInterface interface {
-	GetUserSignup(name string) (*crtapi.UserSignup, error)
-	CreateUserSignup(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-}
-
-func (c *crtClient) GetUserSignup(name string) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
-	err := c.client.Get().
-		Namespace(c.ns).
-		Resource(userSignupResourcePlural).
-		Name(name).
-		Do().
-		Into(result)
-	return result, err
-}
-
-func (c *crtClient) CreateUserSignup(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
-	err := c.client.Post().
-		Namespace(c.ns).
-		Resource(userSignupResourcePlural).
-		Body(obj).
-		Do().
-		Into(result)
-	return result, err
 }

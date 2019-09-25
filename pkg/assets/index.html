@@ -63,7 +63,7 @@
               document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
               // do an authenticated request
               // note, this only works if testingmode is set to true!
-              getJSON("/api/v1/health_private", keycloak.idToken, function(err, data) {
+              getJSON("/api/v1/auth_test", keycloak.idToken, function(err, data) {
                 if (err != null) {
                   document.getElementById('errorStatus').textContent = error;
                 } else {

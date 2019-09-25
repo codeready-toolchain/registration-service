@@ -1,39 +1,87 @@
 package kubeclient
 
 import (
-	"k8s.io/client-go/kubernetes"
+	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
 )
 
-type KubeClient struct {
-	CoreClient kubernetes.Interface
-}
+const (
+	userSignupResourcePlural = "usersignups"
+)
 
-func NewKubeClient(parameters []string) *KubeClient {
-	var err error
-	kc := new(KubeClient)
-	config := getKubeConfig(parameters)
-	kc.CoreClient, err = kubernetes.NewForConfig(&config)
+func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Client, error) {
+	scheme := runtime.NewScheme()
+	err := crtapi.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	crtapi.SchemeBuilder.Register(getRegisterObject()...)
+
+	config := *cfg
+	config.GroupVersion = &crtapi.SchemeGroupVersion
+	config.APIPath = "/apis"
+	config.ContentType = runtime.ContentTypeJSON
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	client, err := rest.RESTClientFor(&config)
+	if err != nil {
+		return nil, err
 	}
 
-	return kc
+	return &CRTV1Alpha1Client{
+		RestClient: client,
+		NS:         namespace,
+	}, nil
 }
 
-func getKubeConfig(parameters []string) rest.Config {
-	host := parameters[0] + "://" + parameters[1] + ":" + parameters[2]
-	bearerToken := parameters[3]
-
-	return getOpenshiftAPIConfig(host, bearerToken)
+func getRegisterObject() []runtime.Object {
+	return []runtime.Object{&crtapi.UserSignup{}, &crtapi.UserSignupList{}}
 }
 
-func getOpenshiftAPIConfig(host string, bearerToken string) rest.Config {
-	return rest.Config{
-		Host:        host,
-		BearerToken: bearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: false,
-		},
+type CRTV1Alpha1Client struct {
+	RestClient rest.Interface
+	NS         string
+}
+
+func (c *CRTV1Alpha1Client) Client() CRTClientInterface {
+	return &crtClient{
+		client: c.RestClient,
+		ns:     c.NS,
 	}
+}
+
+type crtClient struct {
+	client rest.Interface
+	ns     string
+}
+
+type CRTClientInterface interface {
+	GetUserSignup(name string) (*crtapi.UserSignup, error)
+	CreateUserSignup(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
+}
+
+func (c *crtClient) GetUserSignup(name string) (*crtapi.UserSignup, error) {
+	result := &crtapi.UserSignup{}
+	err := c.client.Get().
+		Namespace(c.ns).
+		Resource(userSignupResourcePlural).
+		Name(name).
+		Do().
+		Into(result)
+	return result, err
+}
+
+func (c *crtClient) CreateUserSignup(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	result := &crtapi.UserSignup{}
+	err := c.client.Post().
+		Namespace(c.ns).
+		Resource(userSignupResourcePlural).
+		Body(obj).
+		Do().
+		Into(result)
+	return result, err
 }

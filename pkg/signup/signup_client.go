@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	USER_SIGNUP_RESOURCE_NAME = "usersignups"
+	userSignupResourcePlural = "usersignups"
 )
 
 func NewUserSignupClient(cfg *rest.Config) (*UserSignupV1Alpha1Client, error) {
@@ -67,7 +67,7 @@ func (c *userSignupClientImpl) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(USER_SIGNUP_RESOURCE_NAME).
+		Resource(userSignupResourcePlural).
 		Name(name).
 		Do().
 		Into(result)
@@ -78,7 +78,7 @@ func (c *userSignupClientImpl) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	result := &crtapi.UserSignup{}
 	err := c.client.Post().
 		Namespace(c.ns).
-		Resource(USER_SIGNUP_RESOURCE_NAME).
+		Resource(userSignupResourcePlural).
 		Body(obj).
 		Do().
 		Into(result)

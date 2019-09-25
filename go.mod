@@ -59,6 +59,7 @@ replace (
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 
+// Pinned to kubernetes-1.14.1
 replace (
 	k8s.io/api => k8s.io/api v0.0.0-20190409021203-6e4e0e4f393b
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20190409022649-727a075fdec8

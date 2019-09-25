@@ -24,3 +24,7 @@ build-dev:
 build-prod: generate
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		go build -v ${LDFLAGS} -o registration-service ${PACKAGE_NAME}/cmd
+
+.PHONY: vendor
+vendor:
+	$(Q)go mod vendor

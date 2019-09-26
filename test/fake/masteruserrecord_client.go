@@ -2,32 +2,29 @@ package fake
 
 import (
 	"encoding/json"
-	"os"
-
-	"os"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/testing"
+	"os"
 )
 
-type FakeUserSignupClient struct {
+type FakeMasterUserRecordClient struct {
 	Tracker   testing.ObjectTracker
 	Scheme    *runtime.Scheme
 	namespace string
 }
 
-func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
+func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object) *FakeMasterUserRecordClient {
 	clientScheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
 	if err != nil {
 		log.Error(err, "Error adding to scheme")
 		os.Exit(1)
 	}
-	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
+	crtapi.SchemeBuilder.Register(&crtapi.MasterUserRecord{}, &crtapi.MasterUserRecordList{})
 
 	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
@@ -38,15 +35,15 @@ func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *Fake
 			return nil
 		}
 	}
-	return &FakeUserSignupClient{
+	return &FakeMasterUserRecordClient{
 		Tracker:   tracker,
 		Scheme:    clientScheme,
 		namespace: namespace,
 	}
 }
 
-func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
-	obj := &crtapi.UserSignup{}
+func (c *FakeMasterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, error) {
+	obj := &crtapi.MasterUserRecord{}
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -70,7 +67,7 @@ func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -89,7 +86,7 @@ func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -105,8 +102,8 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) error {
-	gvr, err := getGVRFromObject(&crtapi.UserSignup{}, c.Scheme)
+func (c *FakeMasterUserRecordClient) Delete(name string, options *v1.DeleteOptions) error {
+	gvr, err := getGVRFromObject(&crtapi.MasterUserRecord{}, c.Scheme)
 	if err != nil {
 		return err
 	}

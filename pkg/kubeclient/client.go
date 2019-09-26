@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// NewCRTV1Alpha1Client creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
 func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Client, error) {
 	scheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(scheme)

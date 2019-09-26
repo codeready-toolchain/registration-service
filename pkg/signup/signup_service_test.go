@@ -102,7 +102,7 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {
 	fake := fake.NewFakeUserSignupClient(TestNamespace)
 	return &signup.SignupServiceImpl{
-		Namespace: TestNamespace,
-		Client:    fake,
+		Namespace:   TestNamespace,
+		UserSignups: fake,
 	}, fake
 }

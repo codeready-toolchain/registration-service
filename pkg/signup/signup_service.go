@@ -24,10 +24,11 @@ type SignupService interface {
 }
 
 type SignupServiceImpl struct {
-	Namespace string
-	Client    *kubeclient.CRTV1Alpha1Client
+	Namespace   string
+	UserSignups kubeclient.UserSignupInterface
 }
 
+// NewSignupService creates a service object for performing user signup-related activities
 func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -40,8 +41,8 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 	}
 
 	return &SignupServiceImpl{
-		Namespace: cfg.GetNamespace(),
-		Client:    client,
+		Namespace:   cfg.GetNamespace(),
+		UserSignups: client.UserSignups(),
 	}, nil
 }
 
@@ -64,7 +65,7 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 		},
 	}
 
-	created, err := c.Client.UserSignups().Create(userSignup)
+	created, err := c.UserSignups.Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (c *SignupServiceImpl) transformAndValidateUserName(username string) (strin
 	transformed := replaced
 
 	for {
-		userSignup, err := c.Client.UserSignups().Get(transformed)
+		userSignup, err := c.UserSignups.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err

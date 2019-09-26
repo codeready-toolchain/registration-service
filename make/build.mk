@@ -3,13 +3,7 @@ GO_PACKAGE_ORG_NAME ?= $(shell basename $$(dirname $$PWD))
 GO_PACKAGE_REPO_NAME ?= $(shell basename $$PWD)
 GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 
-COMMIT=$(shell git rev-parse HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-	COMMIT := $(COMMIT)-dirty
-endif
-BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
-export LDFLAGS=-ldflags "-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${COMMIT} -X ${GO_PACKAGE_PATH}/cmd/configuration.BuildTime=${BUILD_TIME}"
+export LDFLAGS=-ldflags "-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/cmd/configuration.BuildTime=${BUILD_TIME}"
 
 .PHONY: build build-prod build-dev
 

@@ -46,6 +46,7 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 	}, nil
 }
 
+// CreateUserSignup creates a new UserSignup resource with the specified username and userID
 func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
 	name, err := c.transformAndValidateUserName(username)
 	if err != nil {

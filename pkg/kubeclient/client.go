@@ -44,6 +44,7 @@ type CRTV1Alpha1Client struct {
 	NS         string
 }
 
+// UserSignups returns an interface which may be used to perform CRUD operations for UserSignup resources
 func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
 	return &userSignupClient{
 		crtClient: crtClient{
@@ -53,6 +54,7 @@ func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
 	}
 }
 
+// MasterUserRecords returns an interface which may be used to perform CRUD operations for MasterUserRecord resources
 func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
 		crtClient: crtClient{

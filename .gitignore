@@ -3,7 +3,6 @@ build/_output
 build/_test
 out/
 coverage.txt
-bin/
 tmp/
 *.key
 *.crt
@@ -17,7 +16,6 @@ registration-service
 
 ### Eclipse ###
 .metadata
-bin/
 tmp/
 *.tmp
 *.bak

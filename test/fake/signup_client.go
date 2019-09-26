@@ -13,9 +13,13 @@ import (
 )
 
 type FakeUserSignupClient struct {
-	Tracker   testing.ObjectTracker
-	Scheme    *runtime.Scheme
-	namespace string
+	Tracker    testing.ObjectTracker
+	Scheme     *runtime.Scheme
+	namespace  string
+	MockGet    func(string) (*crtapi.UserSignup, error)
+	MockCreate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockDelete func(name string, options *v1.DeleteOptions) error
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -43,6 +47,10 @@ func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *Fake
 }
 
 func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
+	if c.MockGet != nil {
+		return c.MockGet(name)
+	}
+
 	obj := &crtapi.UserSignup{}
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
@@ -68,6 +76,10 @@ func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 }
 
 func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	if c.MockCreate != nil {
+		return c.MockCreate(obj)
+	}
+
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -87,6 +99,10 @@ func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 }
 
 func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	if c.MockUpdate != nil {
+		return c.MockUpdate(obj)
+	}
+
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -103,6 +119,10 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 }
 
 func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) error {
+	if c.MockDelete != nil {
+		return c.MockDelete(name, options)
+	}
+
 	gvr, err := getGVRFromObject(&crtapi.UserSignup{}, c.Scheme)
 	if err != nil {
 		return err

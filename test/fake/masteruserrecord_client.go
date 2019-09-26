@@ -13,9 +13,13 @@ import (
 )
 
 type FakeMasterUserRecordClient struct {
-	Tracker   testing.ObjectTracker
-	Scheme    *runtime.Scheme
-	namespace string
+	Tracker    testing.ObjectTracker
+	Scheme     *runtime.Scheme
+	namespace  string
+	MockGet    func(string) (*crtapi.MasterUserRecord, error)
+	MockCreate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
+	MockUpdate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
+	MockDelete func(name string, options *v1.DeleteOptions) error
 }
 
 func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object) *FakeMasterUserRecordClient {
@@ -43,6 +47,10 @@ func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object)
 }
 
 func (c *FakeMasterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, error) {
+	if c.MockGet != nil {
+		return c.MockGet(name)
+	}
+
 	obj := &crtapi.MasterUserRecord{}
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
@@ -68,6 +76,10 @@ func (c *FakeMasterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord,
 }
 
 func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
+	if c.MockCreate != nil {
+		return c.MockCreate(obj)
+	}
+
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -87,6 +99,10 @@ func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crta
 }
 
 func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
+	if c.MockUpdate != nil {
+		return c.MockUpdate(obj)
+	}
+
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err
@@ -103,6 +119,10 @@ func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crta
 }
 
 func (c *FakeMasterUserRecordClient) Delete(name string, options *v1.DeleteOptions) error {
+	if c.MockDelete != nil {
+		return c.MockDelete(name, options)
+	}
+
 	gvr, err := getGVRFromObject(&crtapi.MasterUserRecord{}, c.Scheme)
 	if err != nil {
 		return err

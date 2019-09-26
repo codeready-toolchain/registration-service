@@ -2,6 +2,7 @@ package signup_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
@@ -96,6 +97,32 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 	require.NoError(s.T(), err)
 
 	_, err = svc.CreateUserSignup(context.Background(), "john#gmail.com", userID.String())
+	require.Error(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
+	svc, fake := newSignupServiceWithFakeClient()
+	fake.MockCreate = func(*v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+		return nil, errors.New("an error occurred")
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	_, err = svc.CreateUserSignup(context.Background(), "jack.smith@redhat.com", userID.String())
+	require.Error(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
+	svc, fake := newSignupServiceWithFakeClient()
+	fake.MockGet = func(string) (*v1alpha1.UserSignup, error) {
+		return nil, errors.New("an error occurred")
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	_, err = svc.CreateUserSignup(context.Background(), "hank.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
 }
 

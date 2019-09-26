@@ -36,7 +36,12 @@ func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Clien
 }
 
 func getRegisterObject() []runtime.Object {
-	return []runtime.Object{&crtapi.UserSignup{}, &crtapi.UserSignupList{}}
+	return []runtime.Object{
+		&crtapi.UserSignup{},
+		&crtapi.UserSignupList{},
+		&crtapi.MasterUserRecord{},
+		&crtapi.MasterUserRecordList{},
+	}
 }
 
 type CRTV1Alpha1Client struct {

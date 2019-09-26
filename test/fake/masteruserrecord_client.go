@@ -2,13 +2,14 @@ package fake
 
 import (
 	"encoding/json"
+	"os"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/testing"
-	"os"
 )
 
 type FakeMasterUserRecordClient struct {
@@ -31,8 +32,7 @@ func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object)
 		err := tracker.Add(obj)
 		if err != nil {
 			log.Error(err, "failed to add object to fake user signup client", "object", obj)
-			os.Exit(1)
-			return nil
+			panic("could not add object to tracker")
 		}
 	}
 	return &FakeMasterUserRecordClient{

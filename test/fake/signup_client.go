@@ -32,8 +32,7 @@ func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *Fake
 		err := tracker.Add(obj)
 		if err != nil {
 			log.Error(err, "failed to add object to fake user signup client", "object", obj)
-			os.Exit(1)
-			return nil
+			panic("could not add object to tracker")
 		}
 	}
 	return &FakeUserSignupClient{

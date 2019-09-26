@@ -1,0 +1,87 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: registration-service-v0.1
+  namespace: toolchain-registration-service
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+  - from:
+      kind: DockerImage
+      name: registry.svc.ci.openshift.org/codeready-toolchain/registration-service-v0.1:registration-service
+    importPolicy:
+      scheduled: true
+    name: registration-service
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app: registration-service
+  name: registration-service
+  namespace: toolchain-registration-service
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    app: registration-service
+    deploymentconfig: registration-service
+  strategy:
+    activeDeadlineSeconds: 21600
+    resources: {}
+    rollingParams:
+      intervalSeconds: 1
+      maxSurge: 25%
+      maxUnavailable: 25%
+      timeoutSeconds: 600
+      updatePeriodSeconds: 1
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        app: registration-service
+        deploymentconfig: registration-service
+    spec:
+      serviceAccountName: registration-service
+      containers:
+      - name: registration-service
+        image: ''
+        command:
+        - registration-service
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        resources:
+          requests:
+            cpu: 0.1m
+            memory: 10Mi
+          limits:
+            cpu: 400m
+            memory: 1.5Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+  test: false
+  triggers:
+  - type: ConfigChange
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - registration-service
+      from:
+        kind: ImageStreamTag
+        name: registration-service-v0.1:registration-service
+        namespace: toolchain-registration-service
+    type: ImageChange

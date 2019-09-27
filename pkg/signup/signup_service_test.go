@@ -140,8 +140,9 @@ func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
 
 func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	svc, fake := newSignupServiceWithFakeClient()
+	expectedErr := errors.New("an error occurred")
 	fake.MockGet = func(string) (*v1alpha1.UserSignup, error) {
-		return nil, errors.New("an error occurred")
+		return nil, expectedErr
 	}
 
 	userID, err := uuid.NewV4()
@@ -149,6 +150,7 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 
 	_, err = svc.CreateUserSignup(context.Background(), "hank.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
+	require.Equal(s.T(), expectedErr, err)
 }
 
 func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {

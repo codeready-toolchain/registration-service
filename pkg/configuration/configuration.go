@@ -79,8 +79,11 @@ const (
 	DefaultAuthClientConfigContentType = "application/json"
 
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
+
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
 	DefaultAuthClientPublicKeysURL = ""
+
+	varNamespace = "namespace"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -214,4 +217,9 @@ func (c *Registry) GetAuthClientConfigAuthRaw() string {
 // or environment variable).
 func (c *Registry) GetAuthClientPublicKeysURL() string {
 	return c.v.GetString(varAuthClientPublicKeysURL)
+}
+
+// GetNamespace returns the namespace in which the registration service and host operator is running
+func (c *Registry) GetNamespace() string {
+	return c.v.GetString(varNamespace)
 }

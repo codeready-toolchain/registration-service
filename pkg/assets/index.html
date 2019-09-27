@@ -26,6 +26,7 @@
   // calls 'cbSuccess' when the library was loaded successfully
   // and 'cbError' when there was an error loading the library.
   function loadAuthLibrary(url, cbSuccess, cbError) {
+    console.log("loading client library from " + url)
     var script = document.createElement('script');
     script.setAttribute('src', url);
     script.setAttribute('type', 'text/javascript');
@@ -61,15 +62,6 @@
             keycloak.loadUserInfo().success(function(data){
               document.getElementById('loginStatus').textContent = "logged in as user " + data.preferred_username;
               document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
-              // do an authenticated request
-              // note, this only works if testingmode is set to true!
-              getJSON("/api/v1/auth_test", keycloak.idToken, function(err, data) {
-                if (err != null) {
-                  document.getElementById('errorStatus').textContent = error;
-                } else {
-                  document.getElementById('serviceResp').textContent = JSON.stringify(data, null, 2);
-                }
-              })
             });
           } else {
             document.getElementById('loginStatus').textContent = "not logged in";
@@ -83,6 +75,19 @@
       });
     }
   });
+
+  function doRequest() {
+    // do an authenticated request
+    // note, this only works if testingmode is set to true!
+    getJSON("/api/v1/auth_test", keycloak.idToken, function(err, data) {
+      if (err != null) {
+        document.getElementById('errorStatus').textContent = error;
+      } else {
+        document.getElementById('serviceResp').textContent = JSON.stringify(data, null, 2);
+      }
+    })
+  }
+
 </script>
 </head>
 <body>
@@ -92,5 +97,6 @@
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>
   <p><button onclick="keycloak.logout()">Logout</button></p>
   <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
-  <p>Secured Service Response:<br><pre id="serviceResp">n/a</pre></p>
+  <p><button onclick="doRequest()">Perform authenticated Request</button> using the token..</p>
+  <p>Authenticated Service Response:<br><pre id="serviceResp">n/a</pre></p>
 </body>

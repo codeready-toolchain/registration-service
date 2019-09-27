@@ -38,7 +38,7 @@ func (s *TestSignupServiceSuite) TestNewSignupService() {
 }
 
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {
-	svc, fake := newSignupServiceWithFakeClient()
+	svc, fakeClient := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -47,11 +47,11 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, fake.Scheme)
+	gvk, err := apiutil.GVKForObject(userSignup, fakeClient.Scheme)
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := fake.Tracker.List(gvr, gvk, TestNamespace)
+	values, err := fakeClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*v1alpha1.UserSignupList)
@@ -67,7 +67,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupTransform() {
-	svc, fake := newSignupServiceWithFakeClient()
+	svc, fakeClient := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -76,11 +76,11 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, fake.Scheme)
+	gvk, err := apiutil.GVKForObject(userSignup, fakeClient.Scheme)
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := fake.Tracker.List(gvr, gvk, TestNamespace)
+	values, err := fakeClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*v1alpha1.UserSignupList)
@@ -103,8 +103,8 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
-	svc, fake := newSignupServiceWithFakeClient()
-	fake.Tracker.Add(&v1alpha1.UserSignup{
+	svc, fakeClient := newSignupServiceWithFakeClient()
+	err := fakeClient.Tracker.Add(&v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "john-at-gmail-com",
@@ -115,6 +115,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
+	require.NoError(s.T(), err)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -126,9 +127,10 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
-	svc, fake := newSignupServiceWithFakeClient()
-	fake.MockCreate = func(*v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-		return nil, errors.New("an error occurred")
+	svc, fakeClient := newSignupServiceWithFakeClient()
+	expectedErr := errors.New("an error occurred")
+	fakeClient.MockCreate = func(*v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+		return nil, expectedErr
 	}
 
 	userID, err := uuid.NewV4()
@@ -136,12 +138,13 @@ func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
 
 	_, err = svc.CreateUserSignup(context.Background(), "jack.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
+	require.Equal(s.T(), expectedErr, err)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
-	svc, fake := newSignupServiceWithFakeClient()
+	svc, fakeClient := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
-	fake.MockGet = func(string) (*v1alpha1.UserSignup, error) {
+	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
 		return nil, expectedErr
 	}
 
@@ -154,9 +157,9 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 }
 
 func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {
-	fake := fake.NewFakeUserSignupClient(TestNamespace)
+	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
 	return &signup.SignupServiceImpl{
 		Namespace:   TestNamespace,
-		UserSignups: fake,
-	}, fake
+		UserSignups: fakeClient,
+	}, fakeClient
 }

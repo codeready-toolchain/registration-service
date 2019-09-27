@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -98,6 +100,29 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 
 	_, err = svc.CreateUserSignup(context.Background(), "john#gmail.com", userID.String())
 	require.Error(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
+	svc, fake := newSignupServiceWithFakeClient()
+	fake.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "john-at-gmail-com",
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID: "foo",
+		},
+		Status: v1alpha1.UserSignupStatus{},
+	})
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	created, err := svc.CreateUserSignup(context.Background(), "john@gmail.com", userID.String())
+	require.NoError(s.T(), err)
+
+	require.NotEqual(s.T(), "john-at-gmail-com", created.Name)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {

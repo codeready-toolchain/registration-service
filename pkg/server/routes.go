@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	"github.com/codeready-toolchain/registration-service/pkg/websockets"
 	errs "github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
@@ -76,6 +77,16 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		unsecuredV1 := srv.router.Group("/api/v1")
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
+
+		// create and register websockets hub and handler
+		websocketsHub := websockets.NewHub()
+		websocketsHdlr := controller.NewWebsocketsHandler(srv.logger, srv.Config(), websocketsHub)
+		websocketsHub.SetMessageHandler(websocketsHdlr.Message)
+		srv.UseWebsocketsHub(websocketsHub)
+		// create secured route for websocket connections
+		srv.router.GET("/ws", authMiddleware.HandlerFunc(), func(c *gin.Context) {
+			websockets.HTTPHandler(websocketsHub, c)
+		})
 
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")

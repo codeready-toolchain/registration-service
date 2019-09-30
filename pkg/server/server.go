@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -13,16 +14,18 @@ import (
 	errs "github.com/pkg/errors"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/websockets"
 )
 
 // RegistrationServer bundles configuration, logging, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      *configuration.Registry
-	router      *gin.Engine
-	httpServer  *http.Server
-	logger      *log.Logger
-	routesSetup sync.Once
+	config        *configuration.Registry
+	router        *gin.Engine
+	httpServer    *http.Server
+	logger        *log.Logger
+	websocketsHub *websockets.Hub
+	routesSetup   sync.Once
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
@@ -51,6 +54,20 @@ func New(configFilePath string) (*RegistrationServer, error) {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	return srv, nil
+}
+
+// UseWebsocketsHub registers the given hub for websockets connections.
+func (srv *RegistrationServer) UseWebsocketsHub(hub *websockets.Hub) error {
+	if hub == nil {
+		return errors.New("given websockets hub is nil")
+	}
+	srv.websocketsHub = hub
+	return nil
+}
+
+// WebsocketsHub returns the websocket hub instance.
+func (srv *RegistrationServer) WebsocketsHub() *websockets.Hub {
+	return srv.websocketsHub
 }
 
 // Logger returns the app server's log object.

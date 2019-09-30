@@ -88,10 +88,41 @@
     })
   }
 
+  function submitWs() {
+    if (!conn) {
+      return false;
+    }
+    if (!document.getElementById("msg").value) {
+      return false;
+    }
+    conn.send(document.getElementById("msg").value);
+    document.getElementById("msg").value = "";
+    return false;
+  };
+
+  // websockets
+  if (window["WebSocket"]) {
+    conn = new WebSocket("ws://" + document.location.host + "/ws");
+    conn.onclose = function (evt) {
+      console.log("ws connection closed");
+    };
+    conn.onmessage = function (evt) {
+      console.log("message: " + evt.data);
+    };
+  } else {
+    console.log("browser does not support websockets");
+  }
+
 </script>
 </head>
 <body>
   <h1>CodeReady Toolchain SaaS</h1>
+  <p>
+    <form id="form">
+      <input type="button" value="Send" onclick="submitWs()"/>
+      <input type="text" id="msg" size="64"/>
+    </form>
+  </p>
   <p>Login status: <b id="loginStatus"></b></p>
   <p>Error status: <b id="errorStatus"></b>n/a</p>
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>

@@ -1,0 +1,24 @@
+package log_test
+
+import (
+	"testing"
+	"os"
+
+	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/stretchr/testify/suite"
+)
+
+type TestLogSuite struct {
+	testutils.UnitTestSuite
+}
+
+func TestRunLogSuite(t *testing.T) {
+	suite.Run(t, &TestLogSuite{testutils.UnitTestSuite{}})
+}
+
+func (s *TestLogSuite) TestLogHandler() {
+	log.InitializeLogger(os.Stdout, "", 0)
+
+	log.Println("tina")
+}

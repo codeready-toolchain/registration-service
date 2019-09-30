@@ -1,39 +1,75 @@
 package kubeclient
 
 import (
-	"k8s.io/client-go/kubernetes"
+	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
 )
 
-type KubeClient struct {
-	CoreClient kubernetes.Interface
-}
-
-func NewKubeClient(parameters []string) *KubeClient {
-	var err error
-	kc := new(KubeClient)
-	config := getKubeConfig(parameters)
-	kc.CoreClient, err = kubernetes.NewForConfig(&config)
+// NewCRTV1Alpha1Client creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
+func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Client, error) {
+	scheme := runtime.NewScheme()
+	err := crtapi.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	crtapi.SchemeBuilder.Register(getRegisterObject()...)
+
+	config := *cfg
+	config.GroupVersion = &crtapi.SchemeGroupVersion
+	config.APIPath = "/apis"
+	config.ContentType = runtime.ContentTypeJSON
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	client, err := rest.RESTClientFor(&config)
+	if err != nil {
+		return nil, err
 	}
 
-	return kc
+	return &CRTV1Alpha1Client{
+		RestClient: client,
+		NS:         namespace,
+	}, nil
 }
 
-func getKubeConfig(parameters []string) rest.Config {
-	host := parameters[0] + "://" + parameters[1] + ":" + parameters[2]
-	bearerToken := parameters[3]
-
-	return getOpenshiftAPIConfig(host, bearerToken)
+func getRegisterObject() []runtime.Object {
+	return []runtime.Object{
+		&crtapi.UserSignup{},
+		&crtapi.UserSignupList{},
+		&crtapi.MasterUserRecord{},
+		&crtapi.MasterUserRecordList{},
+	}
 }
 
-func getOpenshiftAPIConfig(host string, bearerToken string) rest.Config {
-	return rest.Config{
-		Host:        host,
-		BearerToken: bearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: false,
+type CRTV1Alpha1Client struct {
+	RestClient rest.Interface
+	NS         string
+}
+
+// UserSignups returns an interface which may be used to perform CRUD operations for UserSignup resources
+func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
+	return &userSignupClient{
+		crtClient: crtClient{
+			client: c.RestClient,
+			ns:     c.NS,
 		},
 	}
+}
+
+// MasterUserRecords returns an interface which may be used to perform CRUD operations for MasterUserRecord resources
+func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
+	return &masterUserRecordClient{
+		crtClient: crtClient{
+			client: c.RestClient,
+			ns:     c.NS,
+		},
+	}
+}
+
+type crtClient struct {
+	client rest.Interface
+	ns     string
 }

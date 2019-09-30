@@ -436,3 +436,28 @@ func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 		assert.Equal(s.T(), newVal, config.GetAuthClientPublicKeysURL())
 	})
 }
+
+func (s *TestConfigurationSuite) TestGetNamespace() {
+	key := configuration.EnvPrefix + "_" + "NAMESPACE"
+	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	defer resetFunc()
+
+	s.Run("file", func() {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`namespace: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetNamespace())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		os.Setenv(key, newVal)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetNamespace())
+	})
+}

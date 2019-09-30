@@ -86,32 +86,6 @@ func (s *TestWebsocketsSuite) connect(token string) (*websocket.Conn, error) {
 	return ws, nil
 }
 
-func (s *TestWebsocketsSuite) TestWebsocketsUnauthorized() {
-	ws, err := s.setupConnection()
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), ws)
-	// close server when done
-	defer func() {
-		s.srv.HTTPServer().Close()
-	}()
-
-	// note that the middleware and the token acceptance is tested in
-	// middleware_test.go. This test only tests if the wesockets 
-	// connection also uses the middleware.
-
-	s.Run("no token", func() {
-		conn, err := s.connect("")
-		require.Nil(s.T(), conn)
-		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
-	})
-
-	s.Run("invalid token", func() {
-		conn, err := s.connect(uuid.NewV4().String())
-		require.Nil(s.T(), conn)
-		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
-	})
-}
-
 func (s *TestWebsocketsSuite) TestWebsocketsAuthorized() {
 	// create service
 	kid, err := s.setupConnection()
@@ -120,6 +94,22 @@ func (s *TestWebsocketsSuite) TestWebsocketsAuthorized() {
 	defer func() {
 		s.srv.HTTPServer().Close()
 	}()
+
+	// note that the middleware and the token acceptance is tested in
+	// middleware_test.go. This test only tests if the wesockets 
+	// connection also uses the middleware.
+
+	s.Run("unauthorized no token", func() {
+		conn, err := s.connect("")
+		require.Nil(s.T(), conn)
+		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
+	})
+
+	s.Run("unauthorized invalid token", func() {
+		conn, err := s.connect(uuid.NewV4().String())
+		require.Nil(s.T(), conn)
+		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
+	})
 
 	s.Run("authorized echo request", func() {
 		// create a valid test token for echotest

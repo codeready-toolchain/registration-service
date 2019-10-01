@@ -61,9 +61,7 @@ func (s *TestWebsocketsSuite) setupConnection() (string, error) {
 	// will take over the control of the network socket. This causes
 	// it to be non-compatible with the usual httptest procedures.
 	go func() {
-		if err := s.srv.HTTPServer().ListenAndServe(); err != nil {
-			require.NoError(s.T(), err)
-		}
+		s.srv.HTTPServer().ListenAndServe()
 	}()
 	// let the system settle and the websockets library take over
 	// and setup the connection.
@@ -86,7 +84,7 @@ func (s *TestWebsocketsSuite) connect(token string) (*websocket.Conn, error) {
 	return ws, nil
 }
 
-func (s *TestWebsocketsSuite) TestWebsocketsAuthorized() {
+func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 	// create service
 	kid, err := s.setupConnection()
 	require.NoError(s.T(), err)

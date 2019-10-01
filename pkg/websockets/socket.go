@@ -2,7 +2,6 @@ package websockets
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -64,68 +63,25 @@ func NewHub() *Hub {
 	return hub
 }
 
-// SendMessage sends a message to a client identified with the subject.
-// Returns false if there is no active connection to a client
-// identified with the given subject. This is a convenience func
-// that can be used interchangingly with the Outbound channel. 
-func (h *Hub) SendMessage(subject string, message []byte) bool {
-	if !h.IsSubjectAvailable(subject) {
-		return false
-	}
-	h.Outbound <- &Message{
-		Sub:  subject,
-		Body: message,
-	}
-	return true
-}
-
-// IsSubjectAvailable checks if there is an active connection to a client
-// identified by the given subject. Returns false if not.
-func (h *Hub) IsSubjectAvailable(subject string) bool {
-	for _, sub := range h.clients {
-		if sub == subject {
-			return true
-		}
-	}
-	return false
-}
-
 // Run runs the hub's main loop.
 func (h *Hub) run() {
-	fmt.Println("LOOP START")
 	for {
-		fmt.Print("LOOP ")
-
 		select {
 		case client := <-h.register:
-			fmt.Println("LOOP 1s")
 			h.clients[client] = client.sub
-			fmt.Println("LOOP 1e")
 		case client := <-h.unregister:
-			fmt.Println("LOOP 2s")
 			if _, ok := h.clients[client]; ok {
 				log.Printf("unregistering client for sub %s", client.sub)
 				delete(h.clients, client)
 				close(client.send)
 			}
-			fmt.Println("LOOP 2e")
-		/*
-		case message := <-h.Inbound:
-			fmt.Println("LOOP 3s")
-			// message incoming from the pump
-			log.Printf("incoming message from client sub %s", message.sub)
-			fmt.Println("LOOP 3e")
-		*/
 		case message := <-h.Outbound:
-			fmt.Println("LOOP 4s")
-			fmt.Println("SEND MESSAGE DETECTED ON RUN")
 			// message appeared on the outbound channel, find the matching client
 			for client, sub := range h.clients {
 				if sub == message.Sub {
 					// found the client, send message out
 					select {
 					case client.send <- message.Body:
-						log.Printf("sending message to client for sub %s", client.sub)
 						return
 					default:
 						// send message failed, terminate conn with this client
@@ -137,7 +93,6 @@ func (h *Hub) run() {
 			}
 			// the client was not found for this sub
 			log.Printf("error client not found for sub %s when trying to send outbound message", message.Sub)
-			fmt.Println("LOOP 4e")
 		}
 	}
 }
@@ -204,7 +159,6 @@ func (c *client) writePump() {
 		select {
 		case message, ok := <-c.send:
 			// a message is on the outbound client queue
-			fmt.Println("MESSAGE DETECTED ON OUTGOING PUMP")
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.

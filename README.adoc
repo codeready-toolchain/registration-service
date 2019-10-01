@@ -66,5 +66,8 @@ Before running VSCode from that shell.
 To deploy Registration Service on local minishift, start your minishift then run:
 
 ```
+eval $(minishift docker-env)
 make deploy-dev
 ```
+
+The service will be available at http://minishift.local:31000

@@ -1,9 +1,11 @@
 package log
 
 import (
-	"context"
+	"fmt"
 	"io"
 	"log"
+
+	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -21,18 +23,18 @@ func Logger() *log.Logger {
 }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
-func Fatal(ctx context.Context, v ...interface{}) {
-	logger.Fatal(v...)
+func Fatal(ctx *gin.Context, v ...interface{}) {
+	logger.Fatal(addContextKeys(ctx, v))
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func Fatalf(ctx context.Context, format string, v ...interface{}) {
+func Fatalf(ctx *gin.Context, format string, v ...interface{}) {
 	logger.Fatalf(format, v...)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
-func Fatalln(ctx context.Context, v ...interface{}) {
-	logger.Fatalln(v...)
+func Fatalln(ctx *gin.Context, v ...interface{}) {
+	logger.Fatalln(addContextKeys(ctx, v))
 }
 
 // Flags returns the output flags for the logger.
@@ -41,18 +43,18 @@ func Flags() int {
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
-func Panic(ctx context.Context, v ...interface{}) {
-	logger.Panic(v...)
+func Panic(ctx *gin.Context, v ...interface{}) {
+	logger.Panic(addContextKeys(ctx, v))
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
-func Panicf(ctx context.Context, format string, v ...interface{}) {
+func Panicf(ctx *gin.Context, format string, v ...interface{}) {
 	logger.Panicf(format, v...)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
-func Panicln(ctx context.Context, v ...interface{}) {
-	logger.Panicln(v...)
+func Panicln(ctx *gin.Context, v ...interface{}) {
+	logger.Panicln(addContextKeys(ctx, v))
 }
 
 // Prefix returns the output prefix for the logger.
@@ -61,16 +63,36 @@ func Prefix() string {
 }
 
 // Print calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Print.
-func Print(ctx context.Context, v ...interface{}) {
-	logger.Print(v...)
+func Print(ctx *gin.Context, v ...interface{}) {
+	logger.Print(addContextKeys(ctx, v))
 }
 
 // Printf calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Printf.
-func Printf(ctx context.Context, format string, v ...interface{}) {
+func Printf(ctx *gin.Context, format string, v ...interface{}) {
 	logger.Printf(format, v...)
 }
 
 // Println calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Println.
-func Println(ctx *context.Context, v ...interface{}) {
-	logger.Println(v...)
+func Println(ctx *gin.Context, v ...interface{}) {
+	logger.Println(addContextKeys(ctx, v))
+}
+
+func addContextKeys(ctx *gin.Context, v ...interface{}) []interface{} {
+	if ctx != nil {
+
+		subject, e := ctx.Get("subject")
+		if e {
+			v = append(v, fmt.Sprintf("context subject: %s", subject))
+		}
+		subscription, e := ctx.Get("subscription")
+		if e {
+			v = append(v, fmt.Sprintf("context subscription: %s", subscription))
+		}
+		url, e := ctx.Get("url")
+		if e {
+			v = append(v, fmt.Sprintf("context url: %s", url))
+		}
+	}
+
+	return v
 }

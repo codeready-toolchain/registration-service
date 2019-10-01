@@ -31,7 +31,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)
 	if err != nil {
-		log.Println(nil, "error writing response body", err.Error())
+		log.Println(ctx, "error writing response body", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

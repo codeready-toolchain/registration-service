@@ -4,6 +4,6 @@ clean:
 	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
 		rm -f pkg/static/generated_assets.go && \
 		rm -rf $(COV_DIR) && \
-		rm -f registration-service && \
+		rm -rf $(OUT_DIR) && \
 		rm -rf ${V_FLAG} ./vendor
 	$(Q)go clean ${X_FLAG} ./...

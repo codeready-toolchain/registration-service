@@ -44,7 +44,7 @@ func NewAuthMiddleware(logger *log.Logger) (*JWTMiddleware, error) {
 }
 
 func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
-	// token lookup: header: Authorization
+	// token lookup order: header: Authorization, query: token
 	// try header field "Authorization" (will be "" when n/a)
 	headerToken := c.GetHeader("Authorization")
 	if headerToken != "" {
@@ -59,6 +59,11 @@ func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
 		}
 		// see above, failing fast
 		return "", errors.New("found unknown authorization header:" + headerToken)
+	}
+	// next, try GET param "token" (will return "" if n/a)	
+	paramToken := c.Query("token")	
+	if paramToken != "" {	
+		return paramToken, nil	
 	}
 	return "", errors.New("no token found")
 }

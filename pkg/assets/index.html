@@ -63,6 +63,18 @@
               document.getElementById('loginStatus').textContent = "logged in as user " + data.preferred_username;
               document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
             });
+            // setup websockets connection when the token is available
+            if (window["WebSocket"]) {
+              conn = new WebSocket("ws://" + document.location.host + "/ws" + "?token=" + keycloak.idToken);
+              conn.onclose = function (evt) {
+                console.log("ws connection closed");
+              };
+              conn.onmessage = function (evt) {
+                console.log("message: " + evt.data);
+              };
+            } else {
+              console.log("browser does not support websockets");
+            }
           } else {
             document.getElementById('loginStatus').textContent = "not logged in";
           }
@@ -88,7 +100,6 @@
     })
   }
 
-  /*
   function submitWs() {
     if (!conn) {
       return false;
@@ -96,46 +107,21 @@
     if (!document.getElementById("msg").value) {
       return false;
     }
-
-    // note, this only works if testingmode is set to true!
-    getJSON("/api/v1/auth_test", keycloak.idToken, function(err, data) {
-      if (err != null) {
-        document.getElementById('errorStatus').textContent = error;
-      } else {
-        document.getElementById('serviceResp').textContent = JSON.stringify(data, null, 2);
-      }
-    })
     conn.send(document.getElementById("msg").value);
     document.getElementById("msg").value = "";
     return false;
   };
 
-  // setup websockets connection on load
-  if (window["WebSocket"]) {
-    conn = new WebSocket("ws://" + document.location.host + "/ws");
-    conn.onclose = function (evt) {
-      console.log("ws connection closed");
-    };
-    conn.onmessage = function (evt) {
-      console.log("message: " + evt.data);
-    };
-  } else {
-    console.log("browser does not support websockets");
-  }
-  */
-
 </script>
 </head>
 <body>
   <h1>CodeReady Toolchain SaaS</h1>
-  <!--
   <p>
     <form id="form">
       <input type="button" value="Send" onclick="submitWs()"/>
       <input type="text" id="msg" size="64"/>
     </form>
   </p>
-  -->
   <p>Login status: <b id="loginStatus"></b></p>
   <p>Error status: <b id="errorStatus"></b>n/a</p>
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>

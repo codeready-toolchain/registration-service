@@ -145,6 +145,9 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 			{"auth_test, invalid header auth, token garbage", "/api/v1/auth_test", http.MethodGet, "Bearer " + tokenInvalidGarbage, http.StatusUnauthorized},
 			{"auth_test, invalid header auth, wrong header format", "/api/v1/auth_test", http.MethodGet, tokenValid, http.StatusUnauthorized},
 			{"auth_test, invalid header auth, bearer but no token", "/api/v1/auth_test", http.MethodGet, "Bearer ", http.StatusUnauthorized},
+			{"auth_test, valid param auth", "/api/v1/auth_test?token=" + tokenValid, "GET", "", http.StatusOK},	
+			{"auth_test, invalid param auth, no email claim", "/api/v1/auth_test?token=" + tokenInvalidNoEmail, "GET", "", http.StatusUnauthorized},	
+			{"auth_test, invalid param auth, token garbage", "/api/v1/auth_test?token=" + tokenInvalidGarbage, "GET", "", http.StatusUnauthorized},
 		}
 		for _, tt := range authtests {
 			s.Run(tt.name, func() {

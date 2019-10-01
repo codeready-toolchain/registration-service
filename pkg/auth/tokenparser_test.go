@@ -46,9 +46,6 @@ func TestTokenParser(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("invalid arguments to new", func(t *testing.T) {
-		// _, err := auth.NewTokenParser(keyManager)
-		// require.Error(t, err)
-		// require.Equal(t, "no logger given when creating TokenParser", err.Error())
 		_, err = auth.NewTokenParser(nil)
 		require.Error(t, err)
 		require.Equal(t, "no keyManager given when creating TokenParser", err.Error())

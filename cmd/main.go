@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	// create logger and registry
 	log.InitializeLogger(os.Stdout, "", 0)
 
 	// Parse flags

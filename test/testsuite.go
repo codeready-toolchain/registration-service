@@ -17,6 +17,7 @@ type UnitTestSuite struct {
 
 // SetupSuite sets the suite up and sets testmode.
 func (s *UnitTestSuite) SetupSuite() {
+	// create logger and registry
 	log.InitializeLogger(os.Stdout, "", 0)
 
 	s.Config = configuration.CreateEmptyRegistry()

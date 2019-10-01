@@ -29,7 +29,7 @@ func Fatal(ctx *gin.Context, v ...interface{}) {
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
 func Fatalf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Fatalf(format, v...)
+	logger.Fatalf(format, addContextKeys(ctx, v))
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
@@ -49,7 +49,7 @@ func Panic(ctx *gin.Context, v ...interface{}) {
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
 func Panicf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Panicf(format, v...)
+	logger.Panicf(format, addContextKeys(ctx, v))
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
@@ -69,12 +69,16 @@ func Print(ctx *gin.Context, v ...interface{}) {
 
 // Printf calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Printf.
 func Printf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Printf(format, v...)
+	logger.Printf(format, addContextKeys(ctx, v))
 }
 
 // Println calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Println.
 func Println(ctx *gin.Context, v ...interface{}) {
 	logger.Println(addContextKeys(ctx, v))
+}
+
+func SetOutput(w io.Writer) {
+	logger.SetOutput(w)
 }
 
 func addContextKeys(ctx *gin.Context, v ...interface{}) []interface{} {

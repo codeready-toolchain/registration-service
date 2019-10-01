@@ -132,6 +132,7 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		_, p, err := conn.ReadMessage()
 		require.NoError(s.T(), err)
 		// check if response has the correct subject identified (taken from the token) and the message.
-		require.Equal(s.T(), []byte(identity.ID.String() + " %RESPONSE% " +  testMessage), p)
+		expected := `{ "sub": "` + identity.ID.String() + `", "body": "` + testMessage + `" }`
+		require.Equal(s.T(), []byte(expected), p)
 	})
 }

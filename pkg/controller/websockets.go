@@ -44,9 +44,10 @@ func (ws *WebsocketsHandler) messageHandler() {
 				log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
 				// when in testingmode, reply to each message with a ping
 				if ws.config.IsTestingMode() {
+					response := `{ "sub": "` + message.Sub + `", "body": "` + string(message.Body) + `" }`
 					ws.hub.Outbound <- &websockets.Message{
 						Sub: message.Sub,
-						Body: append([]byte(message.Sub + " %RESPONSE% "), message.Body...),
+						Body: []byte(response),
 					}
 				}
 			// more actions on messages being added here

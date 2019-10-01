@@ -3,9 +3,9 @@ package server
 import (
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
-	"os"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 

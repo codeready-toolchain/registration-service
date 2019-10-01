@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+
 	"github.com/gin-gonic/gin"
 )
 

@@ -3,8 +3,8 @@ package log_test
 import (
 	"testing"
 
-	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/stretchr/testify/suite"
 )
 

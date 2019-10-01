@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/server"
 )
 
 func main() {

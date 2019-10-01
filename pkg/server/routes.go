@@ -6,12 +6,12 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
-	"github.com/codeready-toolchain/registration-service/pkg/log"
 
-	errs "github.com/pkg/errors"
 	"github.com/gin-gonic/gin"
+	errs "github.com/pkg/errors"
 )
 
 // StaticHandler implements the http.Handler interface, so we can use it

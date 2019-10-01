@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/codeready-toolchain/registration-service/pkg/static"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/static"
 
 	"github.com/shurcooL/vfsgen"
 )

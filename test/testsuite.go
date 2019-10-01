@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/stretchr/testify/suite"
 )

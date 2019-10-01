@@ -1,8 +1,7 @@
-DOCKER_REPO?=quay.io/codeready-toolchain
-IMAGE_NAME?=registration-service
-
-TIMESTAMP:=$(shell date +%s)
-TAG?=$(GIT_COMMIT_ID_SHORT)-$(TIMESTAMP)
+MINISHIFT_IP?=$(shell minishift ip)
+MINISHIFT_HOSTNAME=minishift.local
+MINISHIFT_HOSTNAME_REGEX='minishift\.local'
+ETC_HOSTS=/etc/hosts
 
 # to watch all namespaces, keep namespace empty
 APP_NAMESPACE ?= $(LOCAL_TEST_NAMESPACE)
@@ -10,7 +9,7 @@ LOCAL_TEST_NAMESPACE ?= "toolchain-host-operator"
 
 .PHONY: up-local
 ## Run Operator locally
-up-local: login-as-admin create-namespace deploy-rbac build deploy-crd
+up-local: login-as-admin create-namespace deploy-rbac build
 	$(Q)-oc new-project $(LOCAL_TEST_NAMESPACE) || true
 	$(Q)operator-sdk up local --namespace=$(APP_NAMESPACE) --verbose
 
@@ -47,6 +46,27 @@ reset-namespace: login-as-admin clean-namespace create-namespace deploy-rbac
 .PHONY: deploy-rbac
 ## Setup service account and deploy RBAC
 deploy-rbac:
+	$(Q)-oc apply -f deploy/service_account.yaml
 	$(Q)-oc apply -f deploy/role.yaml
 	$(Q)-oc apply -f deploy/role_binding.yaml
-	$(Q)-sed -e 's|REPLACE_NAMESPACE|${LOCAL_TEST_NAMESPACE}|g' ./deploy/cluster_role_binding.yaml  | oc apply -f -
+
+.PHONY: deploy-dev
+## Deploy Registration service on minishift
+deploy-dev: login-as-admin create-namespace deploy-rbac build image check-hosts
+	$(Q)-eval `minishift docker-env`
+	$(Q)-oc new-project $(LOCAL_TEST_NAMESPACE) || true
+	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
+
+.PHONY: check-hosts
+## Add minishift ip to /etc/hosts
+check-hosts:
+	echo $(MINISHIFT_IP) $(HMINISHIFT_HOSTNAME) $(ETC_HOSTS)
+	if grep -q "$(MINISHIFT_IP) $(MINISHIFT_HOSTNAME)" $(ETC_HOSTS); then \
+    	echo "Hosts entry exists"; \
+	else \
+    	echo "Updating /etc/hosts (Remove old minishift.local if any and add new one)"; \
+    	# remove old entries with $(HOSTNAME) if any \
+    	sudo sed -i "/$(MINISHIFT_HOSTNAME_REGEX)/d" $(ETC_HOSTS); \
+    	# add new entry \
+    	echo $(MINISHIFT_IP) $(MINISHIFT_HOSTNAME) | sudo tee --append $(ETC_HOSTS); \
+	fi

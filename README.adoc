@@ -60,3 +60,11 @@ export GO111MODULE=on
 ```
 
 Before running VSCode from that shell.
+
+=== Deploy on minishift
+
+To deploy Registration Service on local minishift, start your minishift then run:
+
+```
+make deploy-dev
+```

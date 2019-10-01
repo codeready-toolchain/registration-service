@@ -14,18 +14,18 @@ import (
 	errs "github.com/pkg/errors"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/websockets"
+	"github.com/codeready-toolchain/registration-service/pkg/controller"
 )
 
 // RegistrationServer bundles configuration, logging, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config        *configuration.Registry
-	router        *gin.Engine
-	httpServer    *http.Server
-	logger        *log.Logger
-	websocketsHub *websockets.Hub
-	routesSetup   sync.Once
+	config        		*configuration.Registry
+	router        		*gin.Engine
+	httpServer    		*http.Server
+	logger        		*log.Logger
+	websocketsHandler *controller.WebsocketsHandler
+	routesSetup   		sync.Once
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
@@ -56,18 +56,18 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	return srv, nil
 }
 
-// UseWebsocketsHub registers the given hub for websockets connections.
-func (srv *RegistrationServer) UseWebsocketsHub(hub *websockets.Hub) error {
-	if hub == nil {
-		return errors.New("given websockets hub is nil")
+// UseWebsocketsHandler registers the given hub for websockets connections.
+func (srv *RegistrationServer) UseWebsocketsHandler(handler *controller.WebsocketsHandler) error {
+	if handler == nil {
+		return errors.New("given WebsocketsHandler is nil")
 	}
-	srv.websocketsHub = hub
+	srv.websocketsHandler = handler
 	return nil
 }
 
-// WebsocketsHub returns the websocket hub instance.
-func (srv *RegistrationServer) WebsocketsHub() *websockets.Hub {
-	return srv.websocketsHub
+// WebsocketsHandler returns the websocket handler instance.
+func (srv *RegistrationServer) WebsocketsHandler() *controller.WebsocketsHandler {
+	return srv.websocketsHandler
 }
 
 // Logger returns the app server's log object.

@@ -79,13 +79,11 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 
 		// create and register websockets hub and handler
-		websocketsHub := websockets.NewHub()
-		websocketsHdlr := controller.NewWebsocketsHandler(srv.logger, srv.Config(), websocketsHub)
-		websocketsHub.SetMessageHandler(websocketsHdlr.Message)
-		srv.UseWebsocketsHub(websocketsHub)
+		websocketsHdlr := controller.NewWebsocketsHandler(srv.logger, srv.Config())
+		srv.UseWebsocketsHandler(websocketsHdlr)
 		// create secured route for websocket connections
 		srv.router.GET("/ws", authMiddleware.HandlerFunc(), func(c *gin.Context) {
-			websockets.HTTPHandler(websocketsHub, c)
+			websockets.HTTPHandler(websocketsHdlr.Hub(), c)
 		})
 
 		// secured routes

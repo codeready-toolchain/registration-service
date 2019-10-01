@@ -27,12 +27,12 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// ChannelMessage represents a message over the channel
-type channelMessage struct {
+// Message represents a message over the channel
+type Message struct {
 	// subscription of the peer identity
-	sub string
+	Sub string
 	// message data
-	body []byte
+	Body []byte
 }
 
 // Hub maintains the set of active clients
@@ -40,9 +40,9 @@ type Hub struct {
 	// registered clients, mapped to the sub id.
 	clients map[*client]string
 	// outbound messages to clients.
-	outbound chan *channelMessage
+	Outbound chan *Message
 	// inbound messages from clients.
-	inbound chan *channelMessage
+	Inbound chan *Message
 	// register requests from clients.
 	register chan *client
 	// unregister requests from clients.
@@ -54,37 +54,27 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub() *Hub {
 	hub := &Hub{
-		outbound:       make(chan *channelMessage),
-		inbound:        make(chan *channelMessage),
+		Outbound:       make(chan *Message),
+		Inbound:        make(chan *Message),
 		register:       make(chan *client),
 		unregister:     make(chan *client),
 		clients:        make(map[*client]string),
-		messageHandler: nil,
 	}
 	go hub.run()
 	return hub
 }
 
-// SetMessageHandler sets the message handler for this hub.
-func (h *Hub) SetMessageHandler(handlerFunc func(string, []byte)) error {
-	if handlerFunc == nil {
-		return errors.New("error setting websockets handler func, is nil")
-	}
-	h.messageHandler = handlerFunc
-	return nil
-}
-
 // SendMessage sends a message to a client identified with the subject.
 // Returns false if there is no active connection to a client
-// identified with the given subject.
+// identified with the given subject. This is a convenience func
+// that can be used interchangingly with the Outbound channel. 
 func (h *Hub) SendMessage(subject string, message []byte) bool {
-	fmt.Println("SEND MESSAGE")
 	if !h.IsSubjectAvailable(subject) {
 		return false
 	}
-	h.outbound <- &channelMessage{
-		sub:  subject,
-		body: message,
+	h.Outbound <- &Message{
+		Sub:  subject,
+		Body: message,
 	}
 	return true
 }
@@ -102,34 +92,39 @@ func (h *Hub) IsSubjectAvailable(subject string) bool {
 
 // Run runs the hub's main loop.
 func (h *Hub) run() {
+	fmt.Println("LOOP START")
 	for {
 		fmt.Print("LOOP ")
 
 		select {
 		case client := <-h.register:
+			fmt.Println("LOOP 1s")
 			h.clients[client] = client.sub
+			fmt.Println("LOOP 1e")
 		case client := <-h.unregister:
+			fmt.Println("LOOP 2s")
 			if _, ok := h.clients[client]; ok {
 				log.Printf("unregistering client for sub %s", client.sub)
 				delete(h.clients, client)
 				close(client.send)
 			}
-		case message := <-h.inbound:
+			fmt.Println("LOOP 2e")
+		/*
+		case message := <-h.Inbound:
+			fmt.Println("LOOP 3s")
 			// message incoming from the pump
 			log.Printf("incoming message from client sub %s", message.sub)
-			// send the message out with using the handler
-			if h.messageHandler != nil {
-				h.messageHandler(message.sub, message.body)
-			}
-			log.Printf("warning: incoming message from client sub %s is ignored, no handler set", message.sub)
-		case message := <-h.outbound:
+			fmt.Println("LOOP 3e")
+		*/
+		case message := <-h.Outbound:
+			fmt.Println("LOOP 4s")
 			fmt.Println("SEND MESSAGE DETECTED ON RUN")
 			// message appeared on the outbound channel, find the matching client
 			for client, sub := range h.clients {
-				if sub == message.sub {
+				if sub == message.Sub {
 					// found the client, send message out
 					select {
-					case client.send <- message.body:
+					case client.send <- message.Body:
 						log.Printf("sending message to client for sub %s", client.sub)
 						return
 					default:
@@ -141,7 +136,8 @@ func (h *Hub) run() {
 				}
 			}
 			// the client was not found for this sub
-			log.Printf("error client not found for sub %s when trying to send outbound message", message.sub)
+			log.Printf("error client not found for sub %s when trying to send outbound message", message.Sub)
+			fmt.Println("LOOP 4e")
 		}
 	}
 }
@@ -183,13 +179,13 @@ func (c *client) readPump() {
 			}
 			break
 		}
-		receivedMessage := &channelMessage{
-			sub:  c.sub,
-			body: message,
+		receivedMessage := &Message{
+			Sub:  c.sub,
+			Body: message,
 		}
-		log.Printf("connection received message from sub %s: %s", receivedMessage.sub, receivedMessage.body)
+		log.Printf("connection received message from sub %s: %s", receivedMessage.Sub, receivedMessage.Body)
 		// put the message on the hub channel
-		c.hub.inbound <- receivedMessage
+		c.hub.Inbound <- receivedMessage
 	}
 }
 
@@ -260,6 +256,7 @@ func HTTPHandler(hub *Hub, c *gin.Context) {
 		return
 	}
 	client := &client{hub: hub, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
+	log.Printf("registering client sub %s", subjStr)
 	hub.register <- client
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.

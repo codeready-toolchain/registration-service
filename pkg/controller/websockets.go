@@ -15,22 +15,41 @@ type WebsocketsHandler struct {
 }
 
 // NewWebsocketsHandler returns a new WebsocketsHandler instance.
-func NewWebsocketsHandler(logger *log.Logger, config *configuration.Registry, websocketsHub *websockets.Hub) *WebsocketsHandler {
-	return &WebsocketsHandler{
+func NewWebsocketsHandler(logger *log.Logger, config *configuration.Registry) *WebsocketsHandler {
+	h := &WebsocketsHandler{
 		logger: logger,
 		config: config,
-		hub: websocketsHub,
+		hub: websockets.NewHub(),
 	}
+	go h.messageHandler()
+	return h  
+}
+
+// Outbound returns the outbound message channel that can be used by 
+// other controllers to send messages.
+func (ws *WebsocketsHandler) Outbound() chan *websockets.Message {
+	return ws.hub.Outbound
+}
+
+// Hub provides access to the underlying websockets hub.
+func (ws *WebsocketsHandler) Hub() *websockets.Hub {
+	return ws.hub
 }
 
 // Message handles an incoming message from websockets.
-func (ws *WebsocketsHandler) Message(subject string, message []byte) {	
-	if ws.config.IsTestingMode() {
-		log.Printf("Message Handler received socket message from %s: %s", subject, message)
-		// testmode, reply to echotest
-		clientAvailable := ws.hub.SendMessage(subject, append([]byte(subject + " %RESPONSE% "), message...))
-		if !clientAvailable {
-			log.Printf("error, client not connected for subject %s", subject)
+func (ws *WebsocketsHandler) messageHandler() {	
+	for {
+		select {
+			case message := <-ws.hub.Inbound:
+				log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
+				// when in testingmode, reply to each message with a ping
+				if ws.config.IsTestingMode() {
+					ws.hub.Outbound <- &websockets.Message{
+						Sub: message.Sub,
+						Body: append([]byte(message.Sub + " %RESPONSE% "), message.Body...),
+					}
+				}
+			// more actions on messages being added here
 		}
 	}
 }

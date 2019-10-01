@@ -7,8 +7,9 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
+
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"gopkg.in/square/go-jose.v2"
 )
@@ -33,27 +34,23 @@ type JSONKeys struct {
 // KeyManager manages the public keys for token validation.
 type KeyManager struct {
 	config KeyManagerConfiguration
-	logger *log.Logger
 	keyMap map[string]*rsa.PublicKey
 }
 
 // NewKeyManager creates a new KeyManager and retrieves the public keys from the given URL.
-func NewKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyManager, error) {
-	if logger == nil {
-		return nil, errors.New("no logger given when creating KeyManager")
-	}
+func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
+
 	if config == nil {
 		return nil, errors.New("no config given when creating KeyManager")
 	}
 	keysEndpointURL := config.GetAuthClientPublicKeysURL()
 	km := &KeyManager{
-		logger: logger,
 		config: config,
 		keyMap: make(map[string]*rsa.PublicKey),
 	}
 	// fetch raw keys
 	if keysEndpointURL != "" {
-		logger.Println("fetching public keys from url", keysEndpointURL)
+		log.Println(nil, "fetching public keys from url", keysEndpointURL)
 		keys, err := km.fetchKeys(keysEndpointURL)
 		if err != nil {
 			return nil, err
@@ -63,7 +60,7 @@ func NewKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyMana
 			km.keyMap[key.KeyID] = key.Key
 		}
 	} else {
-		logger.Println("no public key url given, not fetching keys")
+		log.Println(nil, "no public key url given, not fetching keys")
 	}
 	return km, nil
 }
@@ -119,7 +116,7 @@ func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error)
 	if err != nil {
 		return nil, err
 	}
-	km.logger.Println(len(keys), "public keys loaded")
+	log.Println(nil, len(keys), "public keys loaded")
 	// return the retrieved keys
 	return keys, nil
 }
@@ -140,11 +137,11 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
 		if err != io.EOF && err != nil {
-			km.logger.Println("failed read remaining data before closing response")
+			log.Println(nil, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()
 		if err != nil {
-			km.logger.Println("failed to close response after reading")
+			log.Println(nil, "failed to close response after reading")
 		}
 	}()
 	// read and parse response body
@@ -156,7 +153,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	bodyString := buf.String()
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
-		km.logger.Println(map[string]interface{}{
+		log.Println(nil, map[string]interface{}{
 			"response_status": res.Status,
 			"response_body":   bodyString,
 			"url":             keysEndpointURL,

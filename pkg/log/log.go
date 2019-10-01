@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"io"
 	"log"
 )
@@ -20,17 +21,17 @@ func Logger() *log.Logger {
 }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
-func Fatal(v ...interface{}) {
+func Fatal(ctx context.Context, v ...interface{}) {
 	logger.Fatal(v...)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func Fatalf(format string, v ...interface{}) {
+func Fatalf(ctx context.Context, format string, v ...interface{}) {
 	logger.Fatalf(format, v...)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
-func Fatalln(v ...interface{}) {
+func Fatalln(ctx context.Context, v ...interface{}) {
 	logger.Fatalln(v...)
 }
 
@@ -40,17 +41,17 @@ func Flags() int {
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
-func Panic(v ...interface{}) {
+func Panic(ctx context.Context, v ...interface{}) {
 	logger.Panic(v...)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
-func Panicf(format string, v ...interface{}) {
+func Panicf(ctx context.Context, format string, v ...interface{}) {
 	logger.Panicf(format, v...)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
-func Panicln(v ...interface{}) {
+func Panicln(ctx context.Context, v ...interface{}) {
 	logger.Panicln(v...)
 }
 
@@ -60,16 +61,16 @@ func Prefix() string {
 }
 
 // Print calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Print.
-func Print(v ...interface{}) {
+func Print(ctx context.Context, v ...interface{}) {
 	logger.Print(v...)
 }
 
 // Printf calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Printf.
-func Printf(format string, v ...interface{}) {
+func Printf(ctx context.Context, format string, v ...interface{}) {
 	logger.Printf(format, v...)
 }
 
 // Println calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Println.
-func Println(v ...interface{}) {
+func Println(ctx *context.Context, v ...interface{}) {
 	logger.Println(v...)
 }

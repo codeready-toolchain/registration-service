@@ -2,18 +2,18 @@ package controller
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+
 	"github.com/gin-gonic/gin"
 )
 
 // HealthCheck implements the health endpoint.
 type HealthCheck struct {
 	config *configuration.Registry
-	logger *log.Logger
 }
 
 // Health payload
@@ -26,9 +26,8 @@ type Health struct {
 }
 
 // HealthCheck returns a new HealthCheck instance.
-func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthCheck {
+func NewHealthCheck(config *configuration.Registry) *HealthCheck {
 	return &HealthCheck{
-		logger: logger,
 		config: config,
 	}
 }
@@ -56,7 +55,7 @@ func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
 	}
 	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		hc.logger.Println("error writing response body", err.Error())
+		log.Println(nil, "error writing response body", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

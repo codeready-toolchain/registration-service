@@ -2,10 +2,8 @@ package auth_test
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -27,36 +25,18 @@ func TestRunKeyManagerSuite(t *testing.T) {
 }
 
 func (s *TestKeyManagerSuite) TestKeyManager() {
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// Set the config for testing mode, the handler may use this.
 	s.Config.GetViperInstance().Set("testingmode", true)
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
-	s.Run("missing logger", func() {
-		_, err := auth.NewKeyManager(nil, s.Config)
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "no logger given when creating KeyManager", err.Error())
-	})
-
 	s.Run("missing config", func() {
-		_, err := auth.NewKeyManager(logger, nil)
+		_, err := auth.NewKeyManager(nil)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "no config given when creating KeyManager", err.Error())
-	})
-
-	s.Run("missing logger and config", func() {
-		_, err := auth.NewKeyManager(nil, nil)
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "no logger given when creating KeyManager", err.Error())
 	})
 }
 
 func (s *TestKeyManagerSuite) TestKeyFetching() {
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// create test keys
 	tokengenerator := testutils.NewTokenManager()
 	kid0 := uuid.NewV4().String()
@@ -96,7 +76,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("parse keys, valid response", func() {
 		// Create KeyManager instance.
-		keyManager, err := auth.NewKeyManager(logger, s.Config)
+		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)
 
 		// check if the keys are parsed correctly
@@ -124,7 +104,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(logger, s.Config)
+		_, err = auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "unable to obtain public keys from remote service", err.Error())
@@ -148,7 +128,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(logger, s.Config)
+		_, err = auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "invalid character 's' looking for beginning of object key string", err.Error())
@@ -161,7 +141,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(logger, s.Config)
+		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "Get not%20an%20url: unsupported protocol scheme \"\"", err.Error())
@@ -174,7 +154,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(logger, s.Config)
+		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "invalid character '<' looking for beginning of value", err.Error())
@@ -184,7 +164,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(logger, s.Config)
+		keyManager, err := auth.NewKeyManager(s.Config)
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
@@ -211,7 +191,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(logger, s.Config)
+		keyManager, err := auth.NewKeyManager(s.Config)
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {

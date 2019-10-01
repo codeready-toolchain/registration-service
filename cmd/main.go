@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,9 +11,12 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 )
 
 func main() {
+	log.InitializeLogger(os.Stdout, "", 0)
+
 	// Parse flags
 	var configFilePath string
 	flag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
@@ -45,21 +47,21 @@ func main() {
 	}
 
 	routesToPrint := srv.GetRegisteredRoutes()
-	srv.Logger().Printf("Configured routes: %s", routesToPrint)
+	log.Printf(nil, "Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		srv.Logger().Printf("Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
-		srv.Logger().Printf("Listening on %q...", srv.Config().GetHTTPAddress())
+		log.Printf(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
+		log.Printf(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			srv.Logger().Println(err)
+			log.Println(nil, err)
 		}
 	}()
 
-	gracefulShutdown(srv.HTTPServer(), srv.Logger(), srv.Config().GetGracefulTimeout())
+	gracefulShutdown(srv.HTTPServer(), srv.Config().GetGracefulTimeout())
 }
 
-func gracefulShutdown(hs *http.Server, logger *log.Logger, timeout time.Duration) {
+func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	// For a channel used for notification of just one signal value, a buffer of
 	// size 1 is sufficient.
 	stop := make(chan os.Signal, 1)
@@ -68,14 +70,14 @@ func gracefulShutdown(hs *http.Server, logger *log.Logger, timeout time.Duration
 	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	sigReceived := <-stop
-	logger.Printf("Signal received: %+v", sigReceived)
+	log.Printf(nil, "Signal received: %+v", sigReceived)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	logger.Printf("\nShutdown with timeout: %s\n", timeout)
+	log.Printf(nil, "\nShutdown with timeout: %s\n", timeout)
 	if err := hs.Shutdown(ctx); err != nil {
-		logger.Printf("Shutdown error: %v\n", err)
+		log.Printf(nil, "Shutdown error: %v\n", err)
 	} else {
-		logger.Println("Server stopped.")
+		log.Println(nil, "Server stopped.")
 	}
 }

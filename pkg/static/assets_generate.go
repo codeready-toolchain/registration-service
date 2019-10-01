@@ -3,9 +3,9 @@
 package main
 
 import (
-	"log"
-
 	"github.com/codeready-toolchain/registration-service/pkg/static"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+
 	"github.com/shurcooL/vfsgen"
 )
 
@@ -17,6 +17,6 @@ func main() {
 		Filename:     "pkg/static/generated_assets.go",
 	})
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln(nil, err)
 	}
 }

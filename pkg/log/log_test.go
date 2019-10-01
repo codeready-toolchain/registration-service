@@ -2,7 +2,6 @@ package log_test
 
 import (
 	"testing"
-	"os"
 
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -18,7 +17,5 @@ func TestRunLogSuite(t *testing.T) {
 }
 
 func (s *TestLogSuite) TestLogHandler() {
-	log.InitializeLogger(os.Stdout, "", 0)
-
-	log.Println("tina")
+	log.Println(nil, "tina")
 }

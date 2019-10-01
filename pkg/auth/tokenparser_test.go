@@ -1,8 +1,6 @@
 package auth_test
 
 import (
-	"log"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,16 +8,14 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTokenParser(t *testing.T) {
-	// create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
 	configRegistry := configuration.CreateEmptyRegistry()
 
 	// create test keys
@@ -42,18 +38,18 @@ func TestTokenParser(t *testing.T) {
 	assert.Equal(t, keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
 	// create KeyManager instance.
-	keyManager, err := auth.NewKeyManager(logger, configRegistry)
+	keyManager, err := auth.NewKeyManager(configRegistry)
 	require.NoError(t, err)
 
 	// create TokenParser instance.
-	tokenParser, err := auth.NewTokenParser(logger, keyManager)
+	tokenParser, err := auth.NewTokenParser(keyManager)
 	require.NoError(t, err)
 
 	t.Run("invalid arguments to new", func(t *testing.T) {
-		_, err := auth.NewTokenParser(nil, keyManager)
-		require.Error(t, err)
-		require.Equal(t, "no logger given when creating TokenParser", err.Error())
-		_, err = auth.NewTokenParser(logger, nil)
+		// _, err := auth.NewTokenParser(keyManager)
+		// require.Error(t, err)
+		// require.Equal(t, "no logger given when creating TokenParser", err.Error())
+		_, err = auth.NewTokenParser(nil)
 		require.Error(t, err)
 		require.Equal(t, "no keyManager given when creating TokenParser", err.Error())
 	})

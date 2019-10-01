@@ -2,15 +2,14 @@ package controller_test
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,14 +30,11 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	require.NoError(s.T(), err)
 
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(logger, s.Config)
+	healthCheckCtrl := controller.NewHealthCheck(s.Config)
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {

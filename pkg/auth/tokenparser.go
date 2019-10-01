@@ -2,7 +2,8 @@ package auth
 
 import (
 	"errors"
-	"log"
+
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -21,20 +22,18 @@ type TokenClaims struct {
 
 // TokenParser represents a parser for JWT tokens.
 type TokenParser struct {
-	logger     *log.Logger
 	keyManager *KeyManager
 }
 
 // NewTokenParser creates a new TokenParser.
-func NewTokenParser(logger *log.Logger, keyManager *KeyManager) (*TokenParser, error) {
-	if logger == nil {
+func NewTokenParser(keyManager *KeyManager) (*TokenParser, error) {
+	if log.Logger() == nil {
 		return nil, errors.New("no logger given when creating TokenParser")
 	}
 	if keyManager == nil {
 		return nil, errors.New("no keyManager given when creating TokenParser")
 	}
 	return &TokenParser{
-		logger:     logger,
 		keyManager: keyManager,
 	}, nil
 }

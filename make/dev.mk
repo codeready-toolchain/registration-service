@@ -7,12 +7,6 @@ ETC_HOSTS=/etc/hosts
 APP_NAMESPACE ?= $(LOCAL_TEST_NAMESPACE)
 LOCAL_TEST_NAMESPACE ?= "toolchain-host-operator"
 
-.PHONY: up-local
-## Run Operator locally
-up-local: login-as-admin create-namespace deploy-rbac build
-	$(Q)-oc new-project $(LOCAL_TEST_NAMESPACE) || true
-	$(Q)operator-sdk up local --namespace=$(APP_NAMESPACE) --verbose
-
 .PHONY: login-as-admin
 ## Log in as system:admin
 login-as-admin:

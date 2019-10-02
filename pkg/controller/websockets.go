@@ -21,7 +21,6 @@ func NewWebsocketsHandler(logger *log.Logger, config *configuration.Registry) *W
 		config: config,
 		hub: websockets.NewHub(),
 	}
-	go h.messageHandler()
 	return h  
 }
 

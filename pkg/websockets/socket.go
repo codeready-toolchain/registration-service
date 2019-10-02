@@ -37,30 +37,34 @@ type Message struct {
 // Hub maintains the set of active clients
 type Hub struct {
 	// registered clients, mapped to the sub id.
-	clients map[*client]string
+	clients map[*Client]string
 	// outbound messages to clients.
 	Outbound chan *Message
 	// inbound messages from clients.
 	Inbound chan *Message
 	// register requests from clients.
-	register chan *client
+	register chan *Client
 	// unregister requests from clients.
-	unregister chan *client
-	// MessageHandler will be called when a message arrives
-	messageHandler func(string, []byte)
+	unregister chan *Client
 }
 
 // NewHub creates a new Hub instance.
 func NewHub() *Hub {
+	log.Println("creating new websockets hub")
 	hub := &Hub{
 		Outbound:       make(chan *Message),
 		Inbound:        make(chan *Message),
-		register:       make(chan *client),
-		unregister:     make(chan *client),
-		clients:        make(map[*client]string),
+		register:       make(chan *Client),
+		unregister:     make(chan *Client),
+		clients:        make(map[*Client]string),
 	}
 	go hub.run()
 	return hub
+}
+
+// Clients returns the known clients map.
+func (h *Hub) Clients() map[*Client]string {
+	return h.clients
 }
 
 // Run runs the hub's main loop.
@@ -68,15 +72,21 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
+			log.Printf("hub: registering client for sub %s", client.sub)
 			h.clients[client] = client.sub
+			log.Printf("hub: done registering client for sub %s (current len %d)", client.sub, len(h.clients))
 		case client := <-h.unregister:
+			log.Printf("hub: trying to unregister client for sub %s", client.sub)
 			if _, ok := h.clients[client]; ok {
-				log.Printf("unregistering client for sub %s", client.sub)
+				log.Printf("hub: unregistering client for sub %s", client.sub)
 				delete(h.clients, client)
 				close(client.send)
+			} else {
+				log.Printf("hub: client for sub %s not found while unregistering", client.sub)
 			}
 		case message := <-h.Outbound:
 			// message appeared on the outbound channel, find the matching client
+			log.Printf("hub: detected outbound message for sub %s", message.Sub)
 			for client, sub := range h.clients {
 				if sub == message.Sub {
 					// found the client, send message out
@@ -98,7 +108,7 @@ func (h *Hub) run() {
 }
 
 // Client is a middleman between the websocket connection and the hub.
-type client struct {
+type Client struct {
 	hub *Hub
 	// the websocket connection.
 	conn *websocket.Conn
@@ -113,8 +123,9 @@ type client struct {
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *client) readPump() {
+func (c *Client) readPump() {
 	defer func() {
+		log.Printf("readPump unregistering connection with sub %s", c.sub)
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
@@ -149,7 +160,7 @@ func (c *client) readPump() {
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
-func (c *client) writePump() {
+func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -189,7 +200,7 @@ func (c *client) writePump() {
 }
 
 // HTTPHandler handles websocket requests from the peers.
-func HTTPHandler(hub *Hub, c *gin.Context) {
+func HTTPHandler(hubInstance *Hub, c *gin.Context) {
 	w := c.Writer
 	r := c.Request
 	// the subject is injected into the context by the
@@ -209,9 +220,9 @@ func HTTPHandler(hub *Hub, c *gin.Context) {
 		log.Println(err)
 		return
 	}
-	client := &client{hub: hub, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
+	client := &Client{hub: hubInstance, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
 	log.Printf("registering client sub %s", subjStr)
-	hub.register <- client
+	hubInstance.register <- client
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()

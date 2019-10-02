@@ -1,5 +1,9 @@
+TIMESTAMP:=$(shell date +%s)
+TAG?=$(GIT_COMMIT_ID_SHORT)-$(TIMESTAMP)
+IMAGE_NAME?=quay.io/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}:${TAG}
+
 .PHONY: image
-## build docker image
-image:
-	docker build -t kleinhenz/registration-service:0.1 .
-	docker tag kleinhenz/registration-service:0.1 kleinhenz/registration-service:latest
+## Build the docker image locally that can be deployed (only contains bare registration-service)
+image: build
+	$(Q)docker build -f build/Dockerfile -t quay.io/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}:latest \
+	 -t ${IMAGE_NAME} .

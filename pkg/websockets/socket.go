@@ -152,6 +152,7 @@ func (c *Client) readPump() {
 		log.Printf("connection received message from sub %s: %s", receivedMessage.Sub, receivedMessage.Body)
 		// put the message on the hub channel
 		c.hub.Inbound <- receivedMessage
+		log.Printf("received message from sub %s successfully committed to inbound channel", receivedMessage.Sub)
 	}
 }
 
@@ -223,8 +224,10 @@ func HTTPHandler(hubInstance *Hub, c *gin.Context) {
 	client := &Client{hub: hubInstance, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
 	log.Printf("registering client sub %s", subjStr)
 	hubInstance.register <- client
+	log.Println("#####################1111")
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+	log.Println("#####################22222")
 }

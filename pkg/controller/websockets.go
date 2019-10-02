@@ -21,6 +21,7 @@ func NewWebsocketsHandler(logger *log.Logger, config *configuration.Registry) *W
 		config: config,
 		hub: websockets.NewHub(),
 	}
+	go h.messageHandler()
 	return h  
 }
 
@@ -39,7 +40,7 @@ func (ws *WebsocketsHandler) Hub() *websockets.Hub {
 func (ws *WebsocketsHandler) messageHandler() {	
 	for {
 		select {
-			case message := <-ws.hub.Inbound:
+			case message := <-ws.Hub().Inbound:
 				log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
 				// when in testingmode, reply to each message with a ping
 				if ws.config.IsTestingMode() {

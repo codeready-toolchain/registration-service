@@ -65,7 +65,7 @@ func (s *TestWebsocketsSuite) setupConnection() (string, error) {
 	}()
 	// let the system settle and the websockets library take over
 	// and setup the connection.
-	time.Sleep(50)
+	time.Sleep(500 * time.Millisecond)
 	return kid0, nil
 }
 
@@ -135,7 +135,7 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		require.NotNil(s.T(), conn)
 		require.Nil(s.T(), err)
 		// let the async message processing settle
-		time.Sleep(500)
+		time.Sleep(500 * time.Millisecond)
 		// now the client map should have the client
 		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 1)
 		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
@@ -145,22 +145,78 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		err = conn.Close()
 		require.NoError(s.T(), err)
 		// let the async message processing settle
-		time.Sleep(500)
+		time.Sleep(500 * time.Millisecond)
 		// now the client map should be empty
 		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 0)
 	})
 
-/*
+	s.Run("multiple clients", func() {
+		// create a valid test tokens for echotest
+		identity0 := testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: uuid.NewV4().String(),
+		}
+		tokenValidEchotest0, err := s.tokengenerator.GenerateSignedToken(identity0, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
+		require.NoError(s.T(), err)
+		identity1 := testutils.Identity{
+			ID:       uuid.NewV4(),
+			Username: uuid.NewV4().String(),
+		}
+		tokenValidEchotest1, err := s.tokengenerator.GenerateSignedToken(identity1, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
+		require.NoError(s.T(), err)
+		// connect
+		conn0, err := s.connect(tokenValidEchotest0, false)
+		require.NotNil(s.T(), conn0)
+		require.Nil(s.T(), err)
+		conn1, err := s.connect(tokenValidEchotest1, false)
+		require.NotNil(s.T(), conn1)
+		require.Nil(s.T(), err)
+		// let the async message processing settle
+		time.Sleep(500 * time.Millisecond)
+		// now the client map should have all the clients
+		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 2)
+		expected := []string{ identity0.ID.String(), identity1.ID.String() }
+		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
+			for i, entry := range expected {
+				if entry == sub {
+					expected = append(expected[:i], expected[i+1:]...)
+				}
+			}
+		}
+		require.Len(s.T(), expected, 0)
+		// close first connection
+		conn0.Close()
+		// let the async message processing settle
+		time.Sleep(500 * time.Millisecond)
+		// now the client map should have one clients
+		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 1)
+		expected = []string{ identity1.ID.String() }
+		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
+			for i, entry := range expected {
+				if entry == sub {
+					expected = append(expected[:i], expected[i+1:]...)
+				}
+			}
+		}
+		require.Len(s.T(), expected, 0)
+		// close second connection
+		conn1.Close()
+		// let the async message processing settle
+		time.Sleep(500 * time.Millisecond)
+		// now the client map should have one clients
+		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 0)
+	})
+
 	s.Run("authorized echo request - header", func() {
 		// create a valid test token for echotest
 		identity := testutils.Identity{
 			ID:       uuid.NewV4(),
 			Username: uuid.NewV4().String(),
 		}
-		tokenValidEchotest, err := s.tokengenerator.GenerateSignedToken(identity, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
+		tokenValidEchotestHeader, err := s.tokengenerator.GenerateSignedToken(identity, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
 		require.NoError(s.T(), err)
 		// connect
-		conn, err := s.connect(tokenValidEchotest, false)
+		conn, err := s.connect(tokenValidEchotestHeader, false)
 		require.NotNil(s.T(), conn)
 		require.Nil(s.T(), err)
 		// close connection when done
@@ -177,18 +233,17 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		expected := `{ "sub": "` + identity.ID.String() + `", "body": "` + testMessage + `" }`
 		require.Equal(s.T(), []byte(expected), p)		
 	})
-*/
-/*
+
 	s.Run("authorized echo request - url", func() {
 		// create a valid test token for echotest
 		identity := testutils.Identity{
 			ID:       uuid.NewV4(),
 			Username: uuid.NewV4().String(),
 		}
-		tokenValidEchotest, err := s.tokengenerator.GenerateSignedToken(identity, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
+		tokenValidEchotestURL, err := s.tokengenerator.GenerateSignedToken(identity, kid, testutils.WithEmailClaim(uuid.NewV4().String()+"@email.tld"))
 		require.NoError(s.T(), err)
 		// connect
-		conn, err := s.connect(tokenValidEchotest, true)
+		conn, err := s.connect(tokenValidEchotestURL, true)
 		require.NotNil(s.T(), conn)
 		require.Nil(s.T(), err)
 		// close connection when done
@@ -205,5 +260,5 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		expected := `{ "sub": "` + identity.ID.String() + `", "body": "` + testMessage + `" }`
 		require.Equal(s.T(), []byte(expected), p)
 	})
-*/
+
 }

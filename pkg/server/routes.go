@@ -1,9 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
-	"fmt"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"

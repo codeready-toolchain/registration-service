@@ -8,9 +8,9 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
-	"github.com/spf13/pflag"
-	"github.com/go-logr/logr"
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -53,13 +53,13 @@ func Logger() logr.Logger {
 	return log
 }
 
-// Info logs are used for non-error messages. It will log a message with 
+// Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
 func Info(ctx *gin.Context, msg string, v ...interface{}) {
 	log.Info(fmt.Sprintf(msg, addContextInfo(ctx, v...)))
 }
 
-// Error logs are used for logging errors. It will log the error with the given 
+// Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
 func Error(ctx *gin.Context, err error, msg string, v ...interface{}) {
 	junk := addContextInfo(ctx, v...)
@@ -71,7 +71,7 @@ func Error(ctx *gin.Context, err error, msg string, v ...interface{}) {
 func addContextInfo(ctx *gin.Context, v ...interface{}) []interface{} {
 	if ctx != nil {
 		subject := ctx.GetString("subject")
-		if subject != ""{
+		if subject != "" {
 			v = append(v, fmt.Sprintf("context subject"))
 			v = append(v, fmt.Sprintf(subject))
 		}

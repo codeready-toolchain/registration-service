@@ -1,19 +1,19 @@
 package log_test
 
 import (
-	"fmt"
-	"testing"
 	"bytes"
+	"errors"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"strings"
-	"errors"
+	"testing"
 
 	logger "github.com/codeready-toolchain/registration-service/pkg/log"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -30,56 +30,56 @@ func (s *TestLogSuite) TestLogHandler() {
 
 	s.Run("get logger", func() {
 		l := logger.Logger()
-		 assert.NotNil(s.T(), l)
+		assert.NotNil(s.T(), l)
 	})
-	
+
 	s.Run("log info", func() {
 		var buf bytes.Buffer
 		logger.SetOutput(&buf, true, "logger_tests")
-		 defer func() {
+		defer func() {
 			logger.SetOutput(os.Stderr, false, "logger_tests")
-		 }()
+		}()
 
-		 rr := httptest.NewRecorder()
-		 ctx, _ := gin.CreateTestContext(rr)
-		 ctx.Set("subject", "test")
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set("subject", "test")
 
-		 logger.Info(ctx, "info")
-		 value := buf.String()
-		 assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context subject test])"))
+		logger.Info(ctx, "info")
+		value := buf.String()
+		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context subject test])"))
 	})
 
 	s.Run("log error", func() {
 		var buf bytes.Buffer
 		logger.SetOutput(&buf, true, "logger_tests")
-		 defer func() {
+		defer func() {
 			logger.SetOutput(os.Stderr, false, "logger_tests")
-		 }()
+		}()
 
-		 rr := httptest.NewRecorder()
-		 ctx, _ := gin.CreateTestContext(rr)
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
 
-		 logger.Error(ctx, errors.New("test error"), "error test")
-		 value := buf.String()
-		 assert.True(s.T(), strings.Contains(value, "ERROR	logger_tests	error test	{\"error\": \"test error\"}"))
+		logger.Error(ctx, errors.New("test error"), "error test")
+		value := buf.String()
+		assert.True(s.T(), strings.Contains(value, "ERROR	logger_tests	error test	{\"error\": \"test error\"}"))
 	})
 
 	s.Run("log info with http request", func() {
 		var buf bytes.Buffer
 		logger.SetOutput(&buf, true, "logger_tests")
-		 defer func() {
+		defer func() {
 			logger.SetOutput(os.Stderr, false, "logger_tests")
-		 }()
+		}()
 
-		 rr := httptest.NewRecorder()
-		 ctx, _ := gin.CreateTestContext(rr)
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
 
-		 req := httptest.NewRequest("GET", "http://example.com", nil)
-		 ctx.Request = req
+		req := httptest.NewRequest("GET", "http://example.com", nil)
+		ctx.Request = req
 
-		 logger.Info(ctx, "info")
-		 value := buf.String()
-		 fmt.Println(value)
-		 assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context host: example.com])"))
+		logger.Info(ctx, "info")
+		value := buf.String()
+		fmt.Println(value)
+		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context host: example.com])"))
 	})
 }

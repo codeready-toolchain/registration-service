@@ -2,8 +2,8 @@ package controller
 
 import (
 	"encoding/json"
-	"net/http"
 	"fmt"
+	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"

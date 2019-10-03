@@ -1,11 +1,9 @@
-COMMIT=$(shell git rev-parse HEAD)
-GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
-ifneq ($(GITUNTRACKEDCHANGES),)
-	COMMIT := $(COMMIT)-dirty
-endif
-BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
-PACKAGE_NAME := github.com/codeready-toolchain/registration-service
-export LDFLAGS=-ldflags "-X ${PACKAGE_NAME}/pkg/configuration.Commit=${COMMIT} -X ${PACKAGE_NAME}/pkg/configuration.BuildTime=${BUILD_TIME}"
+# By default the project should be build under GOPATH/src/github.com/<orgname>/<reponame>
+GO_PACKAGE_ORG_NAME ?= $(shell basename $$(dirname $$PWD))
+GO_PACKAGE_REPO_NAME ?= $(shell basename $$PWD)
+GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
+
+export LDFLAGS=-ldflags "-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/cmd/configuration.BuildTime=${BUILD_TIME}"
 
 .PHONY: build build-prod build-dev
 
@@ -16,11 +14,20 @@ build: build-prod
 # from the filesystem. Use only for development.
 ## builds development binary
 build-dev:
-	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		go build -v ${LDFLAGS} -tags dev -o registration-service ${PACKAGE_NAME}/cmd
+	$(Q)CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+		go build ${V_FLAG} ${LDFLAGS} \
+		-tags dev \
+		-o $(OUT_DIR)/bin/registration-service \
+		cmd/main.go
 
 # builds the production binary with bundled assets
 ## builds production binary
 build-prod: generate
-	@cd "$(GOPATH)/src/github.com/codeready-toolchain/registration-service" && \
-		go build -v ${LDFLAGS} -o registration-service ${PACKAGE_NAME}/cmd
+	$(Q)CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+		go build ${V_FLAG} ${LDFLAGS} \
+		-o $(OUT_DIR)/bin/registration-service \
+		cmd/main.go
+
+.PHONY: vendor
+vendor:
+	$(Q)go mod vendor

@@ -26,8 +26,8 @@ script:
   - "make depend"
   - "make build"
   - "make test"
-  - "make image"
   - "make check-go-format"
+  - "make image"
 
 branches:
   only:
@@ -35,7 +35,7 @@ branches:
 
 deploy:
   provider: script
-  script: bash docker_push.sh
+  script: bash scripts/docker_push.sh
   on:
     branch: master
 

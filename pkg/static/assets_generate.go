@@ -17,6 +17,6 @@ func main() {
 		Filename:     "pkg/static/generated_assets.go",
 	})
 	if err != nil {
-		log.Fatalln(nil, err)
+		log.Error(nil, err, "error")
 	}
 }

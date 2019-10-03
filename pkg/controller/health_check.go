@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"fmt"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -55,7 +56,7 @@ func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
 	}
 	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		log.Println(ctx, "error writing response body", err.Error())
+		log.Info(ctx, fmt.Sprintf("error writing response body: %s", err.Error()))
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

@@ -1,8 +1,6 @@
 package testutils
 
 import (
-	"os"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
@@ -18,7 +16,7 @@ type UnitTestSuite struct {
 // SetupSuite sets the suite up and sets testmode.
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
-	log.InitializeLogger(os.Stdout, "", 0)
+	log.InitializeLogger("testing")
 
 	s.Config = configuration.CreateEmptyRegistry()
 

@@ -1,100 +1,86 @@
 package log
 
 import (
+	"flag"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/operator-framework/operator-sdk/pkg/log/zap"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	"github.com/spf13/pflag"
+	"github.com/go-logr/logr"
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	logger = &log.Logger{}
+	log logr.Logger
 )
 
-// InitializeLogger initializes the logger
-func InitializeLogger(out io.Writer, prefix string, flag int) {
-	logger = log.New(out, prefix, flag)
+// InitializeLogger initializes the logger.
+func InitializeLogger(withName string) {
+	log = logf.Log.WithName(withName)
+
+	zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
+
+	// Add the zap logger flag set to the CLI. The flag set must
+	// be added before calling pflag.Parse().
+	pflag.CommandLine.AddFlagSet(zapFlagSet)
+
+	// Add flags registered by imported packages (e.g. glog and
+	// controller-runtime)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
+	pflag.Parse()
+
+	// Use a zap logr.Logger implementation. If none of the zap
+	// flags are configured (or if the zap flag set is not being
+	// used), this defaults to a production zap logger.
+	//
+	// The logger instantiated here can be changed to any logger
+	// implementing the logr.Logger interface. This logger will
+	// be propagated through the whole operator, generating
+	// uniform and structured logs.
+	logf.SetLogger(zap.Logger())
+}
+
+func SetOutput(out io.Writer, isTestingMode bool, withName string) {
+	log = logf.ZapLoggerTo(out, isTestingMode).WithName(withName)
 }
 
 // Logger returns the current logger object.
-func Logger() *log.Logger {
-	return logger
+func Logger() logr.Logger {
+	return log
 }
 
-// Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
-func Fatal(ctx *gin.Context, v ...interface{}) {
-	logger.Fatal(addContextKeys(ctx, v))
+// Info logs are used for non-error messages. It will log a message with 
+// the given key/value pairs as context.
+func Info(ctx *gin.Context, msg string, v ...interface{}) {
+	log.Info(fmt.Sprintf(msg, addContextInfo(ctx, v...)))
 }
 
-// Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
-func Fatalf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Fatalf(format, addContextKeys(ctx, v))
+// Error logs are used for logging errors. It will log the error with the given 
+// message and key/value pairs as context.
+func Error(ctx *gin.Context, err error, msg string, v ...interface{}) {
+	junk := addContextInfo(ctx, v...)
+	log.Error(err, msg, junk...)
 }
 
-// Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
-func Fatalln(ctx *gin.Context, v ...interface{}) {
-	logger.Fatalln(addContextKeys(ctx, v))
-}
-
-// Flags returns the output flags for the logger.
-func Flags() int {
-	return logger.Flags()
-}
-
-// Panic is equivalent to l.Print() followed by a call to panic().
-func Panic(ctx *gin.Context, v ...interface{}) {
-	logger.Panic(addContextKeys(ctx, v))
-}
-
-// Panicf is equivalent to l.Printf() followed by a call to panic().
-func Panicf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Panicf(format, addContextKeys(ctx, v))
-}
-
-// Panicln is equivalent to l.Println() followed by a call to panic().
-func Panicln(ctx *gin.Context, v ...interface{}) {
-	logger.Panicln(addContextKeys(ctx, v))
-}
-
-// Prefix returns the output prefix for the logger.
-func Prefix() string {
-	return logger.Prefix()
-}
-
-// Print calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Print.
-func Print(ctx *gin.Context, v ...interface{}) {
-	logger.Print(addContextKeys(ctx, v))
-}
-
-// Printf calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Printf.
-func Printf(ctx *gin.Context, format string, v ...interface{}) {
-	logger.Printf(format, addContextKeys(ctx, v))
-}
-
-// Println calls l.Output to print to the logger. Arguments are handled in the manner of fmt.Println.
-func Println(ctx *gin.Context, v ...interface{}) {
-	logger.Println(addContextKeys(ctx, v))
-}
-
-func SetOutput(w io.Writer) {
-	logger.SetOutput(w)
-}
-
-func addContextKeys(ctx *gin.Context, v ...interface{}) []interface{} {
+// addContextInfo adds fields extracted from the context to the info/error
+// log messages.
+func addContextInfo(ctx *gin.Context, v ...interface{}) []interface{} {
 	if ctx != nil {
+		subject := ctx.GetString("subject")
+		if subject != ""{
+			v = append(v, fmt.Sprintf("context subject"))
+			v = append(v, fmt.Sprintf(subject))
+		}
 
-		subject, e := ctx.Get("subject")
-		if e {
-			v = append(v, fmt.Sprintf("context subject: %s", subject))
-		}
-		subscription, e := ctx.Get("subscription")
-		if e {
-			v = append(v, fmt.Sprintf("context subscription: %s", subscription))
-		}
-		url, e := ctx.Get("url")
-		if e {
-			v = append(v, fmt.Sprintf("context url: %s", url))
+		if ctx.Request != nil {
+			url := ctx.Request.URL
+			if url != nil {
+				v = append(v, fmt.Sprintf("context host: %s", url.Host))
+			}
 		}
 	}
 

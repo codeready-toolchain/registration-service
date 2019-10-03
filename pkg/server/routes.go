@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"path/filepath"
+	"fmt"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
@@ -39,7 +40,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	_, err = h.Assets.Open(path)
 	if err != nil {
 		// File does not exist, redirect to index.
-		log.Printf(ctx, "File %s does not exist.", path)
+		log.Info(ctx, fmt.Sprintf("File %s does not exist.", path))
 		http.Redirect(ctx.Writer, ctx.Request, "/index.html", http.StatusSeeOther)
 		return
 	}

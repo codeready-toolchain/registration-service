@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -50,7 +51,7 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 	}
 	// fetch raw keys
 	if keysEndpointURL != "" {
-		log.Println(nil, "fetching public keys from url", keysEndpointURL)
+		log.Info(nil, fmt.Sprintf("fetching public keys from url: %s", keysEndpointURL))
 		keys, err := km.fetchKeys(keysEndpointURL)
 		if err != nil {
 			return nil, err
@@ -60,7 +61,7 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 			km.keyMap[key.KeyID] = key.Key
 		}
 	} else {
-		log.Println(nil, "no public key url given, not fetching keys")
+		log.Info(nil, "no public key url given, not fetching keys")
 	}
 	return km, nil
 }
@@ -116,7 +117,7 @@ func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error)
 	if err != nil {
 		return nil, err
 	}
-	log.Println(nil, len(keys), "public keys loaded")
+	log.Info(nil, fmt.Sprintf("%v public keys loaded", len(keys)))
 	// return the retrieved keys
 	return keys, nil
 }
@@ -137,11 +138,11 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
 		if err != io.EOF && err != nil {
-			log.Println(nil, "failed read remaining data before closing response")
+			log.Info(nil, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()
 		if err != nil {
-			log.Println(nil, "failed to close response after reading")
+			log.Info(nil, "failed to close response after reading")
 		}
 	}()
 	// read and parse response body
@@ -153,7 +154,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	bodyString := buf.String()
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
-		log.Println(nil, map[string]interface{}{
+		log.Info(nil, "status not OK", map[string]interface{}{
 			"response_status": res.Status,
 			"response_body":   bodyString,
 			"url":             keysEndpointURL,

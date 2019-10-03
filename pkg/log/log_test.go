@@ -80,6 +80,6 @@ func (s *TestLogSuite) TestLogHandler() {
 		logger.Info(ctx, "info")
 		value := buf.String()
 		fmt.Println(value)
-		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context host: example.com])"))
+		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	info%!(EXTRA []interface {}=[context host example.com])"))
 	})
 }

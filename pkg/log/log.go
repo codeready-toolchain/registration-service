@@ -72,14 +72,15 @@ func addContextInfo(ctx *gin.Context, v ...interface{}) []interface{} {
 	if ctx != nil {
 		subject := ctx.GetString("subject")
 		if subject != "" {
-			v = append(v, fmt.Sprintf("context subject"))
-			v = append(v, fmt.Sprintf(subject))
+			v = append(v, "context subject")
+			v = append(v, subject)
 		}
 
 		if ctx.Request != nil {
 			url := ctx.Request.URL
 			if url != nil {
-				v = append(v, fmt.Sprintf("context host: %s", url.Host))
+				v = append(v, "context host")
+				v = append(v, url.Host)
 			}
 		}
 	}

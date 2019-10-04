@@ -7,3 +7,8 @@ coverage:
     project:
       default:
         threshold: 5
+  ignore:
+    - "vendor/*"
+    - "make/*"
+    - "build/*"
+    - "openshift-ci/*"

@@ -1,7 +1,6 @@
 # Only list test and build dependencies
 # Standard dependencies are installed via go get
 DEPEND=\
-	github.com/gorilla/mux \
 	github.com/shurcooL/vfsgen
 
 .PHONY: depend

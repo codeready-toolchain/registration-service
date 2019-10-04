@@ -9,7 +9,7 @@ This is the CodeReady Toolchain Registration Service repository. It implements t
 
 == Build
 
-Requires Go version 1.12.6 - download for your development environment https://golang.org/dl/[here].
+Requires Go version 1.13 - download for your development environment https://golang.org/dl/[here].
 
 This repository uses https://github.com/golang/go/wiki/Modules[Go modules]. You may need to `export GO111MODULE=on` to turn modules support "on".
 
@@ -60,3 +60,34 @@ export GO111MODULE=on
 ```
 
 Before running VSCode from that shell.
+
+=== Deploy on minishift
+
+To deploy Registration Service on local minishift, start your minishift then run:
+
+```bash
+eval $(minishift docker-env)
+make deploy-dev
+```
+
+The service can be accessed via the corresponding route:
+```bash
+$ oc get routes registration-service
+
+NAME                   HOST/PORT                                                            PATH      SERVICES               PORT      TERMINATION   WILDCARD
+registration-service   registration-service-toolchain-host-operator.192.168.42.237.nip.io             registration-service   8080                    None
+```
+
+You can now open the URL from HOST/PORT in your browser:
+
+http://registration-service-toolchain-host-operator.192.168.42.237.nip.io
+
+_Note_: the actual route/URL will be different in your minishift.
+
+Alternatively you can add minishift IP to your `/etc/hosts` (requires `sudo` permissions):
+
+```bash
+make update-etc-hosts
+```
+
+Then the service will be available at http://minishift.local:31000

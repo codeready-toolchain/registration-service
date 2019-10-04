@@ -102,8 +102,6 @@ func (h *Hub) run() {
 					}
 				}
 			}
-			// the client was not found for this sub
-			log.Printf("error client not found for sub %s when trying to send outbound message", message.Sub)
 		}
 	}
 }
@@ -135,7 +133,9 @@ func (c *Client) readPump() {
 	c.conn.SetPongHandler(func(s string) error {
 		// received pong, reset deadline for this conn
 		err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
-		log.Printf("error setting read deadline on websocket connection for sub %s: %s", c.sub, err.Error())
+		if err != nil {
+			log.Printf("error setting read deadline on websocket connection for sub %s: %s", c.sub, err.Error())
+		}
 		return nil
 	})
 	for {

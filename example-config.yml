@@ -19,4 +19,4 @@ auth_client.config.raw: >
     "confidential-port": 0,
     "clientId": "registrationService"
   }
-auth_client.public_keys_url: ""
+auth_client.public_keys_url: "http://localhost:8080/auth/realms/demoRealm/protocol/openid-connect/certs"

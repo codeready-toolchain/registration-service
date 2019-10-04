@@ -1,7 +1,10 @@
 <head>
   <script type="text/javascript">
   // this is where we load our config from
-  configURL = "/api/v1/authconfig"
+  configURL = "/api/v1/authconfig";
+
+  // this is the websockets connection
+  var conn;
 
   // loads json data from url, the callback is called with
   // error and data, with data the parsed json.
@@ -65,12 +68,15 @@
             });
             // setup websockets connection when the token is available
             if (window["WebSocket"]) {
+              console.log("connecting to websocket endpoint..");
+              document.getElementById('wsResp').textContent = "connecting..";
               conn = new WebSocket("ws://" + document.location.host + "/ws" + "?token=" + keycloak.idToken);
               conn.onclose = function (evt) {
                 console.log("ws connection closed");
               };
               conn.onmessage = function (evt) {
-                console.log("message: " + evt.data);
+                document.getElementById('wsResp').textContent = evt.data;
+                console.log("websocket inbound message: " + evt.data);
               };
             } else {
               console.log("browser does not support websockets");
@@ -101,6 +107,8 @@
   }
 
   function submitWs() {
+    console.log("sending..")
+    console.log(conn)
     if (!conn) {
       return false;
     }
@@ -116,17 +124,20 @@
 </head>
 <body>
   <h1>CodeReady Toolchain SaaS</h1>
-  <p>
-    <form id="form">
-      <input type="button" value="Send" onclick="submitWs()"/>
-      <input type="text" id="msg" size="64"/>
-    </form>
-  </p>
   <p>Login status: <b id="loginStatus"></b></p>
   <p>Error status: <b id="errorStatus"></b>n/a</p>
-  <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>
-  <p><button onclick="keycloak.logout()">Logout</button></p>
+  <p><button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button> <button onclick="keycloak.logout()">Logout</button></p>
+  <hr>
   <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
+  <hr>
+  <p>
+    <form id="form">
+      <input type="text" id="msg" size="32"/>
+      <input type="button" value="Send WS" onclick="submitWs()"/>
+    </form>
+  </p>
+  <p>Websocket Response:<br><pre id="wsResp">n/a</pre></p>
+  <hr>
   <p><button onclick="doRequest()">Perform authenticated Request</button> using the token..</p>
   <p>Authenticated Service Response:<br><pre id="serviceResp">n/a</pre></p>
 </body>

@@ -2,6 +2,8 @@ MINISHIFT_IP?=$(shell minishift ip)
 MINISHIFT_HOSTNAME=minishift.local
 MINISHIFT_HOSTNAME_REGEX='minishift\.local'
 ETC_HOSTS=/etc/hosts
+TIMESTAMP:=$(shell date +%s)
+IMAGE_NAME_DEV?=${IMAGE_NAME}-$(TIMESTAMP)
 
 # to watch all namespaces, keep namespace empty
 APP_NAMESPACE ?= $(LOCAL_TEST_NAMESPACE)
@@ -46,7 +48,7 @@ deploy-rbac:
 
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
-deploy-dev: login-as-admin create-namespace deploy-rbac build image
+deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
 	$(Q)-oc new-project $(LOCAL_TEST_NAMESPACE) || true
 	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
 
@@ -63,3 +65,9 @@ update-etc-hosts:
     	# add new entry \
     	echo $(MINISHIFT_IP) $(MINISHIFT_HOSTNAME) | sudo tee --append $(ETC_HOSTS); \
 	fi
+
+.PHONY: dev-image
+## Build the docker image locally that can be deployed to dev environment
+dev-image: build
+	$(Q)docker build -f build/Dockerfile -t quay.io/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}:latest \
+	 -t ${IMAGE_NAME_DEV} .

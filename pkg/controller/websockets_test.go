@@ -9,10 +9,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/websockets"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	uuid "github.com/satori/go.uuid"
 )
 
 type TestWebsocketsHandlerSuite struct {
@@ -38,7 +38,7 @@ func (s *TestWebsocketsHandlerSuite) TestWebsocketsHandler() {
 
 	s.Run("channels", func() {
 		message := &websockets.Message{
-			Sub: uuid.NewV4().String(),
+			Sub:  uuid.NewV4().String(),
 			Body: []byte(uuid.NewV4().String()),
 		}
 		websocketsHdlr.Hub().Inbound <- message

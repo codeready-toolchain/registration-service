@@ -52,11 +52,11 @@ type Hub struct {
 func NewHub() *Hub {
 	log.Println("creating new websockets hub")
 	hub := &Hub{
-		Outbound:       make(chan *Message),
-		Inbound:        make(chan *Message),
-		register:       make(chan *Client),
-		unregister:     make(chan *Client),
-		clients:        make(map[*Client]string),
+		Outbound:   make(chan *Message),
+		Inbound:    make(chan *Message),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		clients:    make(map[*Client]string),
 	}
 	go hub.run()
 	return hub

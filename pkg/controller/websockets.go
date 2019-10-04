@@ -19,13 +19,13 @@ func NewWebsocketsHandler(logger *log.Logger, config *configuration.Registry) *W
 	h := &WebsocketsHandler{
 		logger: logger,
 		config: config,
-		hub: websockets.NewHub(),
+		hub:    websockets.NewHub(),
 	}
 	go h.messageHandler()
-	return h  
+	return h
 }
 
-// Outbound returns the outbound message channel that can be used by 
+// Outbound returns the outbound message channel that can be used by
 // other controllers to send messages.
 func (ws *WebsocketsHandler) Outbound() chan *websockets.Message {
 	return ws.hub.Outbound
@@ -37,7 +37,7 @@ func (ws *WebsocketsHandler) Hub() *websockets.Hub {
 }
 
 // Message handles an incoming message from websockets.
-func (ws *WebsocketsHandler) messageHandler() {	
+func (ws *WebsocketsHandler) messageHandler() {
 
 	for message := range ws.Hub().Inbound {
 		log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
@@ -45,7 +45,7 @@ func (ws *WebsocketsHandler) messageHandler() {
 		if ws.config.IsTestingMode() {
 			response := `{ "sub": "` + message.Sub + `", "body": "` + string(message.Body) + `" }`
 			ws.hub.Outbound <- &websockets.Message{
-				Sub: message.Sub,
+				Sub:  message.Sub,
 				Body: []byte(response),
 			}
 		}

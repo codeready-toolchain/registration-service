@@ -20,12 +20,12 @@ import (
 // RegistrationServer bundles configuration, logging, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config        		*configuration.Registry
-	router        		*gin.Engine
-	httpServer    		*http.Server
-	logger        		*log.Logger
+	config            *configuration.Registry
+	router            *gin.Engine
+	httpServer        *http.Server
+	logger            *log.Logger
 	websocketsHandler *controller.WebsocketsHandler
-	routesSetup   		sync.Once
+	routesSetup       sync.Once
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.

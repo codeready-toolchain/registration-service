@@ -49,5 +49,6 @@ func (ws *WebsocketsHandler) messageHandler() {
 				Body: []byte(response),
 			}
 		}
+		// add message processing here, define commands etc.
 	}
 }

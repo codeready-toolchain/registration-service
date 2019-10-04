@@ -134,7 +134,8 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(s string) error {
 		// received pong, reset deadline for this conn
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		err := c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		log.Printf("error setting read deadline on websocket connection for sub %s: %s", c.sub, err.Error())
 		return nil
 	})
 	for {
@@ -172,29 +173,47 @@ func (c *Client) writePump() {
 		select {
 		case message, ok := <-c.send:
 			// a message is on the outbound client queue
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				log.Printf("error setting write deadline on websocket connection for sub %s: %s", c.sub, err.Error())
+				return
+			}
 			if !ok {
-				// The hub closed the channel.
+				log.Printf("hub closed channel on websocket connection for sub %s", c.sub)
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				log.Printf("error getting writer on websocket connection for sub %s: %s", c.sub, err.Error())
 				return
 			}
-			w.Write(message)
+			_, err = w.Write(message)
+			if err != nil {
+				log.Printf("error writing to websocket connection for sub %s: %s", c.sub, err.Error())
+				return
+			}
 			// Add queued chat messages to the current websocket message
 			n := len(c.send)
 			for i := 0; i < n; i++ {
-				w.Write(<-c.send)
+				_, err = w.Write(<-c.send)
+				if err != nil {
+					log.Printf("error writing to websocket connection for sub %s: %s", c.sub, err.Error())
+					return
+				}
 			}
 			if err := w.Close(); err != nil {
+				log.Printf("error closing writer on websocket connection for sub %s: %s", c.sub, err.Error())
 				return
 			}
 		case <-ticker.C:
 			// the ticker kicked in, refresh the deadline for this connection
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				log.Printf("error setting write deadline on websocket connection for sub %s: %s", c.sub, err.Error())
+			}
+			if err = c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("error sending ping on websocket connection for sub %s: %s", c.sub, err.Error())
 				return
 			}
 		}
@@ -219,14 +238,14 @@ func HTTPHandler(hubInstance *Hub, c *gin.Context) {
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("error upgrading socket connection for websocket communication for sub %s: %s", subjStr, err.Error())
 		log.Println(err)
 		return
 	}
 	client := &Client{hub: hubInstance, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
 	log.Printf("registering client sub %s", subjStr)
 	hubInstance.register <- client
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
+	// launch goroutines for read and write to the connection
 	go client.writePump()
 	go client.readPump()
 }

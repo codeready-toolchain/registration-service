@@ -38,19 +38,16 @@ func (ws *WebsocketsHandler) Hub() *websockets.Hub {
 
 // Message handles an incoming message from websockets.
 func (ws *WebsocketsHandler) messageHandler() {	
-	for {
-		select {
-			case message := <-ws.Hub().Inbound:
-				log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
-				// when in testingmode, reply to each message with a ping
-				if ws.config.IsTestingMode() {
-					response := `{ "sub": "` + message.Sub + `", "body": "` + string(message.Body) + `" }`
-					ws.hub.Outbound <- &websockets.Message{
-						Sub: message.Sub,
-						Body: []byte(response),
-					}
-				}
-			// more actions on messages being added here
+
+	for message := range ws.Hub().Inbound {
+		log.Printf("Message Handler received socket message from %s: %s", message.Sub, message.Body)
+		// when in testingmode, reply to each message with a ping
+		if ws.config.IsTestingMode() {
+			response := `{ "sub": "` + message.Sub + `", "body": "` + string(message.Body) + `" }`
+			ws.hub.Outbound <- &websockets.Message{
+				Sub: message.Sub,
+				Body: []byte(response),
+			}
 		}
 	}
 }

@@ -20,7 +20,7 @@ import (
 
 type TestWebsocketsSuite struct {
 	tokengenerator *testutils.TokenManager
-	srv *server.RegistrationServer
+	srv            *server.RegistrationServer
 	testutils.UnitTestSuite
 }
 
@@ -72,7 +72,7 @@ func (s *TestWebsocketsSuite) setupConnection() (string, error) {
 func (s *TestWebsocketsSuite) connect(token string, useURLParam bool) (*websocket.Conn, error) {
 	// connect to the websocket service.
 	address := strings.Replace(s.srv.Config().GetHTTPAddress(), "0.0.0.0", "127.0.0.1", 1)
-	url := "ws://"+address+"/ws"
+	url := "ws://" + address + "/ws"
 	requestHeader := http.Header{}
 	if token != "" {
 		if useURLParam {
@@ -80,8 +80,8 @@ func (s *TestWebsocketsSuite) connect(token string, useURLParam bool) (*websocke
 			url = url + "?token=" + token
 		} else {
 			// setup request header with bearer token
-			requestHeader["Authorization"] = []string {"Bearer " + token}
-		}	
+			requestHeader["Authorization"] = []string{"Bearer " + token}
+		}
 	}
 	ws, _, err := websocket.DefaultDialer.Dial(url, requestHeader)
 	if err != nil {
@@ -101,25 +101,25 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 	}()
 
 	// note that the middleware and the token acceptance is tested in
-	// middleware_test.go. This test only tests if the wesockets 
+	// middleware_test.go. This test only tests if the wesockets
 	// connection also uses the middleware.
 
 	s.Run("unauthorized no token", func() {
 		conn, err := s.connect("", false)
 		require.Nil(s.T(), conn)
-		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
+		require.Equal(s.T(), "websocket: bad handshake", err.Error())
 	})
 
 	s.Run("unauthorized invalid token - url", func() {
 		conn, err := s.connect(uuid.NewV4().String(), true)
 		require.Nil(s.T(), conn)
-		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
+		require.Equal(s.T(), "websocket: bad handshake", err.Error())
 	})
 
 	s.Run("unauthorized invalid token - header", func() {
 		conn, err := s.connect(uuid.NewV4().String(), false)
 		require.Nil(s.T(), conn)
-		require.Equal(s.T(), "websocket: bad handshake", err.Error())	
+		require.Equal(s.T(), "websocket: bad handshake", err.Error())
 	})
 
 	s.Run("close connection from client", func() {
@@ -138,7 +138,7 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		time.Sleep(500 * time.Millisecond)
 		// now the client map should have the client
 		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 1)
-		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
+		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() {
 			require.Equal(s.T(), identity.ID.String(), sub)
 		}
 		// close connection
@@ -175,8 +175,8 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		time.Sleep(500 * time.Millisecond)
 		// now the client map should have all the clients
 		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 2)
-		expected := []string{ identity0.ID.String(), identity1.ID.String() }
-		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
+		expected := []string{identity0.ID.String(), identity1.ID.String()}
+		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() {
 			for i, entry := range expected {
 				if entry == sub {
 					expected = append(expected[:i], expected[i+1:]...)
@@ -190,8 +190,8 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		time.Sleep(500 * time.Millisecond)
 		// now the client map should have one clients
 		require.Len(s.T(), s.srv.WebsocketsHandler().Hub().Clients(), 1)
-		expected = []string{ identity1.ID.String() }
-		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() { 
+		expected = []string{identity1.ID.String()}
+		for _, sub := range s.srv.WebsocketsHandler().Hub().Clients() {
 			for i, entry := range expected {
 				if entry == sub {
 					expected = append(expected[:i], expected[i+1:]...)
@@ -223,6 +223,8 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		defer func() {
 			conn.Close()
 		}()
+		// let the async message processing settle
+		time.Sleep(500 * time.Millisecond)
 		// send test message to echotest
 		testMessage := uuid.NewV4().String()
 		err = conn.WriteMessage(websocket.TextMessage, []byte(testMessage))
@@ -231,7 +233,7 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		require.NoError(s.T(), err)
 		// check if response has the correct subject identified (taken from the token) and the message.
 		expected := `{ "sub": "` + identity.ID.String() + `", "body": "` + testMessage + `" }`
-		require.Equal(s.T(), []byte(expected), p)		
+		require.Equal(s.T(), []byte(expected), p)
 	})
 
 	s.Run("authorized echo request - url", func() {
@@ -250,11 +252,13 @@ func (s *TestWebsocketsSuite) TestWebsocketsHub() {
 		defer func() {
 			conn.Close()
 		}()
+		// let the async message processing settle
+		time.Sleep(500 * time.Millisecond)
 		// send test message to echotest
 		testMessage := uuid.NewV4().String()
 		err = conn.WriteMessage(websocket.TextMessage, []byte(testMessage))
 		require.NoError(s.T(), err)
-		_, p, err := conn.ReadMessage()
+		_, p, err := conn.ReadMessage() // THIS IS BLOCKING, MAYBE NO RESPONSE SENT?
 		require.NoError(s.T(), err)
 		// check if response has the correct subject identified (taken from the token) and the message.
 		expected := `{ "sub": "` + identity.ID.String() + `", "body": "` + testMessage + `" }`

@@ -90,14 +90,15 @@ func (h *Hub) run() {
 			for client, sub := range h.clients {
 				if sub == message.Sub {
 					// found the client, send message out
+					log.Printf("hub: found client for sub %s", message.Sub)
 					select {
 					case client.send <- message.Body:
-						return
+						log.Printf("hub: successfully sent outbound message to sub %s", message.Sub)
 					default:
 						// send message failed, terminate conn with this client
+						log.Printf("hub: error sending outbound message to sub %s", message.Sub)
 						close(client.send)
 						delete(h.clients, client)
-						return
 					}
 				}
 			}
@@ -224,10 +225,8 @@ func HTTPHandler(hubInstance *Hub, c *gin.Context) {
 	client := &Client{hub: hubInstance, conn: conn, sub: subjStr, send: make(chan []byte, 256)}
 	log.Printf("registering client sub %s", subjStr)
 	hubInstance.register <- client
-	log.Println("#####################1111")
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
-	log.Println("#####################22222")
 }

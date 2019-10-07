@@ -13,8 +13,8 @@ import (
 
 // SignupCheck implements the SignupCheck endpoint.
 type SignupCheck struct {
-	config *configuration.Registry
-	logger *log.Logger
+	config               *configuration.Registry
+	logger               *log.Logger
 	testRequestTimestamp int64
 }
 
@@ -48,7 +48,7 @@ func (hc *SignupCheck) GetHandler(ctx *gin.Context) {
 		if hc.testRequestTimestamp == 0 {
 			hc.testRequestTimestamp = time.Now().Unix()
 		}
-		if time.Now().Unix() - hc.testRequestTimestamp >= 5 {
+		if time.Now().Unix()-hc.testRequestTimestamp >= 5 {
 			SignupCheckInfo.ProvisioningDone = true
 		} else {
 			SignupCheckInfo.ProvisioningDone = false

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"time"
 	"testing"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	testutils "github.com/codeready-toolchain/registration-service/test"
@@ -76,9 +76,9 @@ func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
 			err := json.Unmarshal(rr.Body.Bytes(), &data)
 			require.NoError(s.T(), err)
 			if time.Now().Unix() < testStartTimestamp+5 {
-				assert.False(s.T(), data.ProvisioningDone, "ProvisioningDone is true before 10s in test mode signupcheck response")			
+				assert.False(s.T(), data.ProvisioningDone, "ProvisioningDone is true before 10s in test mode signupcheck response")
 			} else {
-				assert.True(s.T(), data.ProvisioningDone, "ProvisioningDone is false after 10s in test mode signupcheck response")			
+				assert.True(s.T(), data.ProvisioningDone, "ProvisioningDone is false after 10s in test mode signupcheck response")
 			}
 			time.Sleep(2 * time.Second)
 		}

@@ -54,6 +54,9 @@ func (hc *SignupCheck) GetHandler(ctx *gin.Context) {
 			SignupCheckInfo.ProvisioningDone = false
 		}
 	}
+	// the integration with the actual k8s api needs to retrieve the
+	// user details from the context here (added by the middleware) and
+	// check the provisioning state.
 	ctx.Writer.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(ctx.Writer).Encode(SignupCheckInfo)
 	if err != nil {

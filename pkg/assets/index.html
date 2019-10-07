@@ -1,5 +1,9 @@
 <head>
   <script type="text/javascript">
+  
+  // time elapsed, used for the state poll
+  var elapsed = 0
+
   // this is where we load our config from
   configURL = "/api/v1/authconfig"
 
@@ -45,6 +49,18 @@
     document.getElementsByTagName("head")[0].appendChild(script);
   };
 
+  function updateSignupState() {
+    elapsed++;
+    getJSON("/api/v1/signupcheck", keycloak.idToken, function(err, data) {
+      if (err != null) {
+        document.getElementById('errorStatus').textContent = error;
+      } else {
+        document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('stateElapsed').textContent = elapsed;
+      }
+    })
+  }
+
   // main operation, load config, load client, run client
   getJSON(configURL, null, function(err, data) {
     if (err !== null) {
@@ -83,14 +99,19 @@
       });
     }
   });
+
 </script>
 </head>
 <body>
   <h1>CodeReady Toolchain SaaS</h1>
   <p>Login status: <b id="loginStatus"></b></p>
   <p>Error status: <b id="errorStatus"></b>n/a</p>
-  <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button></p>
-  <p><button onclick="keycloak.logout()">Logout</button></p>
+  <hr>
+  <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button> <button onclick="keycloak.logout()">Logout</button></p>
+  <hr>
+  <p><button onclick="elapsed=0;setInterval(updateSignupState, 1000)">Start Signup State Update Cycle</button> Elapsed: <span id="stateElapsed">n/a</span> State: <pre id="stateResp">n/a</pre></p>
+  <hr>
   <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
+  <hr>
   <p>Secured Service Response:<br><pre id="serviceResp">n/a</pre></p>
 </body>

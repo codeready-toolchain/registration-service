@@ -26,6 +26,7 @@ type Log interface {
 	SetOutput(out io.Writer, isTestingMode bool)
 }
 
+
 type Logger struct {
 	lgr           logr.Logger
 	name          string

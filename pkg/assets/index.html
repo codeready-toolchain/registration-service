@@ -51,7 +51,7 @@
 
   function updateSignupState() {
     elapsed++;
-    getJSON("/api/v1/signupcheck", keycloak.idToken, function(err, data) {
+    getJSON("/api/v1/signup", keycloak.idToken, function(err, data) {
       if (err != null) {
         document.getElementById('errorStatus').textContent = error;
       } else {

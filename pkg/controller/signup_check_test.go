@@ -17,12 +17,37 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var testRequestTimestamp int64
+
 type TestSignupCheckSuite struct {
 	testutils.UnitTestSuite
 }
 
 func TestRunSignupCheckSuite(t *testing.T) {
 	suite.Run(t, &TestSignupCheckSuite{testutils.UnitTestSuite{}})
+}
+
+// getTestSignupCheckInfo retrieves a test check info. Used only for tests.
+// It reports provisioning/not ready for 5s, then reports state complete.
+func getTestSignupCheckInfo(ctx *gin.Context) *controller.SignupCheckPayload {
+	payload := &controller.SignupCheckPayload{
+		Ready:   true,
+		Reason:  "",
+		Message: "",
+	}
+	if testRequestTimestamp == 0 {
+		testRequestTimestamp = time.Now().Unix()
+	}
+	if time.Now().Unix()-testRequestTimestamp >= 5 {
+		payload.Ready = true
+		payload.Reason = controller.SignupStateProvisioned
+		payload.Message = "testing mode - done"
+	} else {
+		payload.Ready = false
+		payload.Reason = controller.SignupStateProvisioning
+		payload.Message = "testing mode - waiting for timeout"
+	}
+	return payload
 }
 
 func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
@@ -38,7 +63,7 @@ func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create SignupCheck check instance.
-	SignupCheckCtrl := controller.NewSignupCheck(logger, s.Config)
+	SignupCheckCtrl := controller.NewSignupCheck(logger, s.Config, getTestSignupCheckInfo)
 	handler := gin.HandlerFunc(SignupCheckCtrl.GetHandler)
 
 	s.Run("SignupCheck in testing mode", func() {

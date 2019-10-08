@@ -63,7 +63,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
-		signupCheckCtrl := controller.NewSignupCheck(srv.logger, srv.Config())
+		signupCheckCtrl := controller.NewSignupCheck(srv.logger, srv.Config(), nil)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

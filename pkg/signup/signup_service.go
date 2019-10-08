@@ -14,14 +14,17 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// SignupServiceConfiguration represents the config used for the signup service.
 type SignupServiceConfiguration interface {
 	GetNamespace() string
 }
 
+// SignupService represents the signup service for controllers.
 type SignupService interface {
 	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
+// SignupServiceImpl represents the implementation of the signup service.
 type SignupServiceImpl struct {
 	Namespace   string
 	UserSignups kubeclient.UserSignupInterface

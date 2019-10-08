@@ -43,6 +43,19 @@ func (s *TestLogSuite) TestLogHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
 
+		lgr.Info(ctx, "test logger with no formatting")
+		value := buf.String()
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test logger with no formatting"))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "INFO"))
+	})
+
+	s.Run("log infof", func() {
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set("subject", "test")
+
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
@@ -55,6 +68,18 @@ func (s *TestLogSuite) TestLogHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
+		lgr.Error(ctx, errors.New("test error"), "test error with no formatting")
+		value := buf.String()
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test error with no formatting"))
+		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
+		assert.True(s.T(), strings.Contains(value, "ERROR"))
+	})
+
+	s.Run("log errorf", func() {
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+
 		lgr.Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
@@ -63,7 +88,7 @@ func (s *TestLogSuite) TestLogHandler() {
 		assert.True(s.T(), strings.Contains(value, "ERROR"))
 	})
 
-	s.Run("log info with http request", func() {
+	s.Run("log infof with http request", func() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
@@ -78,7 +103,7 @@ func (s *TestLogSuite) TestLogHandler() {
 		assert.True(s.T(), strings.Contains(value, "INFO"))
 	})
 
-	s.Run("log info withValues", func() {
+	s.Run("log infof withValues", func() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
@@ -92,7 +117,7 @@ func (s *TestLogSuite) TestLogHandler() {
 		assert.True(s.T(), strings.Contains(value, "INFO"))
 	})
 
-	s.Run("setOutput when tags is set", func() {
+	s.Run("log infof setOutput when tags is set", func() {
 		lgr.WithValues("testing-2", "with-values-2")
 
 		rr := httptest.NewRecorder()

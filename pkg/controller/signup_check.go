@@ -22,14 +22,14 @@ const (
 
 // SignupCheck implements the SignupCheck endpoint.
 type SignupCheck struct {
-	config               *configuration.Registry
-	logger               *log.Logger
+	config *configuration.Registry
+	logger *log.Logger
 }
 
 // SignupCheckPayload payload
 type SignupCheckPayload struct {
-	Ready bool `json:"ready"`
-	Reason string `json:"reason"`
+	Ready   bool   `json:"ready"`
+	Reason  string `json:"reason"`
 	Message string `json:"message"`
 }
 
@@ -46,9 +46,9 @@ var testRequestTimestamp int64
 // getTestSignupCheckInfo retrieves a test check info. Used only for tests.
 // It reports provisioning/not ready for 5s, then reports state complete.
 func (hc *SignupCheck) getTestSignupCheckInfo() *SignupCheckPayload {
-	payload := &SignupCheckPayload {
-		Ready: true,
-		Reason: "",
+	payload := &SignupCheckPayload{
+		Ready:   true,
+		Reason:  "",
 		Message: "",
 	}
 	if testRequestTimestamp == 0 {
@@ -69,8 +69,8 @@ func (hc *SignupCheck) getTestSignupCheckInfo() *SignupCheckPayload {
 // getSignupCheckInfo returns the SignupCheck info.
 func (hc *SignupCheck) getSignupCheckInfo() *SignupCheckPayload {
 	return &SignupCheckPayload{
-		Ready: true,
-		Reason: "",
+		Ready:   true,
+		Reason:  "",
 		Message: "",
 	}
 }

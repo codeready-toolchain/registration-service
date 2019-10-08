@@ -62,8 +62,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
-		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
-		signupCheckCtrl := controller.NewSignupCheck(srv.logger, srv.Config(), nil)
+		signupCtrl := controller.NewSignup(srv.logger, srv.Config(), nil)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
@@ -82,7 +81,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
-		securedV1.GET("/signup", signupCheckCtrl.GetHandler)
+		securedV1.GET("/signup", signupCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if srv.Config().IsTestingMode() {

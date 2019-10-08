@@ -66,9 +66,9 @@ func (hc *SignupCheck) getSignupCheckInfo(ctx *gin.Context) *SignupCheckPayload 
 func (hc *SignupCheck) GetHandler(ctx *gin.Context) {
 	// Default handler for system SignupCheck
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	SignupCheckInfo := hc.checkerFunc(ctx)
+	signupCheckInfo := hc.checkerFunc(ctx)
 	ctx.Writer.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(ctx.Writer).Encode(SignupCheckInfo)
+	err := json.NewEncoder(ctx.Writer).Encode(signupCheckInfo)
 	if err != nil {
 		hc.logger.Println("error writing response body", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")

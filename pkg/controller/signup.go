@@ -62,10 +62,10 @@ func (hc *Signup) getSignupCheckInfo(ctx *gin.Context) *SignupCheckPayload {
 // PostHandler starts the signup process.
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-
-	// the KeyManager can be accessed here: auth.DefaultKeyManager()
-
-	err := json.NewEncoder(ctx.Writer).Encode(nil)
+	// initiate signup process here
+	signupCheckInfo := s.checkerFunc(ctx)
+	err := json.NewEncoder(ctx.Writer).Encode(signupCheckInfo)
+	ctx.Writer.WriteHeader(http.StatusOK)
 	if err != nil {
 		s.logger.Println("error writing response body", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
@@ -74,8 +74,8 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 // GetHandler returns the signup check result.
 func (s *Signup) GetHandler(ctx *gin.Context) {
-	// Default handler for system SignupCheck
 	ctx.Writer.Header().Set("Content-Type", "application/json")
+	// get signup state here
 	signupCheckInfo := s.checkerFunc(ctx)
 	ctx.Writer.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(ctx.Writer).Encode(signupCheckInfo)

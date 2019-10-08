@@ -1,7 +1,6 @@
 package signup
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -20,7 +19,7 @@ type SignupServiceConfiguration interface {
 }
 
 type SignupService interface {
-	CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error)
+	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
 type SignupServiceImpl struct {
@@ -47,7 +46,7 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
+func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
 	name, err := c.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err

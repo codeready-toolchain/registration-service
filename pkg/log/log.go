@@ -95,7 +95,6 @@ func (p *Logger) Info(ctx *gin.Context, msg string) *Logger {
 	return p.Infof(ctx, msg, nil)
 }
 
-
 // Infof logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
 func (p *Logger) Infof(ctx *gin.Context, msg string, args ...interface{}) *Logger {

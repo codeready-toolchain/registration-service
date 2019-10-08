@@ -21,8 +21,8 @@ const (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config *configuration.Registry
-	logger *log.Logger
+	config      *configuration.Registry
+	logger      *log.Logger
 	checkerFunc func(ctx *gin.Context) *SignupCheckPayload
 }
 
@@ -35,7 +35,7 @@ type SignupCheckPayload struct {
 
 // NewSignup returns a new Signup instance.
 func NewSignup(logger *log.Logger, config *configuration.Registry, checker func(ctx *gin.Context) *SignupCheckPayload) *Signup {
-	sc := &Signup {
+	sc := &Signup{
 		logger: logger,
 		config: config,
 	}
@@ -84,4 +84,3 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }
-

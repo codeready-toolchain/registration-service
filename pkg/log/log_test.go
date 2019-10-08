@@ -26,6 +26,11 @@ func TestRunLogSuite(t *testing.T) {
 
 func (s *TestLogSuite) TestLogHandler() {
 	lgr := logger.InitializeLogger("logger_tests")
+	var buf bytes.Buffer
+	lgr.SetOutput(&buf, true)
+	defer func() {
+		lgr.SetOutput(os.Stderr, false)
+	}()
 
 	s.Run("get logger", func() {
 		l := logger.GetLogger()
@@ -34,12 +39,6 @@ func (s *TestLogSuite) TestLogHandler() {
 	})
 
 	s.Run("log info", func() {
-		var buf bytes.Buffer
-		lgr.SetOutput(&buf, true)
-		defer func() {
-			lgr.SetOutput(os.Stderr, false)
-		}()
-
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
@@ -53,12 +52,6 @@ func (s *TestLogSuite) TestLogHandler() {
 	})
 
 	s.Run("log error", func() {
-		var buf bytes.Buffer
-		lgr.SetOutput(&buf, true)
-		defer func() {
-			lgr.SetOutput(os.Stderr, false)
-		}()
-
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
@@ -71,12 +64,6 @@ func (s *TestLogSuite) TestLogHandler() {
 	})
 
 	s.Run("log info with http request", func() {
-		var buf bytes.Buffer
-		lgr.SetOutput(&buf, true)
-		defer func() {
-			lgr.SetOutput(os.Stderr, false)
-		}()
-
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
@@ -92,12 +79,6 @@ func (s *TestLogSuite) TestLogHandler() {
 	})
 
 	s.Run("log info withValues", func() {
-		var buf bytes.Buffer
-		lgr.SetOutput(&buf, true)
-		defer func() {
-			lgr.SetOutput(os.Stderr, false)
-		}()
-
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
@@ -112,13 +93,8 @@ func (s *TestLogSuite) TestLogHandler() {
 	})
 
 	s.Run("setOutput when tags is set", func() {
-		var buf bytes.Buffer
 		lgr.WithValues("testing-2", "with-values-2")
-		lgr.SetOutput(&buf, true)
-		defer func() {
-			lgr.SetOutput(os.Stderr, false)
-		}()
-
+		
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")

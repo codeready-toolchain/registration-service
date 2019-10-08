@@ -3,8 +3,6 @@ package auth
 import (
 	"errors"
 
-	"github.com/codeready-toolchain/registration-service/pkg/log"
-
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -27,9 +25,6 @@ type TokenParser struct {
 
 // NewTokenParser creates a new TokenParser.
 func NewTokenParser(keyManager *KeyManager) (*TokenParser, error) {
-	if log.Logger() == nil {
-		return nil, errors.New("no logger given when creating TokenParser")
-	}
 	if keyManager == nil {
 		return nil, errors.New("no keyManager given when creating TokenParser")
 	}

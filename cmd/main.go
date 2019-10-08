@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,9 +14,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 )
 
+var logr log.Logger
+
 func main() {
-	// create logger and registry
-	log.InitializeLogger("logger")
+	// create logrger and registry
+	logr = *log.InitializeLogger("logger")
 
 	// Parse flags
 	var configFilePath string
@@ -49,14 +50,14 @@ func main() {
 	}
 
 	routesToPrint := srv.GetRegisteredRoutes()
-	log.Info(nil, fmt.Sprintf("Configured routes: %s", routesToPrint))
+	logr.Infof(nil, "Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		log.Info(nil, fmt.Sprintf("Service Revision %s built on %s", configuration.Commit, configuration.BuildTime))
-		log.Info(nil, fmt.Sprintf("Listening on %q...", srv.Config().GetHTTPAddress()))
+		logr.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
+		logr.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			log.Info(nil, err.Error())
+			logr.Infof(nil, err.Error(), nil)
 		}
 	}()
 
@@ -72,14 +73,14 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	sigReceived := <-stop
-	log.Info(nil, fmt.Sprintf("Signal received: %+v", sigReceived))
+	logr.Infof(nil, "Signal received: %+v", sigReceived)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	log.Info(nil, fmt.Sprintf("\nShutdown with timeout: %s\n", timeout))
+	logr.Infof(nil, "\nShutdown with timeout: %s\n", timeout)
 	if err := hs.Shutdown(ctx); err != nil {
-		log.Info(nil, fmt.Sprintf("Shutdown error: %v\n", err))
+		logr.Errorf(nil, err, "Shutdown error: %s\n", err.Error())
 	} else {
-		log.Info(nil, "Server stopped.")
+		logr.Infof(nil, "Server stopped.", nil)
 	}
 }

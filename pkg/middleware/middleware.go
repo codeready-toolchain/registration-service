@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,9 +28,6 @@ type JWTMiddleware struct {
 
 // NewAuthMiddleware returns a new middleware for JWT authentication
 func NewAuthMiddleware() (*JWTMiddleware, error) {
-	if log.Logger() == nil {
-		return nil, errors.New("missing parameters for NewAuthMiddleware")
-	}
 	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err

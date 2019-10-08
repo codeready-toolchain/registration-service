@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var logr = log.GetLogger()
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
@@ -32,7 +33,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)
 	if err != nil {
-		log.Error(ctx, err, fmt.Sprintf("error writing response body: %s", err.Error()))
+		logr.Errorf(ctx, err, "error writing response body: %s", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

@@ -15,12 +15,37 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// Signup represents Signup resource which is a wrapper of K8s UserSignup
+// and the corresponding MasterUserRecord resources.
+type Signup struct {
+	// The cluster in which the user is provisioned in
+	// If not set then the target cluster will be picked automatically
+	TargetCluster string `json:"targetCluster,omitempty"`
+	// The username.  This may differ from the corresponding Identity Provider username, because of the the
+	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
+	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
+	// For example, johnsmith@redhat.com -> johnsmith-at-redhat-com
+	Username string       `json:"username"`
+	Status   SignupStatus `json:"status,omitempty"`
+}
+
+// SignupStatus represents UserSignup resource status
+type SignupStatus struct {
+	// If true then the corresponding user's account is ready to be used
+	Ready bool `json:"ready"`
+	// Brief reason for the status last transition.
+	Reason string `json:"reason"`
+	// Human readable message indicating details about last transition.
+	Message string `json:"message,omitempty"`
+}
+
 type SignupServiceConfiguration interface {
 	GetNamespace() string
 }
 
 type SignupService interface {
 	CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error)
+	GetUserSignup(userID string) (*Signup, error)
 }
 
 type SignupServiceImpl struct {
@@ -47,8 +72,8 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
-	name, err := c.transformAndValidateUserName(username)
+func (s *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
+	name, err := s.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +81,7 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: c.Namespace,
+			Namespace: s.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
 			UserID:        userID,
@@ -66,7 +91,7 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 		},
 	}
 
-	created, err := c.UserSignups.Create(userSignup)
+	created, err := s.UserSignups.Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +99,19 @@ func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, user
 	return created, nil
 }
 
-func (c *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {
+// GetUserSignup gets the UserSignup resource with the specified userID
+// Returns nil, nil if the resource is not found
+func (s *SignupServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+	// TODO
+	/*
+				us, err := c.UserSignups.Get(userID)
+			    // TODO Check if signup exists. If yes then get the corresponding MUR and populate the status
+		        // transform crt.UserSignup to signup.Signup
+	*/
+	return nil, nil
+}
+
+func (s *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {
 	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
 
 	errs := validation.IsQualifiedName(replaced)
@@ -86,7 +123,7 @@ func (c *SignupServiceImpl) transformAndValidateUserName(username string) (strin
 	transformed := replaced
 
 	for {
-		userSignup, err := c.UserSignups.Get(transformed)
+		userSignup, err := s.UserSignups.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err

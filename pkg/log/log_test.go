@@ -55,7 +55,7 @@ func (s *TestLogSuite) TestLogHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
-		lgr.Errorf(ctx, errors.New("test error"),  "test %s", "info")
+		lgr.Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
@@ -94,7 +94,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 	s.Run("setOutput when tags is set", func() {
 		lgr.WithValues("testing-2", "with-values-2")
-		
+
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")

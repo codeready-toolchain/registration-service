@@ -3,7 +3,6 @@ package log_test
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -47,7 +46,10 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	test info	{\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test info"))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "INFO"))
 	})
 
 	s.Run("log error", func() {
@@ -62,7 +64,10 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Errorf(ctx, errors.New("test error"),  "test %s", "info")
 		value := buf.String()
-		assert.True(s.T(), strings.Contains(value, "ERROR	logger_tests	test info	{\"error\": \"test error\"}"))
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test info"))
+		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
+		assert.True(s.T(), strings.Contains(value, "ERROR"))
 	})
 
 	s.Run("log info with http request", func() {
@@ -80,7 +85,10 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	test info	{\"req_url\": \"http://example.com/api/v1/health\"}"))
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test info"))
+		assert.True(s.T(), strings.Contains(value, "\"req_url\": \"http://example.com/api/v1/health\"}"))
+		assert.True(s.T(), strings.Contains(value, "INFO"))
 	})
 
 	s.Run("log info withValues", func() {
@@ -94,27 +102,34 @@ func (s *TestLogSuite) TestLogHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
 
-		lgr.WithValues("tina", "kurian").Infof(ctx, "test %s", "info")
+		lgr.WithValues("testing", "with-values").Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
-		assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	test info	{\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test info"))
+		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
+		assert.True(s.T(), strings.Contains(value, "INFO"))
 	})
 
-	// s.Run("setOutput when tags is set", func() {
-	// 	var buf bytes.Buffer
-	// 	lgr.WithValues("tina", "kurian")
-	// 	lgr.SetOutput(&buf, true)
-	// 	defer func() {
-	// 		lgr.SetOutput(os.Stderr, false)
-	// 	}()
+	s.Run("setOutput when tags is set", func() {
+		var buf bytes.Buffer
+		lgr.WithValues("testing-2", "with-values-2")
+		lgr.SetOutput(&buf, true)
+		defer func() {
+			lgr.SetOutput(os.Stderr, false)
+		}()
 
-	// 	rr := httptest.NewRecorder()
-	// 	ctx, _ := gin.CreateTestContext(rr)
-	// 	ctx.Set("subject", "test")
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set("subject", "test")
 
-	// 	lgr.Infof(ctx, "test %s", "info")
-	// 	value := buf.String()
-	// 	fmt.Println(value)
-	// 	assert.True(s.T(), strings.Contains(value, "INFO	logger_tests	test info	{\"user_id\": \"test\"}"))
-	// })
+		lgr.Infof(ctx, "test %s", "info")
+		value := buf.String()
+		assert.True(s.T(), strings.Contains(value, "logger_tests"))
+		assert.True(s.T(), strings.Contains(value, "test info"))
+		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))
+		assert.True(s.T(), strings.Contains(value, "\"testing-2\": \"with-values-2\""))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
+		assert.True(s.T(), strings.Contains(value, "INFO"))
+	})
 }

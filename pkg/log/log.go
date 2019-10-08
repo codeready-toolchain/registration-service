@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -23,13 +24,14 @@ type Log interface {
 	Infof(ctx *gin.Context, msg string, args ...interface{})
 	WithValues(keysAndValues ...interface{})
 	SetOutput(out io.Writer, isTestingMode bool)
-
 }
 
 type Logger struct {
 	lgr logr.Logger
 	name string
 	tags  []interface{}
+	out io.Writer
+	isTestingMode bool
 }
 
 // InitializeLogger initializes the logger.
@@ -57,20 +59,28 @@ func InitializeLogger(withName string) *Logger {
 	// uniform and structured logs.
 	logf.SetLogger(zap.Logger())
 
+	// set the logger.
 	log = Logger{
 		name: withName, 
 		lgr: logf.Log.WithName(withName), 
+		out: os.Stdout,
+		isTestingMode: false,
 	}
 
 	return &log
 }
 
 func (p *Logger)SetOutput(out io.Writer, isTestingMode bool) *Logger {
-	log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name)
+	// WithValues, WithName and ZapLoggerTo all result in a new logger instance. 
+	// The values stored in the Logger struct must be set again.
 	if len(log.tags) > 0 {
-		log.lgr.WithValues(log.tags...)
+		log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name).WithValues(log.tags...)
+	} else {
+		log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name)
 	}
 	
+	log.out = out
+	log.isTestingMode = isTestingMode
 	return &log
 }
 
@@ -100,12 +110,10 @@ func (p *Logger)WithValues(keysAndValues ...interface{}) *Logger {
 	if len(keysAndValues) > 0 {
 		tags := append([]interface{}(nil), log.tags...)
 		tags = append(tags, keysAndValues...)
-		log = Logger{
-			name: log.name, 
-			lgr: logf.Log.WithName(log.name), 
-			tags: tags,
-		}
-		log.lgr.WithValues(tags...)
+		log.tags = tags
+		// ZapLoggerTo, WithName and WithValues all return new logger instances. 
+		// The logger must be set again with the values stored in the Logger struct.
+		log.lgr = logf.ZapLoggerTo(log.out, log.isTestingMode).WithName(log.name).WithValues(tags...)
 	}
 	return &log
 }

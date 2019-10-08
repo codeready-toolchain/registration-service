@@ -28,7 +28,7 @@ func TestRunSignupCheckSuite(t *testing.T) {
 func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/signupcheck", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
 	// Create logger and registry.
@@ -57,7 +57,7 @@ func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.ProvisioningDone
+		val := data.Ready
 		assert.False(s.T(), val, "ProvisioningDone is true in test mode signupcheck initial response")
 	})
 
@@ -76,9 +76,13 @@ func (s *TestSignupCheckSuite) TestSignupCheckHandler() {
 			err := json.Unmarshal(rr.Body.Bytes(), &data)
 			require.NoError(s.T(), err)
 			if time.Now().Unix() < testStartTimestamp+5 {
-				assert.False(s.T(), data.ProvisioningDone, "ProvisioningDone is true before 10s in test mode signupcheck response")
+				assert.False(s.T(), data.Ready, "ProvisioningDone is true before 10s in test mode signupcheck response")
+				assert.Equal(s.T(), controller.SignupStateProvisioning, data.Reason)
+				assert.Equal(s.T(), "testing mode - waiting for timeout", data.Message)
 			} else {
-				assert.True(s.T(), data.ProvisioningDone, "ProvisioningDone is false after 10s in test mode signupcheck response")
+				assert.True(s.T(), data.Ready, "ProvisioningDone is false after 10s in test mode signupcheck response")
+				assert.Equal(s.T(), controller.SignupStateProvisioned, data.Reason)
+				assert.Equal(s.T(), "testing mode - done", data.Message)
 			}
 			time.Sleep(2 * time.Second)
 		}

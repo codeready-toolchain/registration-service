@@ -92,7 +92,7 @@ func GetLogger() *Logger {
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
 func (p *Logger) Info(ctx *gin.Context, msg string) *Logger {
-	return p.Infof(ctx, msg, "")
+	return p.Infof(ctx, msg)
 }
 
 // Infof logs are used for non-error messages. It will log a message with
@@ -103,14 +103,19 @@ func (p *Logger) Infof(ctx *gin.Context, msg string, args ...string) *Logger {
 	for i, arg := range args {
 		arguments[i] = arg
 	}
-	p.lgr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
+	if len(arguments) > 0 {
+		p.lgr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
+	} else {
+		p.lgr.Info(msg, ctxInfo...)
+	}
+
 	return p
 }
 
 // Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
 func (p *Logger) Error(ctx *gin.Context, err error, msg string) *Logger {
-	return p.Errorf(ctx, err, msg, "")
+	return p.Errorf(ctx, err, msg)
 }
 
 // Errorf logs are used for logging errors. It will log the error with the given
@@ -121,7 +126,13 @@ func (p *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string)
 	for i, arg := range args {
 		arguments[i] = arg
 	}
-	p.lgr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
+
+	if len(arguments) > 0 {
+		p.lgr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
+	} else {
+		p.lgr.Error(err, msg, ctxInfo...)
+	}
+
 	return p
 }
 

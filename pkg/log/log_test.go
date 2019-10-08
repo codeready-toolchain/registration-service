@@ -3,6 +3,7 @@ package log_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -45,6 +46,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Info(ctx, "test logger with no formatting")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test logger with no formatting"))
 		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
@@ -58,6 +60,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
@@ -70,6 +73,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Error(ctx, errors.New("test error"), "test error with no formatting")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test error with no formatting"))
 		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
@@ -82,6 +86,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
@@ -97,6 +102,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"req_url\": \"http://example.com/api/v1/health\"}"))
@@ -110,6 +116,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.WithValues("testing", "with-values").Infof(ctx, "test %s", "info")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))
@@ -126,6 +133,7 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
+		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))

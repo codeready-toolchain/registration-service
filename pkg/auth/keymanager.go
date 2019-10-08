@@ -138,11 +138,11 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
 		if err != io.EOF && err != nil {
-			log.Info(nil, "failed read remaining data before closing response")
+			log.Error(nil, err, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()
 		if err != nil {
-			log.Info(nil, "failed to close response after reading")
+			log.Error(nil, err, "failed to close response after reading")
 		}
 	}()
 	// read and parse response body
@@ -154,11 +154,8 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	bodyString := buf.String()
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
-		log.Info(nil, "status not OK", map[string]interface{}{
-			"response_status": res.Status,
-			"response_body":   bodyString,
-			"url":             keysEndpointURL,
-		}, "unable to obtain public keys from remote service")
+		err := errors.New("unable to obtain public keys from remote service")
+		log.Error(nil, err, "response_status", res.Status, "response_body", bodyString, "url", keysEndpointURL)
 		return nil, errors.New("unable to obtain public keys from remote service")
 	}
 	// unmarshal the keys

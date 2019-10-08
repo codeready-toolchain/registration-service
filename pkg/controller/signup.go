@@ -32,7 +32,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	err := json.NewEncoder(ctx.Writer).Encode(nil)
 	if err != nil {
-		log.Info(ctx, fmt.Sprintf("error writing response body: %s", err.Error()))
+		log.Error(ctx, err, fmt.Sprintf("error writing response body: %s", err.Error()))
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

@@ -14,12 +14,26 @@ import (
 )
 
 var (
-	log logr.Logger
+	log Logger
 )
 
+// Log interface for the logger.
+type Log interface {
+	Errorf(ctx *gin.Context, err error, msg string, args ...interface{})
+	Infof(ctx *gin.Context, msg string, args ...interface{})
+	WithValues(keysAndValues ...interface{})
+	SetOutput(out io.Writer, isTestingMode bool)
+
+}
+
+type Logger struct {
+	lgr logr.Logger
+	name string
+	tags  []interface{}
+}
+
 // InitializeLogger initializes the logger.
-func InitializeLogger(withName string) {
-	log = logf.Log.WithName(withName)
+func InitializeLogger(withName string) *Logger {
 
 	zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
 
@@ -42,45 +56,77 @@ func InitializeLogger(withName string) {
 	// be propagated through the whole operator, generating
 	// uniform and structured logs.
 	logf.SetLogger(zap.Logger())
+
+	log = Logger{
+		name: withName, 
+		lgr: logf.Log.WithName(withName), 
+	}
+
+	return &log
 }
 
-func SetOutput(out io.Writer, isTestingMode bool, withName string) {
-	log = logf.ZapLoggerTo(out, isTestingMode).WithName(withName)
+func (p *Logger)SetOutput(out io.Writer, isTestingMode bool) *Logger {
+	log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name)
+	if len(log.tags) > 0 {
+		log.lgr.WithValues(log.tags...)
+	}
+	
+	return &log
 }
 
-// Logger returns the current logger object.
-func Logger() logr.Logger {
-	return log
+// GetLogger returns the current logger object.
+func GetLogger() *Logger {
+	return &log
 }
 
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
-func Info(ctx *gin.Context, msg string, v ...interface{}) {
-	log.Info(fmt.Sprintf(msg, addContextInfo(ctx, v...)))
+func (p *Logger)Infof(ctx *gin.Context, msg string, args ...interface{}) *Logger {
+	ctxInfo := addContextInfo(ctx)
+	log.lgr.Info(fmt.Sprintf(msg, args...), ctxInfo...)
+	return &log
 }
 
 // Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
-func Error(ctx *gin.Context, err error, msg string, v ...interface{}) {
-	junk := addContextInfo(ctx, v...)
-	log.Error(err, msg, junk...)
+func (p *Logger)Errorf(ctx *gin.Context, err error, msg string, args ...interface{}) *Logger {
+	ctxInfo := addContextInfo(ctx)
+	log.lgr.Error(err, fmt.Sprintf(msg, args...), ctxInfo...)
+	return &log
+}
+
+// WithValues appends tags to the logger.
+func (p *Logger)WithValues(keysAndValues ...interface{}) *Logger {
+	if len(keysAndValues) > 0 {
+		tags := append([]interface{}(nil), log.tags...)
+		tags = append(tags, keysAndValues...)
+		log = Logger{
+			name: log.name, 
+			lgr: logf.Log.WithName(log.name), 
+			tags: tags,
+		}
+		log.lgr.WithValues(tags...)
+	}
+	return &log
 }
 
 // addContextInfo adds fields extracted from the context to the info/error
 // log messages.
-func addContextInfo(ctx *gin.Context, v ...interface{}) []interface{} {
+func addContextInfo(ctx *gin.Context) []interface{} {
+	var v []interface{}
+
 	if ctx != nil {
 		subject := ctx.GetString("subject")
 		if subject != "" {
-			v = append(v, "context subject")
+			v = append(v, "user_id")
 			v = append(v, subject)
 		}
 
 		if ctx.Request != nil {
 			url := ctx.Request.URL
 			if url != nil {
-				v = append(v, "context host")
-				v = append(v, url.Host)
+				v = append(v, "req_url")
+				v = append(v, url.Scheme + "://" + url.Host + url.Path)
 			}
 		}
 	}

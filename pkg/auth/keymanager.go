@@ -118,7 +118,8 @@ func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error)
 	if err != nil {
 		return nil, err
 	}
-	logr.Infof(nil, "%v public keys loaded", len(keys))
+
+	logr.Infof(nil, "%v public keys loaded", string(keysBytes))
 	// return the retrieved keys
 	return keys, nil
 }

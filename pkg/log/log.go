@@ -20,8 +20,8 @@ var (
 
 // Log interface for the logger.
 type Log interface {
-	Errorf(ctx *gin.Context, err error, msg string, args ...interface{})
-	Infof(ctx *gin.Context, msg string, args ...interface{})
+	Errorf(ctx *gin.Context, err error, msg string, args ...string)
+	Infof(ctx *gin.Context, msg string, args ...string)
 	WithValues(keysAndValues ...interface{})
 	SetOutput(out io.Writer, isTestingMode bool)
 }
@@ -92,28 +92,36 @@ func GetLogger() *Logger {
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
 func (p *Logger) Info(ctx *gin.Context, msg string) *Logger {
-	return p.Infof(ctx, msg, nil)
+	return p.Infof(ctx, msg, "")
 }
 
 // Infof logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
-func (p *Logger) Infof(ctx *gin.Context, msg string, args ...interface{}) *Logger {
+func (p *Logger) Infof(ctx *gin.Context, msg string, args ...string) *Logger {
 	ctxInfo := addContextInfo(ctx)
-	p.lgr.Info(fmt.Sprintf(msg, args...), ctxInfo...)
+	arguments := make([]interface{}, len(args))
+	for i, arg := range args {
+		arguments[i] = arg
+	}
+	p.lgr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
 	return p
 }
 
 // Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
 func (p *Logger) Error(ctx *gin.Context, err error, msg string) *Logger {
-	return p.Errorf(ctx, err, msg, nil)
+	return p.Errorf(ctx, err, msg, "")
 }
 
 // Errorf logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
-func (p *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...interface{}) *Logger {
+func (p *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string) *Logger {
 	ctxInfo := addContextInfo(ctx)
-	p.lgr.Error(err, fmt.Sprintf(msg, args...), ctxInfo...)
+	arguments := make([]interface{}, len(args))
+	for i, arg := range args {
+		arguments[i] = arg
+	}
+	p.lgr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
 	return p
 }
 

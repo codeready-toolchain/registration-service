@@ -57,7 +57,7 @@ func main() {
 		logr.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
 		logr.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			logr.Infof(nil, err.Error(), nil)
+			logr.Info(nil, err.Error())
 		}
 	}()
 
@@ -73,11 +73,11 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	sigReceived := <-stop
-	logr.Infof(nil, "Signal received: %+v", sigReceived)
+	logr.Infof(nil, "Signal received: %+v", sigReceived.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	logr.Infof(nil, "\nShutdown with timeout: %s\n", timeout)
+	logr.Infof(nil, "\nShutdown with timeout: %s\n", timeout.String())
 	if err := hs.Shutdown(ctx); err != nil {
 		logr.Errorf(nil, err, "Shutdown error: %s\n", err.Error())
 	} else {

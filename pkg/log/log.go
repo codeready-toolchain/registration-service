@@ -91,31 +91,44 @@ func GetLogger() *Logger {
 
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
+func (p *Logger) Info(ctx *gin.Context, msg string) *Logger {
+	return p.Infof(ctx, msg, nil)
+}
+
+
+// Infof logs are used for non-error messages. It will log a message with
+// the given key/value pairs as context.
 func (p *Logger) Infof(ctx *gin.Context, msg string, args ...interface{}) *Logger {
 	ctxInfo := addContextInfo(ctx)
-	log.lgr.Info(fmt.Sprintf(msg, args...), ctxInfo...)
-	return &log
+	p.lgr.Info(fmt.Sprintf(msg, args...), ctxInfo...)
+	return p
 }
 
 // Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
+func (p *Logger) Error(ctx *gin.Context, err error, msg string) *Logger {
+	return p.Errorf(ctx, err, msg, nil)
+}
+
+// Errorf logs are used for logging errors. It will log the error with the given
+// message and key/value pairs as context.
 func (p *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...interface{}) *Logger {
 	ctxInfo := addContextInfo(ctx)
-	log.lgr.Error(err, fmt.Sprintf(msg, args...), ctxInfo...)
-	return &log
+	p.lgr.Error(err, fmt.Sprintf(msg, args...), ctxInfo...)
+	return p
 }
 
 // WithValues appends tags to the logger.
 func (p *Logger) WithValues(keysAndValues ...interface{}) *Logger {
 	if len(keysAndValues) > 0 {
-		tags := append([]interface{}(nil), log.tags...)
+		tags := append([]interface{}(nil), p.tags...)
 		tags = append(tags, keysAndValues...)
-		log.tags = tags
+		p.tags = tags
 		// ZapLoggerTo, WithName and WithValues all return new logger instances.
 		// The logger must be set again with the values stored in the Logger struct.
-		log.lgr = logf.ZapLoggerTo(log.out, log.isTestingMode).WithName(log.name).WithValues(tags...)
+		p.lgr = logf.ZapLoggerTo(p.out, p.isTestingMode).WithName(p.name).WithValues(tags...)
 	}
-	return &log
+	return p
 }
 
 // addContextInfo adds fields extracted from the context to the info/error

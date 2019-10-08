@@ -81,6 +81,6 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	if err := hs.Shutdown(ctx); err != nil {
 		logr.Errorf(nil, err, "Shutdown error: %s\n", err.Error())
 	} else {
-		logr.Infof(nil, "Server stopped.", nil)
+		logr.Info(nil, "Server stopped.")
 	}
 }

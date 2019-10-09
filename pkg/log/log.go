@@ -1,9 +1,11 @@
 package log
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -153,26 +155,63 @@ func (p *Logger) WithValues(keysAndValues ...interface{}) *Logger {
 // addContextInfo adds fields extracted from the context to the info/error
 // log messages.
 func addContextInfo(ctx *gin.Context) []interface{} {
-	var v []interface{}
+	var fields []interface{}
 
 	if ctx != nil {
 		subject := ctx.GetString("subject")
 		if subject != "" {
-			v = append(v, "user_id")
-			v = append(v, subject)
+			fields = append(fields, "user_id")
+			fields = append(fields, subject)
 		}
 
 		if ctx.Request != nil {
-			url := ctx.Request.URL
-			if url != nil {
-				v = append(v, "req_url")
-				v = append(v, url.Scheme+"://"+url.Host+url.Path)
-			}
+			fields = append(fields, addRequestInfo(ctx.Request)...)
 		}
-		currentTime := time.Now()
-		v = append(v, "timestamp")
-		v = append(v, currentTime.Format(time.RFC1123Z))
 	}
 
-	return v
+	currentTime := time.Now()
+	fields = append(fields, "timestamp")
+	fields = append(fields, currentTime.Format(time.RFC1123Z))
+
+	return fields
+}
+
+// addRequestInfo adds fields extracted from context.Request.
+func addRequestInfo(req *http.Request) []interface{} {
+	var fields []interface{}
+	url := req.URL
+
+	if url != nil {
+		fields = append(fields, "req_url")
+		fields = append(fields, url.Scheme+"://"+url.Host+url.Path)
+
+		reqParams := req.URL.Query()
+		if len(reqParams) > 0 {
+			fields = append(fields, "req_params")
+			fields = append(fields, reqParams)
+		}
+	}
+
+	if len(req.Header) > 0 {
+		headers := make(map[string]interface{}, len(req.Header))
+		for k, v := range req.Header {
+			// Hide sensitive information
+			if k == "Authorization" || k == "Cookie" {
+				headers[k] = "*****"
+			} else {
+				headers[k] = v
+			}
+		}
+		fields = append(fields, "req_headers")
+		fields = append(fields, headers)
+	}
+	if req.ContentLength > 0 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(req.Body)
+		newStr := buf.String()
+		fields = append(fields, "req_payload")
+		fields = append(fields, newStr)
+	}
+
+	return fields
 }

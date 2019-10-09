@@ -12,6 +12,7 @@ type userSignupClient struct {
 	crtClient
 }
 
+// UserSignupInterface is the interface for user signup.
 type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)

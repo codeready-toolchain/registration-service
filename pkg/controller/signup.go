@@ -7,80 +7,52 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
-	"github.com/gin-gonic/gin"
-)
+	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 
-const (
-	// SignupStatePending represents a signup in state pending approval.
-	SignupStatePending = "pendingApproval"
-	// SignupStateProvisioning represents a signup in state in provisioning.
-	SignupStateProvisioning = "provisioning"
-	// SignupStateProvisioned represents a signup in state provisioned/ready.
-	SignupStateProvisioned = "provisioned"
+	"github.com/gin-gonic/gin"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config      *configuration.Registry
-	logger      *log.Logger
-	checkerFunc func(ctx *gin.Context) *SignupCheckPayload
+	config        *configuration.Registry
+	logger        *log.Logger
+	signupService signup.SignupService
 }
 
-// SignupCheckPayload payload
-type SignupCheckPayload struct {
-	Ready   bool   `json:"ready"`
-	Reason  string `json:"reason"`
-	Message string `json:"message"`
-}
-
-// NewSignup returns a new Signup instance.
-func NewSignup(logger *log.Logger, config *configuration.Registry, checker func(ctx *gin.Context) *SignupCheckPayload) *Signup {
+// NewSignup returns a new Signup controller instance.
+func NewSignup(logger *log.Logger, config *configuration.Registry, signupService signup.SignupService) *Signup {
 	sc := &Signup{
 		logger: logger,
 		config: config,
 	}
-	if checker != nil {
-		sc.checkerFunc = checker
-	} else {
-		sc.checkerFunc = sc.getSignupCheckInfo
-	}
 	return sc
 }
 
-// getSignupCheckInfo returns the SignupCheck info.
-func (hc *Signup) getSignupCheckInfo(ctx *gin.Context) *SignupCheckPayload {
-	// the integration with the actual k8s api needs to retrieve the
-	// user details from the context here (added by the middleware) and
-	// check the provisioning state.
-	return &SignupCheckPayload{
-		Ready:   true,
-		Reason:  "",
-		Message: "",
-	}
-}
-
-// PostHandler starts the signup process.
+// PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	// initiate signup process here
-	signupCheckInfo := s.checkerFunc(ctx)
-	err := json.NewEncoder(ctx.Writer).Encode(signupCheckInfo)
+	//TODO call s.signupService.CreateUserSignup() to create the actual resource in Kube API Server
 	ctx.Writer.WriteHeader(http.StatusOK)
-	if err != nil {
-		s.logger.Println("error writing response body", err.Error())
-		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
-	}
 }
 
-// GetHandler returns the signup check result.
+// GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	// get signup state here
-	signupCheckInfo := s.checkerFunc(ctx)
-	ctx.Writer.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(ctx.Writer).Encode(signupCheckInfo)
+	// Get the UserSignup resource from the service by the userID
+	signupResource, err := s.signupService.GetUserSignup(ctx.GetString(middleware.SubKey))
 	if err != nil {
-		s.logger.Println("error writing response body", err.Error())
-		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
+		s.logger.Println("error getting UserSignup resource", err.Error())
+		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error getting UserSignup resource")
+	}
+	if signupResource == nil {
+		ctx.Writer.WriteHeader(http.StatusNotFound)
+	} else {
+		ctx.Writer.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(ctx.Writer).Encode(signupResource)
+		if err != nil {
+			s.logger.Println("error writing response body", err.Error())
+			errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
+		}
 	}
 }

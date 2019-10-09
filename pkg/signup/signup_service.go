@@ -8,6 +8,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 
 	errors2 "github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -42,6 +43,7 @@ type SignupStatus struct {
 type SignupServiceConfiguration interface {
 	GetNamespace() string
 	IsTestingMode() bool
+	GetViperInstance() *viper.Viper
 }
 
 // SignupService represents the signup service for controllers.
@@ -54,16 +56,23 @@ type SignupService interface {
 type SignupServiceImpl struct {
 	Namespace   string
 	UserSignups kubeclient.UserSignupInterface
+	checkerFunc func(userID string) (*Signup, error)
 }
 
-// NewSignupService creates a service object for performing user signup-related activities
+// NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
-	// this may need to be updated when the integration is applied
+
 	if cfg.IsTestingMode() {
-		return &SignupServiceImpl{
+		// in testing mode, we mock the checker
+		s := &SignupServiceImpl{
 			Namespace:   cfg.GetNamespace(),
 			UserSignups: nil,
-		}, nil
+		}
+		checkerFunc := cfg.GetViperInstance().Get("checker")
+		if checkerFunc != nil {
+			s.checkerFunc = checkerFunc.(func(userID string) (*Signup, error))
+		}
+		return s, nil
 	}
 
 	k8sConfig, err := rest.InClusterConfig()
@@ -110,9 +119,9 @@ func (s *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.U
 	return created, nil
 }
 
-// GetUserSignup gets the UserSignup resource with the specified userID
+// getUserSignupImpl gets the UserSignup resource with the specified userID
 // Returns nil, nil if the resource is not found
-func (s *SignupServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+func (s *SignupServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
 	// TODO
 	/*
 				us, err := c.UserSignups.Get(userID)
@@ -120,6 +129,12 @@ func (s *SignupServiceImpl) GetUserSignup(userID string) (*Signup, error) {
 		        // transform crt.UserSignup to signup.Signup
 	*/
 	return nil, nil
+}
+
+// GetUserSignup wraps getUserSignupImpl (or the mocked func)
+func (s *SignupServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+	// this will call either getUserSignupImpl() (default) or a mocked func given by a test
+	return s.checkerFunc(userID)
 }
 
 func (s *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {

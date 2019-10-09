@@ -85,10 +85,13 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 		return nil, err
 	}
 
-	return &SignupServiceImpl{
+	s := &SignupServiceImpl{
 		Namespace:   cfg.GetNamespace(),
 		UserSignups: client.UserSignups(),
-	}, nil
+	}
+	// we're not in testing, so we use the default impl of the checker.
+	s.checkerFunc = s.getUserSignupImpl
+	return s, nil
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID

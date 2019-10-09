@@ -442,6 +442,13 @@ func (s *TestConfigurationSuite) TestGetNamespace() {
 	resetFunc := testutils.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
+	s.Run("default", func() {
+		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultNamespace, config.GetNamespace())
+	})
+
 	s.Run("file", func() {
 		resetFunc := testutils.UnsetEnvVarAndRestore(key)
 		defer resetFunc()

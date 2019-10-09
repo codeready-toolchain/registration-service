@@ -1,7 +1,6 @@
 package signup
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -15,14 +14,17 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// SignupServiceConfiguration represents the config used for the signup service.
 type SignupServiceConfiguration interface {
 	GetNamespace() string
 }
 
+// SignupService represents the signup service for controllers.
 type SignupService interface {
-	CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error)
+	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
+// SignupServiceImpl represents the implementation of the signup service.
 type SignupServiceImpl struct {
 	Namespace   string
 	UserSignups kubeclient.UserSignupInterface
@@ -47,7 +49,7 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (c *SignupServiceImpl) CreateUserSignup(ctx context.Context, username, userID string) (*crtapi.UserSignup, error) {
+func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
 	name, err := c.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err

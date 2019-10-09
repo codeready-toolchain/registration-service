@@ -23,7 +23,7 @@ type Signup struct {
 func NewSignup(logger *log.Logger, config *configuration.Registry) (*Signup, error) {
 	signupService, err := signup.NewSignupService(config)
 	if err != nil {
-		logger.Printf("error creating SignupService", err)
+		logger.Printf("error creating SignupService: %s", err.Error())
 		return nil, err
 	}
 

@@ -1,7 +1,6 @@
 package signup_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -43,7 +42,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup(context.Background(), "jsmith", userID.String())
+	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -72,7 +71,7 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup(context.Background(), "jane.doe@redhat.com", userID.String())
+	userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -98,7 +97,7 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "john#gmail.com", userID.String())
+	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
 	require.Error(s.T(), err)
 }
 
@@ -120,7 +119,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	created, err := svc.CreateUserSignup(context.Background(), "john@gmail.com", userID.String())
+	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
 	require.NoError(s.T(), err)
 
 	require.NotEqual(s.T(), "john-at-gmail-com", created.Name)
@@ -136,7 +135,7 @@ func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "jack.smith@redhat.com", userID.String())
+	_, err = svc.CreateUserSignup("jack.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
@@ -151,7 +150,7 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "hank.smith@redhat.com", userID.String())
+	_, err = svc.CreateUserSignup("hank.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }

@@ -36,7 +36,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/square/go-jose.v2 v2.3.1
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.0.0-20190913080256-21721929cffa // indirect
+	k8s.io/api v0.0.0-20190913080256-21721929cffa
 	k8s.io/apimachinery v0.0.0-20190917163033-a891081239f5
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf // indirect

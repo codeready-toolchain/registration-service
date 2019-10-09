@@ -13,6 +13,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+	apiv1 "k8s.io/api/core/v1"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -65,8 +66,8 @@ func getTestSignupCheckInfo(userID string) (*signup.Signup, error) {
 	payload := &signup.Signup{
 		TargetCluster: "clusterX",
 		Username:      "userID",
-		Status: signup.SignupStatus{
-			Ready:   true,
+		Status: signup.Status{
+			Ready:   apiv1.ConditionTrue,
 			Reason:  "",
 			Message: "",
 		},
@@ -75,11 +76,11 @@ func getTestSignupCheckInfo(userID string) (*signup.Signup, error) {
 		testRequestTimestamp = time.Now().Unix()
 	}
 	if time.Now().Unix()-testRequestTimestamp >= 5 {
-		payload.Status.Ready = true
+		payload.Status.Ready = apiv1.ConditionTrue
 		payload.Status.Reason = "provisioned"
 		payload.Status.Message = "testing mode - done"
 	} else {
-		payload.Status.Ready = false
+		payload.Status.Ready = apiv1.ConditionFalse
 		payload.Status.Reason = "provisioning"
 		payload.Status.Message = "testing mode - waiting for timeout"
 	}
@@ -126,7 +127,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		require.NoError(s.T(), err)
 
 		val := data.Status.Ready
-		assert.False(s.T(), val, "ProvisioningDone is true in test mode signupcheck initial response")
+		assert.Equal(s.T(), apiv1.ConditionFalse, val, "ProvisioningDone is true in test mode signupcheck initial response")
 	})
 
 	s.Run("ProvisioningDone in testing mode", func() {
@@ -147,11 +148,11 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			err := json.Unmarshal(rr.Body.Bytes(), &data)
 			require.NoError(s.T(), err)
 			if time.Now().Unix() < testStartTimestamp+5 {
-				assert.False(s.T(), data.Status.Ready, "ProvisioningDone is true before 10s in test mode signupcheck response")
+				assert.Equal(s.T(), apiv1.ConditionFalse, data.Status.Ready, "ProvisioningDone is true before 10s in test mode signupcheck response")
 				assert.Equal(s.T(), "provisioning", data.Status.Reason)
 				assert.Equal(s.T(), "testing mode - waiting for timeout", data.Status.Message)
 			} else {
-				assert.True(s.T(), data.Status.Ready, "ProvisioningDone is false after 10s in test mode signupcheck response")
+				assert.Equal(s.T(), apiv1.ConditionTrue, data.Status.Ready, "ProvisioningDone is false after 10s in test mode signupcheck response")
 				assert.Equal(s.T(), "provisioned", data.Status.Reason)
 				assert.Equal(s.T(), "testing mode - done", data.Status.Message)
 			}

@@ -17,11 +17,11 @@ import (
 type Signup struct {
 	config        *configuration.Registry
 	logger        *log.Logger
-	signupService signup.SignupService
+	signupService signup.Service
 }
 
 // NewSignup returns a new Signup controller instance.
-func NewSignup(logger *log.Logger, config *configuration.Registry, signupService signup.SignupService) *Signup {
+func NewSignup(logger *log.Logger, config *configuration.Registry, signupService signup.Service) *Signup {
 	sc := &Signup{
 		logger:        logger,
 		config:        config,

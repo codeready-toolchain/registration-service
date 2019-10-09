@@ -155,9 +155,9 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	require.Equal(s.T(), expectedErr, err)
 }
 
-func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {
+func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient) {
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
-	return &signup.SignupServiceImpl{
+	return &signup.ServiceImpl{
 		Namespace:   TestNamespace,
 		UserSignups: fakeClient,
 	}, fakeClient

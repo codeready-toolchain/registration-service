@@ -9,6 +9,7 @@ import (
 
 	errors2 "github.com/pkg/errors"
 	"github.com/spf13/viper"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -25,46 +26,47 @@ type Signup struct {
 	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
 	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
 	// For example, johnsmith@redhat.com -> johnsmith-at-redhat-com
-	Username string       `json:"username"`
-	Status   SignupStatus `json:"status,omitempty"`
+	Username string `json:"username"`
+	Status   Status `json:"status,omitempty"`
 }
 
-// SignupStatus represents UserSignup resource status
-type SignupStatus struct {
+// Status represents UserSignup resource status
+type Status struct {
 	// If true then the corresponding user's account is ready to be used
-	Ready bool `json:"ready"`
+	Ready apiv1.ConditionStatus `json:"ready"`
 	// Brief reason for the status last transition.
 	Reason string `json:"reason"`
 	// Human readable message indicating details about last transition.
 	Message string `json:"message,omitempty"`
 }
 
-// SignupServiceConfiguration represents the config used for the signup service.
-type SignupServiceConfiguration interface {
+// ServiceConfiguration represents the config used for the signup service.
+type ServiceConfiguration interface {
 	GetNamespace() string
 	IsTestingMode() bool
 	GetViperInstance() *viper.Viper
 }
 
-// SignupService represents the signup service for controllers.
-type SignupService interface {
+// Service represents the signup service for controllers.
+type Service interface {
 	GetUserSignup(userID string) (*Signup, error)
 	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
-// SignupServiceImpl represents the implementation of the signup service.
-type SignupServiceImpl struct {
+// ServiceImpl represents the implementation of the signup service.
+type ServiceImpl struct {
 	Namespace   string
 	UserSignups kubeclient.UserSignupInterface
+	Client      *kubeclient.CRTV1Alpha1Client
 	checkerFunc func(userID string) (*Signup, error)
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
+func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 
 	if cfg.IsTestingMode() {
 		// in testing mode, we mock the checker
-		s := &SignupServiceImpl{
+		s := &ServiceImpl{
 			Namespace:   cfg.GetNamespace(),
 			UserSignups: nil,
 		}
@@ -85,9 +87,10 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 		return nil, err
 	}
 
-	s := &SignupServiceImpl{
+	s := &ServiceImpl{
 		Namespace:   cfg.GetNamespace(),
 		UserSignups: client.UserSignups(),
+		Client:      client,
 	}
 	// we're not in testing, so we use the default impl of the checker.
 	s.checkerFunc = s.getUserSignupImpl
@@ -95,7 +98,7 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
 	name, err := s.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err
@@ -124,23 +127,44 @@ func (s *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.U
 
 // getUserSignupImpl gets the UserSignup resource with the specified userID
 // Returns nil, nil if the resource is not found
-func (s *SignupServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
-	// TODO
-	/*
-				us, err := c.UserSignups.Get(userID)
-			    // TODO Check if signup exists. If yes then get the corresponding MUR and populate the status
-		        // transform crt.UserSignup to signup.Signup
-	*/
-	return nil, nil
+func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
+	// get signup resource
+	userSignup, err := s.UserSignups.Get(userID)
+	if err != nil {
+		return nil, err
+	}
+	// get MUR for it
+	mur, err := s.Client.MasterUserRecords().Get(userSignup.GetName())
+	if err != nil {
+		return nil, err
+	}
+	if len(mur.Status.UserAccounts) != 1 {
+		return nil, errors2.New("user has not exactly one account")
+	}
+	account := mur.Status.UserAccounts[0]
+	if len(account.UserAccountStatus.Conditions) == 0 {
+		return nil, errors2.New("account conditions is empty")
+	}
+	latestAccountCondition := account.UserAccountStatus.Conditions[len(account.UserAccountStatus.Conditions)-1]
+	signupResponse := &Signup{
+		TargetCluster: account.TargetCluster,
+		Username:      mur.Spec.UserID,
+		Status: Status{
+			Ready:   latestAccountCondition.Status,
+			Reason:  latestAccountCondition.Reason,
+			Message: latestAccountCondition.Message,
+		},
+	}
+	return signupResponse, nil
 }
 
 // GetUserSignup wraps getUserSignupImpl (or the mocked func)
-func (s *SignupServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
 	// this will call either getUserSignupImpl() (default) or a mocked func given by a test
 	return s.checkerFunc(userID)
 }
 
-func (s *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {
+func (s *ServiceImpl) transformAndValidateUserName(username string) (string, error) {
 	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
 
 	errs := validation.IsQualifiedName(replaced)

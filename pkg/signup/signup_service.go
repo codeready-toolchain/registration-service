@@ -55,10 +55,10 @@ type Service interface {
 
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct {
-	Namespace   string
-	UserSignups kubeclient.UserSignupInterface
-	Client      *kubeclient.CRTV1Alpha1Client
-	checkerFunc func(userID string) (*Signup, error)
+	Namespace         string
+	UserSignups       kubeclient.UserSignupInterface
+	MasterUserRecords kubeclient.MasterUserRecordInterface
+	checkerFunc       func(userID string) (*Signup, error)
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
@@ -88,9 +88,9 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 	}
 
 	s := &ServiceImpl{
-		Namespace:   cfg.GetNamespace(),
-		UserSignups: client.UserSignups(),
-		Client:      client,
+		Namespace:         cfg.GetNamespace(),
+		UserSignups:       client.UserSignups(),
+		MasterUserRecords: client.MasterUserRecords(),
 	}
 	// we're not in testing, so we use the default impl of the checker.
 	s.checkerFunc = s.getUserSignupImpl
@@ -134,7 +134,7 @@ func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
 		return nil, err
 	}
 	// get MUR for it
-	mur, err := s.Client.MasterUserRecords().Get(userSignup.GetName())
+	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
 	if err != nil {
 		return nil, err
 	}

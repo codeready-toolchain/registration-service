@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,7 +9,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -41,14 +40,12 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	userSignup, err := s.signupService.CreateUserSignup(ctx, ctx.GetString(middleware.UsernameKey), ctx.GetString(middleware.SubKey))
 	if err != nil {
-
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Printf("Error creating UserSignup: %s", err.Error()),
+		})
+		return
 	}
 
 	s.logger.Printf("UserSignup %s created", userSignup.Name)
-
-	err = json.NewEncoder(ctx.Writer).Encode(nil)
-	if err != nil {
-		s.logger.Println("error writing response body", err.Error())
-		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
-	}
+	ctx.Status(http.StatusOK)
 }

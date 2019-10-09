@@ -57,7 +57,7 @@ func main() {
 		logr.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
 		logr.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			logr.Info(nil, err.Error())
+			logr.Error(nil, err, err.Error())
 		}
 	}()
 

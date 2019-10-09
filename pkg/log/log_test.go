@@ -49,8 +49,9 @@ func (s *TestLogSuite) TestLogHandler() {
 		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test logger with no formatting"))
-		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
 		assert.True(s.T(), strings.Contains(value, "INFO"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log infof", func() {
@@ -60,11 +61,11 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
-		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\"}"))
+		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
 		assert.True(s.T(), strings.Contains(value, "INFO"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log error", func() {
@@ -73,11 +74,11 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Error(ctx, errors.New("test error"), "test error with no formatting")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test error with no formatting"))
-		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
+		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\""))
 		assert.True(s.T(), strings.Contains(value, "ERROR"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log errorf", func() {
@@ -86,11 +87,11 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
-		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\"}"))
+		assert.True(s.T(), strings.Contains(value, "\"error\": \"test error\""))
 		assert.True(s.T(), strings.Contains(value, "ERROR"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log infof with http request", func() {
@@ -102,11 +103,11 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
-		assert.True(s.T(), strings.Contains(value, "\"req_url\": \"http://example.com/api/v1/health\"}"))
+		assert.True(s.T(), strings.Contains(value, "\"req_url\": \"http://example.com/api/v1/health\""))
 		assert.True(s.T(), strings.Contains(value, "INFO"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log infof withValues", func() {
@@ -116,12 +117,12 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.WithValues("testing", "with-values").Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))
 		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
 		assert.True(s.T(), strings.Contains(value, "INFO"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 
 	s.Run("log infof setOutput when tags is set", func() {
@@ -133,12 +134,12 @@ func (s *TestLogSuite) TestLogHandler() {
 
 		lgr.Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
 		assert.True(s.T(), strings.Contains(value, "logger_tests"))
 		assert.True(s.T(), strings.Contains(value, "test info"))
 		assert.True(s.T(), strings.Contains(value, "\"testing\": \"with-values\""))
 		assert.True(s.T(), strings.Contains(value, "\"testing-2\": \"with-values-2\""))
 		assert.True(s.T(), strings.Contains(value, "\"user_id\": \"test\""))
 		assert.True(s.T(), strings.Contains(value, "INFO"))
+		assert.True(s.T(), strings.Contains(value, "\"timestamp\":"))
 	})
 }

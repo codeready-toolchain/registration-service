@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -168,6 +169,9 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 				v = append(v, url.Scheme+"://"+url.Host+url.Path)
 			}
 		}
+		currentTime := time.Now()
+		v = append(v, "timestamp")
+		v = append(v, currentTime.Format(time.RFC1123Z))
 	}
 
 	return v

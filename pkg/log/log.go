@@ -207,8 +207,13 @@ func addRequestInfo(req *http.Request) []interface{} {
 	}
 	if req.ContentLength > 0 {
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(req.Body)
-		newStr := buf.String()
+		_, err := buf.ReadFrom(req.Body)
+		var newStr string
+		if err != nil {
+			newStr = "<invalid JSON>"
+		} else {
+			newStr = buf.String()
+		}
 		fields = append(fields, "req_payload")
 		fields = append(fields, newStr)
 	}

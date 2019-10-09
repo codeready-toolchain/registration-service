@@ -210,7 +210,7 @@ func addRequestInfo(req *http.Request) []interface{} {
 		_, err := buf.ReadFrom(req.Body)
 		var newStr string
 		if err != nil {
-			newStr = "<invalid JSON>"
+			newStr = "<invalid data>"
 		} else {
 			newStr = buf.String()
 		}

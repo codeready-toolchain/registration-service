@@ -23,8 +23,9 @@ type Signup struct {
 // NewSignup returns a new Signup controller instance.
 func NewSignup(logger *log.Logger, config *configuration.Registry, signupService signup.SignupService) *Signup {
 	sc := &Signup{
-		logger: logger,
-		config: config,
+		logger:        logger,
+		config:        config,
+		signupService: signupService,
 	}
 	return sc
 }
@@ -32,7 +33,7 @@ func NewSignup(logger *log.Logger, config *configuration.Registry, signupService
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
-	//TODO call s.signupService.CreateUserSignup() to create the actual resource in Kube API Server
+	// TODO call s.signupService.CreateUserSignup() to create the actual resource in Kube API Server
 	ctx.Writer.WriteHeader(http.StatusOK)
 }
 

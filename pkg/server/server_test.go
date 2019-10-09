@@ -28,10 +28,6 @@ func (s *TestServerSuite) TestServer() {
 	err = srv.SetupRoutes()
 	require.NoError(s.T(), err)
 
-	// Check that there are routes registered.
-	routes := srv.GetRegisteredRoutes()
-	require.NotEmpty(s.T(), routes)
-
 	// Check that Engine() returns the router object.
 	require.NotNil(s.T(), srv.Engine())
 }

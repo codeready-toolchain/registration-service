@@ -88,36 +88,34 @@ func WithValues(keysAndValues map[string]interface{}) *Logger {
 
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
-func (l *Logger) Info(ctx *gin.Context, msg string) *Logger {
-	return log.Infof(ctx, msg)
+func (l *Logger) Info(ctx *gin.Context, msg string) {
+	log.Infof(ctx, msg)
 }
 
 // Infof logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
-func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) *Logger {
+func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	arguments := make([]interface{}, len(args))
 	for i, arg := range args {
 		arguments[i] = arg
 	}
 	if len(arguments) > 0 {
-		log.logr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
+		l.logr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
 	} else {
-		log.logr.Info(msg, ctxInfo...)
+		l.logr.Info(msg, ctxInfo...)
 	}
-
-	return log
 }
 
 // Error logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
-func (l *Logger) Error(ctx *gin.Context, err error, msg string) *Logger {
-	return log.Errorf(ctx, err, msg)
+func (l *Logger) Error(ctx *gin.Context, err error, msg string) {
+	l.Errorf(ctx, err, msg)
 }
 
 // Errorf logs are used for logging errors. It will log the error with the given
 // message and key/value pairs as context.
-func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string) *Logger {
+func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	arguments := make([]interface{}, len(args))
 	for i, arg := range args {
@@ -125,12 +123,10 @@ func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string)
 	}
 
 	if len(arguments) > 0 {
-		log.logr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
+		l.logr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
 	} else {
-		log.logr.Error(err, msg, ctxInfo...)
+		l.logr.Error(err, msg, ctxInfo...)
 	}
-
-	return log
 }
 
 // WithValues appends tags to the logger.

@@ -20,8 +20,8 @@ import (
 )
 
 var (
-	log  *Logger
-	once sync.Once
+	logger *Logger
+	once   sync.Once
 )
 
 type Logger struct {
@@ -53,7 +53,7 @@ func Init(name string, out io.Writer, development bool) {
 	logf.SetLogger(zap.Logger())
 
 	once.Do(func() {
-		log = newLogger(name, out, development)
+		logger = newLogger(name, out, development)
 	})
 }
 
@@ -65,33 +65,33 @@ func newLogger(name string, out io.Writer, development bool) *Logger {
 
 // Info logs a non-error message.
 func Info(ctx *gin.Context, msg string) {
-	log.Info(ctx, msg)
+	logger.Info(ctx, msg)
 }
 
 // Infof logs a non-error formatted message.
 func Infof(ctx *gin.Context, msg string, args ...string) {
-	log.Infof(ctx, msg, args...)
+	logger.Infof(ctx, msg, args...)
 }
 
 // Error logs the error with the given message.
 func Error(ctx *gin.Context, err error, msg string) {
-	log.Error(ctx, err, msg)
+	logger.Error(ctx, err, msg)
 }
 
 // Errorf logs the error with the given formatted message.
 func Errorf(ctx *gin.Context, err error, msg string, args ...string) {
-	log.Errorf(ctx, err, msg, args...)
+	logger.Errorf(ctx, err, msg, args...)
 }
 
 // WithValues creates a new logger with additional key-value pairs in the context
 func WithValues(keysAndValues map[string]interface{}) *Logger {
-	return log.WithValues(keysAndValues)
+	return logger.WithValues(keysAndValues)
 }
 
 // Info logs are used for non-error messages. It will log a message with
 // the given key/value pairs as context.
 func (l *Logger) Info(ctx *gin.Context, msg string) {
-	log.Infof(ctx, msg)
+	logger.Infof(ctx, msg)
 }
 
 // Infof logs are used for non-error messages. It will log a message with
@@ -136,9 +136,9 @@ func (l *Logger) WithValues(keysAndValues map[string]interface{}) *Logger {
 	if len(keysAndValues) > 0 {
 		// ZapLoggerTo, name and WithValues all return new logger instances.
 		// The logger must be set again with the values stored in the Logger struct.
-		log.logr = log.logr.WithValues(slice(keysAndValues)...)
+		logger.logr = logger.logr.WithValues(slice(keysAndValues)...)
 	}
-	return log
+	return logger
 }
 
 func slice(keysAndValues map[string]interface{}) []interface{} {

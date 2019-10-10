@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
@@ -153,6 +154,10 @@ func slice(keysAndValues map[string]interface{}) []interface{} {
 func addContextInfo(ctx *gin.Context) []interface{} {
 	var fields []interface{}
 
+	currentTime := time.Now()
+	fields = append(fields, "timestamp")
+	fields = append(fields, currentTime.Format(time.RFC1123Z))
+
 	if ctx != nil {
 		subject := ctx.GetString("subject")
 		if subject != "" {
@@ -160,14 +165,16 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 			fields = append(fields, subject)
 		}
 
+		username := ctx.GetString("username")
+		if username != "" {
+			fields = append(fields, "username")
+			fields = append(fields, username)
+		}
+
 		if ctx.Request != nil {
 			fields = append(fields, addRequestInfo(ctx.Request)...)
 		}
 	}
-
-	currentTime := time.Now()
-	fields = append(fields, "timestamp")
-	fields = append(fields, currentTime.Format(time.RFC1123Z))
 
 	return fields
 }
@@ -183,8 +190,17 @@ func addRequestInfo(req *http.Request) []interface{} {
 
 		reqParams := req.URL.Query()
 		if len(reqParams) > 0 {
+			params := make(map[string][]string)
+			for name, values := range reqParams {
+				if strings.ToLower(name) != "token" {
+					params[name] = values
+				} else {
+					// Hide sensitive information
+					params[name] = []string{"*****"}
+				}
+			}
 			fields = append(fields, "req_params")
-			fields = append(fields, reqParams)
+			fields = append(fields, params)
 		}
 	}
 

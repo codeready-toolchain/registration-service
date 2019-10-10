@@ -47,7 +47,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
-		ctx.Writer.WriteHeader(http.StatusNotFound)
+		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
 		ctx.Writer.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(ctx.Writer).Encode(signupResource)

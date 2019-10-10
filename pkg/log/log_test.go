@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,8 +22,8 @@ func TestLogHandler(t *testing.T) {
 	t.Run("log info", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Set("subject", "test")
-		ctx.Set("username", "test-user")
+		ctx.Set(context.SubKey, "test")
+		ctx.Set(context.UsernameKey, "test-user")
 
 		Info(ctx, "test logger with no formatting")
 		value := buf.String()
@@ -37,7 +39,7 @@ func TestLogHandler(t *testing.T) {
 	t.Run("log infof", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Set("subject", "test")
+		ctx.Set(context.SubKey, "test")
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
@@ -136,7 +138,7 @@ func TestLogHandler(t *testing.T) {
 	t.Run("log infof withValues", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Set("subject", "test")
+		ctx.Set(context.SubKey, "test")
 
 		m := make(map[string]interface{})
 		m["testing"] = "with-values"
@@ -160,7 +162,7 @@ func TestLogHandler(t *testing.T) {
 
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Set("subject", "test")
+		ctx.Set(context.SubKey, "test")
 
 		logr.Infof(ctx, "test %s", "info")
 		value := buf.String()

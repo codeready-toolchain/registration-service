@@ -6,19 +6,9 @@ import (
 	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 
 	"github.com/gin-gonic/gin"
-)
-
-const (
-	// UsernameKey is the context key for preferred_username claim
-	UsernameKey = "username"
-	// EmailKey is the context key for email claim
-	EmailKey = "email"
-	// SubKey is the context key for subject claim
-	SubKey = "subject"
-	// JWTClaimsKey is the context key for the claims struct
-	JWTClaimsKey = "jwtClaims"
 )
 
 // JWTMiddleware is the JWT token validation middleware
@@ -78,11 +68,11 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		}
 		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
-		c.Set(UsernameKey, token.Username)
-		c.Set(EmailKey, token.Email)
-		c.Set(SubKey, token.Subject)
+		c.Set(context.UsernameKey, token.Username)
+		c.Set(context.EmailKey, token.Email)
+		c.Set(context.SubKey, token.Subject)
 		// for convenience, add the claims to the context.
-		c.Set(JWTClaimsKey, token)
+		c.Set(context.JWTClaimsKey, token)
 		c.Next()
 	}
 }

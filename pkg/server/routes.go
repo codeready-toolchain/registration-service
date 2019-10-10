@@ -51,9 +51,11 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 
 // SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
+
 	var err error
 	srv.routesSetup.Do(func() {
-		// initialize default managers
+
+			// initialize default managers
 		_, err = auth.InitializeDefaultTokenParser(srv.logger, srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
@@ -63,7 +65,8 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
-		signupSrv, err := signup.NewSignupService(srv.Config())
+		var signupSrv signup.Service
+		signupSrv, err = signup.NewSignupService(srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init signup service")
 			return
@@ -98,6 +101,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		static := StaticHandler{Assets: static.Assets}
 		// capturing all non-matching routes, assuming them to be static content
 		srv.router.NoRoute(static.ServeHTTP)
+
 	})
 	return err
 }

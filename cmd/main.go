@@ -18,7 +18,7 @@ var logr log.Logger
 
 func main() {
 	// create logrger and registry
-	logr = *log.InitializeLogger("logger")
+	logr = *log.InitializeLogger("registration-service")
 
 	// Parse flags
 	var configFilePath string
@@ -77,9 +77,9 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	logr.Infof(nil, "\nShutdown with timeout: %s\n", timeout.String())
+	logr.Infof(nil, "Shutdown with timeout: %s", timeout.String())
 	if err := hs.Shutdown(ctx); err != nil {
-		logr.Errorf(nil, err, "Shutdown error: %s\n", err.Error())
+		logr.Errorf(nil, err, "Shutdown error")
 	} else {
 		logr.Info(nil, "Server stopped.")
 	}

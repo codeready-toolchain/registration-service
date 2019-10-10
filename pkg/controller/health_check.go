@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,7 +55,7 @@ func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
 	}
 	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
 	if err != nil {
-		logr.Errorf(ctx, err, "error writing response body: %s", err.Error())
+		log.Errorf(ctx, err, "error writing response body: %s", err.Error())
 		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
 	}
 }

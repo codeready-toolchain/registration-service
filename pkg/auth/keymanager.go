@@ -14,8 +14,6 @@ import (
 	"gopkg.in/square/go-jose.v2"
 )
 
-var logr = log.GetLogger()
-
 // KeyManagerConfiguration represents a partition of the configuration
 // that is used for configuring the KeyManager.
 type KeyManagerConfiguration interface {
@@ -52,7 +50,7 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 	}
 	// fetch raw keys
 	if keysEndpointURL != "" {
-		logr.Infof(nil, "fetching public keys from url: %s", keysEndpointURL)
+		log.Infof(nil, "fetching public keys from url: %s", keysEndpointURL)
 		keys, err := km.fetchKeys(keysEndpointURL)
 		if err != nil {
 			return nil, err
@@ -62,7 +60,7 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 			km.keyMap[key.KeyID] = key.Key
 		}
 	} else {
-		logr.Info(nil, "no public key url given, not fetching keys")
+		log.Info(nil, "no public key url given, not fetching keys")
 	}
 	return km, nil
 }
@@ -119,7 +117,7 @@ func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error)
 		return nil, err
 	}
 
-	logr.Infof(nil, "%v public keys loaded", string(keysBytes))
+	log.Infof(nil, "%v public keys loaded", string(keysBytes))
 	// return the retrieved keys
 	return keys, nil
 }
@@ -140,11 +138,11 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
 		if err != io.EOF && err != nil {
-			logr.Error(nil, err, "failed read remaining data before closing response")
+			log.Error(nil, err, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()
 		if err != nil {
-			logr.Error(nil, err, "failed to close response after reading")
+			log.Error(nil, err, "failed to close response after reading")
 		}
 	}()
 	// read and parse response body
@@ -157,7 +155,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
 		err := errors.New("unable to obtain public keys from remote service")
-		logr.Errorf(nil, err, "response_status: %s, response_body: %s, url: %s", res.Status, bodyString, keysEndpointURL)
+		log.Errorf(nil, err, "response_status: %s, response_body: %s, url: %s", res.Status, bodyString, keysEndpointURL)
 		return nil, errors.New("unable to obtain public keys from remote service")
 	}
 	// unmarshal the keys

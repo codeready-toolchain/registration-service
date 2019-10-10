@@ -14,11 +14,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 )
 
-var logr log.Logger
-
 func main() {
-	// create logrger and registry
-	logr = *log.InitializeLogger("registration-service")
+	// create logger and registry
+	log.Init("registration-service", os.Stderr, false)
 
 	// Parse flags
 	var configFilePath string
@@ -50,14 +48,14 @@ func main() {
 	}
 
 	routesToPrint := srv.GetRegisteredRoutes()
-	logr.Infof(nil, "Configured routes: %s", routesToPrint)
+	log.Infof(nil, "Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		logr.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
-		logr.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
+		log.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
+		log.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			logr.Error(nil, err, err.Error())
+			log.Error(nil, err, err.Error())
 		}
 	}()
 
@@ -73,14 +71,14 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	sigReceived := <-stop
-	logr.Infof(nil, "Signal received: %+v", sigReceived.String())
+	log.Infof(nil, "Signal received: %+v", sigReceived.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	logr.Infof(nil, "Shutdown with timeout: %s", timeout.String())
+	log.Infof(nil, "Shutdown with timeout: %s", timeout.String())
 	if err := hs.Shutdown(ctx); err != nil {
-		logr.Errorf(nil, err, "Shutdown error")
+		log.Errorf(nil, err, "Shutdown error")
 	} else {
-		logr.Info(nil, "Server stopped.")
+		log.Info(nil, "Server stopped.")
 	}
 }

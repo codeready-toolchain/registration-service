@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
@@ -14,32 +13,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
+	sync "github.com/matryer/resync"
 	"github.com/spf13/pflag"
 )
 
 var (
-	log *Logger
+	log  *Logger
+	once sync.Once
 )
 
-// Log interface for the logger.
-type Log interface {
-	Errorf(ctx *gin.Context, err error, msg string, args ...string)
-	Infof(ctx *gin.Context, msg string, args ...string)
-	WithValues(keysAndValues ...interface{})
-	SetOutput(out io.Writer, isTestingMode bool)
-}
-
 type Logger struct {
-	lgr           logr.Logger
-	name          string
-	tags          []interface{}
-	out           io.Writer
-	isTestingMode bool
+	logr logr.Logger
 }
 
-// InitializeLogger initializes the logger.
-func InitializeLogger(withName string) *Logger {
-
+// Init initializes the logger.
+func Init(name string, out io.Writer, development bool) {
 	zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
 
 	// Add the zap logger flag set to the CLI. The flag set must
@@ -62,34 +50,40 @@ func InitializeLogger(withName string) *Logger {
 	// uniform and structured logs.
 	logf.SetLogger(zap.Logger())
 
-	// set the logger.
-	log = &Logger{
-		name:          withName,
-		lgr:           logf.Log.WithName(withName),
-		out:           os.Stdout,
-		isTestingMode: false,
-	}
-
-	return log
+	once.Do(func() {
+		log = newLogger(name, out, development)
+	})
 }
 
-func (l *Logger) SetOutput(out io.Writer, isTestingMode bool) *Logger {
-	// WithValues, WithName and ZapLoggerTo all result in a new logger instance.
-	// The values stored in the Logger struct must be set again.
-	if len(log.tags) > 0 {
-		log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name).WithValues(log.tags...)
-	} else {
-		log.lgr = logf.ZapLoggerTo(out, isTestingMode).WithName(log.name)
+func newLogger(name string, out io.Writer, development bool) *Logger {
+	return &Logger{
+		logr: logf.ZapLoggerTo(out, development).WithName(name),
 	}
-
-	log.out = out
-	log.isTestingMode = isTestingMode
-	return log
 }
 
-// GetLogger returns the current logger object.
-func GetLogger() *Logger {
-	return log
+// Info logs a non-error message.
+func Info(ctx *gin.Context, msg string) {
+	log.Info(ctx, msg)
+}
+
+// Infof logs a non-error formatted message.
+func Infof(ctx *gin.Context, msg string, args ...string) {
+	log.Infof(ctx, msg, args...)
+}
+
+// Error logs the error with the given message.
+func Error(ctx *gin.Context, err error, msg string) {
+	log.Error(ctx, err, msg)
+}
+
+// Errorf logs the error with the given formatted message.
+func Errorf(ctx *gin.Context, err error, msg string, args ...string) {
+	log.Errorf(ctx, err, msg, args...)
+}
+
+// WithValues creates a new logger with additional key-value pairs in the context
+func WithValues(keysAndValues map[string]interface{}) *Logger {
+	return log.WithValues(keysAndValues)
 }
 
 // Info logs are used for non-error messages. It will log a message with
@@ -107,9 +101,9 @@ func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) *Logger {
 		arguments[i] = arg
 	}
 	if len(arguments) > 0 {
-		log.lgr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
+		log.logr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
 	} else {
-		log.lgr.Info(msg, ctxInfo...)
+		log.logr.Info(msg, ctxInfo...)
 	}
 
 	return log
@@ -131,25 +125,31 @@ func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string)
 	}
 
 	if len(arguments) > 0 {
-		log.lgr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
+		log.logr.Error(err, fmt.Sprintf(msg, arguments...), ctxInfo...)
 	} else {
-		log.lgr.Error(err, msg, ctxInfo...)
+		log.logr.Error(err, msg, ctxInfo...)
 	}
 
 	return log
 }
 
 // WithValues appends tags to the logger.
-func (l *Logger) WithValues(keysAndValues ...interface{}) *Logger {
+func (l *Logger) WithValues(keysAndValues map[string]interface{}) *Logger {
 	if len(keysAndValues) > 0 {
-		tags := append([]interface{}(nil), log.tags...)
-		tags = append(tags, keysAndValues...)
-		log.tags = tags
-		// ZapLoggerTo, WithName and WithValues all return new logger instances.
+		// ZapLoggerTo, name and WithValues all return new logger instances.
 		// The logger must be set again with the values stored in the Logger struct.
-		log.lgr = logf.ZapLoggerTo(log.out, log.isTestingMode).WithName(log.name).WithValues(tags...)
+		log.logr = log.logr.WithValues(slice(keysAndValues)...)
 	}
 	return log
+}
+
+func slice(keysAndValues map[string]interface{}) []interface{} {
+	tags := make([]interface{}, 0, len(keysAndValues)*2)
+	for k, v := range keysAndValues {
+		tags = append(tags, k)
+		tags = append(tags, v)
+	}
+	return tags
 }
 
 // addContextInfo adds fields extracted from the context to the info/error

@@ -6,6 +6,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 
@@ -38,7 +39,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	_, err = h.Assets.Open(path)
 	if err != nil {
 		// File does not exist, redirect to index.
-		logr.Infof(ctx, "File %s does not exist.", path)
+		log.Infof(ctx, "File %s does not exist.", path)
 		http.Redirect(ctx.Writer, ctx.Request, "/index.html", http.StatusSeeOther)
 		return
 	}

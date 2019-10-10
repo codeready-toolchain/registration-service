@@ -8,14 +8,11 @@ import (
 	"sync"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 )
-
-var logr = log.GetLogger()
 
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.

@@ -1,25 +1,23 @@
 package controller_test
 
 import (
-	//"encoding/json"
+	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	testutils "github.com/codeready-toolchain/registration-service/test"
-
-	/*
+	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/codeready-toolchain/registration-service/test/fake"
-	"github.com/gofrs/uuid"
-	apiv1 "k8s.io/api/core/v1"
-	*/
+	testutils "github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -42,9 +40,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
-
 	// Create signup instance.
 	signupCtrl := controller.NewSignup(logger, s.Config, nil)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
@@ -62,8 +57,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	})
 }
 
-/* TODO: this need to be re-enabled when the GetSignup stuff works
-
 func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
@@ -73,75 +66,105 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
-
 	// Create a mock SignupService
-	svc := &signup.ServiceImpl{
-		Namespace:   "test-namespace-123",
-		UserSignups: fake.NewFakeUserSignupClient("test-namespace-123"),
-		MasterUserRecords: fake.NewFakeMasterUserRecordClient("test-namespace-123"),
-	}
+	svc := &FakeSignupService{}
 	// Create UserSignup
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), userSignup)
+	userID := uuid.NewV4().String()
 
-	// Create SignupCheck check instance.
-	SignupCheckCtrl := controller.NewSignup(logger, s.Config, svc)
-	handler := gin.HandlerFunc(SignupCheckCtrl.GetHandler)
+	// Create Signup controller instance.
+	ctrl := controller.NewSignup(logger, s.Config, svc)
+	handler := gin.HandlerFunc(ctrl.GetHandler)
 
-	s.Run("SignupCheck for not ready signups", func() {
+	s.Run("signups found", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
 
-		ctx.Set(middleware.SubKey, userID.String())
-		ctx.Set(middleware.EmailKey, "email@email.email")
-		ctx.Set(middleware.UsernameKey, "jsmith")
+		expected := &signup.Signup{
+			TargetCluster: uuid.NewV4().String(),
+			Username:      "jsmith",
+			Status: signup.Status{
+				Reason: "Provisioning",
+			},
+		}
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			if id == userID {
+				return expected, nil
+			}
+			return nil, nil
+		}
+
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
-
-		log.Println(string(rr.Body.Bytes()))
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &signup.Signup{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Status.Ready
-		assert.Equal(s.T(), apiv1.ConditionFalse, val, "ProvisioningDone is true in test mode signupcheck initial response")
+		assert.Equal(s.T(), expected, data)
 	})
 
-	s.Run("SignupCheck for ready signups", func() {
-		// Set mock signup to ready
-		// TODO: this needs to be implemented
-
+	s.Run("signups not found", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
 
-		ctx.Set(middleware.SubKey, userID.String())
-		ctx.Set(middleware.EmailKey, "email@email.email")
-		ctx.Set(middleware.UsernameKey, "jsmith")
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			return nil, nil
+		}
+
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
+	})
+
+	s.Run("signups service error", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
+
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			return nil, errors.New("oopsie woopsie")
+		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &signup.Signup{}
+		data := &errs.Error{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Status.Ready
-		assert.Equal(s.T(), apiv1.ConditionFalse, val, "ProvisioningDone is true in test mode signupcheck initial response")
+		assert.Equal(s.T(), &errs.Error{
+			Status:  http.StatusText(http.StatusInternalServerError),
+			Code:    http.StatusInternalServerError,
+			Message: "oopsie woopsie",
+			Details: "error getting UserSignup resource",
+		}, data)
 	})
 }
-*/
+
+type FakeSignupService struct {
+	MockGetUserSignup    func(userID string) (*signup.Signup, error)
+	MockCreateUserSignup func(username, userID string) (*crtapi.UserSignup, error)
+}
+
+func (m *FakeSignupService) GetUserSignup(userID string) (*signup.Signup, error) {
+	return m.MockGetUserSignup(userID)
+}
+
+func (m *FakeSignupService) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
+	return m.MockCreateUserSignup(username, userID)
+}

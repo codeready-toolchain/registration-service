@@ -60,7 +60,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		}
 
 		// creating the controllers
-		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
+		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
 

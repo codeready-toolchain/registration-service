@@ -1,19 +1,23 @@
 package controller
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
+
 	"github.com/gin-gonic/gin"
 )
 
+type HealthCheckConfig interface {
+	IsTestingMode() bool
+}
+
 // HealthCheck implements the health endpoint.
 type HealthCheck struct {
-	config *configuration.Registry
-	logger *log.Logger
+	config  HealthCheckConfig
+	logger  *log.Logger
+	checker HealthChecker
 }
 
 // Health payload
@@ -26,17 +30,18 @@ type Health struct {
 }
 
 // HealthCheck returns a new HealthCheck instance.
-func NewHealthCheck(logger *log.Logger, config *configuration.Registry) *HealthCheck {
+func NewHealthCheck(logger *log.Logger, config HealthCheckConfig, checker HealthChecker) *HealthCheck {
 	return &HealthCheck{
-		logger: logger,
-		config: config,
+		logger:  logger,
+		config:  config,
+		checker: checker,
 	}
 }
 
 // getHealthInfo returns the health info.
 func (hc *HealthCheck) getHealthInfo() *Health {
 	return &Health{
-		Alive:       true,
+		Alive:       hc.checker.Alive(),
 		TestingMode: hc.config.IsTestingMode(),
 		Revision:    configuration.Commit,
 		BuildTime:   configuration.BuildTime,
@@ -47,16 +52,27 @@ func (hc *HealthCheck) getHealthInfo() *Health {
 // GetHandler returns a default heath check result.
 func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
 	// Default handler for system health
-	ctx.Writer.Header().Set("Content-Type", "application/json")
 	healthInfo := hc.getHealthInfo()
 	if healthInfo.Alive {
-		ctx.Writer.WriteHeader(http.StatusOK)
+		ctx.JSON(http.StatusOK, healthInfo)
 	} else {
-		ctx.Writer.WriteHeader(http.StatusInternalServerError)
+		ctx.JSON(http.StatusServiceUnavailable, healthInfo)
 	}
-	err := json.NewEncoder(ctx.Writer).Encode(healthInfo)
-	if err != nil {
-		hc.logger.Println("error writing response body", err.Error())
-		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
-	}
+}
+
+type HealthChecker interface {
+	Alive() bool
+}
+
+func NewHealthChecker(config HealthCheckConfig) HealthChecker {
+	return &healthCheckerImpl{config: config}
+}
+
+type healthCheckerImpl struct {
+	config HealthCheckConfig
+}
+
+func (c *healthCheckerImpl) Alive() bool {
+	// TODO check if there are errors in configuration
+	return true
 }

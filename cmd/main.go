@@ -16,7 +16,7 @@ import (
 
 func main() {
 	// create logger and registry
-	log.Init("registration-service", os.Stderr, false)
+	log.Init("registration-service", nil)
 
 	// Parse flags
 	var configFilePath string

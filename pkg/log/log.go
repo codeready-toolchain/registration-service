@@ -9,14 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
+	"github.com/spf13/pflag"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	sync "github.com/matryer/resync"
-	"github.com/spf13/pflag"
 )
 
 var (
@@ -24,43 +23,57 @@ var (
 	once   sync.Once
 )
 
+// Logger implements log.Logger
 type Logger struct {
 	logr logr.Logger
+	name string
 }
 
 // Init initializes the logger.
-func Init(name string, out io.Writer, development bool) {
-	zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
-
-	// Add the zap logger flag set to the CLI. The flag set must
-	// be added before calling pflag.Parse().
-	pflag.CommandLine.AddFlagSet(zapFlagSet)
-
-	// Add flags registered by imported packages (e.g. glog and
-	// controller-runtime)
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	pflag.Parse()
-
-	// Use a zap logr.Logger implementation. If none of the zap
-	// flags are configured (or if the zap flag set is not being
-	// used), this defaults to a production zap logger.
-	//
-	// The logger instantiated here can be changed to any logger
-	// implementing the logr.Logger interface. This logger will
-	// be propagated through the whole operator, generating
-	// uniform and structured logs.
-	logf.SetLogger(zap.Logger())
-
+func Init(withName string, out io.Writer) {
 	once.Do(func() {
-		logger = newLogger(name, out, development)
+		zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
+
+		// Add the zap logger flag set to the CLI. The flag set must
+		// be added before calling pflag.Parse().
+		pflag.CommandLine.AddFlagSet(zapFlagSet)
+
+		// Add flags registered by imported packages (e.g. glog and
+		// controller-runtime)
+		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
+		pflag.Parse()
+
+		// Use a zap logr.Logger implementation. If none of the zap
+		// flags are configured (or if the zap flag set is not being
+		// used), this defaults to a production zap logger.
+		//
+		// The logger instantiated here can be changed to any logger
+		// implementing the logr.Logger interface. This logger will
+		// be propagated through the whole operator, generating
+		// uniform and structured logs.
+		if out == nil {
+			logf.SetLogger(zap.Logger())
+		} else {
+			logf.SetLogger(zap.LoggerTo(out))
+		}
+		logger = newLogger(withName)
 	})
 }
 
-func newLogger(name string, out io.Writer, development bool) *Logger {
+func newLogger(withName string) *Logger {
 	return &Logger{
-		logr: logf.ZapLoggerTo(out, development).WithName(name),
+		logr: logf.Log.WithName(withName),
+		name: withName,
 	}
+}
+
+// ZapLoggerTo returns a new Logger implementation using Zap which logs
+// to the given destination, instead of stderr.
+func ZapLoggerTo(out io.Writer, development bool) *Logger {
+	nl := newLogger(logger.name)
+	nl.logr = logf.ZapLoggerTo(out, development).WithName(logger.name)
+	return nl
 }
 
 // Info logs a non-error message.
@@ -88,14 +101,12 @@ func WithValues(keysAndValues map[string]interface{}) *Logger {
 	return logger.WithValues(keysAndValues)
 }
 
-// Info logs are used for non-error messages. It will log a message with
-// the given key/value pairs as context.
+// Info logs a non-error message.
 func (l *Logger) Info(ctx *gin.Context, msg string) {
-	logger.Infof(ctx, msg)
+	l.Infof(ctx, msg)
 }
 
-// Infof logs are used for non-error messages. It will log a message with
-// the given key/value pairs as context.
+// Infof logs a non-error formatted message.
 func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	arguments := make([]interface{}, len(args))
@@ -109,14 +120,12 @@ func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) {
 	}
 }
 
-// Error logs are used for logging errors. It will log the error with the given
-// message and key/value pairs as context.
+// Error logs the error with the given message.
 func (l *Logger) Error(ctx *gin.Context, err error, msg string) {
 	l.Errorf(ctx, err, msg)
 }
 
-// Errorf logs are used for logging errors. It will log the error with the given
-// message and key/value pairs as context.
+// Errorf logs the error with the given formatted message.
 func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	arguments := make([]interface{}, len(args))
@@ -131,14 +140,14 @@ func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string)
 	}
 }
 
-// WithValues appends tags to the logger.
+// WithValues creates a new logger with additional key-value pairs in the context
 func (l *Logger) WithValues(keysAndValues map[string]interface{}) *Logger {
 	if len(keysAndValues) > 0 {
-		// ZapLoggerTo, name and WithValues all return new logger instances.
-		// The logger must be set again with the values stored in the Logger struct.
-		logger.logr = logger.logr.WithValues(slice(keysAndValues)...)
+		nl := newLogger(logger.name)
+		nl.logr = nl.logr.WithValues(slice(keysAndValues)...)
+		return nl
 	}
-	return logger
+	return l
 }
 
 func slice(keysAndValues map[string]interface{}) []interface{} {
@@ -160,15 +169,14 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 	fields = append(fields, currentTime.Format(time.RFC1123Z))
 
 	if ctx != nil {
-		subject := ctx.GetString(context.SubKey)
+		subject := ctx.GetString("subject")
 		if subject != "" {
 			fields = append(fields, "user_id")
 			fields = append(fields, subject)
 		}
-
-		username := ctx.GetString(context.UsernameKey)
-		if username != "" {
-			fields = append(fields, context.UsernameKey)
+		username := ctx.GetString("username")
+		if subject != "" {
+			fields = append(fields, "username")
 			fields = append(fields, username)
 		}
 

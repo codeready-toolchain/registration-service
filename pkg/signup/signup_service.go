@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 
@@ -116,32 +118,42 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
 		return nil, err
 	}
 
-	// Check UserSignup status to determine whether user signup is complete
-
-	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
-	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
-	if err != nil {
-		return nil, err
-	}
-	if len(mur.Status.UserAccounts) != 1 {
-		return nil, errors2.New("user has not exactly one account")
-	}
-	account := mur.Status.UserAccounts[0]
-	if len(account.UserAccountStatus.Conditions) == 0 {
-		return nil, errors2.New("account conditions is empty")
-	}
-	latestAccountCondition := account.UserAccountStatus.Conditions[len(account.UserAccountStatus.Conditions)-1]
-
-	// Extract values from both resources and populate Signup object to return
 	signupResponse := &Signup{
-		TargetCluster: account.TargetCluster,
-		Username:      mur.Spec.UserID,
-		Status: Status{
+		Username: userSignup.Spec.Username,
+	}
+
+	// Check UserSignup status to determine whether user signup is complete
+	completed, value := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
+	if value {
+		// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
+		mur, err := s.MasterUserRecords.Get(userSignup.GetName())
+		if err != nil {
+			return nil, err
+		}
+		if len(mur.Status.UserAccounts) != 1 {
+			return nil, errors2.New("user has not exactly one account")
+		}
+		account := mur.Status.UserAccounts[0]
+		if len(account.UserAccountStatus.Conditions) == 0 {
+			return nil, errors2.New("account conditions is empty")
+		}
+		latestAccountCondition := account.UserAccountStatus.Conditions[len(account.UserAccountStatus.Conditions)-1]
+
+		// Extract values from both resources and populate Signup object to return
+		signupResponse.TargetCluster = account.TargetCluster
+		signupResponse.Status = Status{
 			Ready:   latestAccountCondition.Status,
 			Reason:  latestAccountCondition.Reason,
 			Message: latestAccountCondition.Message,
-		},
+		}
+	} else {
+		signupResponse.Status = Status{
+			Ready:   completed.Status,
+			Reason:  completed.Reason,
+			Message: completed.Message,
+		}
 	}
+
 	return signupResponse, nil
 }
 

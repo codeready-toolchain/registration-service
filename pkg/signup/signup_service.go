@@ -162,6 +162,16 @@ func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
 func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
 	// this will call either getUserSignupImpl() (default) or a mocked func given by a test
 	return s.checkerFunc(userID)
+
+	// Retrieve UserSignup resource from the host cluster
+	// TODO: determine how to locate UserSignup resource, since we can't use the resource name
+
+	// Check UserSignup status to determine whether user signup is complete
+
+	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
+
+	// Extract values from both resources and populate Signup object to return
+
 }
 
 func (s *ServiceImpl) transformAndValidateUserName(username string) (string, error) {

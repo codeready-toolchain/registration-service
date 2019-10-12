@@ -8,7 +8,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 
 	errors2 "github.com/pkg/errors"
-	"github.com/spf13/viper"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +43,6 @@ type Status struct {
 type ServiceConfiguration interface {
 	GetNamespace() string
 	IsTestingMode() bool
-	GetViperInstance() *viper.Viper
 }
 
 // Service represents the signup service for controllers.
@@ -58,24 +56,10 @@ type ServiceImpl struct {
 	Namespace         string
 	UserSignups       kubeclient.UserSignupInterface
 	MasterUserRecords kubeclient.MasterUserRecordInterface
-	checkerFunc       func(userID string) (*Signup, error)
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(cfg ServiceConfiguration) (Service, error) {
-
-	if cfg.IsTestingMode() {
-		// in testing mode, we mock the checker
-		s := &ServiceImpl{
-			Namespace:   cfg.GetNamespace(),
-			UserSignups: nil,
-		}
-		checkerFunc := cfg.GetViperInstance().Get("checker")
-		if checkerFunc != nil {
-			s.checkerFunc = checkerFunc.(func(userID string) (*Signup, error))
-		}
-		return s, nil
-	}
 
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -92,8 +76,6 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 		UserSignups:       client.UserSignups(),
 		MasterUserRecords: client.MasterUserRecords(),
 	}
-	// we're not in testing, so we use the default impl of the checker.
-	s.checkerFunc = s.getUserSignupImpl
 	return s, nil
 }
 
@@ -125,15 +107,18 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 	return created, nil
 }
 
-// getUserSignupImpl gets the UserSignup resource with the specified userID
-// Returns nil, nil if the resource is not found
-func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
-	// get signup resource
+// GetUserSignup wraps getUserSignupImpl (or the mocked func)
+func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+
+	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
 		return nil, err
 	}
-	// get MUR for it
+
+	// Check UserSignup status to determine whether user signup is complete
+
+	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
 	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
 	if err != nil {
 		return nil, err
@@ -146,6 +131,8 @@ func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
 		return nil, errors2.New("account conditions is empty")
 	}
 	latestAccountCondition := account.UserAccountStatus.Conditions[len(account.UserAccountStatus.Conditions)-1]
+
+	// Extract values from both resources and populate Signup object to return
 	signupResponse := &Signup{
 		TargetCluster: account.TargetCluster,
 		Username:      mur.Spec.UserID,
@@ -156,22 +143,6 @@ func (s *ServiceImpl) getUserSignupImpl(userID string) (*Signup, error) {
 		},
 	}
 	return signupResponse, nil
-}
-
-// GetUserSignup wraps getUserSignupImpl (or the mocked func)
-func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
-	// this will call either getUserSignupImpl() (default) or a mocked func given by a test
-	return s.checkerFunc(userID)
-
-	// Retrieve UserSignup resource from the host cluster
-	// TODO: determine how to locate UserSignup resource, since we can't use the resource name
-
-	// Check UserSignup status to determine whether user signup is complete
-
-	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
-
-	// Extract values from both resources and populate Signup object to return
-
 }
 
 func (s *ServiceImpl) transformAndValidateUserName(username string) (string, error) {

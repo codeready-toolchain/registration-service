@@ -2,26 +2,26 @@ package controller_test
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
+	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
-	apiv1 "k8s.io/api/core/v1"
 
 	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
-var testRequestTimestamp int64
 
 type TestSignupSuite struct {
 	testutils.UnitTestSuite
@@ -40,9 +40,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
-
 	// Create signup instance.
 	signupCtrl := controller.NewSignup(logger, s.Config, nil)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
@@ -60,33 +57,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	})
 }
 
-// getTestSignupCheckInfo retrieves a test check info. Used only for tests.
-// It reports provisioning/not ready for 5s, then reports state complete.
-func getTestSignupCheckInfo(userID string) (*signup.Signup, error) {
-	payload := &signup.Signup{
-		TargetCluster: "clusterX",
-		Username:      "userID",
-		Status: signup.Status{
-			Ready:   apiv1.ConditionTrue,
-			Reason:  "",
-			Message: "",
-		},
-	}
-	if testRequestTimestamp == 0 {
-		testRequestTimestamp = time.Now().Unix()
-	}
-	if time.Now().Unix()-testRequestTimestamp >= 5 {
-		payload.Status.Ready = apiv1.ConditionTrue
-		payload.Status.Reason = "provisioned"
-		payload.Status.Message = "testing mode - done"
-	} else {
-		payload.Status.Ready = apiv1.ConditionFalse
-		payload.Status.Reason = "provisioning"
-		payload.Status.Message = "testing mode - waiting for timeout"
-	}
-	return payload, nil
-}
-
 func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
@@ -96,67 +66,105 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create logger and registry.
 	logger := log.New(os.Stderr, "", 0)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
-	// Add the mock checker func to the config (this is only used in testing, so accessing the Viper manually)
-	s.Config.GetViperInstance().Set("checker", getTestSignupCheckInfo)
+	// Create a mock SignupService
+	svc := &FakeSignupService{}
+	// Create UserSignup
+	userID := uuid.NewV4().String()
 
-	// Create SignupCheck check instance.
-	signupSrv, err := signup.NewSignupService(s.Config)
-	require.NoError(s.T(), err)
-	SignupCheckCtrl := controller.NewSignup(logger, s.Config, signupSrv)
-	handler := gin.HandlerFunc(SignupCheckCtrl.GetHandler)
+	// Create Signup controller instance.
+	ctrl := controller.NewSignup(logger, s.Config, svc)
+	handler := gin.HandlerFunc(ctrl.GetHandler)
 
-	s.Run("SignupCheck in testing mode", func() {
+	s.Run("signups found", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
 
-		ctx.Set(middleware.SubKey, "sub-value")
-		ctx.Set(middleware.EmailKey, "email@email.email")
-		ctx.Set(middleware.UsernameKey, "username-value")
+		expected := &signup.Signup{
+			TargetCluster: uuid.NewV4().String(),
+			Username:      "jsmith",
+			Status: signup.Status{
+				Reason: "Provisioning",
+			},
+		}
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			if id == userID {
+				return expected, nil
+			}
+			return nil, nil
+		}
+
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &signup.Signup{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Status.Ready
-		assert.Equal(s.T(), apiv1.ConditionFalse, val, "ProvisioningDone is true in test mode signupcheck initial response")
+		assert.Equal(s.T(), expected, data)
 	})
 
-	s.Run("ProvisioningDone in testing mode", func() {
-		testStartTimestamp := time.Now().Unix()
-		log.Printf("TIME1 %d", time.Now().Unix())
-		log.Printf("TIME2 %d", time.Now().Unix())
-		// do a few requests every 2 seconds, with the requests after elapsed 5s returning ProvisioningDone==true.
-		for time.Now().Unix() < testStartTimestamp+10 {
-			rr := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(rr)
-			ctx.Set(middleware.SubKey, "sub-value")
-			ctx.Set(middleware.EmailKey, "email@email.email")
-			ctx.Set(middleware.UsernameKey, "username-value")
-			ctx.Request = req
-			handler(ctx)
-			assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
-			data := &signup.Signup{}
-			err := json.Unmarshal(rr.Body.Bytes(), &data)
-			require.NoError(s.T(), err)
-			if time.Now().Unix() < testStartTimestamp+5 {
-				assert.Equal(s.T(), apiv1.ConditionFalse, data.Status.Ready, "ProvisioningDone is true before 10s in test mode signupcheck response")
-				assert.Equal(s.T(), "provisioning", data.Status.Reason)
-				assert.Equal(s.T(), "testing mode - waiting for timeout", data.Status.Message)
-			} else {
-				assert.Equal(s.T(), apiv1.ConditionTrue, data.Status.Ready, "ProvisioningDone is false after 10s in test mode signupcheck response")
-				assert.Equal(s.T(), "provisioned", data.Status.Reason)
-				assert.Equal(s.T(), "testing mode - done", data.Status.Message)
-			}
-			time.Sleep(2 * time.Second)
+	s.Run("signups not found", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
+
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			return nil, nil
 		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
 	})
+
+	s.Run("signups service error", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(middleware.SubKey, userID)
+
+		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+			return nil, errors.New("oopsie woopsie")
+		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
+
+		// Check the response body is what we expect.
+		data := &errs.Error{}
+		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		require.NoError(s.T(), err)
+
+		assert.Equal(s.T(), &errs.Error{
+			Status:  http.StatusText(http.StatusInternalServerError),
+			Code:    http.StatusInternalServerError,
+			Message: "oopsie woopsie",
+			Details: "error getting UserSignup resource",
+		}, data)
+	})
+}
+
+type FakeSignupService struct {
+	MockGetUserSignup    func(userID string) (*signup.Signup, error)
+	MockCreateUserSignup func(username, userID string) (*crtapi.UserSignup, error)
+}
+
+func (m *FakeSignupService) GetUserSignup(userID string) (*signup.Signup, error) {
+	return m.MockGetUserSignup(userID)
+}
+
+func (m *FakeSignupService) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
+	return m.MockCreateUserSignup(username, userID)
 }

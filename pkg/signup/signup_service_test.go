@@ -65,6 +65,24 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.False(s.T(), val.Spec.Approved)
 }
 
+func (s *TestSignupServiceSuite) TestGetUserSignup() {
+	svc, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), userSignup)
+
+	/*
+		TODO: more testing here once GetUserSignup() is completed
+		retrieved, err := svc.GetUserSignup(userID.String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), retrieved)
+	*/
+}
+
 func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 	svc, fakeClient := newSignupServiceWithFakeClient()
 

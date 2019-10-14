@@ -89,7 +89,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
 			if id == userID {
 				return expected, nil
 			}
@@ -116,7 +116,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(middleware.SubKey, userID)
 
-		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
 			return nil, nil
 		}
 
@@ -133,7 +133,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(middleware.SubKey, userID)
 
-		svc.MockGetUserSignup = func(id string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")
 		}
 
@@ -157,12 +157,12 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 }
 
 type FakeSignupService struct {
-	MockGetUserSignup    func(userID string) (*signup.Signup, error)
+	MockGetSignup        func(userID string) (*signup.Signup, error)
 	MockCreateUserSignup func(username, userID string) (*crtapi.UserSignup, error)
 }
 
-func (m *FakeSignupService) GetUserSignup(userID string) (*signup.Signup, error) {
-	return m.MockGetUserSignup(userID)
+func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
+	return m.MockGetSignup(userID)
 }
 
 func (m *FakeSignupService) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {

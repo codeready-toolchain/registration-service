@@ -47,7 +47,7 @@ type ServiceConfiguration interface {
 
 // Service represents the signup service for controllers.
 type Service interface {
-	GetUserSignup(userID string) (*Signup, error)
+	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
@@ -116,11 +116,11 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 	return created, nil
 }
 
-// GetUserSignup obtains UserSignup resource from K8s API server.
+// GetSignup obtains UserSignup resource from K8s API server.
 // If the resource found and it's status set to Complete then it checks
 // the corresponding MasterUserRecord's status and wraps its status in the result Signup Status
 // Returns nil, nil if the UserSignup resource is not found.
-func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
+func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)

@@ -37,7 +37,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(middleware.SubKey)
-	signupResource, err := s.signupService.GetUserSignup(userID)
+	signupResource, err := s.signupService.GetSignup(userID)
 	if err != nil {
 		s.logger.Println("error getting UserSignup resource", err.Error())
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")

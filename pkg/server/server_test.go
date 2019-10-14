@@ -1,8 +1,10 @@
 package server_test
 
 import (
+	"os"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 
@@ -19,6 +21,9 @@ func TestRunServerSuite(t *testing.T) {
 }
 
 func (s *TestServerSuite) TestServer() {
+	// Setting testing mode.
+	os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
+
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
 	srv, err := server.New("")

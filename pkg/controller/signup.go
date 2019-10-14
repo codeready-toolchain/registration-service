@@ -44,7 +44,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	signupResource, err := s.signupService.GetUserSignup(ctx.GetString(middleware.SubKey))
 	if err != nil {
 		s.logger.Println("error getting UserSignup resource", err.Error())
-		errors.EncodeError(ctx, err, http.StatusInternalServerError, "error getting UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
 		ctx.AbortWithStatus(http.StatusNotFound)
@@ -53,7 +53,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		err := json.NewEncoder(ctx.Writer).Encode(signupResource)
 		if err != nil {
 			s.logger.Println("error writing response body", err.Error())
-			errors.EncodeError(ctx, err, http.StatusInternalServerError, "error writing response body")
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error writing response body")
 		}
 	}
 }

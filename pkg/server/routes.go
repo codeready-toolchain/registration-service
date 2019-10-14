@@ -55,7 +55,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 	var err error
 	srv.routesSetup.Do(func() {
 
-			// initialize default managers
+		// initialize default managers
 		_, err = auth.InitializeDefaultTokenParser(srv.logger, srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())

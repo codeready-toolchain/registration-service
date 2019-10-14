@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	errors2 "github.com/pkg/errors"
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -34,7 +32,7 @@ type Signup struct {
 // Status represents UserSignup resource status
 type Status struct {
 	// If true then the corresponding user's account is ready to be used
-	Ready apiv1.ConditionStatus `json:"ready"`
+	Ready bool `json:"ready"`
 	// Brief reason for the status last transition.
 	Reason string `json:"reason"`
 	// Human readable message indicating details about last transition.
@@ -118,49 +116,45 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 	return created, nil
 }
 
-// GetUserSignup wraps getUserSignupImpl (or the mocked func)
+// GetUserSignup obtains UserSignup resource from K8s API server.
+// If the resource found and it's status set to Complete then it checks
+// the corresponding MasterUserRecord's status and wraps its status in the result Signup Status
+// Returns nil, nil if the UserSignup resource is not found.
 func (s *ServiceImpl) GetUserSignup(userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	signupResponse := &Signup{
-		Username: userSignup.Spec.Username,
+		Username:      userSignup.Spec.Username,
+		TargetCluster: userSignup.Spec.TargetCluster,
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	completed, value := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
-	if value {
-		// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster
-		mur, err := s.MasterUserRecords.Get(userSignup.GetName())
-		if err != nil {
-			return nil, err
-		}
-		if len(mur.Status.UserAccounts) != 1 {
-			return nil, errors2.New("user has not exactly one account")
-		}
-		account := mur.Status.UserAccounts[0]
-		if len(account.UserAccountStatus.Conditions) == 0 {
-			return nil, errors2.New("account conditions is empty")
-		}
-		latestAccountCondition := account.UserAccountStatus.Conditions[len(account.UserAccountStatus.Conditions)-1]
-
-		// Extract values from both resources and populate Signup object to return
-		signupResponse.TargetCluster = account.TargetCluster
+	signupCondition, complete := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
+	if !complete {
 		signupResponse.Status = Status{
-			Ready:   latestAccountCondition.Status,
-			Reason:  latestAccountCondition.Reason,
-			Message: latestAccountCondition.Message,
+			Reason:  signupCondition.Reason,
+			Message: signupCondition.Message,
 		}
-	} else {
-		signupResponse.Status = Status{
-			Ready:   completed.Status,
-			Reason:  completed.Reason,
-			Message: completed.Message,
-		}
+		return signupResponse, nil
+	}
+	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
+	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
+	if err != nil {
+		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
+	}
+	murCondition, ready := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	signupResponse.Status = Status{
+		Ready:   ready,
+		Reason:  murCondition.Reason,
+		Message: murCondition.Message,
 	}
 
 	return signupResponse, nil

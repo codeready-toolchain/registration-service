@@ -116,9 +116,8 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 	return created, nil
 }
 
-// GetSignup obtains UserSignup resource from K8s API server.
-// If the resource found and it's status set to Complete then it checks
-// the corresponding MasterUserRecord's status and wraps its status in the result Signup Status
+// GetSignup returns Signup resource which represents the corresponding K8s UserSignup
+// and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found.
 func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 

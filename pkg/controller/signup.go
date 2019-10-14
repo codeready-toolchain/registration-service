@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
@@ -36,7 +35,6 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
-	ctx.Writer.Header().Set("Content-Type", "application/json")
 	// Get the UserSignup resource from the service by the userID
 	signupResource, err := s.signupService.GetUserSignup(ctx.GetString(middleware.SubKey))
 	if err != nil {
@@ -46,11 +44,6 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	if signupResource == nil {
 		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
-		ctx.Writer.WriteHeader(http.StatusOK)
-		err := json.NewEncoder(ctx.Writer).Encode(signupResource)
-		if err != nil {
-			s.logger.Println("error writing response body", err.Error())
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error writing response body")
-		}
+		ctx.JSON(http.StatusOK, signupResource)
 	}
 }

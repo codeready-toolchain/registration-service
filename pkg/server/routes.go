@@ -71,7 +71,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 			err = errs.Wrapf(err, "failed to init signup service")
 			return
 		}
-		signupCtrl := controller.NewSignup(srv.logger, srv.Config(), signupSrv)
+		signupCtrl := controller.NewSignup(srv.logger, signupSrv)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -15,16 +14,14 @@ import (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config        *configuration.Registry
 	logger        *log.Logger
 	signupService signup.Service
 }
 
 // NewSignup returns a new Signup controller instance.
-func NewSignup(logger *log.Logger, config *configuration.Registry, signupService signup.Service) *Signup {
+func NewSignup(logger *log.Logger, signupService signup.Service) *Signup {
 	sc := &Signup{
 		logger:        logger,
-		config:        config,
 		signupService: signupService,
 	}
 	return sc

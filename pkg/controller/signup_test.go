@@ -41,7 +41,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	logger := log.New(os.Stderr, "", 0)
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(logger, s.Config, nil)
+	signupCtrl := controller.NewSignup(logger, nil)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	s.Run("signup", func() {
@@ -72,7 +72,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	userID := uuid.NewV4().String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(logger, s.Config, svc)
+	ctrl := controller.NewSignup(logger, svc)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {

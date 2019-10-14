@@ -2,7 +2,6 @@ package middleware_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -79,7 +78,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// create server
-	srv, err := server.New("")
+	srv, err := server.New(s.Config)
 	require.NoError(s.T(), err)
 
 	// set the key service url in the config
@@ -91,8 +90,6 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// Setting up the routes.
 	err = srv.SetupRoutes()
 	require.NoError(s.T(), err)
-
-	fmt.Println(srv.Engine().Routes())
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()

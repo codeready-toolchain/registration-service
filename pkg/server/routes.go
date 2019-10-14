@@ -66,10 +66,18 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
 		var signupSrv signup.Service
-		signupSrv, err = signup.NewSignupService(srv.Config())
-		if err != nil {
-			err = errs.Wrapf(err, "failed to init signup service")
-			return
+
+		if srv.Config().IsTestingMode() {
+			// testing mode, return default impl instance. This is needed for tests
+			// which require a full server initialization. Such as server and middleware tests.
+			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
+			signupSrv = &signup.ServiceImpl{}
+		} else {
+			signupSrv, err = signup.NewSignupService(srv.Config())
+			if err != nil {
+				err = errs.Wrapf(err, "failed to init signup service")
+				return
+			}
 		}
 		signupCtrl := controller.NewSignup(srv.logger, signupSrv)
 

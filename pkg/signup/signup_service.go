@@ -42,7 +42,6 @@ type Status struct {
 // ServiceConfiguration represents the config used for the signup service.
 type ServiceConfiguration interface {
 	GetNamespace() string
-	IsTestingMode() bool
 }
 
 // Service represents the signup service for controllers.
@@ -60,15 +59,6 @@ type ServiceImpl struct {
 
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(cfg ServiceConfiguration) (Service, error) {
-
-	if cfg.IsTestingMode() {
-		// testing mode, return default impl instance. This is needed
-		// for server and middleware tests where we need a full server
-		// initialization. In those cases, the mocking used in the
-		// signup controller tests can not be used as the initialization
-		// is happening before the test can hook into it.
-		return &ServiceImpl{}, nil
-	}
 
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {

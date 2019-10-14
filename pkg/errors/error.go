@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,19 +13,12 @@ type Error struct {
 	Details string `json:"details"`
 }
 
-// EncodeError encodes a json error response.
-func EncodeError(ctx *gin.Context, err error, code int, details string) {
-	// construct an error.
-	errorStruct := &Error{
+// AbortWithError stops the chain, writes the status code and the given error
+func AbortWithError(ctx *gin.Context, code int, err error, details string) {
+	ctx.AbortWithStatusJSON(code, &Error{
 		Status:  http.StatusText(code),
 		Code:    code,
 		Message: err.Error(),
 		Details: details,
-	}
-
-	// encode it.
-	e := json.NewEncoder(ctx.Writer).Encode(errorStruct)
-	if e != nil {
-		http.Error(ctx.Writer, e.Error(), http.StatusInternalServerError)
-	}
+	})
 }

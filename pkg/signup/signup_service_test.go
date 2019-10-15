@@ -185,6 +185,21 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	require.NoError(s.T(), err)
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupGetFails() {
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	expectedErr := errors.New("an error occurred")
+	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
+		return nil, expectedErr
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	_, err = svc.GetSignup(userID.String())
+	require.Error(s.T(), err)
+	require.Equal(s.T(), expectedErr, err)
+}
+
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 
@@ -317,6 +332,43 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.True(s.T(), response.Status.Ready)
 	require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	require.Equal(s.T(), response.Status.Message, "mur_ready_message")
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
+	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+	returnedErr := errors.New("an error occurred")
+	fakeMURClient.MockGet = func(string) (*v1alpha1.MasterUserRecord, error) {
+		return nil, returnedErr
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "ted",
+			CompliantUsername: "ted",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:   v1alpha1.UserSignupComplete,
+					Status: apiv1.ConditionTrue,
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), err)
+
+	_, err = svc.GetSignup(userID.String())
+	require.Error(s.T(), err)
 }
 
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {

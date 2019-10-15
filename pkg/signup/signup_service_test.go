@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
@@ -173,10 +174,63 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	require.Equal(s.T(), expectedErr, err)
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
+	svc, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	signup, err := svc.GetSignup(userID.String())
+	require.Nil(s.T(), signup)
+	require.NoError(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
+	svc, fakeClient := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "bill",
+			CompliantUsername: "bill",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				v1alpha1.Condition{
+					Type:    v1alpha1.UserSignupComplete,
+					Status:  apiv1.ConditionFalse,
+					Reason:  "test_reason",
+					Message: "test_message",
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	signup, err := svc.GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), signup)
+
+	require.Equal(s.T(), "bill", signup.Username)
+	require.False(s.T(), signup.Status.Ready)
+	require.Equal(s.T(), signup.Status.Reason, "test_reason")
+	require.Equal(s.T(), signup.Status.Message, "test_message")
+}
+
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient) {
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
+	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
 	return &signup.ServiceImpl{
-		Namespace:   TestNamespace,
-		UserSignups: fakeClient,
+		Namespace:         TestNamespace,
+		UserSignups:       fakeClient,
+		MasterUserRecords: fakeMURClient,
 	}, fakeClient
 }

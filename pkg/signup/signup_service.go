@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	apiv1 "k8s.io/api/core/v1"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
@@ -126,8 +128,8 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	signupCondition, complete := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
-	if !complete {
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
+	if !found || (found && signupCondition.Status != apiv1.ConditionTrue) {
 		signupResponse.Status = Status{
 			Reason:  signupCondition.Reason,
 			Message: signupCondition.Message,

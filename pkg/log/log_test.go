@@ -106,6 +106,7 @@ func TestLogHandler(t *testing.T) {
 
 		q := req.URL.Query()
 		q.Add("query_key", "query_value")
+		q.Add("token", "query_token")
 		req.URL.RawQuery = q.Encode()
 		ctx.Request = req
 
@@ -119,6 +120,7 @@ func TestLogHandler(t *testing.T) {
 		assert.Contains(t, value, "\"timestamp\":")
 		assert.Contains(t, value, "\"req_params\":")
 		assert.Contains(t, value, "\"query_key\":[\"query_value\"]")
+		assert.Contains(t, value, "\"token\":[\"*****\"]")
 		assert.Contains(t, value, "\"req_headers\":")
 		assert.Contains(t, value, "\"Accept\":[\"application/json\"]")
 		assert.Contains(t, value, "\"Authorization\"")

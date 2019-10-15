@@ -69,14 +69,6 @@ func newLogger(withName string) *Logger {
 	}
 }
 
-// ZapLoggerTo returns a new Logger implementation using Zap which logs
-// to the given destination, instead of stderr.
-func ZapLoggerTo(out io.Writer, development bool) *Logger {
-	nl := newLogger(logger.name)
-	nl.logr = logf.ZapLoggerTo(out, development).WithName(logger.name)
-	return nl
-}
-
 // Info logs a non-error message.
 func Info(ctx *gin.Context, msg string) {
 	logger.Info(ctx, msg)
@@ -104,7 +96,8 @@ func WithValues(keysAndValues map[string]interface{}) *Logger {
 
 // Info logs a non-error message.
 func (l *Logger) Info(ctx *gin.Context, msg string) {
-	l.Infof(ctx, msg)
+	ctxInfo := addContextInfo(ctx)
+	l.logr.Info(msg, ctxInfo...)
 }
 
 // Infof logs a non-error formatted message.

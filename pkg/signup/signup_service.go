@@ -17,6 +17,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	SignupReasonNoCondition  = "UserSignupComplete condition not set"
+	SignupMessageNoCondition = "Could not determine whether UserSignup is complete as condition is missing"
+)
+
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
 // and the corresponding MasterUserRecord resources.
 type Signup struct {
@@ -129,13 +134,20 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	// Check UserSignup status to determine whether user signup is complete
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
-	if !found || (found && signupCondition.Status != apiv1.ConditionTrue) {
+	if !found {
+		signupResponse.Status = Status{
+			Reason:  SignupReasonNoCondition,
+			Message: SignupMessageNoCondition,
+		}
+		return signupResponse, nil
+	} else if found && signupCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = Status{
 			Reason:  signupCondition.Reason,
 			Message: signupCondition.Message,
 		}
 		return signupResponse, nil
 	}
+
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
 	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
 	if err != nil {

@@ -215,14 +215,45 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	})
 	require.NoError(s.T(), err)
 
-	signup, err := svc.GetSignup(userID.String())
+	response, err := svc.GetSignup(userID.String())
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), signup)
+	require.NotNil(s.T(), response)
 
-	require.Equal(s.T(), "bill", signup.Username)
-	require.False(s.T(), signup.Status.Ready)
-	require.Equal(s.T(), signup.Status.Reason, "test_reason")
-	require.Equal(s.T(), signup.Status.Message, "test_message")
+	require.Equal(s.T(), "bill", response.Username)
+	require.False(s.T(), response.Status.Ready)
+	require.Equal(s.T(), response.Status.Reason, "test_reason")
+	require.Equal(s.T(), response.Status.Message, "test_message")
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
+	svc, fakeClient := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "bill",
+			CompliantUsername: "bill",
+		},
+		Status: v1alpha1.UserSignupStatus{},
+	})
+	require.NoError(s.T(), err)
+
+	response, err := svc.GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "bill", response.Username)
+	require.False(s.T(), response.Status.Ready)
+	require.Equal(s.T(), response.Status.Reason, signup.SignupReasonNoCondition)
+	require.Equal(s.T(), response.Status.Message, signup.SignupMessageNoCondition)
 }
 
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient) {

@@ -155,8 +155,12 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
 		err := errors.New("unable to obtain public keys from remote service")
-		log.Errorf(nil, err, "response_status: %s, response_body: %s, url: %s", res.Status, bodyString, keysEndpointURL)
-		return nil, errors.New("unable to obtain public keys from remote service")
+		log.WithValues(map[string]interface{}{
+			"response_status": res.Status,
+			"response_body":   bodyString,
+			"keys_url":        keysEndpointURL,
+		}).Error(nil, err, "")
+		return nil, err
 	}
 	// unmarshal the keys
 	return km.fetchKeysFromBytes([]byte(bodyString))

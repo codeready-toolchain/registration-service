@@ -1,10 +1,8 @@
 package controller_test
 
 import (
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
@@ -29,14 +27,11 @@ func (s *TestSignupSuite) TestSignupHandler() {
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(logger, s.Config)
+	signupCtrl := controller.NewSignup(s.Config)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	s.Run("signup", func() {

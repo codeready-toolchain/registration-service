@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"log"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 
 	"github.com/gin-gonic/gin"
@@ -11,13 +9,11 @@ import (
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
 	config *configuration.Registry
-	logger *log.Logger
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(logger *log.Logger, config *configuration.Registry) *Signup {
+func NewSignup(config *configuration.Registry) *Signup {
 	return &Signup{
-		logger: logger,
 		config: config,
 	}
 }

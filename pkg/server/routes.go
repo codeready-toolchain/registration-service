@@ -1,17 +1,17 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
-	errs "github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
+	errs "github.com/pkg/errors"
 )
 
 // StaticHandler implements the http.Handler interface, so we can use it
@@ -39,7 +39,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	_, err = h.Assets.Open(path)
 	if err != nil {
 		// File does not exist, redirect to index.
-		log.Printf("File %s does not exist.", path)
+		log.Infof(ctx, "File %s does not exist.", path)
 		http.Redirect(ctx.Writer, ctx.Request, "/index.html", http.StatusSeeOther)
 		return
 	}
@@ -53,20 +53,20 @@ func (srv *RegistrationServer) SetupRoutes() error {
 	var err error
 	srv.routesSetup.Do(func() {
 		// initialize default managers
-		_, err = auth.InitializeDefaultTokenParser(srv.logger, srv.Config())
+		_, err = auth.InitializeDefaultTokenParser(srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
 			return
 		}
 
 		// creating the controllers
-		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config(), controller.NewHealthChecker(srv.Config()))
-		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
-		signupCtrl := controller.NewSignup(srv.logger, srv.Config())
+		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
+		authConfigCtrl := controller.NewAuthConfig(srv.Config())
+		signupCtrl := controller.NewSignup(srv.Config())
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
-		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
+		authMiddleware, err = middleware.NewAuthMiddleware()
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init auth middleware: %s", err.Error())
 			return

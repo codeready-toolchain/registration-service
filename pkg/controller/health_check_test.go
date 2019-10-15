@@ -34,7 +34,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(s.Config)
+	healthCheckCtrl := controller.NewHealthCheck(s.Config, controller.NewHealthChecker(s.Config))
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {
@@ -46,15 +46,14 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Alive
-		assert.True(s.T(), val, "alive is false in test mode health response")
+		assertHealth(s.T(), true, true, data)
 	})
 
 	s.Run("health in production mode", func() {
@@ -72,80 +71,54 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Alive
-		assert.True(s.T(), val, "alive is false in test mode health response")
+		assertHealth(s.T(), true, false, data)
 	})
 
-	s.Run("revision", func() {
+	s.Run("service Unavailable", func() {
+		// Setting production mode
+		s.Config.GetViperInstance().Set("testingmode", false)
+
+		healthCheckCtrl := controller.NewHealthCheck(s.Config, &mockHealthChecker{})
+		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
+
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		val := data.Revision
-		assert.Equal(s.T(), configuration.Commit, val, "wrong revision in health response, got %s want %s", val, configuration.Commit)
+		assertHealth(s.T(), false, false, data)
 	})
+}
 
-	s.Run("build time", func() {
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+func assertHealth(t *testing.T, expectedAlive, expectedTestingMode bool, actual *controller.Health) {
+	assert.Equal(t, expectedAlive, actual.Alive, "wrong alive in health response")
+	assert.Equal(t, configuration.Commit, actual.Revision, "wrong revision in health response")
+	assert.Equal(t, configuration.BuildTime, actual.BuildTime, "wrong build_time in health response")
+	assert.Equal(t, configuration.StartTime, actual.StartTime, "wrong start_time in health response")
+	assert.Equal(t, expectedTestingMode, actual.TestingMode, "wrong testing mode in health response")
+}
 
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
-		handler(ctx)
+type mockHealthChecker struct {
+	alive bool
+}
 
-		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
-
-		// Check the response body is what we expect.
-		data := &controller.Health{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(s.T(), err)
-
-		val := data.BuildTime
-		assert.Equal(s.T(), configuration.BuildTime, val, "wrong build_time in health response, got %s want %s", val, configuration.BuildTime)
-	})
-
-	s.Run("start time", func() {
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
-
-		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
-		// directly and pass in our Request and ResponseRecorder.
-		handler(ctx)
-
-		// Check the status code is what we expect.
-		assert.Equal(s.T(), rr.Code, http.StatusOK, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
-
-		// Check the response body is what we expect.
-		data := &controller.Health{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(s.T(), err)
-
-		val := data.StartTime
-		assert.Equal(s.T(), configuration.StartTime, val, "wrong start_time in health response, got %s want %s", val, configuration.StartTime)
-	})
+func (c *mockHealthChecker) Alive() bool {
+	return c.alive
 }

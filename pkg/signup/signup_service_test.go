@@ -204,7 +204,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
-				v1alpha1.Condition{
+				{
 					Type:    v1alpha1.UserSignupComplete,
 					Status:  apiv1.ConditionFalse,
 					Reason:  "test_reason",

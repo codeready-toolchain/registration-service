@@ -163,7 +163,11 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 	fields = append(fields, "timestamp")
 	fields = append(fields, currentTime.Format(time.RFC1123Z))
 	fields = append(fields, "commit")
-	fields = append(fields, configuration.Commit)
+	if len(configuration.Commit) > 7 {
+		fields = append(fields, configuration.Commit[0:7])
+	} else {
+		fields = append(fields, configuration.Commit)
+	}
 
 	if ctx != nil {
 		subject := ctx.GetString(context.SubKey)

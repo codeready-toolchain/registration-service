@@ -3,10 +3,12 @@ package log
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +33,7 @@ func TestLog(t *testing.T) {
 		assert.Contains(t, value, `"username":"usernametest"`)
 		assert.Contains(t, value, `"level":"info"`)
 		assert.Contains(t, value, `"timestamp":"`)
+		assert.Contains(t, value, fmt.Sprintf(`"commit":"%s"`, configuration.Commit))
 	})
 
 	t.Run("log infof", func(t *testing.T) {

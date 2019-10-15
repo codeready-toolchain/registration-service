@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 
 	"github.com/gin-gonic/gin"
@@ -161,6 +162,8 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 	currentTime := time.Now()
 	fields = append(fields, "timestamp")
 	fields = append(fields, currentTime.Format(time.RFC1123Z))
+	fields = append(fields, "commit")
+	fields = append(fields, configuration.Commit)
 
 	if ctx != nil {
 		subject := ctx.GetString(context.SubKey)

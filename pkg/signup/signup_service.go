@@ -149,7 +149,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.MasterUserRecords.Get(userSignup.GetName())
+	mur, err := s.MasterUserRecords.Get(userSignup.Spec.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}

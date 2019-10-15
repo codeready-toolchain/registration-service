@@ -169,7 +169,7 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 			fields = append(fields, subject)
 		}
 		username := ctx.GetString(context.UsernameKey)
-		if subject != "" {
+		if username != "" {
 			fields = append(fields, context.UsernameKey)
 			fields = append(fields, username)
 		}
@@ -189,7 +189,7 @@ func addRequestInfo(req *http.Request) []interface{} {
 
 	if url != nil {
 		fields = append(fields, "req_url")
-		fields = append(fields, url.Scheme+"://"+url.Host+url.Path)
+		fields = append(fields, fmt.Sprintf("%s://%s%s", url.Scheme, url.Host, url.Path))
 
 		reqParams := req.URL.Query()
 		if len(reqParams) > 0 {

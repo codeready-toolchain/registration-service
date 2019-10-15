@@ -3,16 +3,16 @@ package log
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLogHandler(t *testing.T) {
+func TestLog(t *testing.T) {
 	var buf bytes.Buffer
 	once.Reset()
 	Init("logger_tests", &buf)
@@ -21,57 +21,76 @@ func TestLogHandler(t *testing.T) {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
+		ctx.Set("username", "usernametest")
 
 		Info(ctx, "test logger with no formatting")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test logger with no formatting")
-		assert.Contains(t, value, "\"user_id\":\"test\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test logger with no formatting"`)
+		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"username":"usernametest"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
 	})
 
 	t.Run("log infof", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Set("subject", "test")
+		ctx.Set(context.SubKey, "test")
+		ctx.Set(context.UsernameKey, "usernametest")
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"user_id\":\"test\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"username":"usernametest"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
+	})
+
+	t.Run("log infof with no arguments", func(t *testing.T) {
+		buf.Reset()
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+
+		Infof(ctx, "test")
+		value := buf.String()
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test"`)
 	})
 
 	t.Run("log error", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
 		Error(ctx, errors.New("test error"), "test error with no formatting")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test error with no formatting")
-		assert.Contains(t, value, "\"error\":\"test error\"")
-		assert.Contains(t, value, "error")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test error with no formatting"`)
+		assert.Contains(t, value, `"error":"test error"`)
+		assert.Contains(t, value, `"level":"error"`)
+		assert.Contains(t, value, `"timestamp":"`)
 	})
 
 	t.Run("log errorf", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
 		Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"error\":\"test error\"")
-		assert.Contains(t, value, "error")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"error":"test error"`)
+		assert.Contains(t, value, `"level":"error"`)
+		assert.Contains(t, value, `"timestamp":"`)
 	})
 
 	t.Run("log infof with http request", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
@@ -84,18 +103,18 @@ func TestLogHandler(t *testing.T) {
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"req_url\":\"http://example.com/api/v1/health\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
-		assert.Contains(t, value, "\"req_params\":")
-		assert.Contains(t, value, "\"query_key\":[\"query_value\"]")
-		assert.Contains(t, value, "\"req_headers\":")
-		assert.Contains(t, value, "\"Accept\":[\"application/json\"]")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"req_url":"http://example.com/api/v1/health"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
+		assert.Contains(t, value, `"req_params":{"`)
+		assert.Contains(t, value, `"query_key":["query_value"]`)
+		assert.Contains(t, value, `"req_headers":{"Accept":["application/json"]}`)
 	})
 
 	t.Run("log infof with http request containing authorization header", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 
@@ -112,51 +131,73 @@ func TestLogHandler(t *testing.T) {
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
-		fmt.Println(value)
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"req_url\":\"http://example.com/api/v1/health\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
-		assert.Contains(t, value, "\"req_params\":")
-		assert.Contains(t, value, "\"query_key\":[\"query_value\"]")
-		assert.Contains(t, value, "\"token\":[\"*****\"]")
-		assert.Contains(t, value, "\"req_headers\":")
-		assert.Contains(t, value, "\"Accept\":[\"application/json\"]")
-		assert.Contains(t, value, "\"Authorization\"")
-		assert.Contains(t, value, "\"*****\"")
-		assert.Contains(t, value, "\"req_payload\"")
-		assert.Contains(t, value, "{\\\"testing-body\\\":\\\"test\\\"}")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"req_url":"http://example.com/api/v1/health"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
+		assert.Contains(t, value, `"req_params":{"`)
+		assert.Contains(t, value, `"query_key":["query_value"]`)
+		assert.Contains(t, value, `"token":["*****"]`)
+		assert.Contains(t, value, `"req_headers":{"`)
+		assert.Contains(t, value, `"Accept":["application/json"]`)
+		assert.Contains(t, value, `"Authorization":"*****"`)
+		assert.Contains(t, value, `"req_payload":"{\"testing-body\":\"test\"}"`)
 	})
 
 	t.Run("log infof withValues", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
 
 		WithValues(map[string]interface{}{"testing": "with-values"}).Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"testing\":\"with-values\"")
-		assert.Contains(t, value, "\"user_id\":\"test\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"testing":"with-values"`)
+		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
+	})
+
+	t.Run("log infof with empty values", func(t *testing.T) {
+		buf.Reset()
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+
+		WithValues(map[string]interface{}{}).Infof(ctx, "test %s", "info")
+		value := buf.String()
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"level":"info"`)
+	})
+
+	t.Run("log infof with nil values", func(t *testing.T) {
+		buf.Reset()
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+
+		WithValues(nil).Infof(ctx, "test %s", "info")
+		value := buf.String()
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"level":"info"`)
 	})
 
 	t.Run("log infof setOutput when tags is set", func(t *testing.T) {
+		buf.Reset()
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Set("subject", "test")
 
 		WithValues(map[string]interface{}{"testing-2": "with-values-2"}).Infof(ctx, "test %s", "info")
 		value := buf.String()
-		assert.Contains(t, value, "logger_tests")
-		assert.Contains(t, value, "test info")
-		assert.Contains(t, value, "\"testing\":\"with-values\"")
-		assert.Contains(t, value, "\"testing-2\":\"with-values-2\"")
-		assert.Contains(t, value, "\"user_id\":\"test\"")
-		assert.Contains(t, value, "info")
-		assert.Contains(t, value, "\"timestamp\":")
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"testing-2":"with-values-2"`)
+		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
 	})
 }

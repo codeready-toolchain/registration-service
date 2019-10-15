@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
-	"github.com/spf13/pflag"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	sync "github.com/matryer/resync"
+	"github.com/operator-framework/operator-sdk/pkg/log/zap"
+	"github.com/spf13/pflag"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var (
@@ -169,14 +170,14 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 	fields = append(fields, currentTime.Format(time.RFC1123Z))
 
 	if ctx != nil {
-		subject := ctx.GetString("subject")
+		subject := ctx.GetString(context.SubKey)
 		if subject != "" {
 			fields = append(fields, "user_id")
 			fields = append(fields, subject)
 		}
-		username := ctx.GetString("username")
+		username := ctx.GetString(context.UsernameKey)
 		if subject != "" {
-			fields = append(fields, "username")
+			fields = append(fields, context.UsernameKey)
 			fields = append(fields, username)
 		}
 

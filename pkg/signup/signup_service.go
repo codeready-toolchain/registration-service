@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	SignupReasonNoCondition  = "PendingApproval"
-	SignupMessageNoCondition = "Could not determine whether UserSignup is complete as condition is missing"
+	PendingApprovalReason = "PendingApproval"
 )
 
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
@@ -136,8 +135,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
 	if !found {
 		signupResponse.Status = Status{
-			Reason:  SignupReasonNoCondition,
-			Message: SignupMessageNoCondition,
+			Reason: PendingApprovalReason,
 		}
 		return signupResponse, nil
 	} else if signupCondition.Status != apiv1.ConditionTrue {

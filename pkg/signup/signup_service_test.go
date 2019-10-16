@@ -250,8 +250,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 	require.Equal(s.T(), "bill", response.Username)
 	require.False(s.T(), response.Status.Ready)
-	require.Equal(s.T(), signup.SignupReasonNoCondition, response.Status.Reason)
-	require.Equal(s.T(), signup.SignupMessageNoCondition, response.Status.Message)
+	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
+	require.Equal(s.T(), "", response.Status.Message)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {

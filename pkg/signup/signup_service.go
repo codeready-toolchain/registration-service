@@ -140,7 +140,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 			Message: SignupMessageNoCondition,
 		}
 		return signupResponse, nil
-	} else if found && signupCondition.Status != apiv1.ConditionTrue {
+	} else if signupCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = Status{
 			Reason:  signupCondition.Reason,
 			Message: signupCondition.Message,

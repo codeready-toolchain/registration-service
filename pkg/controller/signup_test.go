@@ -67,8 +67,9 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
 	// Create UserSignup
-	userID, err := uuid.NewV4()
+	ob, err := uuid.NewV4()
 	require.NoError(s.T(), err)
+	userID := ob.String()
 
 	// Create Signup controller instance.
 	ctrl := controller.NewSignup(s.Config, svc)
@@ -92,7 +93,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			},
 		}
 		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
-			if id == userID.String() {
+			if id == userID {
 				return expected, nil
 			}
 			return nil, nil

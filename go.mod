@@ -3,7 +3,6 @@ module github.com/codeready-toolchain/registration-service
 go 1.13
 
 require (
-	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20191013054335-17f0782f9285
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20191010043304-822e291d04cb
@@ -12,13 +11,12 @@ require (
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0
-	github.com/gobuffalo/envy v1.6.15 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/lestrrat-go/jwx v0.9.0
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/mattn/go-isatty v0.0.9 // indirect
-	github.com/operator-framework/operator-sdk v0.10.0
+	github.com/operator-framework/operator-sdk v0.11.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0

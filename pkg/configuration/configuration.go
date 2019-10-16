@@ -76,14 +76,15 @@ const (
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
-	DefaultAuthClientConfigContentType = "application/json"
+	DefaultAuthClientConfigContentType = "application/json; charset=utf-8"
 
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
-
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
 	DefaultAuthClientPublicKeysURL = ""
 
 	varNamespace = "namespace"
+	// DefaultNamespace is the default k8s namespace to use.
+	DefaultNamespace = ""
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -142,6 +143,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
+	c.v.SetDefault(varNamespace, DefaultNamespace)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or

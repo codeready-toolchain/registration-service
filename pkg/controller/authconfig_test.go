@@ -2,10 +2,8 @@ package controller
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	testutils "github.com/codeready-toolchain/registration-service/test"
@@ -30,14 +28,11 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/authconfig", nil)
 	require.NoError(s.T(), err)
 
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := NewAuthConfig(logger, s.Config)
+	authConfigCtrl := NewAuthConfig(s.Config)
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {

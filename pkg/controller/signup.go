@@ -2,43 +2,38 @@ package controller
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-gonic/gin"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
 	config        *configuration.Registry
-	logger        *log.Logger
-	signupService signup.SignupService
+	signupService signup.Service
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(logger *log.Logger, config *configuration.Registry) (*Signup, error) {
-	signupService, err := signup.NewSignupService(config)
-	if err != nil {
-		logger.Printf("error creating SignupService: %s", err.Error())
-		return nil, err
-	}
-
+func NewSignup(config *configuration.Registry, signupService signup.Service) *Signup {
 	return &Signup{
-		logger:        logger,
 		config:        config,
 		signupService: signupService,
-	}, nil
+	}
 }
 
-// PostHandler returns signup info.
+// PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "application/json")
+	// TODO call s.signupService.CreateUserSignup() to create the actual resource in Kube API Server
+	ctx.Writer.WriteHeader(http.StatusOK)
 
-	userSignup, err := s.signupService.CreateUserSignup(ctx, ctx.GetString(middleware.UsernameKey), ctx.GetString(middleware.SubKey))
+	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": fmt.Printf("Error creating UserSignup: %s", err.Error()),
@@ -46,6 +41,23 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 		return
 	}
 
-	s.logger.Printf("UserSignup %s created", userSignup.Name)
+	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
 	ctx.Status(http.StatusOK)
+}
+
+// GetHandler returns the Signup resource
+func (s *Signup) GetHandler(ctx *gin.Context) {
+	// Get the UserSignup resource from the service by the userID
+	userID := ctx.GetString(context.SubKey)
+	signupResource, err := s.signupService.GetSignup(userID)
+	if err != nil {
+		log.Error(ctx, err, "error getting UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+	}
+	if signupResource == nil {
+		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
+		ctx.AbortWithStatus(http.StatusNotFound)
+	} else {
+		ctx.JSON(http.StatusOK, signupResource)
+	}
 }

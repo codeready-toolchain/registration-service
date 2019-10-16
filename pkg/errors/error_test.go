@@ -9,6 +9,7 @@ import (
 
 	err "github.com/codeready-toolchain/registration-service/pkg/errors"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,7 +33,7 @@ func (s *TestErrorsSuite) TestErrors() {
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
 
-		err.EncodeError(ctx, errors.New(errMsg), code, details)
+		err.AbortWithError(ctx, code, errors.New(errMsg), details)
 
 		res := err.Error{}
 		err := json.Unmarshal(rr.Body.Bytes(), &res)

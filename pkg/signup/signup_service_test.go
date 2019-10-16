@@ -1,10 +1,11 @@
 package signup_test
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
@@ -38,12 +39,12 @@ func (s *TestSignupServiceSuite) TestNewSignupService() {
 }
 
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {
-	svc, fakeClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup(context.Background(), "jsmith", userID.String())
+	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -67,12 +68,12 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupTransform() {
-	svc, fakeClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup(context.Background(), "jane.doe@redhat.com", userID.String())
+	userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -93,17 +94,17 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
-	svc, _ := newSignupServiceWithFakeClient()
+	svc, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "john#gmail.com", userID.String())
-	require.Error(s.T(), err)
+	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
+	require.EqualError(s.T(), err, "Transformed username [john#gmail.com] is invalid")
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
-	svc, fakeClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 	err := fakeClient.Tracker.Add(&v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -120,14 +121,14 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	created, err := svc.CreateUserSignup(context.Background(), "john@gmail.com", userID.String())
+	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
 	require.NoError(s.T(), err)
 
 	require.NotEqual(s.T(), "john-at-gmail-com", created.Name)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
-	svc, fakeClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
 	fakeClient.MockCreate = func(*v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
 		return nil, expectedErr
@@ -136,13 +137,13 @@ func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "jack.smith@redhat.com", userID.String())
+	_, err = svc.CreateUserSignup("jack.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
-	svc, fakeClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
 	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
 		return nil, expectedErr
@@ -151,15 +152,214 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup(context.Background(), "hank.smith@redhat.com", userID.String())
+	_, err = svc.CreateUserSignup("hank.smith@redhat.com", userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
 
-func newSignupServiceWithFakeClient() (signup.SignupService, *fake.FakeUserSignupClient) {
+func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
+	svc, _, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	signup, err := svc.GetSignup(userID.String())
+	require.Nil(s.T(), signup)
+	require.NoError(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupGetFails() {
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	expectedErr := errors.New("an error occurred")
+	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
+		return nil, expectedErr
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	_, err = svc.GetSignup(userID.String())
+	require.Error(s.T(), err)
+	require.Equal(s.T(), expectedErr, err)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "bill",
+			CompliantUsername: "bill",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:    v1alpha1.UserSignupComplete,
+					Status:  apiv1.ConditionFalse,
+					Reason:  "test_reason",
+					Message: "test_message",
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	response, err := svc.GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "bill", response.Username)
+	require.False(s.T(), response.Status.Ready)
+	require.Equal(s.T(), response.Status.Reason, "test_reason")
+	require.Equal(s.T(), response.Status.Message, "test_message")
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
+	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "bill",
+			CompliantUsername: "bill",
+		},
+		Status: v1alpha1.UserSignupStatus{},
+	})
+	require.NoError(s.T(), err)
+
+	response, err := svc.GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "bill", response.Username)
+	require.False(s.T(), response.Status.Ready)
+	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
+	require.Equal(s.T(), "", response.Status.Message)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
+	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "ted",
+			CompliantUsername: "ted",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:   v1alpha1.UserSignupComplete,
+					Status: apiv1.ConditionTrue,
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "ted",
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.MasterUserRecordSpec{
+			UserID:        "",
+			Disabled:      false,
+			Deprovisioned: false,
+			UserAccounts:  nil,
+		},
+		Status: v1alpha1.MasterUserRecordStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:    v1alpha1.MasterUserRecordReady,
+					Status:  apiv1.ConditionTrue,
+					Reason:  "mur_ready_reason",
+					Message: "mur_ready_message",
+				},
+			},
+			UserAccounts: nil,
+		},
+	})
+
+	response, err := svc.GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "ted", response.Username)
+	require.True(s.T(), response.Status.Ready)
+	require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
+	require.Equal(s.T(), response.Status.Message, "mur_ready_message")
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
+	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+	returnedErr := errors.New("an error occurred")
+	fakeMURClient.MockGet = func(string) (*v1alpha1.MasterUserRecord, error) {
+		return nil, returnedErr
+	}
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			UserID:            userID.String(),
+			Username:          "ted",
+			CompliantUsername: "ted",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:   v1alpha1.UserSignupComplete,
+					Status: apiv1.ConditionTrue,
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), err)
+
+	_, err = svc.GetSignup(userID.String())
+	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", userID.String()))
+}
+
+func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
-	return &signup.SignupServiceImpl{
-		Namespace:   TestNamespace,
-		UserSignups: fakeClient,
-	}, fakeClient
+	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
+	return &signup.ServiceImpl{
+		Namespace:         TestNamespace,
+		UserSignups:       fakeClient,
+		MasterUserRecords: fakeMURClient,
+	}, fakeClient, fakeMURClient
 }

@@ -2,41 +2,32 @@ package server
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	errs "github.com/pkg/errors"
-
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 )
 
-// RegistrationServer bundles configuration, logging, and HTTP server objects in a single
+// RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
 	config      *configuration.Registry
 	router      *gin.Engine
 	httpServer  *http.Server
-	logger      *log.Logger
 	routesSetup sync.Once
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(configFilePath string) (*RegistrationServer, error) {
+func New(config *configuration.Registry) (*RegistrationServer, error) {
 	srv := &RegistrationServer{
 		router: gin.Default(),
-		logger: log.New(os.Stdout, "", 0),
 	}
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
-	config, err := configuration.New(configFilePath)
-	if err != nil {
-		return nil, errs.Wrapf(err, "failed to create a new configuration registry from file %q", configFilePath)
-	}
 	srv.config = config
 
 	srv.httpServer = &http.Server{
@@ -51,11 +42,6 @@ func New(configFilePath string) (*RegistrationServer, error) {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	return srv, nil
-}
-
-// Logger returns the app server's log object.
-func (srv *RegistrationServer) Logger() *log.Logger {
-	return srv.logger
 }
 
 // Config returns the app server's config object.

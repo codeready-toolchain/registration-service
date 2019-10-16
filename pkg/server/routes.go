@@ -1,17 +1,18 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
-	errs "github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
+	errs "github.com/pkg/errors"
 )
 
 // StaticHandler implements the http.Handler interface, so we can use it
@@ -39,7 +40,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 	_, err = h.Assets.Open(path)
 	if err != nil {
 		// File does not exist, redirect to index.
-		log.Printf("File %s does not exist.", path)
+		log.Infof(ctx, "File %s does not exist.", path)
 		http.Redirect(ctx.Writer, ctx.Request, "/index.html", http.StatusSeeOther)
 		return
 	}
@@ -50,27 +51,39 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 
 // SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
+
 	var err error
 	srv.routesSetup.Do(func() {
+
 		// initialize default managers
-		_, err = auth.InitializeDefaultTokenParser(srv.logger, srv.Config())
+		_, err = auth.InitializeDefaultTokenParser(srv.Config())
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
 			return
 		}
 
 		// creating the controllers
-		healthCheckCtrl := controller.NewHealthCheck(srv.logger, srv.Config())
-		authConfigCtrl := controller.NewAuthConfig(srv.logger, srv.Config())
-		signupCtrl, err := controller.NewSignup(srv.logger, srv.Config())
-		if err != nil {
-			err = errs.Wrapf(err, "failed to init signup controller: %s", err.Error())
-			return
+		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
+		authConfigCtrl := controller.NewAuthConfig(srv.Config())
+		var signupSrv signup.Service
+
+		if srv.Config().IsTestingMode() {
+			// testing mode, return default impl instance. This is needed for tests
+			// which require a full server initialization. Such as server and middleware tests.
+			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
+			signupSrv = &signup.ServiceImpl{}
+		} else {
+			signupSrv, err = signup.NewSignupService(srv.Config())
+			if err != nil {
+				err = errs.Wrapf(err, "failed to init signup service")
+				return
+			}
 		}
+		signupCtrl := controller.NewSignup(srv.Config(), signupSrv)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
-		authMiddleware, err = middleware.NewAuthMiddleware(srv.logger)
+		authMiddleware, err = middleware.NewAuthMiddleware()
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init auth middleware: %s", err.Error())
 			return
@@ -85,6 +98,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
+		securedV1.GET("/signup", signupCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if srv.Config().IsTestingMode() {
@@ -95,6 +109,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		static := StaticHandler{Assets: static.Assets}
 		// capturing all non-matching routes, assuming them to be static content
 		srv.router.NoRoute(static.ServeHTTP)
+
 	})
 	return err
 }

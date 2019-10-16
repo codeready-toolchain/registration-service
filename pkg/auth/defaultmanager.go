@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-	"log"
 	"sync"
 )
 
@@ -21,12 +20,12 @@ var defaultTokenParserHolder *TokenParser
 // InitializeDefaultKeyManager creates the default key manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
 // It will try to create the default manager only once even if called multiple times.
-func initializeDefaultKeyManager(logger *log.Logger, config KeyManagerConfiguration) (*KeyManager, error) {
+func initializeDefaultKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 	muKM.Lock()
 	defer muKM.Unlock()
 	if defaultKeyManagerHolder == nil {
 		var err error
-		defaultKeyManagerHolder, err = NewKeyManager(logger, config)
+		defaultKeyManagerHolder, err = NewKeyManager(config)
 		if err != nil {
 			return nil, err
 		}
@@ -46,16 +45,16 @@ func defaultKeyManager() (*KeyManager, error) {
 // InitializeDefaultTokenParser creates the default token parser if it has not created yet.
 // This function must be called in main to make sure the default parser is created during service startup.
 // It will try to create the default parser only once even if called multiple times.
-func InitializeDefaultTokenParser(logger *log.Logger, config DefaultTokenParserConfiguration) (*TokenParser, error) {
+func InitializeDefaultTokenParser(config DefaultTokenParserConfiguration) (*TokenParser, error) {
 	muTP.Lock()
 	defer muTP.Unlock()
 	if defaultTokenParserHolder == nil {
 		var err error
-		keyManager, err := initializeDefaultKeyManager(logger, config)
+		keyManager, err := initializeDefaultKeyManager(config)
 		if err != nil {
 			return nil, err
 		}
-		defaultTokenParserHolder, err = NewTokenParser(logger, keyManager)
+		defaultTokenParserHolder, err = NewTokenParser(keyManager)
 		if err != nil {
 			return nil, err
 		}

@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -19,20 +18,17 @@ type configResponse struct {
 // retrieve the auth config for the ui.
 type AuthConfig struct {
 	config *configuration.Registry
-	logger *log.Logger
 }
 
 // NewAuthConfig returns a new AuthConfig instance.
-func NewAuthConfig(logger *log.Logger, config *configuration.Registry) *AuthConfig {
+func NewAuthConfig(config *configuration.Registry) *AuthConfig {
 	return &AuthConfig{
-		logger: logger,
 		config: config,
 	}
 }
 
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
-	ctx.Writer.Header().Set("Content-Type", "application/json")
 	configRespData := configResponse{
 		AuthClientLibraryURL: ac.config.GetAuthClientLibraryURL(),
 		AuthClientConfigRaw:  ac.config.GetAuthClientConfigAuthRaw(),

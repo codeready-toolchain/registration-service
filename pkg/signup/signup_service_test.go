@@ -2,6 +2,7 @@ package signup_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -66,24 +67,6 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.False(s.T(), val.Spec.Approved)
 }
 
-func (s *TestSignupServiceSuite) TestGetUserSignup() {
-	svc, _, _ := newSignupServiceWithFakeClient()
-
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), userSignup)
-
-	/*
-		TODO: more testing here once GetUserSignup() is completed
-		retrieved, err := svc.GetUserSignup(userID.String())
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), retrieved)
-	*/
-}
-
 func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 
@@ -117,7 +100,7 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 	require.NoError(s.T(), err)
 
 	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
-	require.Error(s.T(), err)
+	require.EqualError(s.T(), err, "Transformed username [john#gmail.com] is invalid")
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
@@ -368,7 +351,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	require.NoError(s.T(), err)
 
 	_, err = svc.GetSignup(userID.String())
-	require.Error(s.T(), err)
+	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", userID.String()))
 }
 
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {

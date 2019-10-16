@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	SignupReasonNoCondition  = "UserSignupComplete condition not set"
+	SignupReasonNoCondition  = "PendingApproval"
 	SignupMessageNoCondition = "Could not determine whether UserSignup is complete as condition is missing"
 )
 

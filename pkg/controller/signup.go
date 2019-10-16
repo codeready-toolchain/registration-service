@@ -1,11 +1,12 @@
 package controller
 
 import (
-	"log"
 	"net/http"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
-	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 
 	"github.com/gin-gonic/gin"
@@ -13,17 +14,16 @@ import (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	logger        *log.Logger
+	config        *configuration.Registry
 	signupService signup.Service
 }
 
-// NewSignup returns a new Signup controller instance.
-func NewSignup(logger *log.Logger, signupService signup.Service) *Signup {
-	sc := &Signup{
-		logger:        logger,
+// NewSignup returns a new Signup instance.
+func NewSignup(config *configuration.Registry, signupService signup.Service) *Signup {
+	return &Signup{
+		config:        config,
 		signupService: signupService,
 	}
-	return sc
 }
 
 // PostHandler creates a Signup resource
@@ -36,14 +36,14 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
-	userID := ctx.GetString(middleware.SubKey)
+	userID := ctx.GetString(context.SubKey)
 	signupResource, err := s.signupService.GetSignup(userID)
 	if err != nil {
-		s.logger.Println("error getting UserSignup resource", err.Error())
+		log.Error(ctx, err, "error getting UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
-		s.logger.Printf("UserSignup resource for userID: %s resource not found", userID)
+		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
 		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
 		ctx.JSON(http.StatusOK, signupResource)

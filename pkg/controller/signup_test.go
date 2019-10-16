@@ -3,21 +3,19 @@ package controller_test
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
-	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/gofrs/uuid"
 
 	"github.com/gin-gonic/gin"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -37,11 +35,14 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+
+	// Create a mock SignupService
+	svc := &FakeSignupService{}
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(logger, nil)
+	signupCtrl := controller.NewSignup(s.Config, svc)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	s.Run("signup", func() {
@@ -63,16 +64,14 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
-	// Create logger and registry.
-	logger := log.New(os.Stderr, "", 0)
-
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
 	// Create UserSignup
-	userID := uuid.NewV4().String()
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(logger, svc)
+	ctrl := controller.NewSignup(s.Config, svc)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -80,17 +79,20 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(middleware.SubKey, userID)
+		ctx.Set(context.SubKey, userID)
+
+		targetCluster, err := uuid.NewV4()
+		require.NoError(s.T(), err)
 
 		expected := &signup.Signup{
-			TargetCluster: uuid.NewV4().String(),
+			TargetCluster: "cluster-" + targetCluster.String(),
 			Username:      "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},
 		}
 		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
-			if id == userID {
+			if id == userID.String() {
 				return expected, nil
 			}
 			return nil, nil
@@ -103,7 +105,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 		// Check the response body is what we expect.
 		data := &signup.Signup{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), expected, data)
@@ -114,7 +116,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(middleware.SubKey, userID)
+		ctx.Set(context.SubKey, userID)
 
 		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
 			return nil, nil
@@ -131,7 +133,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(middleware.SubKey, userID)
+		ctx.Set(context.SubKey, userID)
 
 		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")

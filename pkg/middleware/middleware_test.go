@@ -2,7 +2,6 @@ package middleware_test
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,15 +30,8 @@ func TestRunAuthMiddlewareSuite(t *testing.T) {
 }
 
 func (s *TestAuthMiddlewareSuite) TestAuthMiddleware() {
-	s.Run("create without logger", func() {
-		authMiddleware, err := middleware.NewAuthMiddleware(nil)
-		require.Nil(s.T(), authMiddleware)
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "missing parameters for NewAuthMiddleware", err.Error())
-	})
 	s.Run("create with DefaultTokenParser failing", func() {
-		logger := log.New(os.Stderr, "", 0)
-		authMiddleware, err := middleware.NewAuthMiddleware(logger)
+		authMiddleware, err := middleware.NewAuthMiddleware()
 		require.Nil(s.T(), authMiddleware)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "no default TokenParser created, call `InitializeDefaultTokenParser()` first", err.Error())

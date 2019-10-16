@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,13 +12,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegistrationServer bundles configuration, logging, and HTTP server objects in a single
+// RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
 	config      *configuration.Registry
 	router      *gin.Engine
 	httpServer  *http.Server
-	logger      *log.Logger
 	routesSetup sync.Once
 }
 
@@ -27,7 +25,6 @@ type RegistrationServer struct {
 func New(config *configuration.Registry) (*RegistrationServer, error) {
 	srv := &RegistrationServer{
 		router: gin.Default(),
-		logger: log.New(os.Stdout, "", 0),
 	}
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
@@ -45,11 +42,6 @@ func New(config *configuration.Registry) (*RegistrationServer, error) {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	return srv, nil
-}
-
-// Logger returns the app server's log object.
-func (srv *RegistrationServer) Logger() *log.Logger {
-	return srv.logger
 }
 
 // Config returns the app server's config object.

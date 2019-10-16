@@ -3,22 +3,28 @@ module github.com/codeready-toolchain/registration-service
 go 1.13
 
 require (
+	github.com/NYTimes/gziphandler v1.0.1 // indirect
+	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20191013054335-17f0782f9285
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20191010043304-822e291d04cb
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.4.0
+	github.com/go-logr/logr v0.1.0
+	github.com/gobuffalo/envy v1.6.15 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/lestrrat-go/jwx v0.9.0
 	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/mattn/go-isatty v0.0.9 // indirect
+	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd // indirect
-	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0
 	github.com/ugorji/go v1.1.7 // indirect

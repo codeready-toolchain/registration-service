@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-	"log"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -21,20 +20,15 @@ type TokenClaims struct {
 
 // TokenParser represents a parser for JWT tokens.
 type TokenParser struct {
-	logger     *log.Logger
 	keyManager *KeyManager
 }
 
 // NewTokenParser creates a new TokenParser.
-func NewTokenParser(logger *log.Logger, keyManager *KeyManager) (*TokenParser, error) {
-	if logger == nil {
-		return nil, errors.New("no logger given when creating TokenParser")
-	}
+func NewTokenParser(keyManager *KeyManager) (*TokenParser, error) {
 	if keyManager == nil {
 		return nil, errors.New("no keyManager given when creating TokenParser")
 	}
 	return &TokenParser{
-		logger:     logger,
 		keyManager: keyManager,
 	}, nil
 }

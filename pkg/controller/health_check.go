@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -16,7 +15,6 @@ type HealthCheckConfig interface {
 // HealthCheck implements the health endpoint.
 type HealthCheck struct {
 	config  HealthCheckConfig
-	logger  *log.Logger
 	checker HealthChecker
 }
 
@@ -30,9 +28,8 @@ type Health struct {
 }
 
 // HealthCheck returns a new HealthCheck instance.
-func NewHealthCheck(logger *log.Logger, config HealthCheckConfig, checker HealthChecker) *HealthCheck {
+func NewHealthCheck(config HealthCheckConfig, checker HealthChecker) *HealthCheck {
 	return &HealthCheck{
-		logger:  logger,
 		config:  config,
 		checker: checker,
 	}

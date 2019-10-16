@@ -22,7 +22,7 @@ type RegistrationServer struct {
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config *configuration.Registry) (*RegistrationServer, error) {
+func New(config *configuration.Registry) *RegistrationServer {
 	srv := &RegistrationServer{
 		router: gin.Default(),
 	}
@@ -41,7 +41,7 @@ func New(config *configuration.Registry) (*RegistrationServer, error) {
 	if srv.config.GetHTTPCompressResponses() {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
-	return srv, nil
+	return srv
 }
 
 // Config returns the app server's config object.

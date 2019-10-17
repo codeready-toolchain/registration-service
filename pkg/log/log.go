@@ -15,9 +15,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	sync "github.com/matryer/resync"
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"github.com/spf13/pflag"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var (
@@ -55,9 +55,9 @@ func Init(withName string, out io.Writer) {
 		// be propagated through the whole operator, generating
 		// uniform and structured logs.
 		if out == nil {
-			logf.SetLogger(zap.Logger())
+			logf.SetLogger(zap.Logger(false))
 		} else {
-			logf.SetLogger(zap.LoggerTo(out))
+			logf.SetLogger(zap.LoggerTo(out, false))
 		}
 		logger = newLogger(withName)
 	})

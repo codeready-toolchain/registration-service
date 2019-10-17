@@ -7,7 +7,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
@@ -19,7 +19,7 @@ func TestTokenParser(t *testing.T) {
 	configRegistry := configuration.CreateEmptyRegistry()
 
 	// create test keys
-	tokengenerator := testutils.NewTokenManager()
+	tokengenerator := test.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(t, err)
@@ -54,20 +54,20 @@ func TestTokenParser(t *testing.T) {
 	t.Run("parse valid tokens", func(t *testing.T) {
 		// create two test tokens, both valid
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
-		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, test.WithEmailClaim(email0))
 		require.NoError(t, err)
 		username1 := uuid.NewV4().String()
-		identity1 := &testutils.Identity{
+		identity1 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username1,
 		}
 		email1 := identity1.Username + "@email.tld"
-		jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, testutils.WithEmailClaim(email1))
+		jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, test.WithEmailClaim(email1))
 		require.NoError(t, err)
 
 		// check if the keys can be used to verify a JWT
@@ -93,7 +93,7 @@ func TestTokenParser(t *testing.T) {
 	t.Run("parse invalid token", func(t *testing.T) {
 		// create invalid test token (wrong set of claims, no email), signed with key1
 		username_invalid := uuid.NewV4().String()
-		identity_invalid := &testutils.Identity{
+		identity_invalid := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username_invalid,
 		}
@@ -112,12 +112,12 @@ func TestTokenParser(t *testing.T) {
 		require.NoError(t, err)
 		// generate valid token
 		usernameX := uuid.NewV4().String()
-		identityX := &testutils.Identity{
+		identityX := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: usernameX,
 		}
 		emailX := identityX.Username + "@email.tld"
-		jwtX, err := tokengenerator.GenerateSignedToken(*identityX, kidX, testutils.WithEmailClaim(emailX))
+		jwtX, err := tokengenerator.GenerateSignedToken(*identityX, kidX, test.WithEmailClaim(emailX))
 		require.NoError(t, err)
 		// remove key from known keys
 		tokengenerator.RemovePrivateKey(kidX)
@@ -129,13 +129,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("no KID header in token", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		delete(jwt0.Header, "kid")
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
@@ -148,13 +148,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("missing claim: preferred_username", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		// delete preferred_username
 		delete(jwt0.Claims.(jwt.MapClaims), "preferred_username")
 		// serialize
@@ -168,7 +168,7 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("missing claim: email", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
@@ -185,13 +185,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("missing claim: sub", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		// delete preferred_username
 		delete(jwt0.Claims.(jwt.MapClaims), "sub")
 		// serialize
@@ -205,13 +205,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("signature is good but token expired", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		// manipulate expiry
 		tDiff := -60 * time.Second
 		jwt0.Claims.(jwt.MapClaims)["exp"] = time.Now().UTC().Add(tDiff).Unix()
@@ -226,13 +226,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("signature is good but token not valid yet", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		// manipulate expiry
 		tDiff := 60 * time.Second
 		jwt0.Claims.(jwt.MapClaims)["nbf"] = time.Now().UTC().Add(tDiff).Unix()
@@ -247,13 +247,13 @@ func TestTokenParser(t *testing.T) {
 
 	t.Run("token signed by known key but the signature is invalid", func(t *testing.T) {
 		username0 := uuid.NewV4().String()
-		identity0 := &testutils.Identity{
+		identity0 := &test.Identity{
 			ID:       uuid.NewV4(),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, testutils.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, test.WithEmailClaim(email0))
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(t, err)

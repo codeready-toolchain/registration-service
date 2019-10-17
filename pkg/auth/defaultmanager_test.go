@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,11 +13,11 @@ import (
 )
 
 type TestDefaultManagerSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunDefaultManagerSuite(t *testing.T) {
-	suite.Run(t, &TestDefaultManagerSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestDefaultManagerSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {

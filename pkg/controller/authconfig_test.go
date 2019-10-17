@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -15,11 +15,11 @@ import (
 )
 
 type TestAuthConfigSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunAuthClientConfigSuite(t *testing.T) {
-	suite.Run(t, &TestAuthConfigSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestAuthConfigSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {

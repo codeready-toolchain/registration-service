@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	err "github.com/codeready-toolchain/registration-service/pkg/errors"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -17,11 +17,11 @@ import (
 )
 
 type TestErrorsSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunErrorsSuite(t *testing.T) {
-	suite.Run(t, &TestErrorsSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestErrorsSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestErrorsSuite) TestErrors() {

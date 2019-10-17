@@ -61,13 +61,14 @@ func (s *TestRoutesSuite) TestStaticContent() {
 				buf := bytes.NewBuffer(nil)
 				file, err := static.Assets.Open(tt.fsPath)
 				require.NoError(s.T(), err)
-				io.Copy(buf, file)
-				file.Close()
-				assert.Equal(s.T(), buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", string(rr.Body.Bytes()), string(buf.Bytes()))
+				defer file.Close()
+				_, err = io.Copy(buf, file)
+				require.NoError(s.T(), err)
+				assert.Equal(s.T(), buf.Bytes(), rr.Body.Bytes(), "handler returned wrong static content: got '%s' want '%s'", rr.Body.String(), buf.String())
 			} else if tt.expectedContents != "" {
 				require.Equal(s.T(), tt.expectedContents, rr.Body.String())
 			} else {
-				assert.Equal(s.T(), []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", string(rr.Body.Bytes()))
+				assert.Equal(s.T(), []byte(nil), rr.Body.Bytes(), "handler returned static content where body should be empty: got '%s'", rr.Body.String())
 			}
 		})
 	}

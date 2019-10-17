@@ -8,10 +8,8 @@ import (
 	"sync"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	errs "github.com/pkg/errors"
 )
 
 // RegistrationServer bundles configuration, and HTTP server objects in a single
@@ -24,16 +22,12 @@ type RegistrationServer struct {
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(configFilePath string) (*RegistrationServer, error) {
+func New(config *configuration.Registry) *RegistrationServer {
 	srv := &RegistrationServer{
 		router: gin.Default(),
 	}
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
-	config, err := configuration.New(configFilePath)
-	if err != nil {
-		return nil, errs.Wrapf(err, "failed to create a new configuration registry from file %q", configFilePath)
-	}
 	srv.config = config
 
 	srv.httpServer = &http.Server{
@@ -47,7 +41,7 @@ func New(configFilePath string) (*RegistrationServer, error) {
 	if srv.config.GetHTTPCompressResponses() {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
-	return srv, nil
+	return srv
 }
 
 // Config returns the app server's config object.

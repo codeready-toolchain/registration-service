@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	apiv1 "k8s.io/api/core/v1"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	errors2 "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,24 +17,55 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// SignupServiceConfiguration represents the config used for the signup service.
-type SignupServiceConfiguration interface {
+const (
+	PendingApprovalReason = "PendingApproval"
+)
+
+// Signup represents Signup resource which is a wrapper of K8s UserSignup
+// and the corresponding MasterUserRecord resources.
+type Signup struct {
+	// The cluster in which the user is provisioned in
+	// If not set then the target cluster will be picked automatically
+	TargetCluster string `json:"targetCluster,omitempty"`
+	// The username.  This may differ from the corresponding Identity Provider username, because of the the
+	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
+	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
+	// For example, johnsmith@redhat.com -> johnsmith-at-redhat-com
+	Username string `json:"username"`
+	Status   Status `json:"status,omitempty"`
+}
+
+// Status represents UserSignup resource status
+type Status struct {
+	// If true then the corresponding user's account is ready to be used
+	Ready bool `json:"ready"`
+	// Brief reason for the status last transition.
+	Reason string `json:"reason"`
+	// Human readable message indicating details about last transition.
+	Message string `json:"message,omitempty"`
+}
+
+// ServiceConfiguration represents the config used for the signup service.
+type ServiceConfiguration interface {
 	GetNamespace() string
 }
 
-// SignupService represents the signup service for controllers.
-type SignupService interface {
+// Service represents the signup service for controllers.
+type Service interface {
+	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
 }
 
-// SignupServiceImpl represents the implementation of the signup service.
-type SignupServiceImpl struct {
-	Namespace   string
-	UserSignups kubeclient.UserSignupInterface
+// ServiceImpl represents the implementation of the signup service.
+type ServiceImpl struct {
+	Namespace         string
+	UserSignups       kubeclient.UserSignupInterface
+	MasterUserRecords kubeclient.MasterUserRecordInterface
 }
 
-// NewSignupService creates a service object for performing user signup-related activities
-func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
+// NewSignupService creates a service object for performing user signup-related activities.
+func NewSignupService(cfg ServiceConfiguration) (Service, error) {
+
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -42,15 +76,17 @@ func NewSignupService(cfg SignupServiceConfiguration) (SignupService, error) {
 		return nil, err
 	}
 
-	return &SignupServiceImpl{
-		Namespace:   cfg.GetNamespace(),
-		UserSignups: client.UserSignups(),
-	}, nil
+	s := &ServiceImpl{
+		Namespace:         cfg.GetNamespace(),
+		UserSignups:       client.UserSignups(),
+		MasterUserRecords: client.MasterUserRecords(),
+	}
+	return s, nil
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
-	name, err := c.transformAndValidateUserName(username)
+func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
+	name, err := s.transformAndValidateUserName(username)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +94,7 @@ func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.U
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: c.Namespace,
+			Namespace: s.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
 			UserID:        userID,
@@ -68,7 +104,7 @@ func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.U
 		},
 	}
 
-	created, err := c.UserSignups.Create(userSignup)
+	created, err := s.UserSignups.Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +112,56 @@ func (c *SignupServiceImpl) CreateUserSignup(username, userID string) (*crtapi.U
 	return created, nil
 }
 
-func (c *SignupServiceImpl) transformAndValidateUserName(username string) (string, error) {
+// GetSignup returns Signup resource which represents the corresponding K8s UserSignup
+// and MasterUserRecord resources in the host cluster.
+// Returns nil, nil if the UserSignup resource is not found.
+func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
+
+	// Retrieve UserSignup resource from the host cluster
+	userSignup, err := s.UserSignups.Get(userID)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	signupResponse := &Signup{
+		Username:      userSignup.Spec.Username,
+		TargetCluster: userSignup.Spec.TargetCluster,
+	}
+
+	// Check UserSignup status to determine whether user signup is complete
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
+	if !found {
+		signupResponse.Status = Status{
+			Reason: PendingApprovalReason,
+		}
+		return signupResponse, nil
+	} else if signupCondition.Status != apiv1.ConditionTrue {
+		signupResponse.Status = Status{
+			Reason:  signupCondition.Reason,
+			Message: signupCondition.Message,
+		}
+		return signupResponse, nil
+	}
+
+	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
+	mur, err := s.MasterUserRecords.Get(userSignup.Spec.CompliantUsername)
+	if err != nil {
+		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
+	}
+	murCondition, ready := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	signupResponse.Status = Status{
+		Ready:   ready,
+		Reason:  murCondition.Reason,
+		Message: murCondition.Message,
+	}
+
+	return signupResponse, nil
+}
+
+func (s *ServiceImpl) transformAndValidateUserName(username string) (string, error) {
 	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
 
 	errs := validation.IsQualifiedName(replaced)
@@ -88,7 +173,7 @@ func (c *SignupServiceImpl) transformAndValidateUserName(username string) (strin
 	transformed := replaced
 
 	for {
-		userSignup, err := c.UserSignups.Get(transformed)
+		userSignup, err := s.UserSignups.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err

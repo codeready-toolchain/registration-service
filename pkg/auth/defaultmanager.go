@@ -35,7 +35,7 @@ func initializeDefaultKeyManager(config KeyManagerConfiguration) (*KeyManager, e
 }
 
 // defaultKeyManager returns the existing KeyManager instance.
-func defaultKeyManager() (*KeyManager, error) {
+func defaultKeyManager() (*KeyManager, error) { //nolint:unparam
 	if defaultKeyManagerHolder == nil {
 		return nil, errors.New("no default KeyManager created, call `InitializeDefaultKeyManager()` first")
 	}
@@ -64,7 +64,7 @@ func InitializeDefaultTokenParser(config DefaultTokenParserConfiguration) (*Toke
 }
 
 // DefaultTokenParser returns the existing TokenManager instance.
-func DefaultTokenParser() (*TokenParser, error) {
+func DefaultTokenParser() (*TokenParser, error) { //nolint:unparam
 	if defaultTokenParserHolder == nil {
 		return nil, errors.New("no default TokenParser created, call `InitializeDefaultTokenParser()` first")
 	}

@@ -6,11 +6,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
-	log = logf.KBLog.WithName("fake-usersignup-client")
+	log = logf.Log.WithName("fake-usersignup-client")
 )
 
 type FakeCRTV1Alpha1Client struct {

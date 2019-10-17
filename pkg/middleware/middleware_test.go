@@ -70,8 +70,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// create server
-	srv, err := server.New("")
-	require.NoError(s.T(), err)
+	srv := server.New(s.Config)
 
 	// set the key service url in the config
 	os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)

@@ -12,12 +12,15 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestLog(t *testing.T) {
 	var buf bytes.Buffer
 	once.Reset()
-	Init("logger_tests", &buf)
+	Init("logger_tests", func(o *zap.Options) {
+		o.DestWritter = &buf
+	})
 
 	t.Run("log info", func(t *testing.T) {
 		rr := httptest.NewRecorder()

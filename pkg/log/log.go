@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ type Logger struct {
 }
 
 // Init initializes the logger.
-func Init(withName string, out io.Writer) {
+func Init(withName string, opts ...zap.Opts) {
 	once.Do(func() {
 		zapFlagSet := pflag.NewFlagSet("zap", pflag.ExitOnError)
 
@@ -54,15 +53,7 @@ func Init(withName string, out io.Writer) {
 		// implementing the logr.Logger interface. This logger will
 		// be propagated through the whole operator, generating
 		// uniform and structured logs.
-		if out == nil {
-			logf.SetLogger(zap.New())
-		} else {
-			opts := func(o *zap.Options) {
-				o.DestWritter = out
-			}
-
-			logf.SetLogger(zap.New(opts))
-		}
+		logf.SetLogger(zap.New(opts...))
 		logger = newLogger(withName)
 	})
 }

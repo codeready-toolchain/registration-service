@@ -85,6 +85,22 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 	})
+
+	s.Run("signup error", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+			return nil, errors.New("blah")
+		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
+	})
 }
 
 func (s *TestSignupSuite) TestSignupGetHandler() {

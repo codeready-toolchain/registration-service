@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -35,14 +34,9 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey))
 	if err != nil {
-		msg, err := fmt.Printf("Error creating UserSignup: %s", err.Error())
-		if err != nil {
-			log.Error(ctx, err, "Error formatting message")
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": msg,
+			"message": "Error creating UserSignup",
+			"error":   err,
 		})
 		return
 	}

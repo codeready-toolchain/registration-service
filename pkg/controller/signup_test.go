@@ -51,6 +51,11 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
+		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+			value := &crtapi.UserSignup{}
+			return value, nil
+		}
+
 		handler(ctx)
 
 		// Check the status code is what we expect.

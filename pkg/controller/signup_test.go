@@ -14,6 +14,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	testutils "github.com/codeready-toolchain/registration-service/test"
 	"github.com/gofrs/uuid"
+	apiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -45,16 +47,59 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	signupCtrl := controller.NewSignup(s.Config, svc)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
-	s.Run("signup", func() {
+	s.Run("signup created", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
+		signup := &crtapi.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "john",
+				Namespace: "namespace-foo",
+			},
+			Spec: crtapi.UserSignupSpec{
+				UserID:            "abc123",
+				Username:          "bill",
+				CompliantUsername: "bill",
+			},
+			Status: crtapi.UserSignupStatus{
+				Conditions: []crtapi.Condition{
+					{
+						Type:    crtapi.UserSignupComplete,
+						Status:  apiv1.ConditionFalse,
+						Reason:  "test_reason",
+						Message: "test_message",
+					},
+				},
+			},
+		}
+
+		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+			return signup, nil
+		}
+
 		handler(ctx)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
+	})
+
+	s.Run("signup error", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+			return nil, errors.New("blah")
+		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
 	})
 }
 

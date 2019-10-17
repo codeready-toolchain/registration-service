@@ -42,10 +42,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	srv, err := server.New(config)
-	if err != nil {
-		panic(err.Error())
-	}
+	srv := server.New(config)
 
 	err = srv.SetupRoutes()
 	if err != nil {

@@ -21,11 +21,10 @@ func TestRunServerSuite(t *testing.T) {
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv, err := server.New(s.Config)
-	require.NoError(s.T(), err)
+	srv := server.New(s.Config)
 
 	// Setting up the routes.
-	err = srv.SetupRoutes()
+	err := srv.SetupRoutes()
 	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.

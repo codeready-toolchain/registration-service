@@ -12,6 +12,7 @@ require (
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
+	github.com/golangci/golangci-lint v1.21.0 // indirect
 	github.com/lestrrat-go/jwx v0.9.0
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215

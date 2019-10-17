@@ -306,6 +306,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			UserAccounts: nil,
 		},
 	})
+	require.NoError(s.T(), err)
 
 	response, err := svc.GetSignup(userID.String())
 	require.NoError(s.T(), err)

@@ -12,21 +12,21 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
-	testutils "github.com/codeready-toolchain/registration-service/test"
-	"github.com/dgrijalva/jwt-go"
-	uuid "github.com/satori/go.uuid"
+	"github.com/codeready-toolchain/registration-service/test"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestAuthMiddlewareSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunAuthMiddlewareSuite(t *testing.T) {
-	suite.Run(t, &TestAuthMiddlewareSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestAuthMiddlewareSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestAuthMiddlewareSuite) TestAuthMiddleware() {
@@ -40,17 +40,17 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddleware() {
 
 func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// create a TokenGenerator and a key
-	tokengenerator := testutils.NewTokenManager()
+	tokengenerator := test.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
 
 	// create some test tokens
-	identity0 := testutils.Identity{
+	identity0 := test.Identity{
 		ID:       uuid.NewV4(),
 		Username: uuid.NewV4().String(),
 	}
-	emailClaim0 := testutils.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
+	emailClaim0 := test.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
 	// valid token
 	tokenValid, err := tokengenerator.GenerateSignedToken(identity0, kid0, emailClaim0)
 	require.NoError(s.T(), err)

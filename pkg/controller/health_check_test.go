@@ -8,7 +8,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -17,11 +17,11 @@ import (
 )
 
 type TestHealthCheckSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunHealthCheckSuite(t *testing.T) {
-	suite.Run(t, &TestHealthCheckSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestHealthCheckSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestHealthCheckSuite) TestHealthCheckHandler() {

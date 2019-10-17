@@ -4,18 +4,18 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestServerSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunServerSuite(t *testing.T) {
-	suite.Run(t, &TestServerSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestServerSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestServerSuite) TestServer() {

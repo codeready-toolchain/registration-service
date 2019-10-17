@@ -1,4 +1,4 @@
-package testutils
+package test
 
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"

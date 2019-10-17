@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,11 +16,11 @@ import (
 )
 
 type TestConfigurationSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunConfigurationSuite(t *testing.T) {
-	suite.Run(t, &TestConfigurationSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestConfigurationSuite{test.UnitTestSuite{}})
 }
 
 // getDefaultConfiguration returns a configuration registry without anything but
@@ -69,14 +69,14 @@ func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 	key := configuration.EnvPrefix + "_" + "HTTP_ADDRESS"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultHTTPAddress, config.GetHTTPAddress())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -97,18 +97,18 @@ func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 
 func (s *TestConfigurationSuite) TestGetLogLevel() {
 	key := configuration.EnvPrefix + "_" + "LOG_LEVEL"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultLogLevel, config.GetLogLevel())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -129,18 +129,18 @@ func (s *TestConfigurationSuite) TestGetLogLevel() {
 
 func (s *TestConfigurationSuite) TestIsLogJSON() {
 	key := configuration.EnvPrefix + "_" + "LOG_JSON"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultLogJSON, config.IsLogJSON())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultLogJSON
 		config := s.getFileConfiguration(`log.json: "` + strconv.FormatBool(newVal) + `"`)
@@ -159,14 +159,14 @@ func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 	key := configuration.EnvPrefix + "_" + "GRACEFUL_TIMEOUT"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultGracefulTimeout, config.GetGracefulTimeout())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
 		config := s.getFileConfiguration(`graceful_timeout: "` + newVal.String() + `"`)
@@ -185,14 +185,14 @@ func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_WRITE_TIMEOUT"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultHTTPWriteTimeout, config.GetHTTPWriteTimeout())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 333 * time.Second
 		config := s.getFileConfiguration(`http.write_timeout: "` + newVal.String() + `"`)
@@ -211,14 +211,14 @@ func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_READ_TIMEOUT"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultHTTPReadTimeout, config.GetHTTPReadTimeout())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 444 * time.Second
 		config := s.getFileConfiguration(`http.read_timeout: "` + newVal.String() + `"`)
@@ -237,14 +237,14 @@ func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
 	key := configuration.EnvPrefix + "_" + "HTTP_IDLE_TIMEOUT"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultHTTPIdleTimeout, config.GetHTTPIdleTimeout())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := 111 * time.Second
 		config := s.getFileConfiguration(`http.idle_timeout: "` + newVal.String() + `"`)
@@ -263,14 +263,14 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 	key := configuration.EnvPrefix + "_" + "HTTP_COMPRESS"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultHTTPCompressResponses, config.GetHTTPCompressResponses())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultHTTPCompressResponses
 		config := s.getFileConfiguration(`http.compress: "` + strconv.FormatBool(newVal) + `"`)
@@ -287,18 +287,18 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 
 func (s *TestConfigurationSuite) TestIsTestingMode() {
 	key := configuration.EnvPrefix + "_" + "TESTINGMODE"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultTestingMode, config.IsTestingMode())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		newVal := !configuration.DefaultTestingMode
 		config := s.getFileConfiguration(`testingmode: "` + strconv.FormatBool(newVal) + `"`)
@@ -317,14 +317,14 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -347,14 +347,14 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultAuthClientConfigContentType, config.GetAuthClientConfigAuthContentType())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -375,18 +375,18 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 
 func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_LIBRARY_URL"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultAuthClientLibraryURL, config.GetAuthClientLibraryURL())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -407,18 +407,18 @@ func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 
 func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_PUBLIC_KEYS_URL"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultAuthClientPublicKeysURL, config.GetAuthClientPublicKeysURL())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -439,18 +439,18 @@ func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 
 func (s *TestConfigurationSuite) TestGetNamespace() {
 	key := configuration.EnvPrefix + "_" + "NAMESPACE"
-	resetFunc := testutils.UnsetEnvVarAndRestore(key)
+	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
 	s.Run("default", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), configuration.DefaultNamespace, config.GetNamespace())
 	})
 
 	s.Run("file", func() {
-		resetFunc := testutils.UnsetEnvVarAndRestore(key)
+		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)

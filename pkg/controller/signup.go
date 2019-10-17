@@ -34,10 +34,8 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 
 	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error creating UserSignup",
-			"error":   err,
-		})
+		log.Error(ctx, err, "error creating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return
 	}
 

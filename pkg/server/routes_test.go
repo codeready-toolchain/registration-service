@@ -9,7 +9,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,11 +17,11 @@ import (
 )
 
 type TestRoutesSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunRoutesSuite(t *testing.T) {
-	suite.Run(t, &TestRoutesSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestRoutesSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestRoutesSuite) TestStaticContent() {

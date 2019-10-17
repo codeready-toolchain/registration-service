@@ -11,8 +11,9 @@ import (
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -25,11 +26,11 @@ const (
 )
 
 type TestSignupServiceSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunSignupServiceSuite(t *testing.T) {
-	suite.Run(t, &TestSignupServiceSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestSignupServiceSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestSignupServiceSuite) TestNewSignupService() {

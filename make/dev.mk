@@ -49,7 +49,6 @@ deploy-rbac:
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
 deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
-	$(Q)-oc new-project $(LOCAL_TEST_NAMESPACE) || true
 	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
 
 .PHONY: update-etc-hosts

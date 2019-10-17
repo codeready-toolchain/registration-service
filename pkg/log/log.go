@@ -55,9 +55,13 @@ func Init(withName string, out io.Writer) {
 		// be propagated through the whole operator, generating
 		// uniform and structured logs.
 		if out == nil {
-			logf.SetLogger(zap.Logger(false))
+			logf.SetLogger(zap.New())
 		} else {
-			logf.SetLogger(zap.LoggerTo(out, false))
+			opts := func(o *zap.Options) {
+				o.DestWritter = out
+			}
+
+			logf.SetLogger(zap.New(opts))
 		}
 		logger = newLogger(withName)
 	})

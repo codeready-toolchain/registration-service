@@ -49,7 +49,7 @@ deploy-rbac:
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
 deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
-	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
+	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME_DEV}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
 
 .PHONY: update-etc-hosts
 ## Add minishift ip to /etc/hosts if needed

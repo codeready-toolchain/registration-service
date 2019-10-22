@@ -112,14 +112,6 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'public-client' value is not of type 'bool'")
 				assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response")
 			})
-
-			s.Run("confidential-port", func() {
-				val, ok := data["confidential-port"]
-				assert.True(s.T(), ok, "no 'confidential-port' key in authconfig response")
-				valFloat, ok := val.(float64)
-				assert.True(s.T(), ok, "returned 'confidential-port' value is not of type 'float64'")
-				assert.Equal(s.T(), config["confidential-port"], valFloat, "wrong 'confidential-port' in authconfig response")
-			})
 		})
 	})
 }

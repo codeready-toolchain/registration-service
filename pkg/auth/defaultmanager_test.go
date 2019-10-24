@@ -3,7 +3,6 @@ package auth
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -58,11 +57,15 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 			KeyMngr *KeyManager
 			KmErr   error
 		}
+
 		latch := sync.WaitGroup{}
 		latch.Add(1)
 		holder := make([]*kmErrHolder, 3)
+		wg := sync.WaitGroup{}
 		for i := 0; i < 3; i++ {
+			wg.Add(1)
 			go func(i int) {
+				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
 				km, err := initializeDefaultKeyManager(s.Config)
@@ -74,8 +77,9 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 			}(i)
 		}
 		latch.Done()
-		// wait for the system to settle before checking the results
-		time.Sleep(time.Millisecond * 500)
+		// wait for the worker to complete before checking the results
+		wg.Wait()
+
 		// check if only one entry has a KeyManager and the two others have errs
 		fails := 0
 		success := 0
@@ -127,6 +131,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	})
 
 	s.Run("parallel threads", func() {
+		s.T().Logf("VN:start")
 		// reset the singletons
 		defaultKeyManagerHolder = nil
 		defaultTokenParserHolder = nil
@@ -134,11 +139,15 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 			TokePrsr *TokenParser
 			TpErr    error
 		}
+
 		latch := sync.WaitGroup{}
 		latch.Add(1)
 		holder := make([]*tpErrHolder, 3)
+		wg := sync.WaitGroup{}
 		for i := 0; i < 3; i++ {
+			wg.Add(1)
 			go func(i int) {
+				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
 				tp, err := InitializeDefaultTokenParser(s.Config)
@@ -151,7 +160,8 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		}
 		latch.Done()
 		// wait for the system to settle before checking the results
-		time.Sleep(time.Millisecond * 500)
+		wg.Wait()
+
 		// check if only one entry has a TokenParser and the two others have errs
 		fails := 0
 		success := 0

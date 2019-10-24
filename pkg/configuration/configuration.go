@@ -68,11 +68,18 @@ const (
 
 	varAuthClientLibraryURL = "auth_client.library_url"
 	// DefaultAuthClientLibraryURL is the default auth library location.
-	DefaultAuthClientLibraryURL = "https://keycloak.service/auth/js/keycloak.js"
+	DefaultAuthClientLibraryURL = "https://sso.prod-preview.openshift.io/auth/js/keycloak.js"
 
 	varAuthClientConfigRaw = "auth_client.config.raw"
 	// DefaultAuthClientConfigRaw specifies the auth client config.
-	DefaultAuthClientConfigRaw = `{"realm":"myRealm","auth-server-url":"https://auth.service/auth","ssl-required": "none", "resource": "registrationService","public-client": true,"confidential-port": 0}`
+	DefaultAuthClientConfigRaw = `{
+  "realm": "toolchain-public",
+  "auth-server-url": "https://sso.prod-preview.openshift.io/auth",
+  "ssl-required": "none",
+  "resource": "crt",
+  "clientId": "crt",
+  "public-client": true
+}`
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
@@ -80,7 +87,7 @@ const (
 
 	varAuthClientPublicKeysURL = "auth_client.public_keys_url"
 	// DefaultAuthClientPublicKeysURL is the default log level used in your service.
-	DefaultAuthClientPublicKeysURL = ""
+	DefaultAuthClientPublicKeysURL = "https://sso.prod-preview.openshift.io/auth/realms/toolchain-public/protocol/openid-connect/certs"
 
 	varNamespace = "namespace"
 	// DefaultNamespace is the default k8s namespace to use.

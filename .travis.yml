@@ -38,6 +38,3 @@ deploy:
   script: bash scripts/docker_push.sh
   on:
     branch: master
-
-after_success:
-  - bash <(curl -s https://codecov.io/bash)

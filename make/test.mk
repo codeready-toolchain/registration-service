@@ -4,8 +4,7 @@ COV_DIR = $(OUT_DIR)/coverage
 ## runs all tests with bundles assets
 test: generate
 	@echo "running the tests without coverage..."
-	# TODO enable -race flag, there are some DATA RACE need to be fixed
-	go test ${V_FLAG} -failfast ./...
+	go test ${V_FLAG} -race -failfast ./...
 
 .PHONY: test-with-coverage
 ## runs the tests with coverage
@@ -71,7 +70,7 @@ test-e2e: get-e2e-repo
 ifeq ($(OPENSHIFT_BUILD_NAMESPACE),)
 	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD}
 else
-	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD} REG_IMAGE_NAME=registry.svc.ci.openshihost-operatorft.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:registration-service
+	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD} REG_IMAGE_NAME=registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:registration-service
 endif
 
 .PHONY: get-e2e-repo

@@ -3,7 +3,6 @@
 image:https://goreportcard.com/badge/github.com/codeready-toolchain/registration-service[Go Report Card, link="https://goreportcard.com/report/github.com/codeready-toolchain/registration-service"]
 image:https://godoc.org/github.com/codeready-toolchain/registration-service?status.png[GoDoc,link="https://godoc.org/github.com/codeready-toolchain/registration-service"]
 image:https://codecov.io/gh/codeready-toolchain/registration-service/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/codeready-toolchain/registration-service"]
-image:https://travis-ci.org/codeready-toolchain/registration-service.svg?branch=master[TravisCI,link="https://travis-ci.org/codeready-toolchain/registration-service"]
 
 This is the CodeReady Toolchain Registration Service repository. It implements the registration flow for the Toolchain SaaS.
 

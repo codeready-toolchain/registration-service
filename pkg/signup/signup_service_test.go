@@ -9,7 +9,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -31,12 +30,6 @@ type TestSignupServiceSuite struct {
 
 func TestRunSignupServiceSuite(t *testing.T) {
 	suite.Run(t, &TestSignupServiceSuite{test.UnitTestSuite{}})
-}
-
-func (s *TestSignupServiceSuite) TestNewSignupService() {
-	// Simply test creation of the service, which should fail as the kubernetes env variables are not set
-	_, err := signup.NewSignupService(configuration.CreateEmptyRegistry())
-	require.Error(s.T(), err)
 }
 
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {

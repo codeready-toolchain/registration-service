@@ -131,7 +131,6 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	})
 
 	s.Run("parallel threads", func() {
-		s.T().Logf("VN:start")
 		// reset the singletons
 		defaultKeyManagerHolder = nil
 		defaultTokenParserHolder = nil

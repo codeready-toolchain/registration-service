@@ -119,7 +119,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	svc := &FakeSignupService{}
 	// Create UserSignup
 	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
+	require.Error(s.T(), err)
 	userID := ob.String()
 
 	// Create Signup controller instance.

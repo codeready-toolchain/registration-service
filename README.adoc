@@ -90,3 +90,4 @@ make update-etc-hosts
 ```
 
 Then the service will be available at http://minishift.local:31000
+

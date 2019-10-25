@@ -89,7 +89,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusOK, rr.Code)
+		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 	})
 
 	s.Run("signup error", func() {

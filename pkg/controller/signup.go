@@ -36,7 +36,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	}
 
 	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
-	ctx.Status(http.StatusNoContent)
+	ctx.Status(http.StatusAccepted)
 	ctx.Writer.WriteHeaderNow()
 }
 

@@ -1,4 +1,4 @@
 .PHONY: generate
 ## generates the asset bundle to be packaged with the binary
-generate: depend
+generate:
 	go run -tags=dev pkg/static/assets_generate.go

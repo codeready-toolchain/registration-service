@@ -57,5 +57,5 @@ spec:
     name: registration-service
     weight: 100
   tls:
-    termination: edge 
+    termination: edge
   wildcardPolicy: None

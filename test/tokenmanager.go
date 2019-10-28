@@ -24,6 +24,12 @@ type WebKeySet struct {
 	Keys []jwk.Key `json:"keys"`
 }
 
+// PublicKey represents an RSA public key with a Key ID
+type PublicKey struct {
+	KeyID string
+	Key   *rsa.PublicKey
+}
+
 // ExtraClaim a function to set claims in the token to generate
 type ExtraClaim func(token *jwt.Token)
 
@@ -153,6 +159,36 @@ func (tg *TokenManager) NewKeyServer() *httptest.Server {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		fmt.Fprintln(w, string(jsonKeyData))
+	}))
+}
+
+// NewKeyServer creates and starts an http key server
+func (tg *TokenManager) NewJWKServer(privateKey *rsa.PrivateKey, kid0 string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		publicKey := &privateKey.PublicKey
+
+		keySet := &WebKeySet{}
+		newKey, err := jwk.New(publicKey)
+		if err != nil {
+			//http.Error(w, err.Error(), http.StatusInternalServerError)
+			//return
+		}
+		err = newKey.Set(jwk.KeyIDKey, kid0)
+		if err != nil {
+			//http.Error(w, err.Error(), http.StatusInternalServerError)
+			//return
+		}
+		keySet.Keys = append(keySet.Keys, newKey)
+
+		jsonKeyData, err := json.Marshal(keySet)
+		if err != nil {
+			//http.Error(w, err.Error(), http.StatusInternalServerError)
+			//return
 		}
 		fmt.Fprintln(w, string(jsonKeyData))
 	}))

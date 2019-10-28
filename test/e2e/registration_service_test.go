@@ -20,7 +20,7 @@ import (
 )
 
 func TestRegistrationService(t *testing.T) {
-	log.Init("registration-service", nil)
+	log.Init("registration-service")
 	t.Run("verify_healthcheck", func(t *testing.T) {
 		resp, err := http.Get("http://localhost:8080/api/v1/health")
 		require.Nil(t, err)

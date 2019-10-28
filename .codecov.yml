@@ -12,3 +12,4 @@ coverage:
     - "make/*"
     - "build/*"
     - "openshift-ci/*"
+    - "test/*"

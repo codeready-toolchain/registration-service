@@ -1,4 +1,4 @@
-package testutils
+package test
 
 import "os"
 
@@ -9,7 +9,7 @@ import "os"
 // In a test you can use this to temporarily set an environment variable:
 //
 //    func TestFoo(t *testing.T) {
-//        restoreFunc := testutils.UnsetEnvVarAndRestore("foo")
+//        restoreFunc := test.UnsetEnvVarAndRestore("foo")
 //        defer restoreFunc()
 //        os.Setenv(key, "bar")
 //

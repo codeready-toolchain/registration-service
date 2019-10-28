@@ -28,21 +28,16 @@ func NewSignup(config *configuration.Registry, signupService signup.Service) *Si
 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
-	ctx.Writer.Header().Set("Content-Type", "application/json")
-	// TODO call s.signupService.CreateUserSignup() to create the actual resource in Kube API Server
-	ctx.Writer.WriteHeader(http.StatusOK)
-
 	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error creating UserSignup",
-			"error":   err,
-		})
+		log.Error(ctx, err, "error creating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return
 	}
 
 	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
-	ctx.Status(http.StatusOK)
+	ctx.Status(http.StatusAccepted)
+	ctx.Writer.WriteHeaderNow()
 }
 
 // GetHandler returns the Signup resource

@@ -10,9 +10,8 @@ import (
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	testutils "github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/gofrs/uuid"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,11 +23,11 @@ import (
 )
 
 type TestSignupSuite struct {
-	testutils.UnitTestSuite
+	test.UnitTestSuite
 }
 
 func TestRunSignupSuite(t *testing.T) {
-	suite.Run(t, &TestSignupSuite{testutils.UnitTestSuite{}})
+	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}})
 }
 
 func (s *TestSignupSuite) TestSignupPostHandler() {
@@ -52,6 +51,12 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
+
+		// Put userID to the context
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		expectedUserID := ob.String()
+		ctx.Set(context.SubKey, expectedUserID)
 
 		signup := &crtapi.UserSignup{
 			TypeMeta: v1.TypeMeta{},
@@ -77,13 +82,14 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		}
 
 		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+			assert.Equal(s.T(), expectedUserID, userID)
 			return signup, nil
 		}
 
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusOK, rr.Code)
+		require.Equal(s.T(), http.StatusAccepted, rr.Code)
 	})
 
 	s.Run("signup error", func() {
@@ -98,8 +104,8 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 
 		handler(ctx)
 
-		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
+		// Check the error is what we expect.
+		test.AssertError(s.T(), rr, http.StatusInternalServerError, "blah", "error creating UserSignup resource")
 	})
 }
 
@@ -187,20 +193,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 		handler(ctx)
 
-		// Check the status code is what we expect.
-		assert.Equal(s.T(), http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
-
-		// Check the response body is what we expect.
-		data := &errs.Error{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(s.T(), err)
-
-		assert.Equal(s.T(), &errs.Error{
-			Status:  http.StatusText(http.StatusInternalServerError),
-			Code:    http.StatusInternalServerError,
-			Message: "oopsie woopsie",
-			Details: "error getting UserSignup resource",
-		}, data)
+		// Check the error is what we expect.
+		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
 	})
 }
 

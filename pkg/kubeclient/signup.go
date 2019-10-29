@@ -19,6 +19,7 @@ type UserSignupInterface interface {
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
+// If not found then NotFound error returned
 func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 	err := c.client.Get().

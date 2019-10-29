@@ -27,6 +27,9 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 		Name(name).
 		Do().
 		Into(result)
+	if err != nil {
+		return nil, err
+	}
 	return result, err
 }
 
@@ -40,5 +43,8 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 		Body(obj).
 		Do().
 		Into(result)
+	if err != nil {
+		return nil, err
+	}
 	return result, err
 }

@@ -173,14 +173,11 @@ func (s *ServiceImpl) transformAndValidateUserName(username string) (string, err
 	transformed := replaced
 
 	for {
-		userSignup, err := s.UserSignups.Get(transformed)
+		_, err := s.UserSignups.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err
 			}
-		}
-
-		if userSignup == nil {
 			break
 		}
 

@@ -72,6 +72,7 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 			return userSignupToBeReturnedByClient, errToBeReturnedByClient
 		}
 		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
 
 		userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
 		require.NoError(s.T(), err)
@@ -104,6 +105,7 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 	s.Run("unable to transform after N attempts", func() {
 		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
 		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
 		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
 			return &v1alpha1.UserSignup{}, nil // Always return some UserSignup
 		}

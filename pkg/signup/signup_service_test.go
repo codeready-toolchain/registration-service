@@ -12,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	kubeerr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
@@ -62,29 +63,56 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupTransform() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
-
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
+	check := func(userSignupToBeReturnedByClient *v1alpha1.UserSignup, errToBeReturnedByClient error) {
+		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
 
-	userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), userSignup)
+		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
+			return userSignupToBeReturnedByClient, errToBeReturnedByClient
+		}
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
 
-	gvk, err := apiutil.GVKForObject(userSignup, fakeClient.Scheme)
-	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+		userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
 
-	values, err := fakeClient.Tracker.List(gvr, gvk, TestNamespace)
-	require.NoError(s.T(), err)
+		gvk, err := apiutil.GVKForObject(userSignup, userSignupsClient.Scheme)
+		require.NoError(s.T(), err)
+		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
-	require.Len(s.T(), userSignups.Items, 1)
+		values, err := userSignupsClient.Tracker.List(gvr, gvk, TestNamespace)
+		require.NoError(s.T(), err)
 
-	val := userSignups.Items[0]
-	require.Equal(s.T(), "jane-doe-at-redhat-com", val.Name)
-	require.Equal(s.T(), userID.String(), val.Spec.UserID)
+		userSignups := values.(*v1alpha1.UserSignupList)
+		require.NotEmpty(s.T(), userSignups.Items)
+		require.Len(s.T(), userSignups.Items, 1)
+
+		val := userSignups.Items[0]
+		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Name)
+		require.Equal(s.T(), userID.String(), val.Spec.UserID)
+	}
+
+	s.Run("UserSignup not found and client returns nil", func() {
+		check(nil, kubeerr.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource(userID.String()).GroupResource(), userID.String()))
+	})
+
+	s.Run("UserSignup not found and client returns empty UserSignup", func() {
+		check(&v1alpha1.UserSignup{}, kubeerr.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource(userID.String()).GroupResource(), userID.String()))
+	})
+
+	s.Run("unable to transform after N attempts", func() {
+		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
+			return &v1alpha1.UserSignup{}, nil // Always return some UserSignup
+		}
+
+		_, err = svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
+		require.EqualError(s.T(), err, "unable to transform username [jane.doe@redhat.com] even after 1000 attempts")
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
@@ -94,7 +122,7 @@ func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 	require.NoError(s.T(), err)
 
 	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
-	require.EqualError(s.T(), err, "Transformed username [john#gmail.com] is invalid")
+	require.EqualError(s.T(), err, "transformed username [john#gmail.com] is invalid")
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
@@ -118,7 +146,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
 	require.NoError(s.T(), err)
 
-	require.NotEqual(s.T(), "john-at-gmail-com", created.Name)
+	require.Equal(s.T(), "john-at-gmail-com-1", created.Name)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {

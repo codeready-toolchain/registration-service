@@ -166,27 +166,22 @@ func (s *ServiceImpl) transformAndValidateUserName(username string) (string, err
 
 	errs := validation.IsQualifiedName(replaced)
 	if len(errs) > 0 {
-		return "", errors2.New(fmt.Sprintf("Transformed username [%s] is invalid", username))
+		return "", errors2.Errorf("transformed username [%s] is invalid", username)
 	}
 
-	iteration := 0
 	transformed := replaced
 
-	for {
-		userSignup, err := s.UserSignups.Get(transformed)
+	for i := 1; i < 1001; i++ { // No more than 1000 attempts to find a vacant name
+		_, err := s.UserSignups.Get(transformed)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return "", err
 			}
+			return transformed, nil
 		}
 
-		if userSignup == nil {
-			break
-		}
-
-		iteration++
-		transformed = fmt.Sprintf("%s-%d", replaced, iteration)
+		transformed = fmt.Sprintf("%s-%d", replaced, i)
 	}
 
-	return transformed, nil
+	return "", errors2.Errorf("unable to transform username [%s] even after 1000 attempts", username)
 }

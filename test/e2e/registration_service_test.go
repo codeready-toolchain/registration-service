@@ -186,10 +186,10 @@ func TestRegistrationService(t *testing.T) {
 		keysEndpointURL := serv.URL
 		reg, err := configuration.New("")
 		srv := server.New(reg)
-
+	
 		// 6. Set  auth_client.public_keys_url  to that address.
 		os.Setenv(configuration.EnvPrefix+"_"+"AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
-		os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "true")
+		os.Setenv(configuration.EnvPrefix+"_"+"TESTINGMODE", "false")
 
 		err = srv.SetupRoutes()
 		if err != nil {

@@ -164,8 +164,8 @@ func (tg *TokenManager) NewKeyServer() *httptest.Server {
 	}))
 }
 
-// NewKeyServer creates and starts an http key server
-func (tg *TokenManager) NewJWKServer(privateKey *rsa.PrivateKey, kid0 string) *httptest.Server {
+// NewJWKServer creates and starts a jwk server
+func NewJWKServer(privateKey *rsa.PrivateKey, kid0 string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

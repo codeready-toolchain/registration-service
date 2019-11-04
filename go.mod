@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20191013054335-17f0782f9285
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20191010043304-822e291d04cb
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20191102040237-e0b97f314fbb
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/sse v0.1.0 // indirect

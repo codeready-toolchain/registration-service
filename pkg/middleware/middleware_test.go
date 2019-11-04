@@ -13,6 +13,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
+	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
@@ -40,17 +41,17 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddleware() {
 
 func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// create a TokenGenerator and a key
-	tokengenerator := test.NewTokenManager()
+	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
 
 	// create some test tokens
-	identity0 := test.Identity{
+	identity0 := authsupport.Identity{
 		ID:       uuid.NewV4(),
 		Username: uuid.NewV4().String(),
 	}
-	emailClaim0 := test.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
+	emailClaim0 := authsupport.WithEmailClaim(uuid.NewV4().String() + "@email.tld")
 	// valid token
 	tokenValid, err := tokengenerator.GenerateSignedToken(identity0, kid0, emailClaim0)
 	require.NoError(s.T(), err)

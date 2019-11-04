@@ -8,6 +8,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/test"
+	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
@@ -38,7 +39,7 @@ func (s *TestKeyManagerSuite) TestKeyManager() {
 
 func (s *TestKeyManagerSuite) TestKeyFetching() {
 	// create test keys
-	tokengenerator := test.NewTokenManager()
+	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.NewV4().String()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
@@ -48,20 +49,20 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	// create two test tokens, both valid
 	username0 := uuid.NewV4().String()
-	identity0 := &test.Identity{
+	identity0 := &authsupport.Identity{
 		ID:       uuid.NewV4(),
 		Username: username0,
 	}
 	email0 := identity0.Username + "@email.tld"
-	jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, test.WithEmailClaim(email0))
+	jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
 	require.NoError(s.T(), err)
 	username1 := uuid.NewV4().String()
-	identity1 := &test.Identity{
+	identity1 := &authsupport.Identity{
 		ID:       uuid.NewV4(),
 		Username: username1,
 	}
 	email1 := identity1.Username + "@email.tld"
-	jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, test.WithEmailClaim(email1))
+	jwt1, err := tokengenerator.GenerateSignedToken(*identity1, kid1, authsupport.WithEmailClaim(email1))
 	require.NoError(s.T(), err)
 
 	// startup public key service

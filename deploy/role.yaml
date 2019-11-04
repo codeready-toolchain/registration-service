@@ -13,6 +13,6 @@ rules:
 - apiGroups:
   - toolchain.dev.openshift.com
   resources:
-    - masteruserrecord
+    - masteruserrecords
   verbs:
     - get

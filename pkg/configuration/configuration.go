@@ -91,7 +91,7 @@ const (
 
 	varNamespace = "namespace"
 	// DefaultNamespace is the default k8s namespace to use.
-	DefaultNamespace = ""
+	DefaultNamespace = "toolchain-host-operator"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the

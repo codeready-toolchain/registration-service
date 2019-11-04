@@ -23,6 +23,11 @@ spec:
         command:
         - registration-service
         imagePullPolicy: IfNotPresent
+        env:
+          - name: REGISTRATION_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
 ---
 apiVersion: v1
 kind: Service
@@ -56,4 +61,6 @@ spec:
     kind: Service
     name: registration-service
     weight: 100
+  tls:
+    termination: edge
   wildcardPolicy: None

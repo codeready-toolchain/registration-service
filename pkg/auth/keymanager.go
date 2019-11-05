@@ -19,7 +19,7 @@ import (
 type KeyManagerConfiguration interface {
 	GetAuthClientPublicKeysURL() string
 	IsE2ETestingMode() bool
-    GetE2EToken() string
+	GetE2EToken() string
 }
 
 // PublicKey represents an RSA public key with a Key ID
@@ -53,14 +53,14 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 	// fetch raw keys
 	if keysEndpointURL != "" {
 		if config.IsE2ETestingMode() {
-            log.Infof(nil, "fetching public keys from config")
-            keys, err := km.fetchKeysFromBytes([]byte(config.GetE2EToken()))
-            if err != nil {
-                return nil, err
-            }
-            // add them to the kid map
-            for _, key := range keys {
-                km.keyMap[key.KeyID] = key.Key
+			log.Infof(nil, "fetching public keys from config")
+			keys, err := km.fetchKeysFromBytes([]byte(config.GetE2EToken()))
+			if err != nil {
+				return nil, err
+			}
+			// add them to the kid map
+			for _, key := range keys {
+				km.keyMap[key.KeyID] = key.Key
 			}
 		} else {
 			log.Infof(nil, "fetching public keys from url: %s", keysEndpointURL)

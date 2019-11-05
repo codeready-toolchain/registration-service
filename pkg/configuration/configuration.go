@@ -67,7 +67,7 @@ const (
 	DefaultTestingMode = false
 
 	varE2ETestingMode = "e2etestingmode"
-	// DefaultE2ETestingMode specifies whether the services should run in testing mode.
+	// DefaultE2ETestingMode specifies whether the services should run in e2e testing mode.
 	DefaultE2ETestingMode = false
 
 	varAuthClientLibraryURL = "auth_client.library_url"
@@ -209,7 +209,7 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
-// IsE2ETestingMode returns if the service should run in testing mode (as set via
+// IsE2ETestingMode returns if the service should run in e2e testing mode (as set via
 // config file or environment variable).
 func (c *Registry) IsE2ETestingMode() bool {
 	return c.v.GetBool(varE2ETestingMode)
@@ -244,6 +244,7 @@ func (c *Registry) GetNamespace() string {
 	return c.v.GetString(varNamespace)
 }
 
-func (c *Registry) GetE2EToken() string {
+// Returns a hard-coded jwk for e2e tests to be used by the keymanager
+func (c *Registry) GetE2EJWK() string {
 	return `{"keys":[{"kid":"nBVBNiFNxSiX7Znyg4lUx89HQkV2gtJp11zTP6qLg-4","kty":"RSA","alg":"RS256","use":"sig","n":"i04yxaQb7e1-tfcDoXe8K2DZ-rJ2yVVjBoT9Tw0jOout5w84x2_r5t_4aCBQjo9IO7UVWTtvE0cOk1WtykXvso7iYh9ry9jsZtrJNS0QXykcOJZJLVxyh1uatrbpM5heKYNz5fs5hp-3Qh5XkyCkLigIkOoLMXO1tLkNvjiEdR1zslqEOXaqWsp6HlUcu1JOuEv1LsxFuCnKc9ZvZDm0mQQJiOAl1QRvSU3pgX3IjuoefY6-6NQAYm1MQjOzWSnNkQTTEIWgIRu8QVgxko50pR3fTC7LWj6AQCv5GkW1r5zIv9OSzjoiN8A_UHASWh0Z6oy0eLeY775EhVfrg_KjYw","e":"AQAB","x5c":["MIICoTCCAYkCBgFtIFN1nTANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wHhcNMTkwOTExMTIzNTAzWhcNMjkwOTExMTIzNjQzWjAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCLTjLFpBvt7X619wOhd7wrYNn6snbJVWMGhP1PDSM6i63nDzjHb+vm3/hoIFCOj0g7tRVZO28TRw6TVa3KRe+yjuJiH2vL2Oxm2sk1LRBfKRw4lkktXHKHW5q2tukzmF4pg3Pl+zmGn7dCHleTIKQuKAiQ6gsxc7W0uQ2+OIR1HXOyWoQ5dqpaynoeVRy7Uk64S/UuzEW4Kcpz1m9kObSZBAmI4CXVBG9JTemBfciO6h59jr7o1ABibUxCM7NZKc2RBNMQhaAhG7xBWDGSjnSlHd9MLstaPoBAK/kaRbWvnMi/05LOOiI3wD9QcBJaHRnqjLR4t5jvvkSFV+uD8qNjAgMBAAEwDQYJKoZIhvcNAQELBQADggEBADGGFneSXwWrT4Yk4PMcY14gfc6ta91Qz5xZDWiPz0ZaX1ULLEOu4k/rIKwN7tCMxBxCgnxaMj372JvAPAUqwLmRhvDxtcJDYHQwM77NqU3ZQARchqyDsd5aYW6cYFMF8D60PdFOgMRKJiRGpRbJgPt7+hFdbEw2XnWN9lnzXmbeXxCn7GZKZiKmWZU3eBa/pQVCjTb4JICs+1uBJj0VfgLNYHUbZXdvg4ismSEqXnBKX/V3lPJQWXU/yyMS6G9lHGcAisxWIthcA8C6gWUaJe1FwJrCeqDIJDABw72VAYvUaIf0pBVyXtr8A2JrBD9jdb8KOyC//X+LLiXqD1fpltw="],"x5t":"l_5tiA15SUVfBXx18njAbbs3wds","x5t#S256":"T8ef_9jOHIlDQVYCJOXPtyOkoRF-e8eJtyh7pswQclg"}]}`
 }

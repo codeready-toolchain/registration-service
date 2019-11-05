@@ -66,6 +66,10 @@ const (
 	// DefaultTestingMode specifies whether the services should run in testing mode.
 	DefaultTestingMode = false
 
+	varE2ETestingMode = "e2etestingmode"
+	// DefaultE2ETestingMode specifies whether the services should run in testing mode.
+	DefaultE2ETestingMode = false
+
 	varAuthClientLibraryURL = "auth_client.library_url"
 	// DefaultAuthClientLibraryURL is the default auth library location.
 	DefaultAuthClientLibraryURL = "https://sso.prod-preview.openshift.io/auth/js/keycloak.js"
@@ -146,6 +150,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varTestingMode, DefaultTestingMode)
+	c.v.SetDefault(varE2ETestingMode, DefaultE2ETestingMode)
 	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
 	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
@@ -204,6 +209,12 @@ func (c *Registry) IsTestingMode() bool {
 	return c.v.GetBool(varTestingMode)
 }
 
+// IsE2ETestingMode returns if the service should run in testing mode (as set via
+// config file or environment variable).
+func (c *Registry) IsE2ETestingMode() bool {
+	return c.v.GetBool(varE2ETestingMode)
+}
+
 // GetAuthClientLibraryURL returns the auth library location (as set via
 // config file or environment variable).
 func (c *Registry) GetAuthClientLibraryURL() string {
@@ -231,4 +242,45 @@ func (c *Registry) GetAuthClientPublicKeysURL() string {
 // GetNamespace returns the namespace in which the registration service and host operator is running
 func (c *Registry) GetNamespace() string {
 	return c.v.GetString(varNamespace)
+}
+
+func (c *Registry) GetE2EToken() string {
+	return `{
+            "keys": [{
+                "kid": "nBVBNiFNxSiX7Znyg4lUx89HQkV2gtJp11zTP6qLg-4",
+                "kty": "RSA",
+                "alg": "RS256",
+                "use": "sig",
+                "n": "i04yxaQb7e1-tfcDoXe8K2DZ-rJ2yVVjBoT9Tw0jOout5"+
+                "w84x2_r5t_4aCBQjo9IO7UVWTtvE0cOk1WtykXvso7iYh9ry9j"+
+                "sZtrJNS0QXykcOJZJLVxyh1uatrbpM5heKYNz5fs5hp-3Qh5Xk"+
+                "yCkLigIkOoLMXO1tLkNvjiEdR1zslqEOXaqWsp6HlUcu1JOuEv"+
+                "1LsxFuCnKc9ZvZDm0mQQJiOAl1QRvSU3pgX3IjuoefY6-6NQAY"+
+                "m1MQjOzWSnNkQTTEIWgIRu8QVgxko50pR3fTC7LWj6AQCv5GkW"+
+                "1r5zIv9OSzjoiN8A_UHASWh0Z6oy0eLeY775EhVfrg_KjYw",
+                "e": "AQAB",
+                "x5c": [
+                "MIICoTCCAYkCBgFtIFN1nTANBgkqhkiG9w0BAQsFADAUMRIwEA"+
+                "YDVQQDDAlkZW1vUmVhbG0wHhcNMTkwOTExMTIzNTAzWhcNMjkw"+
+                "OTExMTIzNjQzWjAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wggEiMA"+
+                "0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCLTjLFpBvt7X61"+
+                "9wOhd7wrYNn6snbJVWMGhP1PDSM6i63nDzjHb+vm3/hoIFCOj0"+
+                "g7tRVZO28TRw6TVa3KRe+yjuJiH2vL2Oxm2sk1LRBfKRw4lkkt"+
+                "XHKHW5q2tukzmF4pg3Pl+zmGn7dCHleTIKQuKAiQ6gsxc7W0uQ"+
+                "2+OIR1HXOyWoQ5dqpaynoeVRy7Uk64S/UuzEW4Kcpz1m9kObSZ"+
+                "BAmI4CXVBG9JTemBfciO6h59jr7o1ABibUxCM7NZKc2RBNMQha"+
+                "AhG7xBWDGSjnSlHd9MLstaPoBAK/kaRbWvnMi/05LOOiI3wD9Q"+
+                "cBJaHRnqjLR4t5jvvkSFV+uD8qNjAgMBAAEwDQYJKoZIhvcNAQ"+
+                "ELBQADggEBADGGFneSXwWrT4Yk4PMcY14gfc6ta91Qz5xZDWiP"+
+                "z0ZaX1ULLEOu4k/rIKwN7tCMxBxCgnxaMj372JvAPAUqwLmRhv"+
+                "DxtcJDYHQwM77NqU3ZQARchqyDsd5aYW6cYFMF8D60PdFOgMRK"+
+                "JiRGpRbJgPt7+hFdbEw2XnWN9lnzXmbeXxCn7GZKZiKmWZU3eB"+
+                "a/pQVCjTb4JICs+1uBJj0VfgLNYHUbZXdvg4ismSEqXnBKX/V3"+
+                "lPJQWXU/yyMS6G9lHGcAisxWIthcA8C6gWUaJe1FwJrCeqDIJD"+
+                "ABw72VAYvUaIf0pBVyXtr8A2JrBD9jdb8KOyC//X+LLiXqD1fpltw="
+                ],
+                "x5t": "l_5tiA15SUVfBXx18njAbbs3wds",
+                "x5t#S256": "T8ef_9jOHIlDQVYCJOXPtyOkoRF-e8eJtyh7pswQclg"
+            }]
+        }`
 }

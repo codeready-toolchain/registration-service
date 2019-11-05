@@ -245,42 +245,5 @@ func (c *Registry) GetNamespace() string {
 }
 
 func (c *Registry) GetE2EToken() string {
-	return `{
-            "keys": [{
-                "kid": "nBVBNiFNxSiX7Znyg4lUx89HQkV2gtJp11zTP6qLg-4",
-                "kty": "RSA",
-                "alg": "RS256",
-                "use": "sig",
-                "n": "i04yxaQb7e1-tfcDoXe8K2DZ-rJ2yVVjBoT9Tw0jOout5"+
-                "w84x2_r5t_4aCBQjo9IO7UVWTtvE0cOk1WtykXvso7iYh9ry9j"+
-                "sZtrJNS0QXykcOJZJLVxyh1uatrbpM5heKYNz5fs5hp-3Qh5Xk"+
-                "yCkLigIkOoLMXO1tLkNvjiEdR1zslqEOXaqWsp6HlUcu1JOuEv"+
-                "1LsxFuCnKc9ZvZDm0mQQJiOAl1QRvSU3pgX3IjuoefY6-6NQAY"+
-                "m1MQjOzWSnNkQTTEIWgIRu8QVgxko50pR3fTC7LWj6AQCv5GkW"+
-                "1r5zIv9OSzjoiN8A_UHASWh0Z6oy0eLeY775EhVfrg_KjYw",
-                "e": "AQAB",
-                "x5c": [
-                "MIICoTCCAYkCBgFtIFN1nTANBgkqhkiG9w0BAQsFADAUMRIwEA"+
-                "YDVQQDDAlkZW1vUmVhbG0wHhcNMTkwOTExMTIzNTAzWhcNMjkw"+
-                "OTExMTIzNjQzWjAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wggEiMA"+
-                "0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCLTjLFpBvt7X61"+
-                "9wOhd7wrYNn6snbJVWMGhP1PDSM6i63nDzjHb+vm3/hoIFCOj0"+
-                "g7tRVZO28TRw6TVa3KRe+yjuJiH2vL2Oxm2sk1LRBfKRw4lkkt"+
-                "XHKHW5q2tukzmF4pg3Pl+zmGn7dCHleTIKQuKAiQ6gsxc7W0uQ"+
-                "2+OIR1HXOyWoQ5dqpaynoeVRy7Uk64S/UuzEW4Kcpz1m9kObSZ"+
-                "BAmI4CXVBG9JTemBfciO6h59jr7o1ABibUxCM7NZKc2RBNMQha"+
-                "AhG7xBWDGSjnSlHd9MLstaPoBAK/kaRbWvnMi/05LOOiI3wD9Q"+
-                "cBJaHRnqjLR4t5jvvkSFV+uD8qNjAgMBAAEwDQYJKoZIhvcNAQ"+
-                "ELBQADggEBADGGFneSXwWrT4Yk4PMcY14gfc6ta91Qz5xZDWiP"+
-                "z0ZaX1ULLEOu4k/rIKwN7tCMxBxCgnxaMj372JvAPAUqwLmRhv"+
-                "DxtcJDYHQwM77NqU3ZQARchqyDsd5aYW6cYFMF8D60PdFOgMRK"+
-                "JiRGpRbJgPt7+hFdbEw2XnWN9lnzXmbeXxCn7GZKZiKmWZU3eB"+
-                "a/pQVCjTb4JICs+1uBJj0VfgLNYHUbZXdvg4ismSEqXnBKX/V3"+
-                "lPJQWXU/yyMS6G9lHGcAisxWIthcA8C6gWUaJe1FwJrCeqDIJD"+
-                "ABw72VAYvUaIf0pBVyXtr8A2JrBD9jdb8KOyC//X+LLiXqD1fpltw="
-                ],
-                "x5t": "l_5tiA15SUVfBXx18njAbbs3wds",
-                "x5t#S256": "T8ef_9jOHIlDQVYCJOXPtyOkoRF-e8eJtyh7pswQclg"
-            }]
-        }`
+	return `{"keys":[{"kid":"nBVBNiFNxSiX7Znyg4lUx89HQkV2gtJp11zTP6qLg-4","kty":"RSA","alg":"RS256","use":"sig","n":"i04yxaQb7e1-tfcDoXe8K2DZ-rJ2yVVjBoT9Tw0jOout5w84x2_r5t_4aCBQjo9IO7UVWTtvE0cOk1WtykXvso7iYh9ry9jsZtrJNS0QXykcOJZJLVxyh1uatrbpM5heKYNz5fs5hp-3Qh5XkyCkLigIkOoLMXO1tLkNvjiEdR1zslqEOXaqWsp6HlUcu1JOuEv1LsxFuCnKc9ZvZDm0mQQJiOAl1QRvSU3pgX3IjuoefY6-6NQAYm1MQjOzWSnNkQTTEIWgIRu8QVgxko50pR3fTC7LWj6AQCv5GkW1r5zIv9OSzjoiN8A_UHASWh0Z6oy0eLeY775EhVfrg_KjYw","e":"AQAB","x5c":["MIICoTCCAYkCBgFtIFN1nTANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wHhcNMTkwOTExMTIzNTAzWhcNMjkwOTExMTIzNjQzWjAUMRIwEAYDVQQDDAlkZW1vUmVhbG0wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCLTjLFpBvt7X619wOhd7wrYNn6snbJVWMGhP1PDSM6i63nDzjHb+vm3/hoIFCOj0g7tRVZO28TRw6TVa3KRe+yjuJiH2vL2Oxm2sk1LRBfKRw4lkktXHKHW5q2tukzmF4pg3Pl+zmGn7dCHleTIKQuKAiQ6gsxc7W0uQ2+OIR1HXOyWoQ5dqpaynoeVRy7Uk64S/UuzEW4Kcpz1m9kObSZBAmI4CXVBG9JTemBfciO6h59jr7o1ABibUxCM7NZKc2RBNMQhaAhG7xBWDGSjnSlHd9MLstaPoBAK/kaRbWvnMi/05LOOiI3wD9QcBJaHRnqjLR4t5jvvkSFV+uD8qNjAgMBAAEwDQYJKoZIhvcNAQELBQADggEBADGGFneSXwWrT4Yk4PMcY14gfc6ta91Qz5xZDWiPz0ZaX1ULLEOu4k/rIKwN7tCMxBxCgnxaMj372JvAPAUqwLmRhvDxtcJDYHQwM77NqU3ZQARchqyDsd5aYW6cYFMF8D60PdFOgMRKJiRGpRbJgPt7+hFdbEw2XnWN9lnzXmbeXxCn7GZKZiKmWZU3eBa/pQVCjTb4JICs+1uBJj0VfgLNYHUbZXdvg4ismSEqXnBKX/V3lPJQWXU/yyMS6G9lHGcAisxWIthcA8C6gWUaJe1FwJrCeqDIJDABw72VAYvUaIf0pBVyXtr8A2JrBD9jdb8KOyC//X+LLiXqD1fpltw="],"x5t":"l_5tiA15SUVfBXx18njAbbs3wds","x5t#S256":"T8ef_9jOHIlDQVYCJOXPtyOkoRF-e8eJtyh7pswQclg"}]}`
 }

@@ -313,6 +313,34 @@ func (s *TestConfigurationSuite) TestIsTestingMode() {
 	})
 }
 
+func (s *TestConfigurationSuite) TestIsE2ETestingMode() {
+	key := configuration.EnvPrefix + "_" + "E2ETESTINGMODE"
+	resetFunc := test.UnsetEnvVarAndRestore(key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := test.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultE2ETestingMode, config.IsE2ETestingMode())
+	})
+
+	s.Run("file", func() {
+		resetFunc := test.UnsetEnvVarAndRestore(key)
+		defer resetFunc()
+		newVal := !configuration.DefaultE2ETestingMode
+		config := s.getFileConfiguration(`e2etestingmode: "` + strconv.FormatBool(newVal) + `"`)
+		assert.Equal(s.T(), newVal, config.IsE2ETestingMode())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := !configuration.DefaultE2ETestingMode
+		os.Setenv(key, strconv.FormatBool(newVal))
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.IsE2ETestingMode())
+	})
+}
+
 func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 

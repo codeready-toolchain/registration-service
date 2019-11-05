@@ -9,6 +9,8 @@ import (
 // that is used for configuring the default TokenParser.
 type DefaultTokenParserConfiguration interface {
 	GetAuthClientPublicKeysURL() string
+	IsE2ETestingMode() bool
+	GetE2EToken() string
 }
 
 var muKM sync.Mutex

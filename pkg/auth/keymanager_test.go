@@ -28,12 +28,26 @@ func TestRunKeyManagerSuite(t *testing.T) {
 func (s *TestKeyManagerSuite) TestKeyManager() {
 	// Set the config for testing mode, the handler may use this.
 	s.Config.GetViperInstance().Set("testingmode", true)
+	s.Config.GetViperInstance().Set("e2etestingmode", false)
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("missing config", func() {
 		_, err := auth.NewKeyManager(nil)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "no config given when creating KeyManager", err.Error())
+	})
+}
+
+func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
+	s.Config.GetViperInstance().Set("testingmode", true)
+	s.Config.GetViperInstance().Set("e2etestingmode", true)
+	s.Run("e2e testing mode", func() {
+		keyManager, err := auth.NewKeyManager(s.Config)
+		require.NoError(s.T(), err)
+
+		// check if the keys are parsed correctly
+		_, err = keyManager.Key("nBVBNiFNxSiX7Znyg4lUx89HQkV2gtJp11zTP6qLg-4")
+		require.NoError(s.T(), err)
 	})
 }
 
@@ -70,7 +84,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	// Set the config for testing mode, the handler may use this.
 	s.Config.GetViperInstance().Set("testingmode", false)
+	s.Config.GetViperInstance().Set("e2etestingmode", false)
 	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
+	assert.False(s.T(), s.Config.IsTestingMode(), "e2etesting mode not set correctly to false")
 	// set the key service url in the config
 	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 	assert.Equal(s.T(), keysEndpointURL, s.Config.GetAuthClientPublicKeysURL(), "key url not set correctly")

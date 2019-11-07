@@ -51,6 +51,7 @@ deploy-rbac:
 deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
 	$(Q)oc process -f ./deploy/deployment.yaml \
         -p IMAGE=${IMAGE_NAME_DEV} \
+        -p ENVIRONMENT=dev \
         | oc apply -f -
 
 .PHONY: dev-image

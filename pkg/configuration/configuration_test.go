@@ -1,6 +1,7 @@
 package configuration_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -285,8 +286,8 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestIsTestingMode() {
-	key := configuration.EnvPrefix + "_" + "TESTINGMODE"
+func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
+	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
 	resetFunc := test.UnsetEnvVarAndRestore(key)
 	defer resetFunc()
 
@@ -294,22 +295,29 @@ func (s *TestConfigurationSuite) TestIsTestingMode() {
 		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultTestingMode, config.IsTestingMode())
+		assert.Equal(s.T(), "prod", config.GetEnvironment())
+		assert.False(s.T(), config.IsTestingMode())
 	})
 
 	s.Run("file", func() {
 		resetFunc := test.UnsetEnvVarAndRestore(key)
 		defer resetFunc()
-		newVal := !configuration.DefaultTestingMode
-		config := s.getFileConfiguration(`testingmode: "` + strconv.FormatBool(newVal) + `"`)
-		assert.Equal(s.T(), newVal, config.IsTestingMode())
+		config := s.getFileConfiguration("environment: TestGetEnvironmentFromConfig")
+		assert.Equal(s.T(), "TestGetEnvironmentFromConfig", config.GetEnvironment())
+		assert.False(s.T(), config.IsTestingMode())
 	})
 
 	s.Run("env overwrite", func() {
-		newVal := !configuration.DefaultTestingMode
-		os.Setenv(key, strconv.FormatBool(newVal))
+		os.Setenv(key, "TestGetEnvironmentFromEnvVar")
 		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.IsTestingMode())
+		assert.Equal(s.T(), "TestGetEnvironmentFromEnvVar", config.GetEnvironment())
+		assert.False(s.T(), config.IsTestingMode())
+	})
+
+	s.Run("unit-tests env", func() {
+		os.Setenv(key, "unit-tests")
+		config := s.getDefaultConfiguration()
+		assert.True(s.T(), config.IsTestingMode())
 	})
 }
 

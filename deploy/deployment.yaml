@@ -52,11 +52,11 @@ objects:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                - name: REGISTRATION_E2E_TESTING_MODE
+                - name: REGISTRATION_ENVIRONMENT
                   valueFrom:
                     configMapKeyRef:
                       name: registration-service
-                      key: e2e_testing_mode
+                      key: environment
                 - name: REGISTRATION_AUTH_CLIENT_LIBRARY_URL
                   valueFrom:
                     configMapKeyRef:
@@ -111,7 +111,7 @@ objects:
       name: registration-service
     type: Opaque
     data:
-      e2e_testing_mode: ${E2E_TESTING_MODE}
+      environment: ${ENVIRONMENT}
       auth_client.library_url: ${AUTH_CLIENT_LABRARY_URL}
       auth_client.config_raw: ${AUTH_CLIENT_CONFIG_RAW}
       auth_client.public_keys_url: ${AUTH_CLIENT_PUBLIC_KEYS_URL}
@@ -120,8 +120,8 @@ parameters:
     value: quay.io/openshiftio/codeready-toolchain/registration-service:latest
   - name: REPLICAS
     value: '3'
-  - name: E2E_TESTING_MODE
-    value: 'false'
+  - name: ENVIRONMENT
+    value: 'prod' # prod, stage, e2e-tests, dev, etc
   - name: AUTH_CLIENT_LABRARY_URL
     value: '' #use default value from reg-service configuration
   - name: AUTH_CLIENT_CONFIG_RAW

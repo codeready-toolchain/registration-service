@@ -1,4 +1,4 @@
-testingmode: true
+environment: prod
 graceful_timeout: "15s"
 log.level: "info"
 log.json: false

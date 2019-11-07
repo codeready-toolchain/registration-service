@@ -41,6 +41,12 @@ const (
 	// support it via the 'Accept-Encoding' header.
 	DefaultHTTPCompressResponses = true
 
+	// varEnvironment specifies service environment such as prod, stage, unit-tests, e2e-tests, dev, etc
+	varEnvironment = "environment"
+	// DefaultEnvironment is the default environment
+	DefaultEnvironment   = "prod"
+	UnitTestsEnvironment = "unit-tests"
+
 	varLogLevel = "log.level"
 	// DefaultLogLevel is the default log level used in your service.
 	DefaultLogLevel = "info"
@@ -61,10 +67,6 @@ const (
 	varHTTPReadTimeout = "http.read_timeout"
 	// DefaultHTTPReadTimeout specifies the default timeout for HTTP reads.
 	DefaultHTTPReadTimeout = time.Second * 15
-
-	varTestingMode = "testingmode"
-	// DefaultTestingMode specifies whether the services should run in testing mode.
-	DefaultTestingMode = false
 
 	varAuthClientLibraryURL = "auth_client.library_url"
 	// DefaultAuthClientLibraryURL is the default auth library location.
@@ -142,10 +144,10 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varHTTPWriteTimeout, DefaultHTTPWriteTimeout)
 	c.v.SetDefault(varHTTPReadTimeout, DefaultHTTPReadTimeout)
 	c.v.SetDefault(varHTTPIdleTimeout, DefaultHTTPIdleTimeout)
+	c.v.SetDefault(varEnvironment, DefaultEnvironment)
 	c.v.SetDefault(varLogLevel, DefaultLogLevel)
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
-	c.v.SetDefault(varTestingMode, DefaultTestingMode)
 	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
 	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
@@ -180,7 +182,12 @@ func (c *Registry) GetHTTPIdleTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPIdleTimeout)
 }
 
-// GetLogLevel returns the loggging level (as set via config file or environment
+// GetEnvironment returns the environment such as prod, stage, unit-tests, e2e-tests, dev, etc
+func (c *Registry) GetEnvironment() string {
+	return c.v.GetString(varEnvironment)
+}
+
+// GetLogLevel returns the logging level (as set via config file or environment
 // variable).
 func (c *Registry) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
@@ -198,10 +205,9 @@ func (c *Registry) GetGracefulTimeout() time.Duration {
 	return c.v.GetDuration(varGracefulTimeout)
 }
 
-// IsTestingMode returns if the service should run in testing mode (as set via
-// config file or environment variable).
+// IsTestingMode returns if the service runs in unit-tests environment
 func (c *Registry) IsTestingMode() bool {
-	return c.v.GetBool(varTestingMode)
+	return c.GetEnvironment() == UnitTestsEnvironment
 }
 
 // GetAuthClientLibraryURL returns the auth library location (as set via

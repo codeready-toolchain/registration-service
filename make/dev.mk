@@ -42,28 +42,16 @@ reset-namespace: login-as-admin clean-namespace create-namespace deploy-rbac
 .PHONY: deploy-rbac
 ## Setup service account and deploy RBAC
 deploy-rbac:
-	$(Q)-oc apply -f deploy/service_account.yaml
-	$(Q)-oc apply -f deploy/role.yaml
-	$(Q)-oc apply -f deploy/role_binding.yaml
+	$(Q)oc apply -f deploy/service_account.yaml
+	$(Q)oc apply -f deploy/role.yaml
+	$(Q)oc apply -f deploy/role_binding.yaml
 
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
 deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
-	$(Q)-sed -e 's|REPLACE_IMAGE|${IMAGE_NAME_DEV}|g' ./deploy/deployment_dev.yaml  | oc apply -f -
-
-.PHONY: update-etc-hosts
-## Add minishift ip to /etc/hosts if needed
-update-etc-hosts:
-	echo $(MINISHIFT_IP) $(HMINISHIFT_HOSTNAME) $(ETC_HOSTS)
-	if grep -q "$(MINISHIFT_IP) $(MINISHIFT_HOSTNAME)" $(ETC_HOSTS); then \
-    	echo "Hosts entry exists"; \
-	else \
-    	echo "Updating /etc/hosts (Remove old minishift.local if any and add new one)"; \
-    	# remove old entries with $(HOSTNAME) if any \
-    	sudo sed -i "/$(MINISHIFT_HOSTNAME_REGEX)/d" $(ETC_HOSTS); \
-    	# add new entry \
-    	echo $(MINISHIFT_IP) $(MINISHIFT_HOSTNAME) | sudo tee --append $(ETC_HOSTS); \
-	fi
+	$(Q)oc process -f ./deploy/deployment.yaml \
+        -p IMAGE=${IMAGE_NAME_DEV} \
+        | oc apply -f -
 
 .PHONY: dev-image
 ## Build the docker image locally that can be deployed to dev environment

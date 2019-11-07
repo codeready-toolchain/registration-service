@@ -1,0 +1,130 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: registration-service
+objects:
+  - kind: Deployment
+    apiVersion: apps/v1
+    metadata:
+      name: registration-service
+    spec:
+      replicas: ${{REPLICAS}}
+      selector:
+        matchLabels:
+          name: registration-service
+      template:
+        metadata:
+          labels:
+            name: registration-service
+            run: registration-service
+        spec:
+          serviceAccountName: registration-service
+          containers:
+            - name: registration-service
+              image: ${IMAGE}
+              ports:
+                - containerPort: 8080
+              command:
+                - registration-service
+              imagePullPolicy: IfNotPresent
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /api/v1/health
+                  port: 8080
+                  scheme: HTTP
+                initialDelaySeconds: 1
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 1
+              readinessProbe:
+                failureThreshold: 30
+                httpGet:
+                  path: /api/v1/health
+                  port: 8080
+                  scheme: HTTP
+                initialDelaySeconds: 1
+                periodSeconds: 1
+                successThreshold: 1
+                timeoutSeconds: 1
+              env:
+                - name: REGISTRATION_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: REGISTRATION_E2E_TESTING_MODE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: e2e_testing_mode
+                - name: REGISTRATION_AUTH_CLIENT_LIBRARY_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: auth_client.library_url
+                - name: REGISTRATION_AUTH_CLIENT_CONFIG_RAW
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: auth_client.config_raw
+                - name: REGISTRATION_AUTH_CLIENT_PUBLIC_KEYS_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: auth_client.public_keys_url
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: registration-service
+      labels:
+        run: registration-service
+    spec:
+      ports:
+        - name: "8080"
+          protocol: TCP
+          port: 80
+          targetPort: 8080
+      selector:
+        run: registration-service
+      type: ClusterIP
+      sessionAffinity: null
+  - kind: Route
+    apiVersion: v1
+    metadata:
+      labels:
+        run: registration-service
+      name: registration-service
+    spec:
+      host: ''
+      port:
+        targetPort: "8080"
+      to:
+        kind: Service
+        name: registration-service
+        weight: 100
+      tls:
+        termination: edge
+      wildcardPolicy: None
+  - kind: ConfigMap
+    apiVersion: v1
+    metadata:
+      name: registration-service
+    type: Opaque
+    data:
+      e2e_testing_mode: ${E2E_TESTING_MODE}
+      auth_client.library_url: ${AUTH_CLIENT_LABRARY_URL}
+      auth_client.config_raw: ${AUTH_CLIENT_CONFIG_RAW}
+      auth_client.public_keys_url: ${AUTH_CLIENT_PUBLIC_KEYS_URL}
+parameters:
+  - name: IMAGE
+    value: quay.io/openshiftio/codeready-toolchain/registration-service:latest
+  - name: REPLICAS
+    value: '3'
+  - name: E2E_TESTING_MODE
+    value: 'false'
+  - name: AUTH_CLIENT_LABRARY_URL
+    value: #default value
+  - name: AUTH_CLIENT_CONFIG_RAW
+    value: #default value
+  - name: AUTH_CLIENT_PUBLIC_KEYS_URL
+    value: #default value

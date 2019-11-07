@@ -39,7 +39,7 @@ const (
 	varHTTPCompressResponses = "http.compress"
 	// DefaultHTTPCompressResponses compresses HTTP responses for clients that
 	// support it via the 'Accept-Encoding' header.
-	DefaultHTTPCompressResponses = false
+	DefaultHTTPCompressResponses = true
 
 	varLogLevel = "log.level"
 	// DefaultLogLevel is the default log level used in your service.

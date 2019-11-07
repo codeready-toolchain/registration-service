@@ -123,8 +123,8 @@ parameters:
   - name: E2E_TESTING_MODE
     value: 'false'
   - name: AUTH_CLIENT_LABRARY_URL
-    value: #default value
+    value: '' #use default value from reg-service configuration
   - name: AUTH_CLIENT_CONFIG_RAW
-    value: #default value
+    value: '' #use default value from reg-service configuration
   - name: AUTH_CLIENT_PUBLIC_KEYS_URL
-    value: #default value
+    value: '' #use default value from reg-service configuration

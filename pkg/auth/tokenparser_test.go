@@ -41,7 +41,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("testingmode", true)
+	configRegistry.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 	assert.True(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 	// set the key service url in the config
 	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)

@@ -82,11 +82,3 @@ You can now open the URL from HOST/PORT in your browser:
 http://registration-service-toolchain-host-operator.192.168.42.237.nip.io
 
 _Note_: the actual route/URL will be different in your minishift.
-
-Alternatively you can add minishift IP to your `/etc/hosts` (requires `sudo` permissions):
-
-```bash
-make update-etc-hosts
-```
-
-Then the service will be available at http://minishift.local:31000

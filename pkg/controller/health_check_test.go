@@ -43,6 +43,9 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
+		// Setting unit-tests environment
+		s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
+
 		handler(ctx)
 
 		// Check the status code is what we expect.
@@ -53,7 +56,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), true, true, data)
+		assertHealth(s.T(), true, "unit-tests", data)
 	})
 
 	s.Run("health in production mode", func() {
@@ -63,7 +66,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		ctx.Request = req
 
 		// Setting production mode
-		s.Config.GetViperInstance().Set("testingmode", false)
+		s.Config.GetViperInstance().Set("environment", "prod")
 		assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
@@ -78,12 +81,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), true, false, data)
+		assertHealth(s.T(), true, "prod", data)
 	})
 
 	s.Run("service Unavailable", func() {
 		// Setting production mode
-		s.Config.GetViperInstance().Set("testingmode", false)
+		s.Config.GetViperInstance().Set("environment", "testServiceUnavailable")
 
 		healthCheckCtrl := controller.NewHealthCheck(s.Config, &mockHealthChecker{})
 		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
@@ -103,16 +106,16 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), false, false, data)
+		assertHealth(s.T(), false, "testServiceUnavailable", data)
 	})
 }
 
-func assertHealth(t *testing.T, expectedAlive, expectedTestingMode bool, actual *controller.Health) {
+func assertHealth(t *testing.T, expectedAlive bool, expectedEnvironment string, actual *controller.Health) {
 	assert.Equal(t, expectedAlive, actual.Alive, "wrong alive in health response")
 	assert.Equal(t, configuration.Commit, actual.Revision, "wrong revision in health response")
 	assert.Equal(t, configuration.BuildTime, actual.BuildTime, "wrong build_time in health response")
 	assert.Equal(t, configuration.StartTime, actual.StartTime, "wrong start_time in health response")
-	assert.Equal(t, expectedTestingMode, actual.TestingMode, "wrong testing mode in health response")
+	assert.Equal(t, expectedEnvironment, actual.Environment, "wrong environment in health response")
 }
 
 type mockHealthChecker struct {

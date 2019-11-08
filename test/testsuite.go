@@ -20,8 +20,8 @@ func (s *UnitTestSuite) SetupSuite() {
 
 	s.Config = configuration.CreateEmptyRegistry()
 
-	// set the config for testing mode
-	s.Config.GetViperInstance().Set("testingmode", true)
+	// set environment to unit-tests
+	s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 }
 
 // TearDownSuite tears down the test suite.

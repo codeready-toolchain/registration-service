@@ -9,7 +9,7 @@ import (
 )
 
 type HealthCheckConfig interface {
-	IsTestingMode() bool
+	GetEnvironment() string
 }
 
 // HealthCheck implements the health endpoint.
@@ -21,7 +21,7 @@ type HealthCheck struct {
 // Health payload
 type Health struct {
 	Alive       bool   `json:"alive"`
-	TestingMode bool   `json:"testingMode"`
+	Environment string `json:"environment"`
 	Revision    string `json:"revision"`
 	BuildTime   string `json:"buildTime"`
 	StartTime   string `json:"startTime"`
@@ -39,7 +39,7 @@ func NewHealthCheck(config HealthCheckConfig, checker HealthChecker) *HealthChec
 func (hc *HealthCheck) getHealthInfo() *Health {
 	return &Health{
 		Alive:       hc.checker.Alive(),
-		TestingMode: hc.config.IsTestingMode(),
+		Environment: hc.config.GetEnvironment(),
 		Revision:    configuration.Commit,
 		BuildTime:   configuration.BuildTime,
 		StartTime:   configuration.StartTime,

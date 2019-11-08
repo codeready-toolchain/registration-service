@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
@@ -27,7 +28,7 @@ func TestRunKeyManagerSuite(t *testing.T) {
 
 func (s *TestKeyManagerSuite) TestKeyManager() {
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("testingmode", true)
+	s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("missing config", func() {
@@ -69,7 +70,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("testingmode", false)
+	s.Config.GetViperInstance().Set("environment", "prod")
 	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 	// set the key service url in the config
 	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)

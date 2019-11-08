@@ -91,6 +91,8 @@ objects:
   - kind: Route
     apiVersion: v1
     metadata:
+      annotations:
+        haproxy.router.openshift.io/hsts_header: max-age=31536000
       labels:
         run: registration-service
       name: registration-service

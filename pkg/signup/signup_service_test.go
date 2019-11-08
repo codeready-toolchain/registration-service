@@ -36,10 +36,7 @@ func TestRunSignupServiceSuite(t *testing.T) {
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
+	userSignup, err := svc.CreateUserSignup("jsmith")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -57,7 +54,6 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	val := userSignups.Items[0]
 	require.Equal(s.T(), "jsmith", val.Name)
 	require.Equal(s.T(), TestNamespace, val.Namespace)
-	require.Equal(s.T(), userID.String(), val.Spec.UserID)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.False(s.T(), val.Spec.Approved)
 }
@@ -71,10 +67,8 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
 			return userSignupToBeReturnedByClient, errToBeReturnedByClient
 		}
-		userID, err := uuid.NewV4()
-		require.NoError(s.T(), err)
 
-		userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
+		userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com")
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), userSignup)
 
@@ -91,7 +85,6 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 
 		val := userSignups.Items[0]
 		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Name)
-		require.Equal(s.T(), userID.String(), val.Spec.UserID)
 	}
 
 	s.Run("UserSignup not found and client returns nil", func() {
@@ -104,13 +97,11 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 
 	s.Run("unable to transform after N attempts", func() {
 		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
-		userID, err := uuid.NewV4()
-		require.NoError(s.T(), err)
 		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
 			return &v1alpha1.UserSignup{}, nil // Always return some UserSignup
 		}
 
-		_, err = svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
+		_, err = svc.CreateUserSignup("jane.doe@redhat.com")
 		require.EqualError(s.T(), err, "unable to transform username [jane.doe@redhat.com] even after 1000 attempts")
 	})
 }
@@ -118,10 +109,7 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
 	svc, _, _ := newSignupServiceWithFakeClient()
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
+	_, err := svc.CreateUserSignup("john#gmail.com")
 	require.EqualError(s.T(), err, "transformed username [john#gmail.com] is invalid")
 }
 
@@ -134,16 +122,12 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID: "foo",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
 	require.NoError(s.T(), err)
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
+	created, err := svc.CreateUserSignup("john@gmail.com")
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), "john-at-gmail-com-1", created.Name)
@@ -156,10 +140,7 @@ func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
 		return nil, expectedErr
 	}
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.CreateUserSignup("jack.smith@redhat.com", userID.String())
+	_, err := svc.CreateUserSignup("jack.smith@redhat.com")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
@@ -171,10 +152,7 @@ func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 		return nil, expectedErr
 	}
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.CreateUserSignup("hank.smith@redhat.com", userID.String())
+	_, err := svc.CreateUserSignup("hank.smith@redhat.com")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
@@ -218,7 +196,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -258,7 +235,6 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -289,7 +265,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},
@@ -357,7 +332,6 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},

@@ -15,6 +15,7 @@ import (
 	kubeerr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -311,7 +312,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			UserID:        "",
 			Disabled:      false,
 			Deprovisioned: false,
-			UserAccounts:  nil,
+			UserAccounts:  []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
 		Status: v1alpha1.MasterUserRecordStatus{
 			Conditions: []v1alpha1.Condition{
@@ -332,9 +333,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "ted", response.Username)
-	require.True(s.T(), response.Status.Ready)
-	require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
-	require.Equal(s.T(), response.Status.Message, "mur_ready_message")
+	assert.True(s.T(), response.Status.Ready)
+	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
+	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
+	assert.Equal(s.T(), response.TargetCluster, "member-123")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {

@@ -157,6 +157,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 		Reason:  murCondition.Reason,
 		Message: murCondition.Message,
 	}
+	if mur.Spec.UserAccounts != nil && len(mur.Spec.UserAccounts) > 0 {
+		// TODO Set TargetCluster in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount from MUR.
+		signupResponse.TargetCluster = mur.Spec.UserAccounts[0].TargetCluster
+	}
 
 	return signupResponse, nil
 }

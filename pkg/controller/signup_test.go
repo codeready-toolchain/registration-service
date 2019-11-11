@@ -65,7 +65,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 				Namespace: "namespace-foo",
 			},
 			Spec: crtapi.UserSignupSpec{
-				UserID:            "abc123",
+				//UserID:            "abc123",
 				Username:          "bill",
 				CompliantUsername: "bill",
 			},

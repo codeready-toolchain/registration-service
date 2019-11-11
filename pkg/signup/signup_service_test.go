@@ -55,10 +55,10 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), "jsmith", val.Name)
 	require.Equal(s.T(), TestNamespace, val.Namespace)
-	require.Equal(s.T(), userID.String(), val.Spec.UserID)
+	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
+	require.Equal(s.T(), "jsmith", val.Spec.CompliantUsername)
 	require.False(s.T(), val.Spec.Approved)
 }
 
@@ -90,8 +90,8 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 		require.Len(s.T(), userSignups.Items, 1)
 
 		val := userSignups.Items[0]
-		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Name)
-		require.Equal(s.T(), userID.String(), val.Spec.UserID)
+		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Spec.CompliantUsername)
+		require.Equal(s.T(), userID.String(), val.Name)
 	}
 
 	s.Run("UserSignup not found and client returns nil", func() {
@@ -134,7 +134,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID: "foo",
+			//UserID: "foo",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
@@ -218,7 +218,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
+			//UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -258,7 +258,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
+			//UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -289,7 +289,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
+			//UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},
@@ -357,7 +357,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
+			//UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},

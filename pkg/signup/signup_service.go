@@ -93,14 +93,14 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
+			Name:      userID,
 			Namespace: s.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
-			UserID:        userID,
-			TargetCluster: "",
-			Approved:      false,
-			Username:      username,
+			TargetCluster:     "",
+			Approved:          false,
+			Username:          username,
+			CompliantUsername: name,
 		},
 	}
 

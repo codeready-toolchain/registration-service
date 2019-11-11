@@ -134,7 +134,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			//UserID: "foo",
+			Username: "john@gmail.com",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
@@ -146,7 +146,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
 	require.NoError(s.T(), err)
 
-	require.Equal(s.T(), "john-at-gmail-com-1", created.Name)
+	require.Equal(s.T(), "john-at-gmail-com-1", created.Spec.CompliantUsername)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
@@ -218,7 +218,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			//UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -258,7 +257,6 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			//UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -289,7 +287,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			//UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},
@@ -357,7 +354,6 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			//UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},

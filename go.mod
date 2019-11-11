@@ -3,7 +3,6 @@ module github.com/codeready-toolchain/registration-service
 go 1.13
 
 require (
-	github.com/appscode/jsonpatch v0.0.0-20190108182946-7c0e3b262f30 // indirect
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20191106003206-a7c89ec224a0
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20191111091626-13737b49e47f
@@ -13,7 +12,6 @@ require (
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/lestrrat-go/jwx v0.9.0
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/mattn/go-isatty v0.0.9 // indirect

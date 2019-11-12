@@ -93,14 +93,14 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
+			Name:      userID,
 			Namespace: s.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
-			UserID:        userID,
-			TargetCluster: "",
-			Approved:      false,
-			Username:      username,
+			TargetCluster:     "",
+			Approved:          false,
+			Username:          username,
+			CompliantUsername: name,
 		},
 	}
 
@@ -156,6 +156,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 		Ready:   ready,
 		Reason:  murCondition.Reason,
 		Message: murCondition.Message,
+	}
+	if mur.Spec.UserAccounts != nil && len(mur.Spec.UserAccounts) > 0 {
+		// TODO Set TargetCluster in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount from MUR.
+		signupResponse.TargetCluster = mur.Spec.UserAccounts[0].TargetCluster
 	}
 
 	return signupResponse, nil

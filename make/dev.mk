@@ -54,6 +54,11 @@ deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
         -p ENVIRONMENT=dev \
         | oc apply -f -
 
+.PHONY: deploy-e2e
+deploy-e2e: get-e2e-repo
+## Deploy the e2e resources with the local 'registration-service' repository only
+	$(MAKE) -C ${E2E_REPO_PATH} dev-deploy-e2e REG_REPO_PATH=${PWD}
+
 .PHONY: dev-image
 ## Build the docker image locally that can be deployed to dev environment
 dev-image: build

@@ -60,9 +60,9 @@ export GO111MODULE=on
 
 Before running VSCode from that shell.
 
-=== Deploy on minishift
+=== Deploying on minishift without operators
 
-To deploy Registration Service on local minishift, start your minishift then run:
+To deploy Registration Service only (no operator deployed) on local minishift, start your minishift then run:
 
 ```bash
 eval $(minishift docker-env)
@@ -82,3 +82,17 @@ You can now open the URL from HOST/PORT in your browser:
 http://registration-service-toolchain-host-operator.192.168.42.237.nip.io
 
 _Note_: the actual route/URL will be different in your minishift.
+
+=== Deploying all operators and Registration Service
+
+All e2e resources sush as Host operator, Member operator, Registration Service, CRDs, etc can be deployed via:
+
+```
+make deploy-e2e
+```
+
+Host and member operators will be downloaded from `master` branch and local `registration-service` repo will be used to deploy Registration Service.
+
+By default this target deploys resources to `toolchain-host-operator` and `toolchain-member-operator` namespaces.
+
+NOTE: if running in Minishift `eval $(minishift docker-env)` `eval $(minishift oc-env)` is required and if running in CodeReady Containers: `eval $(crc oc-env)`

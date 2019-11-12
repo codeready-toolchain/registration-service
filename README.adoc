@@ -85,7 +85,7 @@ _Note_: the actual route/URL will be different in your minishift.
 
 === Deploying all operators and Registration Service
 
-All e2e resources sush as Host operator, Member operator, Registration Service, CRDs, etc can be deployed via:
+All e2e resources such as Host operator, Member operator, Registration Service, CRDs, etc can be deployed via:
 
 ```
 make deploy-e2e

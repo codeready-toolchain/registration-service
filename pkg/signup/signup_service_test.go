@@ -15,6 +15,7 @@ import (
 	kubeerr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -55,10 +56,10 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), "jsmith", val.Name)
 	require.Equal(s.T(), TestNamespace, val.Namespace)
-	require.Equal(s.T(), userID.String(), val.Spec.UserID)
+	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
+	require.Equal(s.T(), "jsmith", val.Spec.CompliantUsername)
 	require.False(s.T(), val.Spec.Approved)
 }
 
@@ -90,8 +91,8 @@ func (s *TestSignupServiceSuite) TestUserSignupTransform() {
 		require.Len(s.T(), userSignups.Items, 1)
 
 		val := userSignups.Items[0]
-		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Name)
-		require.Equal(s.T(), userID.String(), val.Spec.UserID)
+		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Spec.CompliantUsername)
+		require.Equal(s.T(), userID.String(), val.Name)
 	}
 
 	s.Run("UserSignup not found and client returns nil", func() {
@@ -134,7 +135,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID: "foo",
+			Username: "john@gmail.com",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
@@ -146,7 +147,7 @@ func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
 	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
 	require.NoError(s.T(), err)
 
-	require.Equal(s.T(), "john-at-gmail-com-1", created.Name)
+	require.Equal(s.T(), "john-at-gmail-com-1", created.Spec.CompliantUsername)
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
@@ -218,7 +219,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -258,7 +258,6 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "bill",
 			CompliantUsername: "bill",
 		},
@@ -289,7 +288,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},
@@ -314,7 +312,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			UserID:        "",
 			Disabled:      false,
 			Deprovisioned: false,
-			UserAccounts:  nil,
+			UserAccounts:  []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
 		Status: v1alpha1.MasterUserRecordStatus{
 			Conditions: []v1alpha1.Condition{
@@ -335,9 +333,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "ted", response.Username)
-	require.True(s.T(), response.Status.Ready)
-	require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
-	require.Equal(s.T(), response.Status.Message, "mur_ready_message")
+	assert.True(s.T(), response.Status.Ready)
+	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
+	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
+	assert.Equal(s.T(), response.TargetCluster, "member-123")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
@@ -357,7 +356,6 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			UserID:            userID.String(),
 			Username:          "ted",
 			CompliantUsername: "ted",
 		},

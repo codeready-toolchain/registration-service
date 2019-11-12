@@ -95,4 +95,4 @@ Host and member operators will be downloaded from the `master` branch and the lo
 
 By default this target deploys resources to `toolchain-host-operator` and `toolchain-member-operator` namespaces.
 
-NOTE: If running in Minishift `eval $(minishift docker-env)` `eval $(minishift oc-env)` is required and if running in CodeReady Containers: `eval $(crc oc-env)`
+NOTE: If running in Minishift `eval $(minishift docker-env)` and `eval $(minishift oc-env)` are required. If running in CodeReady Containers `eval $(crc oc-env)` is required.

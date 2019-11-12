@@ -111,6 +111,6 @@ endif
 
 .PHONY: clean-e2e-resources
 clean-e2e-resources:
-	$(Q)-oc get projects --output=name | grep -E "(member|host)\-operator\-[0-9]+|toolchain\-e2e\-[0-9]+" | xargs oc delete
-	$(Q)-oc get catalogsource --output=name -n openshift-marketplace | grep "codeready-toolchain-saas" | xargs oc delete
+	$(Q)-oc get projects --output=name | grep -E "(toolchain\-)?(member|host)\-operator(\-[0-9]+)?|toolchain\-e2e\-[0-9]+" | xargs oc delete
+	$(Q)-oc get catalogsource --output=name -n openshift-marketplace | grep "codeready-toolchain-saas" | xargs oc delete -n openshift-marketplace
 	$(Q)-oc delete crd kubefedclusters.core.kubefed.io

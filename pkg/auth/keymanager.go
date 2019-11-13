@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	"gopkg.in/square/go-jose.v2"
 )
@@ -18,6 +19,7 @@ import (
 // that is used for configuring the KeyManager.
 type KeyManagerConfiguration interface {
 	GetAuthClientPublicKeysURL() string
+	GetEnvironment() string
 }
 
 // PublicKey represents an RSA public key with a Key ID
@@ -50,14 +52,24 @@ func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
 	}
 	// fetch raw keys
 	if keysEndpointURL != "" {
-		log.Infof(nil, "fetching public keys from url: %s", keysEndpointURL)
-		keys, err := km.fetchKeys(keysEndpointURL)
-		if err != nil {
-			return nil, err
-		}
-		// add them to the kid map
-		for _, key := range keys {
-			km.keyMap[key.KeyID] = key.Key
+		if config.GetEnvironment() == "e2e-tests" {
+			log.Infof(nil, "fetching e2e public keys")
+			keys := authsupport.GetE2ETestPublicKey()
+
+			// add them to the kid map
+			for _, key := range keys {
+				km.keyMap[key.KeyID] = key.Key
+			}
+		} else {
+			log.Infof(nil, "fetching public keys from url: %s", keysEndpointURL)
+			keys, err := km.fetchKeys(keysEndpointURL)
+			if err != nil {
+				return nil, err
+			}
+			// add them to the kid map
+			for _, key := range keys {
+				km.keyMap[key.KeyID] = key.Key
+			}
 		}
 	} else {
 		log.Info(nil, "no public key url given, not fetching keys")

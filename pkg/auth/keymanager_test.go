@@ -217,3 +217,33 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		}
 	})
 }
+
+func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
+    s.Run("retrieve key for e2e-tests environment", func() {
+        s.Config.GetViperInstance().Set("environment", "e2e-tests")
+        keyManager, err := auth.NewKeyManager(s.Config)
+        require.NoError(s.T(), err)
+        keys := authsupport.GetE2ETestPublicKey()
+
+        for _, key := range keys  {
+            // check if the keys are parsed correctly.
+            _, err = keyManager.Key(key.KeyID)
+            require.NoError(s.T(), err)
+        }
+    })
+
+    s.Run("fail to retrieve e2e keys for unit test environment", func() {
+        s.Config.GetViperInstance().Set("environment", "unit-tests")
+        keyManager, err := auth.NewKeyManager(s.Config)
+        require.NoError(s.T(), err)
+        keys := authsupport.GetE2ETestPublicKey()
+
+        for _, key := range keys  {
+            // check that key is not found as the environment
+            // is set to unit-tests.
+            _, err = keyManager.Key(key.KeyID)
+            require.Error(s.T(), err)
+            require.Equal(s.T(), err.Error(), "unknown kid")
+        }
+    })
+}

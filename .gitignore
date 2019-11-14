@@ -342,4 +342,16 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# Front End files
+.env
+/frontend/.cache-loader
+/frontend/__coverage__
+/frontend/__chrome_browser__
+/frontend/**/node_modules
+/frontend/public/bower_components
+/frontend/public/dist
+/frontend/npm-debug.log
+/frontend/yarn-error.log
+
+
 # End of https://www.gitignore.io/api/go,vim,git,macos,linux,emacs,windows,eclipse,intellij+all,visualstudiocode

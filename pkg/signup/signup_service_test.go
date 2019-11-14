@@ -323,7 +323,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					Message: "mur_ready_message",
 				},
 			},
-			UserAccounts: nil,
+			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
+				Name:       "member-123",
+				ConsoleURL: "https://console.member-123.com",
+			}}},
 		},
 	})
 	require.NoError(s.T(), err)
@@ -336,7 +339,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
-	assert.Equal(s.T(), response.TargetCluster, "member-123")
+	assert.Equal(s.T(), response.ConsoleURL, "https://console.member-123.com")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {

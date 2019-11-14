@@ -136,8 +136,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		require.NoError(s.T(), err)
 
 		expected := &signup.Signup{
-			TargetCluster: "cluster-" + targetCluster.String(),
-			Username:      "jsmith",
+			ConsoleURL: "https://console." + targetCluster.String(),
+			Username:   "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},

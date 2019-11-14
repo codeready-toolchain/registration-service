@@ -49,3 +49,5 @@ replace (
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20190510232812-a01b7d5d6c22
 	k8s.io/kubernetes => k8s.io/kubernetes v1.14.1
 )
+
+replace github.com/codeready-toolchain/api => github.com/alexeykazakov/api v0.0.0-20191113204433-8b9004dd7972

@@ -162,6 +162,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), response.Status.Reason, "test_reason")
 	require.Equal(s.T(), response.Status.Message, "test_message")
+	require.Equal(s.T(), "", response.ConsoleURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -191,6 +192,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
 	require.Equal(s.T(), "", response.Status.Message)
+	require.Equal(s.T(), "", response.ConsoleURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {

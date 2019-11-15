@@ -46,6 +46,9 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	signupCtrl := controller.NewSignup(s.Config, svc)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
 	s.Run("signup created", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
@@ -61,12 +64,11 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		signup := &crtapi.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
-				Name:      "john",
+				Name:      userID.String(),
 				Namespace: "namespace-foo",
 			},
 			Spec: crtapi.UserSignupSpec{
-				Username:          "bill",
-				CompliantUsername: "bill",
+				Username: "bill",
 			},
 			Status: crtapi.UserSignupStatus{
 				Conditions: []crtapi.Condition{

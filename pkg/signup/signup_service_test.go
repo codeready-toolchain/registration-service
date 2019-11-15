@@ -12,7 +12,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
-	kubeerr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -59,123 +58,44 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), TestNamespace, val.Namespace)
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
-	require.Equal(s.T(), "jsmith", val.Spec.CompliantUsername)
 	require.False(s.T(), val.Spec.Approved)
 }
 
-func (s *TestSignupServiceSuite) TestUserSignupTransform() {
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	check := func(userSignupToBeReturnedByClient *v1alpha1.UserSignup, errToBeReturnedByClient error) {
-		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
-
-		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
-			return userSignupToBeReturnedByClient, errToBeReturnedByClient
-		}
-		userID, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-
-		userSignup, err := svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), userSignup)
-
-		gvk, err := apiutil.GVKForObject(userSignup, userSignupsClient.Scheme)
-		require.NoError(s.T(), err)
-		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-		values, err := userSignupsClient.Tracker.List(gvr, gvk, TestNamespace)
-		require.NoError(s.T(), err)
-
-		userSignups := values.(*v1alpha1.UserSignupList)
-		require.NotEmpty(s.T(), userSignups.Items)
-		require.Len(s.T(), userSignups.Items, 1)
-
-		val := userSignups.Items[0]
-		require.Equal(s.T(), "jane-doe-at-redhat-com", val.Spec.CompliantUsername)
-		require.Equal(s.T(), userID.String(), val.Name)
-	}
-
-	s.Run("UserSignup not found and client returns nil", func() {
-		check(nil, kubeerr.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource(userID.String()).GroupResource(), userID.String()))
-	})
-
-	s.Run("UserSignup not found and client returns empty UserSignup", func() {
-		check(&v1alpha1.UserSignup{}, kubeerr.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource(userID.String()).GroupResource(), userID.String()))
-	})
-
-	s.Run("unable to transform after N attempts", func() {
-		svc, userSignupsClient, _ := newSignupServiceWithFakeClient()
-		userID, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		userSignupsClient.MockGet = func(s string) (*v1alpha1.UserSignup, error) {
-			return &v1alpha1.UserSignup{}, nil // Always return some UserSignup
-		}
-
-		_, err = svc.CreateUserSignup("jane.doe@redhat.com", userID.String())
-		require.EqualError(s.T(), err, "unable to transform username [jane.doe@redhat.com] even after 1000 attempts")
-	})
-}
-
-func (s *TestSignupServiceSuite) TestUserSignupInvalidName() {
-	svc, _, _ := newSignupServiceWithFakeClient()
-
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.CreateUserSignup("john#gmail.com", userID.String())
-	require.EqualError(s.T(), err, "transformed username [john#gmail.com] is invalid")
-}
-
-func (s *TestSignupServiceSuite) TestUserSignupNameExists() {
+func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
-	err := fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "john-at-gmail-com",
+			Name:      userID.String(),
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
 			Username: "john@gmail.com",
 		},
-		Status: v1alpha1.UserSignupStatus{},
 	})
 	require.NoError(s.T(), err)
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	created, err := svc.CreateUserSignup("john@gmail.com", userID.String())
-	require.NoError(s.T(), err)
-
-	require.Equal(s.T(), "john-at-gmail-com-1", created.Spec.CompliantUsername)
-}
-
-func (s *TestSignupServiceSuite) TestUserSignupCreateFails() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
-	expectedErr := errors.New("an error occurred")
-	fakeClient.MockCreate = func(*v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-		return nil, expectedErr
-	}
-
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.CreateUserSignup("jack.smith@redhat.com", userID.String())
-	require.Error(s.T(), err)
-	require.Equal(s.T(), expectedErr, err)
+	_, err = svc.CreateUserSignup("john@gmail.com", userID.String())
+	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
-	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
-		return nil, expectedErr
-	}
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("hank.smith@redhat.com", userID.String())
+	fakeClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
+		if name == userID.String() {
+			return nil, expectedErr
+		}
+		return &v1alpha1.UserSignup{}, nil
+	}
+
+	_, err = svc.GetSignup(userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
@@ -219,8 +139,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:          "bill",
-			CompliantUsername: "bill",
+			Username: "bill",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -258,8 +177,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:          "bill",
-			CompliantUsername: "bill",
+			Username: "bill",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
@@ -288,8 +206,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:          "ted",
-			CompliantUsername: "ted",
+			Username: "ted",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -298,6 +215,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					Status: apiv1.ConditionTrue,
 				},
 			},
+			CompliantUsername: "ted",
 		},
 	})
 	require.NoError(s.T(), err)
@@ -359,8 +277,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:          "ted",
-			CompliantUsername: "ted",
+			Username: "ted",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -369,6 +286,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 					Status: apiv1.ConditionTrue,
 				},
 			},
+			CompliantUsername: "ted",
 		},
 	})
 	require.NoError(s.T(), err)

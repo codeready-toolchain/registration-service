@@ -58,6 +58,8 @@
         document.getElementById('errorStatus').textContent = "";
         document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
         document.getElementById('stateElapsed').textContent = elapsed;
+        document.getElementById('stateConsole').href = data.consoleURL;
+        document.getElementById('stateConsole').text = data.consoleURL;
       }
     })
   }
@@ -123,6 +125,8 @@
   <hr>
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button> <button onclick="keycloak.logout()">Logout</button></p>
   <p><button onclick="signup()">SIGNUP</button></p>
+  <hr>
+  <p>Console URL: <a href="#" id="stateConsole"></a></p>
   <hr>
   <p>Elapsed: <span id="stateElapsed">n/a</span> State: <pre id="stateResp">n/a</pre></p>
   <hr>

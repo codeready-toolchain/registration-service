@@ -198,28 +198,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: TestNamespace,
-		},
-		Spec: v1alpha1.UserSignupSpec{
-			Username: "ted",
-		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
-				{
-					Type:   v1alpha1.UserSignupComplete,
-					Status: apiv1.ConditionTrue,
-				},
-			},
-			CompliantUsername: "ted",
-		},
-	})
+	us := s.newUserSignupComplete()
+	err := fakeClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
 	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
@@ -229,10 +209,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.MasterUserRecordSpec{
-			UserID:        "",
-			Disabled:      false,
-			Deprovisioned: false,
-			UserAccounts:  []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
 		Status: v1alpha1.MasterUserRecordStatus{
 			Conditions: []v1alpha1.Condition{
@@ -251,7 +228,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := svc.GetSignup(userID.String())
+	response, err := svc.GetSignup(us.Name)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -264,15 +241,68 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
-	returnedErr := errors.New("an error occurred")
-	fakeMURClient.MockGet = func(string) (*v1alpha1.MasterUserRecord, error) {
-		return nil, returnedErr
-	}
 
-	userID, err := uuid.NewV4()
+	us := s.newUserSignupComplete()
+	err := fakeClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
+	returnedErr := errors.New("an error occurred")
+	fakeMURClient.MockGet = func(name string) (*v1alpha1.MasterUserRecord, error) {
+		if name == us.Status.CompliantUsername {
+			return nil, returnedErr
+		}
+		return &v1alpha1.MasterUserRecord{}, nil
+	}
+
+	_, err = svc.GetSignup(us.Name)
+	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
+	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+
+	us := s.newUserSignupComplete()
+	err := fakeClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "ted",
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.MasterUserRecordSpec{
+			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: v1alpha1.MasterUserRecordStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:   v1alpha1.MasterUserRecordReady,
+					Status: "blah-blah-blah",
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	_, err = svc.GetSignup(us.Name)
+	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
+}
+
+func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {
+	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
+	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
+	return &signup.ServiceImpl{
+		Namespace:         TestNamespace,
+		UserSignups:       fakeClient,
+		MasterUserRecords: fakeMURClient,
+	}, fakeClient, fakeMURClient
+}
+
+func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	return &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
@@ -290,20 +320,5 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			},
 			CompliantUsername: "ted",
 		},
-	})
-	require.NoError(s.T(), err)
-	require.NoError(s.T(), err)
-
-	_, err = svc.GetSignup(userID.String())
-	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", userID.String()))
-}
-
-func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {
-	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
-	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
-	return &signup.ServiceImpl{
-		Namespace:         TestNamespace,
-		UserSignups:       fakeClient,
-		MasterUserRecords: fakeMURClient,
-	}, fakeClient, fakeMURClient
+	}
 }

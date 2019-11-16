@@ -2,6 +2,7 @@ package signup
 
 import (
 	"fmt"
+	"strconv"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -140,7 +141,11 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, ready := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	ready, err := strconv.ParseBool(string(murCondition.Status))
+	if err != nil {
+		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
+	}
 	signupResponse.Status = Status{
 		Ready:   ready,
 		Reason:  murCondition.Reason,

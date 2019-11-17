@@ -24,10 +24,12 @@ const (
 type Signup struct {
 	// The Web Console URL of the cluster which the user was provisioned to
 	ConsoleURL string `json:"consoleURL,omitempty"`
-	// The username.  This may differ from the corresponding Identity Provider username, because of the the
+	// The complaint username.  This may differ from the corresponding Identity Provider username, because of the the
 	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
 	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
 	// For example, johnsmith@redhat.com -> johnsmith-at-redhat-com
+	CompliantUsername string `json:"compliantUsername"`
+	// Original username from the Identity Provider
 	Username string `json:"username"`
 	Status   Status `json:"status,omitempty"`
 }
@@ -119,6 +121,9 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	signupResponse := &Signup{
 		Username: userSignup.Spec.Username,
+	}
+	if userSignup.Status.CompliantUsername != "" {
+		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername
 	}
 
 	// Check UserSignup status to determine whether user signup is complete

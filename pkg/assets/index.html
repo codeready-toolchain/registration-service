@@ -47,7 +47,7 @@
     script.onload = loadFunction;
     script.onreadystatechange = loadFunction;
     document.getElementsByTagName("head")[0].appendChild(script);
-  };
+  }
 
   function updateSignupState() {
     elapsed++;
@@ -58,8 +58,14 @@
         document.getElementById('errorStatus').textContent = "";
         document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
         document.getElementById('stateElapsed').textContent = elapsed;
-        document.getElementById('stateConsole').href = data.consoleURL;
-        document.getElementById('stateConsole').text = data.consoleURL;
+        consoleURL = data.consoleURL;
+        if (consoleURL === undefined) {
+          consoleURL = "N/A"
+        } else {
+          consoleURL = data.consoleURL + "topology/ns/" + data.compliantUsername + "-dev";
+        }
+        document.getElementById('stateConsole').href = consoleURL;
+        document.getElementById('stateConsole').text = consoleURL;
       }
     })
   }

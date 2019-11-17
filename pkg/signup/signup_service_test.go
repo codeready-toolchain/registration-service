@@ -81,7 +81,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
-func (s *TestSignupServiceSuite) TestUserSignupGetFails() {
+func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	svc, fakeClient, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
 
@@ -109,21 +109,6 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	signup, err := svc.GetSignup(userID.String())
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
-}
-
-func (s *TestSignupServiceSuite) TestGetSignupGetFails() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
-	expectedErr := errors.New("an error occurred")
-	fakeClient.MockGet = func(string) (*v1alpha1.UserSignup, error) {
-		return nil, expectedErr
-	}
-
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	_, err = svc.GetSignup(userID.String())
-	require.Error(s.T(), err)
-	require.Equal(s.T(), expectedErr, err)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
@@ -159,6 +144,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "bill", response.Username)
+	require.Equal(s.T(), "", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), response.Status.Reason, "test_reason")
 	require.Equal(s.T(), response.Status.Message, "test_message")
@@ -189,6 +175,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "bill", response.Username)
+	require.Equal(s.T(), "", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
 	require.Equal(s.T(), "", response.Status.Message)
@@ -205,7 +192,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted",
+			Name:      "ted-at-domain-com",
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.MasterUserRecordSpec{
@@ -232,7 +219,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
-	require.Equal(s.T(), "ted", response.Username)
+	require.Equal(s.T(), "ted@domain.com", response.Username)
+	require.Equal(s.T(), "ted-at-domain-com", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
@@ -268,7 +256,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted",
+			Name:      "ted-at-domain-com",
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.MasterUserRecordSpec{
@@ -309,7 +297,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username: "ted",
+			Username: "ted@domain.com",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -318,7 +306,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 					Status: apiv1.ConditionTrue,
 				},
 			},
-			CompliantUsername: "ted",
+			CompliantUsername: "ted-at-domain-com",
 		},
 	}
 }

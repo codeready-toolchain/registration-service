@@ -33,8 +33,7 @@ func (s *TestKeyManagerSuite) TestKeyManager() {
 
 	s.Run("missing config", func() {
 		_, err := auth.NewKeyManager(nil)
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "no config given when creating KeyManager", err.Error())
+		assert.EqualError(s.T(), err, "no config given when creating KeyManager")
 	})
 }
 
@@ -70,7 +69,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("environment", "prod")
+	s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 	// set the key service url in the config
 	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
@@ -93,7 +92,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, `{some: "invalid", "json"}`)
+			_, err := fmt.Fprintln(w, `{some: "invalid", "json"}`)
+			assert.NoError(s.T(), err)
 		}))
 		defer ts.Close()
 
@@ -108,8 +108,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err = auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "unable to obtain public keys from remote service", err.Error())
+		assert.EqualError(s.T(), err, "unable to obtain public keys from remote service")
 	})
 
 	s.Run("parse keys, invalid response", func() {
@@ -117,7 +116,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, `{some: "invalid", "json"}`)
+			_, err := fmt.Fprintln(w, `{some: "invalid", "json"}`)
+			assert.NoError(s.T(), err)
 		}))
 		defer ts.Close()
 
@@ -132,8 +132,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err = auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "invalid character 's' looking for beginning of object key string", err.Error())
+		assert.EqualError(s.T(), err, "invalid character 's' looking for beginning of object key string")
 	})
 
 	s.Run("parse keys, invalid url", func() {
@@ -145,8 +144,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "Get not%20an%20url: unsupported protocol scheme \"\"", err.Error())
+		assert.EqualError(s.T(), err, "Get not%20an%20url: unsupported protocol scheme \"\"")
 	})
 
 	s.Run("parse keys, server not reachable", func() {
@@ -158,8 +156,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "invalid character '<' looking for beginning of value", err.Error())
+		assert.EqualError(s.T(), err, "invalid character '<' looking for beginning of value")
 	})
 
 	s.Run("validate with valid keys", func() {
@@ -211,9 +208,62 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 					require.NotEqual(s.T(), tt.kid, kid)
 					return keyManager.Key(tt.kid)
 				})
-				require.Error(s.T(), err)
-				require.EqualError(s.T(), err, "crypto/rsa: verification error")
+				assert.EqualError(s.T(), err, "crypto/rsa: verification error")
 			})
 		}
+	})
+}
+
+func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
+	s.Run("retrieve key for e2e-tests environment", func() {
+		s.Config.GetViperInstance().Set("environment", "e2e-tests")
+		keyManager, err := auth.NewKeyManager(s.Config)
+		require.NoError(s.T(), err)
+		keys := authsupport.GetE2ETestPublicKey()
+
+		for _, key := range keys {
+			// check if the keys are parsed correctly.
+			_, err = keyManager.Key(key.KeyID)
+			require.NoError(s.T(), err)
+		}
+	})
+
+	checkE2EKeysNotFound := func(config *configuration.Registry) {
+		keyManager, err := auth.NewKeyManager(config)
+		require.NoError(s.T(), err)
+		keys := authsupport.GetE2ETestPublicKey()
+
+		for _, key := range keys {
+			// check that key is not found as the environment
+			// is not set to e2e-tests
+			_, err = keyManager.Key(key.KeyID)
+			assert.EqualError(s.T(), err, "unknown kid")
+		}
+	}
+
+	s.Run("fail to retrieve e2e keys for default environment", func() {
+		config, err := configuration.New("")
+		require.NoError(s.T(), err)
+
+		checkE2EKeysNotFound(config)
+	})
+
+	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
+	s.Run("fail to retrieve e2e keys for prod environment", func() {
+		resetFunc := test.SetEnvVarAndRestore(s.T(), key, "prod")
+		defer resetFunc()
+		config, err := configuration.New("")
+		require.NoError(s.T(), err)
+
+		checkE2EKeysNotFound(config)
+	})
+
+	s.Run("fail to retrieve e2e keys if environment is not set", func() {
+		resetFunc := test.UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config, err := configuration.New("")
+		require.NoError(s.T(), err)
+
+		checkE2EKeysNotFound(config)
 	})
 }

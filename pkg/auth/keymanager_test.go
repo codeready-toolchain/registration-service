@@ -233,6 +233,26 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	})
 
 	s.Run("fail to retrieve e2e keys for unit test environment", func() {
+		config, err := configuration.New("")
+		require.NoError(s.T(), err)
+
+		environment := config.GetEnvironment()
+		require.Equal(s.T(), "prod", environment)
+
+		keyManager, err := auth.NewKeyManager(config)
+		require.NoError(s.T(), err)
+		keys := authsupport.GetE2ETestPublicKey()
+
+		for _, key := range keys {
+			// check that key is not found as the environment
+			// is set to unit-tests.
+			_, err = keyManager.Key(key.KeyID)
+			require.Error(s.T(), err)
+			require.Equal(s.T(), err.Error(), "unknown kid")
+		}
+	})
+
+	s.Run("fail to retrieve e2e keys for unit test environment", func() {		
 		s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)

@@ -70,7 +70,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("environment", "prod")
+	s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 	// set the key service url in the config
 	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
@@ -233,7 +233,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	})
 
 	s.Run("fail to retrieve e2e keys for unit test environment", func() {
-		s.Config.GetViperInstance().Set("environment", "prod")
+		s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()

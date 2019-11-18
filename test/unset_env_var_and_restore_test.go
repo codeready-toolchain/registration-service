@@ -23,12 +23,13 @@ func (s *TestUnsetEnvVarAndRestoreSuite) TestUnsetEnvVarAndRestore() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		varName := u.String()
-		os.Unsetenv(varName)
+		err = os.Unsetenv(varName)
+		require.NoError(s.T(), err)
 		_, present := os.LookupEnv(varName)
 		require.False(s.T(), present)
 
 		// when
-		resetFn := UnsetEnvVarAndRestore(varName)
+		resetFn := UnsetEnvVarAndRestore(s.T(), varName)
 
 		// then
 		_, present = os.LookupEnv(varName)
@@ -46,12 +47,13 @@ func (s *TestUnsetEnvVarAndRestoreSuite) TestUnsetEnvVarAndRestore() {
 		require.NoError(s.T(), err)
 		varName := u.String()
 		val := "somevalue"
-		os.Setenv(varName, val)
+		err = os.Setenv(varName, val)
+		require.NoError(s.T(), err)
 		_, present := os.LookupEnv(varName)
 		require.True(s.T(), present)
 
 		// when
-		resetFn := UnsetEnvVarAndRestore(varName)
+		resetFn := UnsetEnvVarAndRestore(s.T(), varName)
 
 		// then
 		_, present = os.LookupEnv(varName)

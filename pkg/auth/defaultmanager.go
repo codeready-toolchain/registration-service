@@ -9,6 +9,7 @@ import (
 // that is used for configuring the default TokenParser.
 type DefaultTokenParserConfiguration interface {
 	GetAuthClientPublicKeysURL() string
+	GetEnvironment() string
 }
 
 var muKM sync.Mutex

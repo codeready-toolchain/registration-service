@@ -233,7 +233,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	})
 
 	s.Run("fail to retrieve e2e keys for unit test environment", func() {
-		s.Config.GetViperInstance().Set("environment", "unit-tests")
+		s.Config.GetViperInstance().Set("environment", "prod")
 		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()

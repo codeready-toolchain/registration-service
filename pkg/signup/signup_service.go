@@ -2,18 +2,15 @@ package signup
 
 import (
 	"fmt"
-	"strings"
-
-	apiv1 "k8s.io/api/core/v1"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	errors2 "github.com/pkg/errors"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/rest"
 )
 
@@ -86,21 +83,15 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
 func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
-	name, err := s.transformAndValidateUserName(username)
-	if err != nil {
-		return nil, err
-	}
-
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
 			Namespace: s.Namespace,
 		},
 		Spec: crtapi.UserSignupSpec{
-			TargetCluster:     "",
-			Approved:          false,
-			Username:          username,
-			CompliantUsername: name,
+			TargetCluster: "",
+			Approved:      false,
+			Username:      username,
 		},
 	}
 
@@ -147,7 +138,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.MasterUserRecords.Get(userSignup.Spec.CompliantUsername)
+	mur, err := s.MasterUserRecords.Get(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -163,29 +154,4 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	return signupResponse, nil
-}
-
-func (s *ServiceImpl) transformAndValidateUserName(username string) (string, error) {
-	replaced := strings.ReplaceAll(strings.ReplaceAll(username, "@", "-at-"), ".", "-")
-
-	errs := validation.IsQualifiedName(replaced)
-	if len(errs) > 0 {
-		return "", errors2.Errorf("transformed username [%s] is invalid", username)
-	}
-
-	transformed := replaced
-
-	for i := 1; i < 1001; i++ { // No more than 1000 attempts to find a vacant name
-		_, err := s.UserSignups.Get(transformed)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				return "", err
-			}
-			return transformed, nil
-		}
-
-		transformed = fmt.Sprintf("%s-%d", replaced, i)
-	}
-
-	return "", errors2.Errorf("unable to transform username [%s] even after 1000 attempts", username)
 }

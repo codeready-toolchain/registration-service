@@ -252,7 +252,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		}
 	})
 
-	s.Run("fail to retrieve e2e keys for prod environment", func() {		
+	s.Run("fail to retrieve e2e keys for prod environment", func() {
 		s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)

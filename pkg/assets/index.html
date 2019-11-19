@@ -9,9 +9,9 @@
 
   // loads json data from url, the callback is called with
   // error and data, with data the parsed json.
-  var getJSON = function(url, token, callback) {
+  var getJSON = function(method, url, token, callback) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
+    xhr.open(method, url, true);
     if (token != null)
       xhr.setRequestHeader("Authorization", "Bearer " + token)
     xhr.responseType = 'json';
@@ -47,22 +47,44 @@
     script.onload = loadFunction;
     script.onreadystatechange = loadFunction;
     document.getElementsByTagName("head")[0].appendChild(script);
-  };
+  }
 
   function updateSignupState() {
     elapsed++;
-    getJSON("/api/v1/signup", keycloak.idToken, function(err, data) {
+    getJSON('GET', "/api/v1/signup", keycloak.idToken, function(err, data) {
       if (err != null) {
         document.getElementById('errorStatus').textContent = error;
       } else {
+        document.getElementById('errorStatus').textContent = "";
         document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
         document.getElementById('stateElapsed').textContent = elapsed;
+        consoleURL = data.consoleURL;
+        if (consoleURL === undefined) {
+          consoleURL = "N/A"
+        } else {
+          consoleURL = data.consoleURL + "topology/ns/" + data.compliantUsername + "-dev";
+        }
+        document.getElementById('stateConsole').href = consoleURL;
+        document.getElementById('stateConsole').text = consoleURL;
       }
     })
   }
 
+  function signup() {
+    getJSON('POST', "/api/v1/signup", keycloak.idToken, function(err, data) {
+      if (err != null) {
+        document.getElementById('errorStatus').textContent = JSON.stringify(data, null, 2);
+      } else {
+        document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('stateElapsed').textContent = elapsed;
+      }
+    });
+    elapsed=0;
+    setInterval(updateSignupState, 1000);
+  }
+
   // main operation, load config, load client, run client
-  getJSON(configURL, null, function(err, data) {
+  getJSON('GET', configURL, null, function(err, data) {
     if (err !== null) {
       console.log('error loading client config' + err);
       document.getElementById('errorStatus').textContent = error;
@@ -79,7 +101,7 @@
               document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
               // do an authenticated request
               // note, this only works if testingmode is set to true!
-              getJSON("/api/v1/auth_test", keycloak.idToken, function(err, data) {
+              getJSON('GET', "/api/v1/auth_test", keycloak.idToken, function(err, data) {
                 if (err != null) {
                   document.getElementById('errorStatus').textContent = error;
                 } else {
@@ -108,10 +130,11 @@
   <p>Error status: <b id="errorStatus"></b>n/a</p>
   <hr>
   <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button> <button onclick="keycloak.logout()">Logout</button></p>
+  <p><button onclick="signup()">SIGNUP</button></p>
   <hr>
-  <p><button onclick="elapsed=0;setInterval(updateSignupState, 1000)">Start Signup State Update Cycle</button> Elapsed: <span id="stateElapsed">n/a</span> State: <pre id="stateResp">n/a</pre></p>
+  <p>Console URL: <a href="#" id="stateConsole"></a></p>
+  <hr>
+  <p>Elapsed: <span id="stateElapsed">n/a</span> State: <pre id="stateResp">n/a</pre></p>
   <hr>
   <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
-  <hr>
-  <p>Secured Service Response:<br><pre id="serviceResp">n/a</pre></p>
 </body>

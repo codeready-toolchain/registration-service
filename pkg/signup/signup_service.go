@@ -2,6 +2,7 @@ package signup
 
 import (
 	"fmt"
+	"strconv"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -21,13 +22,14 @@ const (
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
 // and the corresponding MasterUserRecord resources.
 type Signup struct {
-	// The cluster in which the user is provisioned in
-	// If not set then the target cluster will be picked automatically
-	TargetCluster string `json:"targetCluster,omitempty"`
-	// The username.  This may differ from the corresponding Identity Provider username, because of the the
+	// The Web Console URL of the cluster which the user was provisioned to
+	ConsoleURL string `json:"consoleURL,omitempty"`
+	// The complaint username.  This may differ from the corresponding Identity Provider username, because of the the
 	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
 	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
 	// For example, johnsmith@redhat.com -> johnsmith-at-redhat-com
+	CompliantUsername string `json:"compliantUsername"`
+	// Original username from the Identity Provider
 	Username string `json:"username"`
 	Status   Status `json:"status,omitempty"`
 }
@@ -118,8 +120,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	signupResponse := &Signup{
-		Username:      userSignup.Spec.Username,
-		TargetCluster: userSignup.Spec.TargetCluster,
+		Username: userSignup.Spec.Username,
+	}
+	if userSignup.Status.CompliantUsername != "" {
+		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
@@ -142,15 +146,19 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, ready := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	ready, err := strconv.ParseBool(string(murCondition.Status))
+	if err != nil {
+		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
+	}
 	signupResponse.Status = Status{
 		Ready:   ready,
 		Reason:  murCondition.Reason,
 		Message: murCondition.Message,
 	}
-	if mur.Spec.UserAccounts != nil && len(mur.Spec.UserAccounts) > 0 {
-		// TODO Set TargetCluster in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount from MUR.
-		signupResponse.TargetCluster = mur.Spec.UserAccounts[0].TargetCluster
+	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
+		// TODO Set ConsoleURL in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount status from MUR.
+		signupResponse.ConsoleURL = mur.Status.UserAccounts[0].Cluster.ConsoleURL
 	}
 
 	return signupResponse, nil

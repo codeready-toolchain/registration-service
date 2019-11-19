@@ -20,7 +20,8 @@ const overpassTest = /overpass-.*\.(woff2?|ttf|eot|otf)(\?.*$|$)/;
 
 const config: Configuration = {
   entry: [
-    './polyfills.js'
+    './polyfills.js',
+    './src/components/App.tsx',
   ],
   output: {
     path: path.resolve(__dirname, 'public/dist'),
@@ -29,6 +30,7 @@ const config: Configuration = {
     chunkFilename: '[name]-[chunkhash].js',
   },
   devServer: {
+    historyApiFallback: true,
     writeToDisk: true,
     progress: true,
     hot: HOT_RELOAD !== 'false',

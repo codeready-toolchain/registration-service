@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { render } from 'react-dom';
 import { history } from './utils';
-import MastHead from './MastHead';
 import { Helmet } from 'react-helmet';
 import { Route, Router } from 'react-router-dom';
-import AppContent from './AppContent';
 import '@patternfly/react-core/dist/styles/base.css';
+import MastHead from './MastHead';
+import AppContent from './AppContent';
 
 //PF4 Imports
 import { Page } from '@patternfly/react-core';
@@ -13,12 +13,13 @@ import { Page } from '@patternfly/react-core';
 // Edge lacks URLSearchParams
 import 'url-search-params-polyfill';
 
+const pageId = 'main-content-page-layout-horizontal-nav';
 const productName = 'CodeReady ToolChain';
 const App: React.FC = () => {
   return (
     <>
       <Helmet titleTemplate={`%s · ${productName}`} defaultTitle={productName} />
-      <Page header={<MastHead />}>
+      <Page header={<MastHead />} mainContainerId={pageId}>
         <AppContent />
       </Page>
     </>

@@ -7,11 +7,12 @@ import {
 } from '@patternfly/react-core';
 import { CopyrightIcon } from '@patternfly/react-icons';
 import axios from 'axios';
+import './Provisioner.scss'
 
 declare global {
-    interface Window { 
-                        keycloak: any
-                    }
+    interface Window {
+        keycloak: any
+    }
 }
 
 interface ProvisionProps {
@@ -89,13 +90,13 @@ class Provision extends React.Component<ProvisionProps, ProvisionStates> {
     render() {
         return (
             <PageSection noPadding={true}>
-                <div className="Btn-prov">
+                <div className="provision-section">
                     <Button variant="primary" onClick={this.showToSModal}>Get Started with CodeReady Toolchain</Button>
                     <Button variant="secondary" onClick={this.getUserSignup}>GET User Signup</Button>
                     <Button variant="tertiary" onClick={this.setUserSignup}>POST User Signup</Button>
                     <Button variant="tertiary" onClick={this.handleLogout}>Logout</Button>
                 </div>
-                <div className="Provision-section">
+                <div className="provision-tnc-section">
                     <Button variant="link" onClick={this.showToSModal}>Terms and Conditions</Button>
                     <CopyrightIcon></CopyrightIcon>
                     <Text component="small"> 2020, Red Hat</Text>

@@ -6,6 +6,7 @@ import { Route, Router } from 'react-router-dom';
 import '@patternfly/react-core/dist/styles/base.css';
 import MastHead from './MastHead';
 import AppContent from './AppContent';
+import AuthLibraryLoader from './AuthLibraryLoader';
 
 //PF4 Imports
 import { Page } from '@patternfly/react-core';
@@ -22,6 +23,7 @@ const App: React.FC = () => {
       <Page header={<MastHead />} mainContainerId={pageId}>
         <AppContent />
       </Page>
+      <AuthLibraryLoader />
     </>
   );
 };

@@ -9,12 +9,6 @@ import { CopyrightIcon } from '@patternfly/react-icons';
 import axios from 'axios';
 import './Provisioner.scss'
 
-declare global {
-    interface Window {
-        keycloak: any
-    }
-}
-
 interface ProvisionProps {
     data?: {};
 }

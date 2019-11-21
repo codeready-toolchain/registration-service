@@ -25,7 +25,6 @@ const config: Configuration = {
   ],
   output: {
     path: path.resolve(__dirname, 'public/dist'),
-    publicPath: 'static/',
     filename: '[name]-bundle.js',
     chunkFilename: '[name]-[chunkhash].js',
   },

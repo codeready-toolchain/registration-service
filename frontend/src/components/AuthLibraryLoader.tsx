@@ -12,7 +12,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
   const [status, setStatus] = React.useState(APIStatus.LOADING);
 
   React.useEffect(() => {
-    const configURL = 'https://registration-service-toolchain-host-operator.192.168.42.26.nip.io/api/v1/authconfig';
+    const configURL = '/api/v1/authconfig';
 
     const loadAuthLibrary = (url, cbSuccess, cbError) => {
       var script = document.createElement('script');
@@ -64,7 +64,9 @@ const AuthLibraryLoader: React.FC<{}> = () => {
           },
         );
       })
-      .catch((error) => {});
+      .catch((error) => {
+        setStatus(APIStatus.ERROR);
+      });
   }, []);
 
   switch (status) {

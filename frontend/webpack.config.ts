@@ -24,7 +24,7 @@ const config: Configuration = {
     './src/components/App.tsx',
   ],
   output: {
-    path: path.resolve(__dirname, 'public/dist'),
+    path: path.resolve(process.cwd(), '../pkg/assets/'),
     filename: '[name]-bundle.js',
     chunkFilename: '[name]-[chunkhash].js',
   },
@@ -34,7 +34,7 @@ const config: Configuration = {
     progress: true,
     hot: HOT_RELOAD !== 'false',
     inline: HOT_RELOAD !== 'false',
-    contentBase: path.join(__dirname, "public/dist"),
+    contentBase: path.join(process.cwd(), "../pkg/assets"),
     port: 9000
   },
   resolve: {
@@ -151,7 +151,7 @@ if (NODE_ENV === 'production') {
   extractCSS.filename = '[name]-[chunkhash].min.css';
   // Causes error in --mode=production due to scope hoisting
   config.optimization.concatenateModules = false;
-  config.stats = 'normal';
+  config.stats = 'minimal';
 }
 
 export default config;

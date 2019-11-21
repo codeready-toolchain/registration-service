@@ -51,7 +51,6 @@ class Provision extends React.Component<ProvisionProps, ProvisionStates> {
     }
 
     getUserSignup = () => {
-        axios.defaults.headers.common['Authorization'] = "Bearer " + window.keycloak.token;
         axios.get("/api/v1/signup")
             .then(res => {
                 console.log(res);
@@ -61,7 +60,6 @@ class Provision extends React.Component<ProvisionProps, ProvisionStates> {
             });
     }
     setUserSignup = () => {
-        axios.defaults.headers.common['Authorization'] = "Bearer " + window.keycloak.token;
         axios.post("/api/v1/signup", null)
             .then(res => {
                 console.log(res);

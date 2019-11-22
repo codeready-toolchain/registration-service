@@ -2,17 +2,19 @@ import * as React from 'react';
 import { Redirect } from 'react-router-dom';
 import axios from 'axios';
 
-enum APIStatus {
+enum Status {
   LOADING,
   SUCCESS,
   ERROR,
+  PROVISION,
 }
 
 const AuthLibraryLoader: React.FC<{}> = () => {
-  const [status, setStatus] = React.useState(APIStatus.LOADING);
+  const [status, setStatus] = React.useState(Status.LOADING);
 
   React.useEffect(() => {
-    const configURL = 'https://registration-service-toolchain-host-operator.192.168.42.26.nip.io/api/v1/authconfig';
+    const configURL =
+      '/api/v1/authconfig';
 
     const loadAuthLibrary = (url, cbSuccess, cbError) => {
       var script = document.createElement('script');
@@ -33,9 +35,13 @@ const AuthLibraryLoader: React.FC<{}> = () => {
       document.getElementsByTagName('head')[0].appendChild(script);
     };
 
+    const getUserSignup = () => {
+      return axios.get('/api/v1/signup');
+    };
+
     axios
       .get(configURL)
-      .then(({data}) => {
+      .then(({ data }) => {
         loadAuthLibrary(
           data['auth-client-library-url'],
           () => {
@@ -44,23 +50,41 @@ const AuthLibraryLoader: React.FC<{}> = () => {
             console.log('using client configuration: ' + JSON.stringify(window.clientConfig));
             window.keycloak = window.Keycloak(window.clientConfig);
             window.keycloak
-              .init()
-              .success(function(authenticated) {
+              .init({
+                onLoad: 'check-sso',
+                silentCheckSsoRedirectUri: window.location.origin,
+                promiseType: 'native',
+            })
+              .success((authenticated) => {
                 if (authenticated === true) {
+                  console.log('Logged in!!');
+                  const action = window.sessionStorage.getItem('crtcAction');
                   axios.defaults.headers.common['Authorization'] =
                     'Bearer ' + window.keycloak.token;
+
+                  if (action && action === 'PROVISION') {
+                    window.sessionStorage.removeItem('crtcentAction');
+                    setStatus(Status.PROVISION);
+                    return;
+                  }
+
+                  getUserSignup().then(({data}) => {
+                    setStatus(Status.PROVISION);
+                  }).catch(() => {
+                    console.log("CodeReady Toolchain account is not provisioned.");
+                  });
                 } else {
                   console.log('Not logged in!!');
+                  setStatus(Status.SUCCESS);
                 }
-                setStatus(APIStatus.SUCCESS);
               })
-              .error(function() {
+              .error(() => {
                 console.log('failed to initialize');
-                setStatus(APIStatus.ERROR);
+                setStatus(Status.ERROR);
               });
           },
           () => {
-            setStatus(APIStatus.ERROR);
+            setStatus(Status.ERROR);
           },
         );
       })
@@ -68,11 +92,13 @@ const AuthLibraryLoader: React.FC<{}> = () => {
   }, []);
 
   switch (status) {
-    case APIStatus.LOADING:
+    case Status.LOADING:
       return <div>Loading...</div>;
-    case APIStatus.SUCCESS:
+    case Status.SUCCESS:
       return <Redirect to="/Home" />;
-    case APIStatus.ERROR:
+    case Status.PROVISION:
+      return <Redirect to="/Provision" />;
+    case Status.ERROR:
       return <Redirect to="/Error" />;
     default:
       return null;

@@ -1,4 +1,5 @@
 declare interface KeyCloak {
+    authenticated: boolean,
     init: Function,
     login: Function,
     logout: Function,

@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { Route, Switch } from 'react-router-dom';
 import Home from './Home';
+import Provisioner from './Provisioner';
 
 const AppContent: React.FC<{}> = () => {
     return (
         <Switch>
             <Route exact path="/Provision">
-                <div>Provisioning Page</div>
+                <Provisioner />
             </Route>
             <Route exact path="/Dashboard">
                 <div>Dashboard Page</div>

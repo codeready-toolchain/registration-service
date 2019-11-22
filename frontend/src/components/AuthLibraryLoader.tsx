@@ -13,8 +13,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
   const [status, setStatus] = React.useState(Status.LOADING);
 
   React.useEffect(() => {
-    const configURL =
-      '/api/v1/authconfig';
+    const configURL = '/api/v1/authconfig';
 
     const loadAuthLibrary = (url, cbSuccess, cbError) => {
       var script = document.createElement('script');
@@ -71,6 +70,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                   getUserSignup().then(({data}) => {
                     setStatus(Status.PROVISION);
                   }).catch(() => {
+                    setStatus(Status.SUCCESS);
                     console.log("CodeReady Toolchain account is not provisioned.");
                   });
                 } else {
@@ -88,7 +88,9 @@ const AuthLibraryLoader: React.FC<{}> = () => {
           },
         );
       })
-      .catch((error) => {});
+      .catch((error) => {
+        setStatus(Status.ERROR);
+      });
   }, []);
 
   switch (status) {

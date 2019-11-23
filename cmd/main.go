@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/spf13/pflag"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/spf13/pflag"
 )
 
 func main() {

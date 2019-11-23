@@ -1,140 +1,287 @@
+<!DOCTYPE html>
+<html lang="en" class="pf-m-redhat-font">
 <head>
-  <script type="text/javascript">
-  
-  // time elapsed, used for the state poll
-  var elapsed = 0
-
-  // this is where we load our config from
-  configURL = "/api/v1/authconfig"
-
-  // loads json data from url, the callback is called with
-  // error and data, with data the parsed json.
-  var getJSON = function(method, url, token, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open(method, url, true);
-    if (token != null)
-      xhr.setRequestHeader("Authorization", "Bearer " + token)
-    xhr.responseType = 'json';
-    xhr.onload = function() {
-      var status = xhr.status;
-      if (status === 200) {
-        callback(null, xhr.response);
-      } else {
-        callback(status, xhr.response);
-      }
-    };
-    xhr.send();
-  };
-
-  // this loads the js library at location 'url' dynamically and
-  // calls 'cbSuccess' when the library was loaded successfully
-  // and 'cbError' when there was an error loading the library.
-  function loadAuthLibrary(url, cbSuccess, cbError) {
-    var script = document.createElement('script');
-    script.setAttribute('src', url);
-    script.setAttribute('type', 'text/javascript');
-    var loaded = false;
-    var loadFunction = function () {
-      if (loaded) return;
-      loaded = true;
-      cbSuccess();
-    };
-    var errorFunction = function (error) {
-      if (loaded) return;
-      cbError(error)
-    };
-    script.onerror = errorFunction;
-    script.onload = loadFunction;
-    script.onreadystatechange = loadFunction;
-    document.getElementsByTagName("head")[0].appendChild(script);
-  }
-
-  function updateSignupState() {
-    elapsed++;
-    getJSON('GET', "/api/v1/signup", keycloak.idToken, function(err, data) {
-      if (err != null) {
-        document.getElementById('errorStatus').textContent = error;
-      } else {
-        document.getElementById('errorStatus').textContent = "";
-        document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
-        document.getElementById('stateElapsed').textContent = elapsed;
-        consoleURL = data.consoleURL;
-        if (consoleURL === undefined) {
-          consoleURL = "N/A"
-        } else {
-          consoleURL = data.consoleURL + "topology/ns/" + data.compliantUsername + "-dev";
-        }
-        document.getElementById('stateConsole').href = consoleURL;
-        document.getElementById('stateConsole').text = consoleURL;
-      }
-    })
-  }
-
-  function signup() {
-    getJSON('POST', "/api/v1/signup", keycloak.idToken, function(err, data) {
-      if (err != null) {
-        document.getElementById('errorStatus').textContent = JSON.stringify(data, null, 2);
-      } else {
-        document.getElementById('stateResp').textContent = JSON.stringify(data, null, 2);
-        document.getElementById('stateElapsed').textContent = elapsed;
-      }
-    });
-    elapsed=0;
-    setInterval(updateSignupState, 1000);
-  }
-
-  // main operation, load config, load client, run client
-  getJSON('GET', configURL, null, function(err, data) {
-    if (err !== null) {
-      console.log('error loading client config' + err);
-      document.getElementById('errorStatus').textContent = error;
-    } else {
-      loadAuthLibrary(data['auth-client-library-url'], function() {
-        console.log("client library load success!")
-        var clientConfig = JSON.parse(data['auth-client-config']);
-        console.log("using client configuration: " + JSON.stringify(clientConfig))
-        keycloak = Keycloak(clientConfig);
-        keycloak.init().success(function(authenticated) {
-          if (authenticated == true) {
-            keycloak.loadUserInfo().success(function(data){
-              document.getElementById('loginStatus').textContent = "logged in as user " + data.preferred_username;
-              document.getElementById('jwtToken').textContent = JSON.stringify(keycloak.idTokenParsed, null, 2);
-              // do an authenticated request
-              // note, this only works if testingmode is set to true!
-              getJSON('GET', "/api/v1/auth_test", keycloak.idToken, function(err, data) {
-                if (err != null) {
-                  document.getElementById('errorStatus').textContent = error;
-                } else {
-                  document.getElementById('serviceResp').textContent = JSON.stringify(data, null, 2);
-                }
-              })
-            });
-          } else {
-            document.getElementById('loginStatus').textContent = "not logged in";
-          }
-        }).error(function() {
-          console.log('failed to initialize');
-        });
-      }, function(error) {
-        console.log('error loading client library' + error);
-        document.getElementById('errorStatus').textContent = error;
-      });
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/@patternfly/patternfly/patternfly.css" 
+    crossorigin="anonymous"
+  >
+  <style>
+    .pf-c-brand {
+      height: 23px;
     }
-  });
-
-</script>
+    .rhd-logo {
+      height: 50px;
+    }
+    .pf-c-card img {
+      height: 50px;
+    }
+    .pf-c-card h1 {
+      font-size: 1.3em;
+      line-height: 1.2em;
+      font-weight: bold;
+    }
+    .pf-c-card a {
+      display: block;
+      float: right;
+      margin-top: 0.5em;
+    }
+    .rhd-nav {
+      float: right;
+    }
+    .toolchain-state h1 {
+      font-size: 1.2em;
+      margin-bottom: 0;
+    }
+    .rhd-header {
+      padding-bottom: 0;
+    }
+    .rhd-tertiary {
+      padding-top: 0;
+    }
+    #user-notloggedin {
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #dashboard, #user-loggedin, #state-error {
+      display: none;
+    }
+  </style>
+  <title>CodeReady Toolchain</title>
 </head>
 <body>
-  <h1>CodeReady Toolchain SaaS</h1>
-  <p>Login status: <b id="loginStatus"></b></p>
-  <p>Error status: <b id="errorStatus"></b>n/a</p>
-  <hr>
-  <p>Please login or register: <button onclick="keycloak.login()">Login</button> <button onclick="keycloak.register()">Register</button> <button onclick="keycloak.logout()">Logout</button></p>
-  <p><button onclick="signup()">SIGNUP</button></p>
-  <hr>
-  <p>Console URL: <a href="#" id="stateConsole"></a></p>
-  <hr>
-  <p>Elapsed: <span id="stateElapsed">n/a</span> State: <pre id="stateResp">n/a</pre></p>
-  <hr>
-  <p>JWT Token:<br><pre id="jwtToken">n/a</pre></p>
+  <div class="pf-c-page" id="page-layout-horizontal-nav">
+  <a class="pf-c-skip-to-content pf-c-button pf-m-primary" href="#main-content-page-layout-horizontal-nav">Skip to content</a>
+  <header role="banner" class="pf-c-page__header">
+    <div class="pf-c-page__header-brand">
+      <a class="pf-c-page__header-brand-link">
+        <img class="pf-c-brand" src="redhat-logo.svg" alt="Red Hat Logo" />
+      </a>
+    </div>
+    <div class="pf-c-page__header-nav">
+      <nav class="pf-c-nav" id="page-layout-horizontal-nav-horizontal-nav" aria-label="Global">
+        <ul class="pf-c-nav__horizontal-list">
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Customer Portal</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link pf-m-current" aria-current="page">Developer</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Hosted IDE</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">OpenShift</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Partners</a>
+          </li>
+          <li class="pf-c-nav__item">
+              <a href="#" class="pf-c-nav__link">Store</a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    <div class="pf-c-page__header-tools">
+      <div class="pf-c-page__header-tools-group">
+        <div class="pf-m-user">
+          <span id="user-loggedin"><span id="username">John Smith</span></span>
+          <span id="user-notloggedin" onclick="keycloak.login()">Login/Signup</span>
+        </div>
+      </div>
+    </div>
+  </header> 
+  <main role="main" class="pf-c-page__main" tabindex="-1">
+    <section class="pf-c-page__main-section pf-m-light rhd-header">
+      <img class="pf-c-brand rhd-logo" src="rhdeveloper-logo.svg" alt="Red Hat Developer Logo" />
+      <nav class="pf-c-nav rhd-nav" id="page-layout-horizontal-nav-horizontal-nav">
+        <ul class="pf-c-nav__horizontal-list">
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Build</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Tools</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Events</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Training</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Products</a>
+          </li>
+        </ul>
+      </nav>    
+    </section>
+    <section class="pf-c-page__main-section pf-m-light rhd-header rhd-tertiary">
+      <nav class="pf-c-nav" aria-label="Local">
+        <ul class="pf-c-nav__tertiary-list">
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Istio</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Kubernetes</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Microservices</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">DevOps</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Serverless</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Linux</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Java</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Sprint Boot</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link">Containers</a>
+          </li>
+          <li class="pf-c-nav__item">
+            <a href="#" class="pf-c-nav__link pf-m-current" aria-current="page">Toolchain</a>
+          </li>
+        </ul>
+      </nav> 
+    </section>
+    <section class="pf-c-page__main-section">
+      <div id="state-error">
+        <div class="pf-c-alert pf-m-danger pf-m-inline" aria-label="error">
+          <div class="pf-c-alert__icon">
+            <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+          </div>
+          <h4 class="pf-c-alert__title">
+          <span class="pf-screen-reader">Error:</span>Something went wrong, please try again. <span id="errorStatus"></span></h4>
+        </div>
+      </div>
+      <div class="pf-c-content">
+        <div class="toolchain-state" id="state-getstarted">
+          <button onclick="keycloak.login()">Get Started with CodeReady Toolchain</button>
+          <p><a href="#">Terms and Conditions</a> &copy; 2020, Red Hat Inc.</p>
+        </div>
+        <div class="toolchain-state" id="state-waiting-for-approval">
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account is waiting for approval</h1>
+        </div>
+        <div class="toolchain-state" id="state-waiting-for-provisioning">
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account is waiting for provisioning</h1>
+        </div>
+        <div class="toolchain-state" id="state-provisioned">
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account has been provisioned</h1>
+        </div>
+        <div class="toolchain-dashboard" id="dashboard">
+          <div class="pf-c-content">
+            <div class="pf-l-gallery pf-m-gutter">
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="CodeReady Workspaces Logo" />
+                    <h1>Red Hat OpenShift Dev Experience</h1>
+                    <span><a id="stateConsole" href="#" class="pf-c-nav__link">Start Developing..</a></span>
+                  </div>
+                </div>
+              </div>
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />
+                    <h1>CodeReady Workspaces</h1>
+                    <span><a href="#" class="pf-c-nav__link">Start Coding..</a></span>
+                  </div>
+                </div>
+              </div>
+            </div>    
+            <h1>Training for Developers</h1>
+            <div class="pf-l-gallery pf-m-gutter">
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <h1>Using<br>CodeReady<br>Workspaces</h1>
+                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>
+                  </div>
+                </div>
+              </div>
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <h1>Using<br>OpenShift<br>Container Platform</h1>
+                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
+                  </div>
+                </div>
+              </div>
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <h1>Using<br>OpenShift<br>Pipelines</h1>
+                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
+                  </div>
+                </div>
+              </div>
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__body">
+                    <h1>Using<br>OpenShift<br>Serverless</h1>
+                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>    
+        </div>  
+      </div>
+    </section>
+    <section class="pf-c-page__main-section pf-m-light">
+      <div class="pf-c-content">
+        <h1>Marketing for Developers</h1>
+      </div>
+      <div class="pf-l-gallery pf-m-gutter">
+        <div class="pf-l-gallery__item">
+          <div class="pf-c-card">
+            <div class="pf-c-card__body">
+              <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />
+              <h1>CodeReady<br>Workspaces</h1>
+              <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>
+            </div>
+          </div>
+        </div>
+        <div class="pf-l-gallery__item">
+          <div class="pf-c-card">
+            <div class="pf-c-card__body">
+              <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Container Platform Logo" />
+              <h1>OpenShift<br>Container Platform</h1>
+              <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
+            </div>
+          </div>
+        </div>
+        <div class="pf-l-gallery__item">
+            <div class="pf-c-card">
+              <div class="pf-c-card__body">
+                <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Pipelines Logo" />
+                <h1>OpenShift<br>Pipelines</h1>
+                <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
+              </div>
+            </div>
+        </div>
+        <div class="pf-l-gallery__item">
+            <div class="pf-c-card">
+              <div class="pf-c-card__body">
+                <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Serverless Logo" />
+                <h1>OpenShift<br>Serverless</h1>
+                <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
+              </div>
+            </div>
+          </div>
+        </div>
+    </section>
+  </main>
+</div>
+<script src="landingpage.js"></script>
 </body>
+</html>

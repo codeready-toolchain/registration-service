@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 611.84003 144"
+   version="1.1"
+   sodipodi:docname="redhat-logo.svg"
+   width="611.84003"
+   height="144"
+   inkscape:version="0.92.4 (unknown)">
+  <metadata
+     id="metadata17">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title>RedHat-Logo-A-Reverse</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="992"
+     inkscape:window-height="480"
+     id="namedview15"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="0.69983687"
+     inkscape:cx="306"
+     inkscape:cy="72"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="Layer_1" />
+  <defs
+     id="defs4">
+    <style
+       id="style2">.cls-1{fill:#e00;}.cls-2{fill:#fff;}</style>
+  </defs>
+  <title
+     id="title6">RedHat-Logo-A-Reverse</title>
+  <path
+     class="cls-1"
+     d="m 126.97,82.99 c 12.51,0 30.61,-2.58 30.61,-17.46 a 14,14 0 0 0 -0.31,-3.42 L 149.82,29.75 C 148.1,22.63 146.59,19.4 134.09,13.15 124.39,8.19 103.26,0 97.01,0 91.19,0 89.5,7.5 82.56,7.5 75.88,7.5 70.92,1.9 64.67,1.9 c -6,0 -9.91,4.09 -12.93,12.5 0,0 -8.41,23.72 -9.49,27.16 a 6.43,6.43 0 0 0 -0.22,1.94 c 0,9.22 36.3,39.45 84.94,39.45 M 159.5,71.57 c 1.73,8.19 1.73,9.05 1.73,10.13 0,14 -15.74,21.77 -36.43,21.77 C 78.04,103.5 37.08,76.1 37.08,57.99 a 18.45,18.45 0 0 1 1.51,-7.33 C 21.77,51.5 0,54.5 0,73.72 0,105.2 74.59,144 133.65,144 c 45.28,0 56.7,-20.48 56.7,-36.65 0,-12.72 -11,-27.16 -30.83,-35.78"
+     id="path8"
+     inkscape:connector-curvature="0"
+     style="fill:#ee0000" />
+  <path
+     d="m 159.5,71.57 c 1.73,8.19 1.73,9.05 1.73,10.13 0,14 -15.74,21.77 -36.43,21.77 C 78.04,103.5 37.08,76.1 37.08,57.99 a 18.45,18.45 0 0 1 1.51,-7.33 l 3.66,-9.06 a 6.43,6.43 0 0 0 -0.22,1.9 c 0,9.22 36.3,39.45 84.94,39.45 12.51,0 30.61,-2.58 30.61,-17.46 a 14,14 0 0 0 -0.31,-3.42 z"
+     id="path10"
+     inkscape:connector-curvature="0" />
+  <path
+     class="cls-2"
+     d="m 579.24,92.3 c 0,11.89 7.15,17.67 20.19,17.67 a 52.11,52.11 0 0 0 11.89,-1.68 V 94.5 a 24.84,24.84 0 0 1 -7.68,1.16 c -5.37,0 -7.36,-1.68 -7.36,-6.73 V 67.8 h 15.56 V 53.6 h -15.56 v -18 l -17,3.68 V 53.6 h -11.29 v 14.2 h 11.25 z m -53,0.32 c 0,-3.68 3.69,-5.47 9.26,-5.47 a 43.12,43.12 0 0 1 10.1,1.26 v 7.15 a 21.51,21.51 0 0 1 -10.63,2.63 c -5.46,0 -8.73,-2.1 -8.73,-5.57 m 5.2,17.56 c 6,0 10.84,-1.26 15.36,-4.31 v 3.37 h 16.82 V 73.58 c 0,-13.56 -9.14,-21 -24.39,-21 -8.52,0 -16.94,2 -26,6.1 l 6.1,12.52 c 6.52,-2.74 12,-4.42 16.83,-4.42 7,0 10.62,2.73 10.62,8.31 v 2.73 a 49.53,49.53 0 0 0 -12.62,-1.58 c -14.31,0 -22.93,6 -22.93,16.73 0,9.78 7.78,17.24 20.19,17.24 m -92.44,-0.94 h 18.09 V 80.42 h 30.29 v 28.82 H 505.5 V 35.62 H 487.43 V 63.91 H 457.14 V 35.62 h -18.09 z m -68.86,-27.9 c 0,-8 6.31,-14.1 14.62,-14.1 a 17.22,17.22 0 0 1 11.76,4.32 v 19.45 a 16.36,16.36 0 0 1 -11.76,4.46 c -8.2,0 -14.62,-6.1 -14.62,-14.09 m 26.61,27.87 h 16.83 V 31.94 l -17,3.68 v 20.93 a 28.3,28.3 0 0 0 -14.2,-3.68 c -16.19,0 -28.92,12.51 -28.92,28.5 a 28.25,28.25 0 0 0 28.4,28.6 25.12,25.12 0 0 0 14.93,-4.83 z M 319.5,66.5 c 5.36,0 9.88,3.47 11.67,8.83 h -23.2 c 1.68,-5.53 5.89,-8.83 11.53,-8.83 m -28.67,15 c 0,16.2 13.25,28.82 30.28,28.82 9.36,0 16.2,-2.53 23.25,-8.42 l -11.26,-10 c -2.63,2.74 -6.52,4.21 -11.14,4.21 a 14.39,14.39 0 0 1 -13.68,-8.83 h 39.65 v -4.23 c 0,-17.67 -11.88,-30.39 -28.08,-30.39 a 28.57,28.57 0 0 0 -29,28.81 M 261.5,51.08 c 6,0 9.36,3.78 9.36,8.31 0,4.53 -3.36,8.31 -9.36,8.31 H 243.61 V 51.08 Z m -36,58.16 h 18.09 V 82.42 h 13.77 l 13.89,26.82 H 291.5 L 275.3,79.79 a 22.27,22.27 0 0 0 13.88,-20.72 c 0,-13.25 -10.41,-23.45 -26,-23.45 H 225.5 Z"
+     id="path12"
+     inkscape:connector-curvature="0"
+     style="fill:#ffffff" />
+</svg>

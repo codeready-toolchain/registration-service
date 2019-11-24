@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Card, CardHead, CardHeader, CardBody, CardFooter } from '@patternfly/react-core';
+import './MaterialTile.scss';
 
 export interface TileProps {
     imgSrc: string;
@@ -10,12 +11,12 @@ export interface TileProps {
 }
 
 const Tile: React.FC<TileProps> = (props) => (
-  <Card >
+  <Card className="material-info" isHoverable>
     <CardHead>
-      <img src={props.imgSrc} alt="" style={{height: "50px"}}/>
+      <img src={props.imgSrc} alt="" style={props.imgSrc !== ""? {height: "50px"} : {}}/>
     </CardHead> 
     <CardHeader>{props.header}</CardHeader>
-    <CardBody>{props.body}</CardBody>
+    <CardBody >{props.body}</CardBody>
     <CardFooter>
       {<div><a href={props.externalLink}>{props.footer}</a></div>}
     </CardFooter>

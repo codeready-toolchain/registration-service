@@ -19,11 +19,11 @@ const productName = 'CodeReady ToolChain';
 const App: React.FC = () => {
   return (
     <>
+      <AuthLibraryLoader />
       <Helmet titleTemplate={`%s · ${productName}`} defaultTitle={productName} />
       <Page header={<MastHead />} mainContainerId={pageId}>
         <AppContent />
       </Page>
-      <AuthLibraryLoader />
     </>
   );
 };

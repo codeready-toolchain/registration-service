@@ -1,14 +1,18 @@
 import * as React from 'react';
 import {Stack, StackItem} from '@patternfly/react-core';
-import ProvisionTOS from './ProvisionTOS';
 import MaterialList from './MaterialList';
+import DashboardData from './DashboardData';
+import TrainingData from './TrainingData';
 import MarketingData from './MarketingData';
 
-const Home: React.FC<{}> = () => {
+const Dashboard: React.FC<{}> = () => {
     return (
         <Stack>
             <StackItem>
-                <ProvisionTOS />
+                <MaterialList materials={DashboardData.materials} spanValue={6} rowSpanValue={1}/>
+            </StackItem>
+            <StackItem>
+                <MaterialList materials={TrainingData.materials} />
             </StackItem>
             <StackItem>
                 <MaterialList materials={MarketingData.materials} />
@@ -17,4 +21,4 @@ const Home: React.FC<{}> = () => {
     );
 };
 
-export default Home;
+export default Dashboard;

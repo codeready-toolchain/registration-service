@@ -14,12 +14,14 @@ const MastHead = React.memo(() => {
         history.push(defaultRoute);
       },
     };
-  
+    
     return (
       <PageHeader
         logo={<Brand src={'assets/codeready_toolchain.png'} alt={'CodeReady Toolchain'} />}
         logoProps={logoProps}
-        toolbar={<MastHeadToolbar userName="Test User" />}
+        toolbar={(window.keycloak && window.keycloak.authenticated)
+          ? (<MastHeadToolbar userName={window.keycloak.idTokenParsed.name} />)
+          : ("")}
       />
     );
   });

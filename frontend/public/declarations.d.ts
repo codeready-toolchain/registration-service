@@ -1,9 +1,14 @@
+declare interface IdTokenParsed {
+    name: string
+}
+
 declare interface KeyCloak {
     authenticated: boolean,
     init: Function,
     login: Function,
     logout: Function,
-    token: string
+    token: string,
+    idTokenParsed: IdTokenParsed
 }
 
 declare interface Window {

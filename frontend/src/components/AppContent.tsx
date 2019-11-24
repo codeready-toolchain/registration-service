@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Route, Switch } from 'react-router-dom';
 import Home from './Home';
 import Provisioner from './Provisioner';
+import Dashboard from './Dashboard';
 
 const AppContent: React.FC<{}> = () => {
     return (
@@ -10,7 +11,7 @@ const AppContent: React.FC<{}> = () => {
                 <Provisioner />
             </Route>
             <Route exact path="/Dashboard">
-                <div>Dashboard Page</div>
+                <Dashboard />
             </Route>
             <Route exact path="/Home">
                 <Home />

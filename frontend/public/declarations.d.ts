@@ -7,6 +7,7 @@ declare interface KeyCloak {
     init: Function,
     login: Function,
     logout: Function,
+    loadUserInfo: Function,
     token: string,
     idTokenParsed: IdTokenParsed
 }
@@ -14,5 +15,5 @@ declare interface KeyCloak {
 declare interface Window {
     clientConfig: object,
     keycloak: KeyCloak,
-    Keycloak: Function
+    Keycloak: Function,
 }

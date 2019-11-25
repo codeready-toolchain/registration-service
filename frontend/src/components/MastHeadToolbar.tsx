@@ -13,7 +13,7 @@ const MastHeadToolbar: React.FC<MastHeadToolbarProps> = (props) => {
     const [isDropdownOpen, setDropdownOpenState] = React.useState(false);
 
     const onDropdownToggle = (isDropdownOpen: boolean) => {
-        setDropdownOpenState(!isDropdownOpen);
+        setDropdownOpenState(isDropdownOpen);
     };
 
     const onDropdownSelect = (event: any) => {
@@ -32,7 +32,7 @@ const MastHeadToolbar: React.FC<MastHeadToolbarProps> = (props) => {
                         toggle={<DropdownToggle onToggle={onDropdownToggle}>{props.userName}</DropdownToggle>}
                         dropdownItems={[
                             <DropdownItem component="button">Profile</DropdownItem>,
-                            <DropdownItem>Logout</DropdownItem>,
+                            <DropdownItem onClick={() => window.keycloak.logout()}>Logout</DropdownItem>,
                         ]}
                     />
                 </ToolbarItem>

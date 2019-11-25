@@ -161,7 +161,10 @@ getJSON('GET', configURL, null, function(err, data) {
       var clientConfig = JSON.parse(data['auth-client-config']);
       console.log('using client configuration: ' + JSON.stringify(clientConfig))
       keycloak = Keycloak(clientConfig);
-      keycloak.init().success(function(authenticated) {
+      keycloak.init({
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin,
+      }).success(function(authenticated) {
         if (authenticated == true) {
           keycloak.loadUserInfo().success(function(data) {
             showUser(data.preferred_username)

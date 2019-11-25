@@ -7,6 +7,7 @@ enum Status {
   SUCCESS,
   ERROR,
   PROVISION,
+  DASHBOARD,
 }
 
 const AuthLibraryLoader: React.FC<{}> = () => {
@@ -40,12 +41,12 @@ const AuthLibraryLoader: React.FC<{}> = () => {
 
     axios
       .get(configURL)
-      .then(({ data }) => {
+      .then(({ data: configData }) => {
         loadAuthLibrary(
-          data['auth-client-library-url'],
+          configData['auth-client-library-url'],
           () => {
             console.log('client library load success!');
-            window.clientConfig = JSON.parse(data['auth-client-config']);
+            window.clientConfig = JSON.parse(configData['auth-client-config']);
             console.log('using client configuration: ' + JSON.stringify(window.clientConfig));
             window.keycloak = window.Keycloak(window.clientConfig);
             window.keycloak
@@ -53,7 +54,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                 onLoad: 'check-sso',
                 silentCheckSsoRedirectUri: window.location.origin,
                 promiseType: 'native',
-            })
+              })
               .success((authenticated) => {
                 if (authenticated === true) {
                   console.log('Logged in!!');
@@ -62,17 +63,23 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                     'Bearer ' + window.keycloak.token;
 
                   if (action && action === 'PROVISION') {
-                    window.sessionStorage.removeItem('crtcentAction');
+                    window.sessionStorage.removeItem('crtcAction');
                     setStatus(Status.PROVISION);
                     return;
                   }
 
-                  getUserSignup().then(({data}) => {
-                    setStatus(Status.PROVISION);
-                  }).catch(() => {
-                    setStatus(Status.SUCCESS);
-                    console.log("CodeReady Toolchain account is not provisioned.");
-                  });
+                  getUserSignup()
+                    .then(({ data: signupData }) => {
+                      if (signupData.status.ready) {
+                        setStatus(Status.DASHBOARD);
+                      } else {
+                        setStatus(Status.PROVISION);
+                      }
+                    })
+                    .catch(() => {
+                      setStatus(Status.SUCCESS);
+                      console.log('CodeReady Toolchain account is not provisioned.');
+                    });
                 } else {
                   console.log('Not logged in!!');
                   setStatus(Status.SUCCESS);
@@ -102,6 +109,8 @@ const AuthLibraryLoader: React.FC<{}> = () => {
       return <Redirect to="/Provision" />;
     case Status.ERROR:
       return <Redirect to="/Error" />;
+    case Status.DASHBOARD:
+      return <Redirect to="/Dashboard" />;
     default:
       return null;
   }

@@ -1,4 +1,5 @@
 .PHONY: frontend
-## builds frontend
+## builds frontend for CRTC Landing page
+
 frontend:
-	cd frontend && pwd && yarn build && cd ../
+	cd frontend && yarn install && yarn build && cd ../

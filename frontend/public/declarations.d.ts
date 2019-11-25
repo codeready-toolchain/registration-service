@@ -10,6 +10,7 @@ declare interface KeyCloak {
     loadUserInfo: Function,
     token: string,
     idTokenParsed: IdTokenParsed
+    accountManagement: Function
 }
 
 declare interface Window {

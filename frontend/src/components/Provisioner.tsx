@@ -63,7 +63,7 @@ const Provisioner: React.FC<{}> = () => {
             console.log('Polling failed', error);
             setStatus(ProvisionStatus.FAILED);
           });
-      }, 30000);
+      }, 15000);
     };
 
     const stopStatusPolling = () => {

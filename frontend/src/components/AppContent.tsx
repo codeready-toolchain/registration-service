@@ -10,9 +10,7 @@ const AppContent: React.FC<{}> = () => {
             <Route exact path="/Provision" component={Provisioner} />
             <Route exact path="/Dashboard" component={Dashboard} />
             <Route exact path="/Home" component={Home} />
-            <Route exact path="/">
-                <div>Loading...</div>
-            </Route>
+            <Route exact path="/" />
         </Switch>
     );
 };

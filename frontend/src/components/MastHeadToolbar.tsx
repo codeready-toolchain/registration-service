@@ -31,7 +31,7 @@ const MastHeadToolbar: React.FC<MastHeadToolbarProps> = (props) => {
                         isOpen={isDropdownOpen}
                         toggle={<DropdownToggle onToggle={onDropdownToggle}>{props.userName}</DropdownToggle>}
                         dropdownItems={[
-                            <DropdownItem component="button">Profile</DropdownItem>,
+                            <DropdownItem onClick={() => window.keycloak.accountManagement()}>Account</DropdownItem>,
                             <DropdownItem onClick={() => window.keycloak.logout()}>Logout</DropdownItem>,
                         ]}
                     />

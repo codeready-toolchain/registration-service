@@ -151,7 +151,7 @@ if (NODE_ENV === 'production') {
   extractCSS.filename = '[name]-[chunkhash].min.css';
   // Causes error in --mode=production due to scope hoisting
   config.optimization.concatenateModules = false;
-  config.stats = 'minimal';
+  config.stats = 'none';
 }
 
 export default config;

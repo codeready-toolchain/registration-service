@@ -4,28 +4,31 @@ import MaterialList from './MaterialList';
 import MarketingData from './MarketingData';
 import axios from 'axios';
 import { Redirect } from 'react-router-dom';
+import { Spinner } from '@patternfly/react-core/dist/esm/experimental';
+import { OkIcon } from '@patternfly/react-icons'
 
 enum ProvisionStatus {
+    UNPROVISIONED,
     PROCESSING,
     PENDING,
     SUCCESS,
-    FAILED,
+    FAILED
 }
 
 export interface ProvisionerMessage {
     [name: string]: string;
 };
 
-const provisionerMsg = {
+/* const provisionerMsg = {
     "PROCESSING": "Your CodeReady Toolchain account is being provisioned",
     "PENDING": "Your CodeReady Toolchain account approval is pending",
     "SUCCESS": "Your CodeReady Toolchain account has been provisioned",
-    "FAILED": "Your CodeReady Toolchain account provisioning has failed. Please contact administrator"
-} as ProvisionerMessage;
+    "FAILED": "Internal server error. Please try again later."
+} as ProvisionerMessage; */
 
 const Provisioner: React.FC<{}> = () => {
 
-    const [status, setStatus] = React.useState(ProvisionStatus.PROCESSING);
+    const [status, setStatus] = React.useState(ProvisionStatus.UNPROVISIONED);
 
     const intervalId = React.useRef(null);
 
@@ -55,8 +58,8 @@ const Provisioner: React.FC<{}> = () => {
                     .then(({ data }) => {
                         updateStatus(data.status);
                     })
-                    .catch((status) => {
-                        console.log('Polling failed', status);
+                    .catch((error) => {
+                        console.log('Polling failed', error);
                         setStatus(ProvisionStatus.FAILED);
                     });
             }, 60000);
@@ -77,10 +80,21 @@ const Provisioner: React.FC<{}> = () => {
             .then(({ data }) => {
                 updateStatus(data.status);
             })
-            .catch(() => {
-                /* TODO: Need to check state in redirect URL before provisioning */
-                setUserSignup();
-                intervalId.current = startStatusPolling();
+            .catch((error) => {
+                if (error.response && error.response.status && error.response.status === 404) {
+                    setUserSignup()
+                        .then((response) => {
+                            setStatus(ProvisionStatus.PROCESSING);
+                            intervalId.current = startStatusPolling();
+                        })
+                        .catch((error) => {
+                            console.log('POST /usersignup failed', error.message);
+                            setStatus(ProvisionStatus.FAILED);
+                        });
+                } else {
+                    console.log('GET /usersignup failed - ', error.message);
+                    setStatus(ProvisionStatus.FAILED);
+                }
             });
 
         return () => {
@@ -92,16 +106,50 @@ const Provisioner: React.FC<{}> = () => {
         return <Redirect to="/Home" />;
     }
 
-    return status !== ProvisionStatus.SUCCESS
-        ? (<Stack>
+    /* const getProvisionStatusMsg = () => {
+        return provisionerMsg[status];
+    }; */
+
+    /* const icon =
+        status === ProvisionStatus.PROCESSING
+            ? 'Your CodeReady Toolchain account is being provisioned'
+            : status === ProvisionStatus.PENDING
+                ? 'Your CodeReady Toolchain account is pending approval'
+                : 'Your CodeReady Toolchain account has been provisioned'; */
+
+    return (
+        <Stack>
             <StackItem>
-                <div className="provision-section">{provisionerMsg[status]}</div>
+                <div className="provision-section">
+                    {status === ProvisionStatus.PROCESSING && (
+                        <span >
+                            <Spinner size="lg" />  Your CodeReady Toolchain account is being provisioned
+                        </span>
+                    )}
+                    {status === ProvisionStatus.PENDING && (
+                        <span >
+                            <Spinner size="lg" />  Your CodeReady Toolchain account is pending approval
+                        </span>
+                    )}
+                    {status === ProvisionStatus.FAILED && (
+                        <span >
+                            Internal server error. Please try again later
+                        </span>
+                    )}
+                    {status === ProvisionStatus.SUCCESS && (
+                        <div>
+                            <span>
+                                <OkIcon /> Your CodeReady Toolchain account has been provisioned
+                        </span>
+                            <Redirect to="/Dashboard" />
+                        </div>
+                    )}
+                </div>
             </StackItem>
             <StackItem>
                 <MaterialList materials={MarketingData.materials} />
             </StackItem>
-        </Stack>)
-        : (<Redirect to="/Dashboard" />);
+        </Stack>);
 };
 
 export default Provisioner;

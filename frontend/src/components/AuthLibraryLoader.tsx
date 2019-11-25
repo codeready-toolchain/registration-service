@@ -67,12 +67,13 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                     return;
                   }
 
-                  getUserSignup().then(({data}) => {
-                    setStatus(Status.PROVISION);
-                  }).catch(() => {
-                    setStatus(Status.SUCCESS);
-                    console.log("CodeReady Toolchain account is not provisioned.");
-                  });
+                  getUserSignup()
+                    .then(({ data }) => {
+                      setStatus(Status.PROVISION);
+                    }).catch(() => {
+                      setStatus(Status.SUCCESS);
+                      console.log("CodeReady Toolchain account is not provisioned.");
+                    });
                 } else {
                   console.log('Not logged in!!');
                   setStatus(Status.SUCCESS);

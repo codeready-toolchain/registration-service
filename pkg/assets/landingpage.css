@@ -1,0 +1,53 @@
+.pf-c-brand {
+  height: 23px;
+}
+.rhd-logo {
+  height: 50px;
+}
+.pf-c-card img {
+  height: 50px;
+}
+.pf-c-card h1 {
+  font-size: 1.3em;
+  line-height: 1.2em;
+  font-weight: bold;
+}
+.pf-c-card a {
+  display: block;
+  float: right;
+  margin-top: 0.5em;
+}
+.rhd-nav {
+  float: right;
+}
+.toolchain-state h1 {
+  font-size: 1.2em;
+  margin-bottom: 0;
+}
+.rhd-header {
+  padding-bottom: 0;
+}
+.rhd-tertiary {
+  padding-top: 0;
+}
+.logoutbutton {
+  background:linear-gradient(to bottom, #ed3434 5%, #751111 100%);
+	background-color:#ed3434;
+	border-radius:6px;
+	border:1px solid #ff0000;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-size:10px;
+	font-weight:bold;
+	padding:5px 10px;
+	text-decoration:none;
+	text-shadow:0px -1px 0px #5b6178;
+}
+#user-notloggedin {
+  cursor: pointer;
+  font-weight: bold;
+}
+#state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #dashboard, #user-loggedin, #state-error {
+  display: none;
+}

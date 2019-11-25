@@ -3,52 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link 
-    rel="stylesheet" 
-    href="https://unpkg.com/@patternfly/patternfly/patternfly.css" 
-    crossorigin="anonymous"
-  >
-  <style>
-    .pf-c-brand {
-      height: 23px;
-    }
-    .rhd-logo {
-      height: 50px;
-    }
-    .pf-c-card img {
-      height: 50px;
-    }
-    .pf-c-card h1 {
-      font-size: 1.3em;
-      line-height: 1.2em;
-      font-weight: bold;
-    }
-    .pf-c-card a {
-      display: block;
-      float: right;
-      margin-top: 0.5em;
-    }
-    .rhd-nav {
-      float: right;
-    }
-    .toolchain-state h1 {
-      font-size: 1.2em;
-      margin-bottom: 0;
-    }
-    .rhd-header {
-      padding-bottom: 0;
-    }
-    .rhd-tertiary {
-      padding-top: 0;
-    }
-    #user-notloggedin {
-      cursor: pointer;
-      font-weight: bold;
-    }
-    #state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #dashboard, #user-loggedin, #state-error {
-      display: none;
-    }
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly/patternfly.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="landingpage.css">
   <title>CodeReady Toolchain</title>
 </head>
 <body>
@@ -87,7 +43,7 @@
     <div class="pf-c-page__header-tools">
       <div class="pf-c-page__header-tools-group">
         <div class="pf-m-user">
-          <span id="user-loggedin"><span id="username">John Smith</span></span>
+          <span id="user-loggedin"><span id="username">John Smith</span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
           <span id="user-notloggedin" onclick="keycloak.login()">Login/Signup</span>
         </div>
       </div>

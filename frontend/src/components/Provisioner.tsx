@@ -39,7 +39,6 @@ const Provisioner: React.FC<{}> = () => {
     };
 
     const updateStatus = ({ status, consoleURL }) => {
-      console.log('Status :', status);
       if (status.ready) {
         consoleURLRef.current = consoleURL;
         setStatus(ProvisionStatus.SUCCESS);
@@ -60,7 +59,6 @@ const Provisioner: React.FC<{}> = () => {
             updateStatus(data);
           })
           .catch((error) => {
-            console.log('Polling failed', error);
             setStatus(ProvisionStatus.FAILED);
           });
       }, 15000);
@@ -93,11 +91,9 @@ const Provisioner: React.FC<{}> = () => {
                 intervalId.current = startStatusPolling();
               })
               .catch((error) => {
-                console.log('POST /usersignup failed', error.message);
                 setStatus(ProvisionStatus.FAILED);
               });
           } else {
-            console.log('GET /usersignup failed - ', error.message);
             setStatus(ProvisionStatus.FAILED);
           }
         });

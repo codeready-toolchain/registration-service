@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [userInfo, setUserInfo] = React.useState(null);
 
   const fetchUserInfo = React.useCallback(() => {
-    window.keycloak.loadUserInfo().success((data)=>{
+    window.keycloak.loadUserInfo().success((data) => {
       setUserInfo(data);
     });
   }, [window.keycloak]);

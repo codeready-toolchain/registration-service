@@ -87,19 +87,19 @@ const config: Configuration = {
           {
             loader: 'css-loader',
             options: {
-              sourceMap: true,
+              sourceMap: false,
             },
           },
           {
             loader: 'resolve-url-loader',
             options: {
-              sourceMap: true,
+              sourceMap: false,
             },
           },
           {
             loader: 'sass-loader',
             options: {
-              sourceMap: true,
+              sourceMap: false,
               outputStyle: 'compressed',
             },
           },
@@ -140,8 +140,7 @@ const config: Configuration = {
     new webpack.IgnorePlugin(/prettier/),
     extractCSS,
   ],
-  devtool: 'cheap-module-source-map',
-  stats: 'minimal',
+  stats: 'none',
 };
 
 /* Production settings */

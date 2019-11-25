@@ -46,9 +46,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
         loadAuthLibrary(
           configData['auth-client-library-url'],
           () => {
-            console.log('client library load success!');
             window.clientConfig = JSON.parse(configData['auth-client-config']);
-            console.log('using client configuration: ' + JSON.stringify(window.clientConfig));
             window.keycloak = window.Keycloak(window.clientConfig);
             window.keycloak
               .init({
@@ -58,16 +56,9 @@ const AuthLibraryLoader: React.FC<{}> = () => {
               })
               .success((authenticated) => {
                 if (authenticated === true) {
-                  console.log('Logged in!!');
                   const action = window.sessionStorage.getItem('crtcAction');
                   axios.defaults.headers.common['Authorization'] =
                     'Bearer ' + window.keycloak.token;
-
-                  if (action && action === 'PROVISION') {
-                    window.sessionStorage.removeItem('crtcAction');
-                    setStatus(Status.PROVISION);
-                    return;
-                  }
 
                   getUserSignup()
                     .then(({ data: signupData }) => {
@@ -79,16 +70,18 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                       }
                     })
                     .catch(() => {
-                      setStatus(Status.SUCCESS);
-                      console.log('CodeReady Toolchain account is not provisioned.');
+                      if (action && action === 'PROVISION') {
+                        setStatus(Status.PROVISION);
+                      } else {
+                        setStatus(Status.SUCCESS);
+                      }
                     });
                 } else {
-                  console.log('Not logged in!!');
                   setStatus(Status.SUCCESS);
                 }
+                window.sessionStorage.removeItem('crtcAction');
               })
               .error(() => {
-                console.log('failed to initialize');
                 setStatus(Status.ERROR);
               });
           },
@@ -112,7 +105,9 @@ const AuthLibraryLoader: React.FC<{}> = () => {
     case Status.ERROR:
       return <Redirect to="/Error" />;
     case Status.DASHBOARD:
-      return <Redirect to={{ pathname: '/Dashboard', state: { consoleURL: consoleURLRef.current} }} />;
+      return (
+        <Redirect to={{ pathname: '/Dashboard', state: { consoleURL: consoleURLRef.current } }} />
+      );
     default:
       return null;
   }

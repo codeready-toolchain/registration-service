@@ -12,6 +12,7 @@ enum Status {
 
 const AuthLibraryLoader: React.FC<{}> = () => {
   const [status, setStatus] = React.useState(Status.LOADING);
+  const consoleURLRef = React.useRef(null);
 
   React.useEffect(() => {
     const configURL = '/api/v1/authconfig';
@@ -71,6 +72,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
                   getUserSignup()
                     .then(({ data: signupData }) => {
                       if (signupData.status.ready) {
+                        consoleURLRef.current = signupData.consoleURL;
                         setStatus(Status.DASHBOARD);
                       } else {
                         setStatus(Status.PROVISION);
@@ -110,7 +112,7 @@ const AuthLibraryLoader: React.FC<{}> = () => {
     case Status.ERROR:
       return <Redirect to="/Error" />;
     case Status.DASHBOARD:
-      return <Redirect to="/Dashboard" />;
+      return <Redirect to={{ pathname: '/Dashboard', state: { consoleURL: consoleURLRef.current} }} />;
     default:
       return null;
   }

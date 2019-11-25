@@ -14,15 +14,14 @@ const ProvisionTOS: React.FC<{}> = () => {
     const [accepted, setAccepted] = React.useState(false);
 
 
-    if (accepted) {
-        if (window.keycloak.authenticated) {
-            return <Redirect to="/Provision" />
-        } else {
+    if (accepted && window.keycloak.authenticated) {
+        return <Redirect to="/Provision" />    
+    } else {
+        if (accepted) {
             window.sessionStorage.setItem('crtcAction', 'PROVISION');
             window.keycloak.login({redirectUri: location.origin + '/Provision'});
-            return null;
         }
-    } else {
+
         return (
             <PageSection noPadding={true}>
                 <div className="provision-section">
@@ -36,7 +35,7 @@ const ProvisionTOS: React.FC<{}> = () => {
                 <Modal
                     isLarge
                     title="CodeReady Toolchain Terms of Service Agreement"
-                    isOpen={showModal}
+                    isOpen={showModal && !accepted}
                     onClose={() => setShowModal(false)}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={() => setAccepted(true)}>

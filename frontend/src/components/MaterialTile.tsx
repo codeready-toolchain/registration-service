@@ -18,7 +18,7 @@ const Tile: React.FC<TileProps> = (props) => (
     <CardHeader>{props.header}</CardHeader>
     <CardBody >{props.body}</CardBody>
     <CardFooter>
-      {<div><a href={props.externalLink}>{props.footer}</a></div>}
+      {<div><a href={props.externalLink} target="_blank">{props.footer}</a></div>}
     </CardFooter>
   </Card>
 );

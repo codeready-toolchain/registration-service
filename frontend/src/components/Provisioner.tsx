@@ -4,9 +4,11 @@ import MaterialList from './MaterialList';
 import MarketingData from './MarketingData';
 import axios from 'axios';
 import { Redirect } from 'react-router-dom';
-import { ErrorCircleOIcon, PendingIcon, CheckCircleIcon, Spinner2Icon } from '@patternfly/react-icons';
+import { Spinner } from '@patternfly/react-core/dist/esm/experimental';
+import { OkIcon } from '@patternfly/react-icons';
 
 enum ProvisionStatus {
+  UNPROVISIONED,
   PROCESSING,
   PENDING,
   SUCCESS,
@@ -18,32 +20,28 @@ export interface ProvisionerMessage {
   [name: string]: string;
 }
 
-type ProvisionerStatusData = {
-    icon?: React.ReactElement;
-    text?: string
-}
-
 const provisionerMsg = {
   [ProvisionStatus.PROCESSING]: 'Your CodeReady Toolchain account is being provisioned',
   [ProvisionStatus.PENDING]: 'Your CodeReady Toolchain account approval is pending',
   [ProvisionStatus.SUCCESS]: 'Your CodeReady Toolchain account has been provisioned',
-  [ProvisionStatus.FAILED]:
-    'Your CodeReady Toolchain account provisioning has failed. Please contact administrator',
+  [ProvisionStatus.FAILED]: 'Internal server error. Please try again later',
 } as ProvisionerMessage;
 
 const Provisioner: React.FC<{}> = () => {
-  const [status, setStatus] = React.useState(ProvisionStatus.PROCESSING);
+  const [status, setStatus] = React.useState(ProvisionStatus.UNPROVISIONED);
 
   const intervalId = React.useRef(null);
+  const consoleURLRef = React.useRef(null);
 
   React.useEffect(() => {
     const getUserSignup = () => {
       return axios.get('/api/v1/signup');
     };
 
-    const updateStatus = (status) => {
+    const updateStatus = ({ status, consoleURL }) => {
       console.log('Status :', status);
       if (status.ready) {
+        consoleURLRef.current = consoleURL;
         setStatus(ProvisionStatus.SUCCESS);
         stopStatusPolling();
       } else {
@@ -59,10 +57,10 @@ const Provisioner: React.FC<{}> = () => {
       return setInterval(() => {
         getUserSignup()
           .then(({ data }) => {
-            updateStatus(data.status);
+            updateStatus(data);
           })
-          .catch((status) => {
-            console.log('Polling failed', status);
+          .catch((error) => {
+            console.log('Polling failed', error);
             setStatus(ProvisionStatus.FAILED);
           });
       }, 30000);
@@ -82,15 +80,26 @@ const Provisioner: React.FC<{}> = () => {
     window.keycloak.authenticated &&
       getUserSignup()
         .then(({ data }) => {
-          updateStatus(data.status);
+          updateStatus(data);
           if (!data.status.ready) {
             intervalId.current = startStatusPolling();
           }
         })
-        .catch(() => {
-          /* TODO: Need to check state in redirect URL before provisioning */
-          setUserSignup();
-          intervalId.current = startStatusPolling();
+        .catch((error) => {
+          if (error.response && error.response.status && error.response.status === 404) {
+            setUserSignup()
+              .then((response) => {
+                setStatus(ProvisionStatus.PROCESSING);
+                intervalId.current = startStatusPolling();
+              })
+              .catch((error) => {
+                console.log('POST /usersignup failed', error.message);
+                setStatus(ProvisionStatus.FAILED);
+              });
+          } else {
+            console.log('GET /usersignup failed - ', error.message);
+            setStatus(ProvisionStatus.FAILED);
+          }
         });
 
     return () => {
@@ -98,28 +107,36 @@ const Provisioner: React.FC<{}> = () => {
     };
   }, []);
 
-  const formatStatusMessage = ():ProvisionerStatusData => {
+  const formatStatusMessage = (): React.ReactElement => {
     switch (status) {
-        case ProvisionStatus.PROCESSING:
-            return {icon: <Spinner2Icon color="yellow" size="md" />, text: provisionerMsg[status]};
-        case ProvisionStatus.PENDING:
-            return {icon: <PendingIcon color="yellow" size="md" />, text: provisionerMsg[status]};
-        case ProvisionStatus.SUCCESS:
-            return {icon: <CheckCircleIcon color="green" size="md" />, text: provisionerMsg[status]};
-        case ProvisionStatus.FAILED:
-            return {icon: <ErrorCircleOIcon color="red" size="md" />, text: provisionerMsg[status]};
-
-        default:
-            return {};
+      case ProvisionStatus.PROCESSING:
+      case ProvisionStatus.PENDING:
+        return (
+          <>
+            {' '}
+            <Spinner size="lg" /> {provisionerMsg[status]}{' '}
+          </>
+        );
+      case ProvisionStatus.SUCCESS:
+        return (
+          <>
+            {' '}
+            <OkIcon /> {provisionerMsg[status]}{' '}
+          </>
+        );
+      case ProvisionStatus.FAILED:
+        return <> {provisionerMsg[status]} </>;
+      default:
+        return null;
     }
-};
+  };
 
   if (!window.keycloak.authenticated) {
     return <Redirect to="/Home" />;
   }
 
   if (status === ProvisionStatus.DASHBOARD) {
-    return <Redirect to="/Dashboard" />;
+    return <Redirect to={{ pathname: '/Dashboard', state: { consoleURL: consoleURLRef.current} }} />;
   } else {
     if (status === ProvisionStatus.SUCCESS) {
       setTimeout(() => {
@@ -131,8 +148,7 @@ const Provisioner: React.FC<{}> = () => {
       <Stack>
         <StackItem>
           <div className="provision-section">
-              {statusData.icon}
-              {statusData.text}
+            <span>{statusData}</span>
           </div>
         </StackItem>
         <StackItem>

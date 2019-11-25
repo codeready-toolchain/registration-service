@@ -10,8 +10,8 @@ const DashboardData =
         },
         {
             "imgSrc": "./assets/CodeReady_icon_loader.svg",
-            "header": "",
-            "body": "CodeReady Workspaces",
+            "header": "CodeReady Workspaces",
+            "body": "",
             "footer": "Start Coding",
             "externalLink": ""
         }

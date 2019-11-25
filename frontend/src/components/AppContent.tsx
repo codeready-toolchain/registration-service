@@ -7,15 +7,9 @@ import Dashboard from './Dashboard';
 const AppContent: React.FC<{}> = () => {
     return (
         <Switch>
-            <Route exact path="/Provision">
-                <Provisioner />
-            </Route>
-            <Route exact path="/Dashboard">
-                <Dashboard />
-            </Route>
-            <Route exact path="/Home">
-                <Home />
-            </Route>
+            <Route exact path="/Provision" component={Provisioner} />
+            <Route exact path="/Dashboard" component={Dashboard} />
+            <Route exact path="/Home" component={Home} />
             <Route exact path="/">
                 <div>Loading...</div>
             </Route>

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/spf13/pflag"
 )
 
 func main() {
@@ -20,13 +20,13 @@ func main() {
 
 	// Parse flags
 	var configFilePath string
-	flag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
-	flag.Parse()
+	pflag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
+	pflag.Parse()
 
 	// Override default -config switch with environment variable only if -config
 	// switch was not explicitly given via the command line.
 	configSwitchIsSet := false
-	flag.Visit(func(f *flag.Flag) {
+	pflag.Visit(func(f *pflag.Flag) {
 		if f.Name == "config" {
 			configSwitchIsSet = true
 		}

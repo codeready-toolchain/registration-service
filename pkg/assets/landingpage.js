@@ -103,15 +103,23 @@ function updateSignupState() {
       clearInterval(intervalRef);
       consoleURL = data.consoleURL;
       if (consoleURL === undefined) {
-        consoleURL = 'N/A'
+        consoleURL = 'n/a'
       } else {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
       hideAll();
       show('dashboard')
       document.getElementById('stateConsole').href = consoleURL;
-    } else if (data.status.ready === false && data.status.reason == 'PendingApproval') {
-      // account is pending approval; start polling.
+    } else if (data.status.ready === false && data.status.reason == 'Provisioning') {
+      // account is provisioning; start polling.
+      hideAll();
+      show('state-waiting-for-provisioning')
+      if (!intervalRef) {
+        // only start if there is not already a polling running.
+        intervalRef = setInterval(updateSignupState, 1000);
+      }
+    } else {
+      // account is in an unknown state, display pending approval; start polling.
       hideAll();
       show('state-waiting-for-approval')
       if (!intervalRef) {

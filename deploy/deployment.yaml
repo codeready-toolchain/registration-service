@@ -3,10 +3,20 @@ apiVersion: v1
 metadata:
   name: registration-service
 objects:
+  - apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      labels:
+        provider: codeready-toolchain
+      name: registration-service
+      namespace: ${NAMESPACE}
   - kind: Deployment
     apiVersion: apps/v1
     metadata:
+      labels:
+        provider: codeready-toolchain
       name: registration-service
+      namespace: ${NAMESPACE}
     spec:
       replicas: ${{REPLICAS}}
       selector:
@@ -76,7 +86,9 @@ objects:
     apiVersion: v1
     metadata:
       name: registration-service
+      namespace: ${NAMESPACE}
       labels:
+        provider: codeready-toolchain
         run: registration-service
     spec:
       ports:
@@ -92,8 +104,10 @@ objects:
     apiVersion: v1
     metadata:
       labels:
+        provider: codeready-toolchain
         run: registration-service
       name: registration-service
+      namespace: ${NAMESPACE}
     spec:
       host: ''
       port:
@@ -108,21 +122,26 @@ objects:
   - kind: ConfigMap
     apiVersion: v1
     metadata:
+      labels:
+        provider: codeready-toolchain
       name: registration-service
+      namespace: ${NAMESPACE}
     type: Opaque
     data:
       environment: ${ENVIRONMENT}
-      auth_client.library_url: ${AUTH_CLIENT_LABRARY_URL}
+      auth_client.library_url: ${AUTH_CLIENT_LIBRARY_URL}
       auth_client.config_raw: ${AUTH_CLIENT_CONFIG_RAW}
       auth_client.public_keys_url: ${AUTH_CLIENT_PUBLIC_KEYS_URL}
 parameters:
+  - name: NAMESPACE
+    value: 'toolchain-host-operator'
   - name: IMAGE
     value: quay.io/openshiftio/codeready-toolchain/registration-service:latest
   - name: REPLICAS
     value: '3'
   - name: ENVIRONMENT
     value: 'prod' # prod, stage, e2e-tests, dev, etc
-  - name: AUTH_CLIENT_LABRARY_URL
+  - name: AUTH_CLIENT_LIBRARY_URL
     value: '' #use default value from reg-service configuration
   - name: AUTH_CLIENT_CONFIG_RAW
     value: '' #use default value from reg-service configuration

@@ -22,7 +22,7 @@ build-dev:
 
 # builds the production binary with bundled assets
 ## builds production binary
-build-prod: generate
+build-prod: generate check-deployment-changes
 	$(Q)CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
 		go build ${V_FLAG} ${LDFLAGS} \
 		-o $(OUT_DIR)/bin/registration-service \
@@ -31,3 +31,13 @@ build-prod: generate
 .PHONY: vendor
 vendor:
 	$(Q)go mod vendor
+
+.PHONY: check-deployment-changes
+check-deployment-changes:
+ifneq ($(shell git status -s | grep deploy/deployment.yaml),)
+	@echo "###############################################################"
+	@echo "## WARNING: The file deploy/deployment.yaml has been changed ##"
+	@echo "##  Don't forget to reflect the change in host-operator repo ##"
+	@echo "##     Run 'make copy-reg-service-deployment' and send PR    ##"
+	@echo "###############################################################"
+endif

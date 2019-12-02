@@ -43,8 +43,6 @@ func Init(withName string, opts ...zap.Opts) {
 		// controller-runtime)
 		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
-		pflag.Parse()
-
 		// Use a zap logr.Logger implementation. If none of the zap
 		// flags are configured (or if the zap flag set is not being
 		// used), this defaults to a production zap logger.

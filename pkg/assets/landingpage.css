@@ -1,0 +1,75 @@
+.pf-c-brand {
+  height: 23px;
+}
+.rhd-logo {
+  height: 50px;
+}
+.pf-c-card img {
+  height: 50px;
+}
+.pf-c-card h1 {
+  font-size: 1.3em;
+  line-height: 1.2em;
+  font-weight: bold;
+}
+.pf-c-card a {
+  display: block;
+  float: right;
+  margin-top: 0.5em;
+}
+.rhd-nav {
+  float: right;
+}
+.toolchain-state h1 {
+  font-size: 1.2em;
+  margin-bottom: 0;
+}
+.rhd-header {
+  padding-bottom: 0;
+}
+.rhd-tertiary {
+  padding-top: 0;
+}
+.bg-dark {
+  background: rgb(37, 37, 37);
+}
+.logoutbutton {
+  box-shadow:inset 0px 1px 0px 0px #cf866c;
+	background:linear-gradient(to bottom, #d0451b 5%, #bc3315 100%);
+	background-color:#d0451b;
+	border-radius:3px;
+	border:1px solid #942911;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Arial;
+	font-size:13px;
+	padding:3px 12px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #854629;
+}
+.getstartedbutton {
+  box-shadow:inset 0px 1px 0px 0px #cf866c;
+	background:linear-gradient(to bottom, #d0451b 5%, #bc3315 100%);
+	background-color:#d0451b;
+	border-radius:3px;
+	border:1px solid #942911;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	font-family:Arial;
+	font-size:13px;
+	padding:6px 24px;
+	text-decoration:none;
+	text-shadow:0px 1px 0px #854629;
+}
+.terms {
+  font-size:0.8em;
+}
+#user-notloggedin {
+  cursor: pointer;
+  font-weight: bold;
+}
+#state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #dashboard, #user-loggedin, #state-error {
+  display: none;
+}

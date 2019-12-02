@@ -42,7 +42,7 @@ reset-namespace: login-as-admin clean-namespace create-namespace
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
 deploy-dev: login-as-admin create-namespace build dev-image
-	$(Q)oc process -f ./deploy/deployment.yaml \
+	$(Q)oc process -f ./deploy/registration-service.yaml \
         -p IMAGE=${IMAGE_NAME_DEV} \
         -p ENVIRONMENT=dev \
         -p NAMESPACE=${LOCAL_TEST_NAMESPACE} \

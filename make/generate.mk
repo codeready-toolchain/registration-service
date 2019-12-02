@@ -3,6 +3,6 @@
 generate:
 	go run -tags=dev pkg/static/assets_generate.go
 
-.PHONY: copy-reg-service-deployment
-copy-reg-service-deployment:
-	cp ./deploy/deployment.yaml ../host-operator/deploy/registration-service/deployment.yaml
+.PHONY: copy-reg-service-template
+copy-reg-service-template:
+	cp ./deploy/registration-service.yaml ../host-operator/deploy/registration-service/registration-service.yaml

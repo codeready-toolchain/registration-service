@@ -37,21 +37,15 @@ clean-namespace:
 
 .PHONY: reset-namespace
 ## Delete an create the test namespace and deploy rbac there
-reset-namespace: login-as-admin clean-namespace create-namespace deploy-rbac
-
-.PHONY: deploy-rbac
-## Setup service account and deploy RBAC
-deploy-rbac:
-	$(Q)oc apply -f deploy/service_account.yaml
-	$(Q)oc apply -f deploy/role.yaml
-	$(Q)oc apply -f deploy/role_binding.yaml
+reset-namespace: login-as-admin clean-namespace create-namespace
 
 .PHONY: deploy-dev
 ## Deploy Registration service on minishift
-deploy-dev: login-as-admin create-namespace deploy-rbac build dev-image
-	$(Q)oc process -f ./deploy/deployment.yaml \
+deploy-dev: login-as-admin create-namespace build dev-image
+	$(Q)oc process -f ./deploy/registration-service.yaml \
         -p IMAGE=${IMAGE_NAME_DEV} \
         -p ENVIRONMENT=dev \
+        -p NAMESPACE=${LOCAL_TEST_NAMESPACE} \
         | oc apply -f -
 
 .PHONY: deploy-e2e

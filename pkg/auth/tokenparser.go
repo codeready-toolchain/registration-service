@@ -6,6 +6,14 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
+/****************************************************
+
+  This section is a temporary fix until formal leeway support is available in the next jwt-go release
+
+ *****************************************************/
+
+const leeway = 5000
+
 // TokenClaims represents access token claims
 type TokenClaims struct {
 	Name          string `json:"name"`
@@ -16,6 +24,13 @@ type TokenClaims struct {
 	EmailVerified bool   `json:"email_verified"`
 	Company       string `json:"company"`
 	jwt.StandardClaims
+}
+
+func (c *TokenClaims) Valid() error {
+	c.StandardClaims.IssuedAt -= leeway
+	err := c.StandardClaims.Valid()
+	c.StandardClaims.IssuedAt += leeway
+	return err
 }
 
 // TokenParser represents a parser for JWT tokens.

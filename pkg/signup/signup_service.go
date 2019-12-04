@@ -89,6 +89,9 @@ func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSig
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
 			Namespace: s.Namespace,
+			Annotations: map[string]string{
+				"Email": "tk@redhat.com",
+			},
 		},
 		Spec: crtapi.UserSignupSpec{
 			TargetCluster: "",

@@ -15,7 +15,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,9 +60,9 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// invalid token - garbage
 	tokenInvalidGarbage := uuid.NewV4().String()
 	// invalid token - expired
-	tokenInvalidExpiredJWT := tokengenerator.GenerateToken(identity0, kid0, emailClaim0)
-	tDiff := -60 * time.Second
-	tokenInvalidExpiredJWT.Claims.(jwt.MapClaims)["exp"] = time.Now().UTC().Add(tDiff).Unix()
+	expTime := time.Now().Add(-60 * time.Second)
+	expClaim := authsupport.WithExpClaim(expTime)
+	tokenInvalidExpiredJWT := tokengenerator.GenerateToken(identity0, kid0, emailClaim0, expClaim)
 	tokenInvalidExpired, err := tokengenerator.SignToken(tokenInvalidExpiredJWT, kid0)
 	require.NoError(s.T(), err)
 

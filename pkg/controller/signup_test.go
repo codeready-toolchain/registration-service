@@ -12,7 +12,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/codeready-toolchain/toolchain-common/pkg/toolchain"
 	"github.com/gofrs/uuid"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,7 +62,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx.Set(context.SubKey, expectedUserID)
 
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
-		compliantEmailLabel := toolchain.ToValidValue(ctx.GetString(context.EmailKey))
 
 		signup := &crtapi.UserSignup{
 			TypeMeta: v1.TypeMeta{},
@@ -71,7 +69,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 				Name:      userID.String(),
 				Namespace: "namespace-foo",
 				Annotations: map[string]string{
-					crtapi.UserSignupUserEmailLabelKey: compliantEmailLabel,
+					crtapi.UserSignupUserEmailLabelKey: ctx.GetString(context.EmailKey),
 				},
 			},
 			Spec: crtapi.UserSignupSpec{
@@ -90,7 +88,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		}
 
 		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
-			assert.Equal(s.T(), expectedUserID, userID, compliantEmailLabel)
+			assert.Equal(s.T(), expectedUserID, userID, expectedUserID+"@test.com")
 			return signup, nil
 		}
 

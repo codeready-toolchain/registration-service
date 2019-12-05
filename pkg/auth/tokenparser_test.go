@@ -10,6 +10,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
+	"github.com/dgrijalva/jwt-go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -165,8 +166,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// generate non-serialized token
 		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
 		// delete preferred_username
-		jwt0.Claims.(*authsupport.MyClaims).PreferredUsername = ""
-
+		delete(jwt0.Claims.(jwt.MapClaims), "preferred_username")
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)
@@ -201,8 +201,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithSubClaim(""))
-
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		// delete preferred_username
+		delete(jwt0.Claims.(jwt.MapClaims), "sub")
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)
@@ -219,12 +220,11 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
-		expTime := time.Now().Add(-60 * time.Second)
-		expClaim := authsupport.WithExpClaim(expTime)
-
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
-
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		// manipulate expiry
+		tDiff := -60 * time.Second
+		jwt0.Claims.(jwt.MapClaims)["exp"] = time.Now().UTC().Add(tDiff).Unix()
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)
@@ -241,12 +241,11 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
-
-		nbfTime := time.Now().Add(60 * time.Second)
-		nbfClaim := authsupport.WithNotBeforeClaim(nbfTime)
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), nbfClaim)
-
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		// manipulate expiry
+		tDiff := 60 * time.Second
+		jwt0.Claims.(jwt.MapClaims)["nbf"] = time.Now().UTC().Add(tDiff).Unix()
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)

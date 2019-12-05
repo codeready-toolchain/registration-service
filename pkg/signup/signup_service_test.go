@@ -295,6 +295,9 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
+			Annotations: map[string]string{
+				"toolchain.dev.openshift.com/user-email": "ted@domain.com",
+			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
 			Username: "ted@domain.com",

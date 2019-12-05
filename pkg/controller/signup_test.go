@@ -61,11 +61,16 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		expectedUserID := ob.String()
 		ctx.Set(context.SubKey, expectedUserID)
 
+		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
+
 		signup := &crtapi.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: "namespace-foo",
+				Annotations: map[string]string{
+					"toolchain.dev.openshift.com/user-email": ctx.GetString(context.EmailKey),
+				},
 			},
 			Spec: crtapi.UserSignupSpec{
 				Username: "bill",
@@ -82,8 +87,8 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 			},
 		}
 
-		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
-			assert.Equal(s.T(), expectedUserID, userID)
+		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
+			assert.Equal(s.T(), expectedUserID, userID, expectedUserID+"@test.com")
 			return signup, nil
 		}
 
@@ -99,7 +104,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockCreateUserSignup = func(username, userID string) (*crtapi.UserSignup, error) {
+		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 
@@ -201,13 +206,13 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 type FakeSignupService struct {
 	MockGetSignup        func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup func(username, userID string) (*crtapi.UserSignup, error)
+	MockCreateUserSignup func(username, userID, email string) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 	return m.MockGetSignup(userID)
 }
 
-func (m *FakeSignupService) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
-	return m.MockCreateUserSignup(username, userID)
+func (m *FakeSignupService) CreateUserSignup(username, userID, email string) (*crtapi.UserSignup, error) {
+	return m.MockCreateUserSignup(username, userID, email)
 }

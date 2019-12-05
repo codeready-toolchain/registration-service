@@ -90,7 +90,7 @@ func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crt
 			Name:      userID,
 			Namespace: s.Namespace,
 			Annotations: map[string]string{
-				"toolchain.dev.openshift.com/user-email": userEmail,
+				crtapi.UserSignupUserEmailLabelKey: userEmail,
 			},
 		},
 		Spec: crtapi.UserSignupSpec{

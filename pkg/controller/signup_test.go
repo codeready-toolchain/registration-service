@@ -69,7 +69,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 				Name:      userID.String(),
 				Namespace: "namespace-foo",
 				Annotations: map[string]string{
-					"toolchain.dev.openshift.com/user-email": ctx.GetString(context.EmailKey),
+					crtapi.UserSignupUserEmailLabelKey: ctx.GetString(context.EmailKey),
 				},
 			},
 			Spec: crtapi.UserSignupSpec{

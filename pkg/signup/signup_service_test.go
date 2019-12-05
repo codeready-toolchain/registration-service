@@ -71,7 +71,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				"toolchain.dev.openshift.com/user-email": "john@gmail.com",
+				v1alpha1.UserSignupUserEmailLabelKey: "john@gmail.com",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
@@ -299,7 +299,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				"toolchain.dev.openshift.com/user-email": "ted@domain.com",
+				v1alpha1.UserSignupUserEmailLabelKey: "ted@domain.com",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{

@@ -70,7 +70,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 				Name:      userID.String(),
 				Namespace: "namespace-foo",
 				Annotations: map[string]string{
-					crtapi.UserSignupUserEmailLabelKey: email,
+					crtapi.UserSignupUserEmailAnnotationKey: email,
 				},
 			},
 			Spec: crtapi.UserSignupSpec{

@@ -71,7 +71,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailLabelKey: "john@gmail.com",
+				v1alpha1.UserSignupUserEmailLabelKey: "john-at-gmail-com",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
@@ -293,13 +293,14 @@ func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClien
 func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
+
 	return &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailLabelKey: "ted@domain.com",
+				v1alpha1.UserSignupUserEmailLabelKey: "ted-at-domain-com",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{

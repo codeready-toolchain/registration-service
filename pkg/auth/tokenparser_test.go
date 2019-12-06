@@ -166,6 +166,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
 		// delete preferred_username
 		jwt0.Claims.(*authsupport.MyClaims).PreferredUsername = ""
+
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)
@@ -220,6 +221,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		email0 := identity0.Username + "@email.tld"
 		expTime := time.Now().Add(-60 * time.Second)
 		expClaim := authsupport.WithExpClaim(expTime)
+
 		// generate non-serialized token
 		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
 
@@ -239,6 +241,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
+
 		nbfTime := time.Now().Add(60 * time.Second)
 		nbfClaim := authsupport.WithNotBeforeClaim(nbfTime)
 		// generate non-serialized token

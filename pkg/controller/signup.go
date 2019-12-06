@@ -8,6 +8,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/toolchain-common/pkg/toolchain"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,7 +29,8 @@ func NewSignup(config *configuration.Registry, signupService signup.Service) *Si
 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
-	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey), ctx.GetString(context.EmailKey))
+	compliantEmailLabel := toolchain.ToValidValue(ctx.GetString(context.EmailKey))
+	userSignup, err := s.signupService.CreateUserSignup(ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey), compliantEmailLabel)
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")

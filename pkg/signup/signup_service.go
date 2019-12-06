@@ -52,7 +52,7 @@ type ServiceConfiguration interface {
 // Service represents the signup service for controllers.
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
-	CreateUserSignup(username, userID string) (*crtapi.UserSignup, error)
+	CreateUserSignup(username, userID, email string) (*crtapi.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -84,11 +84,14 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) CreateUserSignup(username, userID string) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crtapi.UserSignup, error) {
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
 			Namespace: s.Namespace,
+			Annotations: map[string]string{
+				crtapi.UserSignupUserEmailAnnotationKey: userEmail,
+			},
 		},
 		Spec: crtapi.UserSignupSpec{
 			TargetCluster: "",

@@ -59,6 +59,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.False(s.T(), val.Spec.Approved)
+	require.Equal(s.T(), "jsmith", val.Spec.Username)
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {

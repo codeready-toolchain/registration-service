@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	"github.com/dgrijalva/jwt-go"
@@ -250,7 +251,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 
 	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
 	s.Run("fail to retrieve e2e keys for prod environment", func() {
-		resetFunc := test.SetEnvVarAndRestore(s.T(), key, "prod")
+		resetFunc := commontest.SetEnvVarAndRestore(s.T(), key, "prod")
 		defer resetFunc()
 		config, err := configuration.New("")
 		require.NoError(s.T(), err)
@@ -259,7 +260,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	})
 
 	s.Run("fail to retrieve e2e keys if environment is not set", func() {
-		resetFunc := test.UnsetEnvVarAndRestore(s.T(), key)
+		resetFunc := commontest.UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config, err := configuration.New("")
 		require.NoError(s.T(), err)

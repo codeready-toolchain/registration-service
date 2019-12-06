@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20191203182149-f994640853b0
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20191205223917-60807877b9e7
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20191206153324-4205c5ebe624
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/go-restful v2.10.0+incompatible // indirect
 	github.com/gin-contrib/gzip v0.0.1
@@ -50,8 +50,6 @@ require (
 	k8s.io/utils v0.0.0-20190809000727-6c36bc71fc4a // indirect
 	sigs.k8s.io/controller-runtime v0.2.2
 )
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/matousjobanek/toolchain-common v0.0.0-20191206113548-636ffc0c802e
 
 // Pinned to kubernetes-1.14.1
 replace (

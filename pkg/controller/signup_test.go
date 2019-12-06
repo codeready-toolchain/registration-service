@@ -89,7 +89,8 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		}
 
 		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
-			assert.Equal(s.T(), expectedUserID, userID, email)
+			assert.Equal(s.T(), expectedUserID, userID)
+			assert.Equal(s.T(), expectedEmail, email)
 			return signup, nil
 		}
 

@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20191203182149-f994640853b0
+	github.com/codeready-toolchain/api v0.0.0-20191206004733-862cefb68396
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20191206153324-4205c5ebe624
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/go-restful v2.10.0+incompatible // indirect

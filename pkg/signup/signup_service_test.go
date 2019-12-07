@@ -39,7 +39,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String())
+	userSignup, err := svc.CreateUserSignup("jsmith", userID.String(), "jsmith@gmail.com")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -59,6 +59,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.False(s.T(), val.Spec.Approved)
+	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
@@ -70,6 +71,9 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
+			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
 			Username: "john@gmail.com",
@@ -77,7 +81,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("john@gmail.com", userID.String())
+	_, err = svc.CreateUserSignup("john@gmail.com", userID.String(), "john@gmail.com")
 	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
@@ -295,6 +299,9 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
+			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
 			Username: "ted@domain.com",

@@ -144,8 +144,9 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		require.NoError(s.T(), err)
 
 		expected := &signup.Signup{
-			ConsoleURL: "https://console." + targetCluster.String(),
-			Username:   "jsmith",
+			ConsoleURL:      "https://console." + targetCluster.String(),
+			CheDashboardURL: "http://che-toolchain-che.member-123.com",
+			Username:        "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},

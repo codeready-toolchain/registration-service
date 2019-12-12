@@ -153,6 +153,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), response.Status.Reason, "test_reason")
 	require.Equal(s.T(), response.Status.Message, "test_message")
 	require.Equal(s.T(), "", response.ConsoleURL)
+	require.Equal(s.T(), "", response.CheDashboardURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -184,6 +185,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
 	require.Equal(s.T(), "", response.Status.Message)
 	require.Equal(s.T(), "", response.ConsoleURL)
+	require.Equal(s.T(), "", response.CheDashboardURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
@@ -212,8 +214,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				},
 			},
 			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
-				Name:       "member-123",
-				ConsoleURL: "https://console.member-123.com",
+				Name:            "member-123",
+				ConsoleURL:      "https://console.member-123.com",
+				CheDashboardURL: "http://che-toolchain-che.member-123.com",
 			}}},
 		},
 	})
@@ -229,6 +232,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
 	assert.Equal(s.T(), response.ConsoleURL, "https://console.member-123.com")
+	assert.Equal(s.T(), response.CheDashboardURL, "http://che-toolchain-che.member-123.com")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {

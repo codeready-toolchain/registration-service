@@ -107,9 +107,14 @@ function updateSignupState() {
       } else {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
+      cheDashboardURL = data.cheDashboardURL;
+      if (cheDashboardURL === undefined) {
+        cheDashboardURL = 'n/a'
+      }
       hideAll();
       show('dashboard')
       document.getElementById('stateConsole').href = consoleURL;
+      document.getElementById('cheDashboard').href = cheDashboardURL;
     } else if (data.status.ready === false && data.status.reason == 'Provisioning') {
       // account is provisioning; start polling.
       hideAll();

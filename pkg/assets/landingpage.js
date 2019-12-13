@@ -157,7 +157,6 @@ function signup() {
     } else {
       hideAll();
       show('state-waiting-for-approval');
-      showError(JSON.stringify(data, null, 2));
     }
   });
   intervalRef = setInterval(updateSignupState, 1000);

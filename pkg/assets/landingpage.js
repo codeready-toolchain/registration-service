@@ -15,7 +15,7 @@ var getJSON = function(method, url, token, callback) {
   xhr.responseType = 'json';
   xhr.onload = function() {
     var status = xhr.status;
-    if (Math.floor(status / 100) == 2) {
+    if (status >= 200 && status < 300) {
       callback(null, xhr.response);
     } else {
       callback(status, xhr.response);

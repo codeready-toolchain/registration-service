@@ -134,8 +134,17 @@ function updateSignupState() {
     }
   }, function(err) {
     if (err === 404) {
-      // signup does not exist, but user is authorized, start signup process.
-      signup();
+      // signup does not exist, but user is authorized, check if we can start signup process.
+      if ('true' === window.sessionStorage.getItem('autoSignup')) {
+        // user has explicitly requested a signup
+        window.sessionStorage.removeItem('autoSignup');
+        signup();
+      } else {
+        // we still need to show GetStarted button even if the user is logged-in to SSO to avoid auto-signup without users clicking on Get Started button
+        clearInterval(intervalRef);
+        hideAll();
+        show('state-getstarted');
+      }
     } else if (err === 401) {
       // user is unauthorized, show login/signup view; stop interval.
       clearInterval(intervalRef);
@@ -148,7 +157,13 @@ function updateSignupState() {
     }
   })
 }
-      
+
+function login() {
+  // User clicked on Get Started. We can enable autoSignup after successful login now.
+  window.sessionStorage.setItem('autoSignup', 'true');
+  keycloak.login()
+}
+
 // start signup process.
 function signup() {
   getJSON('POST', '/api/v1/signup', keycloak.idToken, function(err, data) {

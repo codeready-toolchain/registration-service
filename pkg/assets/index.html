@@ -44,7 +44,7 @@
       <div class="pf-c-page__header-tools-group">
         <div class="pf-m-user">
           <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
-          <span id="user-notloggedin" onclick="keycloak.login()">Login/Signup</span>
+          <span id="user-notloggedin" onclick="login()">Login/Signup</span>
         </div>
       </div>
     </div>
@@ -120,7 +120,7 @@
       </div>
       <div class="pf-c-content">
         <div class="toolchain-state" id="state-getstarted">
-          <button class="getstartedbutton" onclick="keycloak.login()">Get Started with CodeReady Toolchain</button>
+          <button class="getstartedbutton" onclick="login()">Get Started with CodeReady Toolchain</button>
           <p class="terms"><a href="#">Terms and Conditions</a> &copy; 2020, Red Hat Inc.</p>
         </div>
         <div class="toolchain-state" id="state-waiting-for-approval">

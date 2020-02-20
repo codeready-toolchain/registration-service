@@ -60,6 +60,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.False(s.T(), val.Spec.Approved)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
+	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {

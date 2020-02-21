@@ -1,6 +1,8 @@
 package signup
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -87,12 +89,20 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
 func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crtapi.UserSignup, error) {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(userEmail))
+	emailHash := hex.EncodeToString(md5hash.Sum(nil))
+
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
 			Namespace: s.Namespace,
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey: userEmail,
+			},
+			Labels: map[string]string{
+				crtapi.UserSignupUserEmailHashLabelKey: emailHash,
 			},
 		},
 		Spec: crtapi.UserSignupSpec{

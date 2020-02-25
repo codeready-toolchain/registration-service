@@ -41,6 +41,8 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.UserSignupList{},
 		&crtapi.MasterUserRecord{},
 		&crtapi.MasterUserRecordList{},
+		&crtapi.BannedUser{},
+		&crtapi.BannedUserList{},
 	}
 }
 
@@ -62,6 +64,16 @@ func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
 // MasterUserRecords returns an interface which may be used to perform CRUD operations for MasterUserRecord resources
 func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
+		crtClient: crtClient{
+			client: c.RestClient,
+			ns:     c.NS,
+		},
+	}
+}
+
+// BannedUsers returns an interface which may be used to perform query operations on BannedUser resources
+func (c *CRTV1Alpha1Client) BannedUsers() BannedUserInterface {
+	return &bannedUserClient{
 		crtClient: crtClient{
 			client: c.RestClient,
 			ns:     c.NS,

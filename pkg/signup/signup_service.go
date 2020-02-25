@@ -64,6 +64,7 @@ type ServiceImpl struct {
 	Namespace         string
 	UserSignups       kubeclient.UserSignupInterface
 	MasterUserRecords kubeclient.MasterUserRecordInterface
+	BannedUsers       kubeclient.BannedUserInterface
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
@@ -83,6 +84,7 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 		Namespace:         cfg.GetNamespace(),
 		UserSignups:       client.UserSignups(),
 		MasterUserRecords: client.MasterUserRecords(),
+		BannedUsers:       client.BannedUsers(),
 	}
 	return s, nil
 }
@@ -93,6 +95,19 @@ func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crt
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(userEmail))
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
+
+	// Query BannedUsers to check the user has not been banned
+	bannedUsers, err := s.BannedUsers.List(userEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bu := range bannedUsers.Items {
+		// If the user has been banned, return an error
+		if bu.Spec.Email == userEmail {
+			return nil, errors.NewBadRequest("user has been banned")
+		}
+	}
 
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{

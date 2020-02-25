@@ -59,6 +59,9 @@ func (c *FakeBannedUserClient) List(email string) (*crtapi.BannedUserList, error
 	}
 
 	o, err := c.Tracker.List(gvr, gvk, c.namespace)
+	if err != nil {
+		return nil, err
+	}
 	list := o.(*crtapi.BannedUserList)
 
 	objs := []crtapi.BannedUser{}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -34,7 +36,7 @@ func TestRunSignupServiceSuite(t *testing.T) {
 }
 
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -64,7 +66,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	err = fakeClient.Tracker.Add(&v1alpha1.UserSignup{
@@ -86,8 +88,40 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
+func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
+	svc, _, _, fakeBannedUserClient := newSignupServiceWithFakeClient()
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	bannedUserID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      bannedUserID.String(),
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				v1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+			},
+		},
+		Spec: v1alpha1.BannedUserSpec{
+			Email: "jsmith@gmail.com",
+		},
+	})
+	require.NoError(s.T(), err)
+
+	_, err = svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com")
+	require.Error(s.T(), err)
+	require.IsType(s.T(), &errors2.StatusError{}, err)
+	errStatus := err.(*errors2.StatusError).ErrStatus
+	require.Equal(s.T(), "Failure", errStatus.Status)
+	require.Equal(s.T(), "user has been banned", errStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
+}
+
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
 
 	userID, err := uuid.NewV4()
@@ -106,7 +140,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
-	svc, _, _ := newSignupServiceWithFakeClient()
+	svc, _, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -117,7 +151,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -158,7 +192,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
-	svc, fakeClient, _ := newSignupServiceWithFakeClient()
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -190,7 +224,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
-	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
 	err := fakeClient.Tracker.Add(us)
@@ -237,7 +271,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
-	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
 	err := fakeClient.Tracker.Add(us)
@@ -256,7 +290,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
-	svc, fakeClient, fakeMURClient := newSignupServiceWithFakeClient()
+	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
 	err := fakeClient.Tracker.Add(us)
@@ -286,14 +320,16 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
-func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient) {
+func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient, *fake.FakeBannedUserClient) {
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
 	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
+	fakeBannedUserClient := fake.NewFakeBannedUserClient(TestNamespace)
 	return &signup.ServiceImpl{
 		Namespace:         TestNamespace,
 		UserSignups:       fakeClient,
 		MasterUserRecords: fakeMURClient,
-	}, fakeClient, fakeMURClient
+		BannedUsers:       fakeBannedUserClient,
+	}, fakeClient, fakeMURClient, fakeBannedUserClient
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {

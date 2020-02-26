@@ -4,8 +4,8 @@ go 1.13
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20200220052945-b24517fc619f
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20191206153324-4205c5ebe624
+	github.com/codeready-toolchain/api v0.0.0-20200226022556-bb2d9dd17828
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20200226024011-b46a241eee88
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -54,11 +54,6 @@ replace (
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20191016115753-cf0698c3a16b
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20191016113814-3b1a734dba6e
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20191016112829-06bb3c9d77c9
-)
-
-replace (
-	github.com/codeready-toolchain/api => github.com/alexeykazakov/api v0.0.0-20200224221537-a7747a36a9d2
-	github.com/codeready-toolchain/toolchain-common => github.com/alexeykazakov/toolchain-common v0.0.0-20200224223511-5482f4376d14
 )
 
 replace (

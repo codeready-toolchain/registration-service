@@ -120,6 +120,53 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
 }
 
+func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
+	svc, fakeClient, _, fakeBannedUserClient := newSignupServiceWithFakeClient()
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	bannedUserID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      bannedUserID.String(),
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				v1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
+			},
+		},
+		Spec: v1alpha1.BannedUserSpec{
+			Email: "jane.doe@gmail.com",
+		},
+	})
+	require.NoError(s.T(), err)
+
+	userSignup, err := svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), userSignup)
+
+	gvk, err := apiutil.GVKForObject(userSignup, fakeClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := fakeClient.Tracker.List(gvr, gvk, TestNamespace)
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*v1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+	require.Equal(s.T(), TestNamespace, val.Namespace)
+	require.Equal(s.T(), userID.String(), val.Name)
+	require.Equal(s.T(), "jsmith@gmail.com", val.Spec.Username)
+	require.False(s.T(), val.Spec.Approved)
+	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
+	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+}
+
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")

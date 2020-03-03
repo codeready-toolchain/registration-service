@@ -31,7 +31,9 @@ func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Clien
 
 	return &CRTV1Alpha1Client{
 		RestClient: client,
+		Config:     config,
 		NS:         namespace,
+		Scheme:     scheme,
 	}, nil
 }
 
@@ -49,6 +51,8 @@ func getRegisterObject() []runtime.Object {
 type CRTV1Alpha1Client struct {
 	RestClient rest.Interface
 	NS         string
+	Config     rest.Config
+	Scheme     *runtime.Scheme
 }
 
 // UserSignups returns an interface which may be used to perform CRUD operations for UserSignup resources
@@ -57,6 +61,7 @@ func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
 		crtClient: crtClient{
 			client: c.RestClient,
 			ns:     c.NS,
+			cfg:    c.Config,
 		},
 	}
 }
@@ -67,6 +72,7 @@ func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
 		crtClient: crtClient{
 			client: c.RestClient,
 			ns:     c.NS,
+			cfg:    c.Config,
 		},
 	}
 }
@@ -77,6 +83,8 @@ func (c *CRTV1Alpha1Client) BannedUsers() BannedUserInterface {
 		crtClient: crtClient{
 			client: c.RestClient,
 			ns:     c.NS,
+			cfg:    c.Config,
+			scheme: c.Scheme,
 		},
 	}
 }
@@ -84,4 +92,6 @@ func (c *CRTV1Alpha1Client) BannedUsers() BannedUserInterface {
 type crtClient struct {
 	client rest.Interface
 	ns     string
+	cfg    rest.Config
+	scheme *runtime.Scheme
 }

@@ -42,7 +42,7 @@ func (c *bannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
 		return nil, err
 	}
 
-	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: "bannedusers"}
+	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: bannedUserResourcePlural}
 	listOptions := v1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", crtapi.BannedUserEmailHashLabelKey, emailHash),
 	}

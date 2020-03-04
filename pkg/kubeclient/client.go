@@ -21,7 +21,7 @@ func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Clien
 	config.GroupVersion = &crtapi.SchemeGroupVersion
 	config.APIPath = "/apis"
 	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	client, err := rest.RESTClientFor(&config)

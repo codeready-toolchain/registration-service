@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	fake2 "k8s.io/client-go/dynamic/fake"
-
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -123,7 +121,6 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
-	fake := fake2.FakeDynamicClient{}
 	svc, fakeClient, _, fakeBannedUserClient := newSignupServiceWithFakeClient()
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)

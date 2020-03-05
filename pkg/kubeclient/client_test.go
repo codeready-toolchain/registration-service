@@ -23,4 +23,5 @@ func TestNewClient(t *testing.T) {
 	require.NotNil(t, client)
 	require.NotNil(t, client.UserSignups())
 	require.NotNil(t, client.MasterUserRecords())
+	require.NotNil(t, client.BannedUsers())
 }

@@ -62,6 +62,7 @@ func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
 			client: c.RestClient,
 			ns:     c.NS,
 			cfg:    c.Config,
+			scheme: c.Scheme,
 		},
 	}
 }
@@ -73,6 +74,7 @@ func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
 			client: c.RestClient,
 			ns:     c.NS,
 			cfg:    c.Config,
+			scheme: c.Scheme,
 		},
 	}
 }

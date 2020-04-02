@@ -70,7 +70,7 @@ test-e2e: get-e2e-repo
 ifeq ($(OPENSHIFT_BUILD_NAMESPACE),)
 	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD}
 else
-	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD} REG_IMAGE_NAME=registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:registration-service
+	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD} REG_IMAGE_NAME=${IMAGE_FORMAT}registration-service
 endif
 
 .PHONY: get-e2e-repo

@@ -280,7 +280,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted-at-domain-com",
+			Name:      "ted",
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.MasterUserRecordSpec{
@@ -309,7 +309,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "ted@domain.com", response.Username)
-	require.Equal(s.T(), "ted-at-domain-com", response.CompliantUsername)
+	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
@@ -346,7 +346,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	err = fakeMURClient.Tracker.Add(&v1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted-at-domain-com",
+			Name:      "ted",
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.MasterUserRecordSpec{
@@ -401,7 +401,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 					Status: apiv1.ConditionTrue,
 				},
 			},
-			CompliantUsername: "ted-at-domain-com",
+			CompliantUsername: "ted",
 		},
 	}
 }

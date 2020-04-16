@@ -11,9 +11,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/dgrijalva/jwt-go"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

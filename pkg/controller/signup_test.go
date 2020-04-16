@@ -105,7 +105,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockCreateUserSignup = func(username, userID, email, familyName, givenName, company string) (*crtapi.UserSignup, error) {
+		svc.MockCreateUserSignup = func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 

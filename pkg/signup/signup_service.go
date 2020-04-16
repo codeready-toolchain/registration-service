@@ -35,7 +35,13 @@ type Signup struct {
 	CompliantUsername string `json:"compliantUsername"`
 	// Original username from the Identity Provider
 	Username string `json:"username"`
-	Status   Status `json:"status,omitempty"`
+	// GivenName from the Identity Provider
+	GivenName string `json:"givenName"`
+	// FamilyName from the Identity Provider
+	FamilyName string `json:"familyName"`
+	// Company from the Identity Provider
+	Company string `json:"company"`
+	Status  Status `json:"status,omitempty"`
 }
 
 // Status represents UserSignup resource status
@@ -153,7 +159,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	signupResponse := &Signup{
-		Username: userSignup.Spec.Username,
+		Username:   userSignup.Spec.Username,
+		GivenName:  userSignup.Spec.GivenName,
+		FamilyName: userSignup.Spec.FamilyName,
+		Company:    userSignup.Spec.Company,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername

@@ -11,9 +11,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -145,7 +145,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		assert.EqualError(s.T(), err, "Get not%20an%20url: unsupported protocol scheme \"\"")
+		assert.EqualError(s.T(), err, "Get \"not%20an%20url\": unsupported protocol scheme \"\"")
 	})
 
 	s.Run("parse keys, server not reachable", func() {

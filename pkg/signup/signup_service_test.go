@@ -41,7 +41,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String(), "jsmith@gmail.com")
+	userSignup, err := svc.CreateUserSignup("jsmith", userID.String(), "jsmith@gmail.com", "jane", "doe", "red hat")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -60,9 +60,13 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), TestNamespace, val.Namespace)
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
+	require.Equal(s.T(), "jane", val.Spec.GivenName)
+	require.Equal(s.T(), "doe", val.Spec.FamilyName)
+	require.Equal(s.T(), "red hat", val.Spec.Company)
 	require.False(s.T(), val.Spec.Approved)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
@@ -84,7 +88,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("john@gmail.com", userID.String(), "john@gmail.com")
+	_, err = svc.CreateUserSignup("john@gmail.com", userID.String(), "john@gmail.com", "", "", "")
 	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
@@ -111,7 +115,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com")
+	_, err = svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com", "", "", "")
 	require.Error(s.T(), err)
 	require.IsType(s.T(), &errors2.StatusError{}, err)
 	errStatus := err.(*errors2.StatusError).ErrStatus
@@ -143,7 +147,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	})
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com")
+	userSignup, err := svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com", "", "", "")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -162,6 +166,9 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Equal(s.T(), TestNamespace, val.Namespace)
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Spec.Username)
+	require.Equal(s.T(), "", val.Spec.GivenName)
+	require.Equal(s.T(), "", val.Spec.FamilyName)
+	require.Equal(s.T(), "", val.Spec.Company)
 	require.False(s.T(), val.Spec.Approved)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])

@@ -87,7 +87,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 			},
 		}
 
-		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
+		svc.MockCreateUserSignup = func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
 			assert.Equal(s.T(), expectedUserID, userID)
 			assert.Equal(s.T(), expectedUserID+"@test.com", email)
 			return signup, nil
@@ -105,7 +105,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockCreateUserSignup = func(username, userID, email string) (*crtapi.UserSignup, error) {
+		svc.MockCreateUserSignup = func(username, userID, email, familyName, givenName, company string) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 
@@ -208,13 +208,13 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 type FakeSignupService struct {
 	MockGetSignup        func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup func(username, userID, email string) (*crtapi.UserSignup, error)
+	MockCreateUserSignup func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 	return m.MockGetSignup(userID)
 }
 
-func (m *FakeSignupService) CreateUserSignup(username, userID, email string) (*crtapi.UserSignup, error) {
-	return m.MockCreateUserSignup(username, userID, email)
+func (m *FakeSignupService) CreateUserSignup(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
+	return m.MockCreateUserSignup(username, userID, email, givenName, familyName, company)
 }

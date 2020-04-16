@@ -56,7 +56,7 @@ type ServiceConfiguration interface {
 // Service represents the signup service for controllers.
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
-	CreateUserSignup(username, userID, email string) (*crtapi.UserSignup, error)
+	CreateUserSignup(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -90,7 +90,7 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail, givenName, familyName, company string) (*crtapi.UserSignup, error) {
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(userEmail))
@@ -124,6 +124,9 @@ func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail string) (*crt
 			TargetCluster: "",
 			Approved:      false,
 			Username:      username,
+			GivenName:     givenName,
+			FamilyName:    familyName,
+			Company:       company,
 		},
 	}
 

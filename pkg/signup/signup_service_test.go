@@ -272,9 +272,6 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "bill", response.Username)
-	require.Equal(s.T(), "william", response.GivenName)
-	require.Equal(s.T(), "franko", response.FamilyName)
-	require.Equal(s.T(), "test company", response.Company)
 	require.Equal(s.T(), "", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
@@ -322,9 +319,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), "ted@domain.com", response.Username)
-	require.Equal(s.T(), "ted", response.GivenName)
-	require.Equal(s.T(), "teddy", response.FamilyName)
-	require.Equal(s.T(), "test company", response.Company)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")

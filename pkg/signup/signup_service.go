@@ -159,10 +159,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	signupResponse := &Signup{
-		Username:   userSignup.Spec.Username,
-		GivenName:  userSignup.Spec.GivenName,
-		FamilyName: userSignup.Spec.FamilyName,
-		Company:    userSignup.Spec.Company,
+		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername

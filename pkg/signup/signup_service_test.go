@@ -399,10 +399,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:   "ted@domain.com",
-			GivenName:  "ted",
-			FamilyName: "teddy",
-			Company:    "test company",
+			Username: "ted@domain.com",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{

@@ -258,10 +258,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:   "bill",
-			GivenName:  "william",
-			FamilyName: "franko",
-			Company:    "test company",
+			Username: "bill",
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})

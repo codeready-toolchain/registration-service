@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/codeready-toolchain/registration-service/pkg/context"
+
+	"github.com/gin-gonic/gin"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
@@ -62,7 +66,7 @@ type ServiceConfiguration interface {
 // Service represents the signup service for controllers.
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
-	CreateUserSignup(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error)
+	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -96,7 +100,8 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail, givenName, familyName, company string) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error) {
+	userEmail := ctx.GetString(context.EmailKey)
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(userEmail))
@@ -117,7 +122,7 @@ func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail, givenName, f
 
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      userID,
+			Name:      ctx.GetString(context.SubKey),
 			Namespace: s.Namespace,
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey: userEmail,
@@ -129,10 +134,10 @@ func (s *ServiceImpl) CreateUserSignup(username, userID, userEmail, givenName, f
 		Spec: crtapi.UserSignupSpec{
 			TargetCluster: "",
 			Approved:      false,
-			Username:      username,
-			GivenName:     givenName,
-			FamilyName:    familyName,
-			Company:       company,
+			Username:      ctx.GetString(context.UsernameKey),
+			GivenName:     ctx.GetString(context.GivenNameKey),
+			FamilyName:    ctx.GetString(context.FamilyNameKey),
+			Company:       ctx.GetString(context.CompanyKey),
 		},
 	}
 

@@ -60,7 +60,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		require.NoError(s.T(), err)
 		expectedUserID := ob.String()
 		ctx.Set(context.SubKey, expectedUserID)
-
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
 		email := ctx.GetString(context.EmailKey)
 		signup := &crtapi.UserSignup{
@@ -87,9 +86,9 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 			},
 		}
 
-		svc.MockCreateUserSignup = func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
-			assert.Equal(s.T(), expectedUserID, userID)
-			assert.Equal(s.T(), expectedUserID+"@test.com", email)
+		svc.MockCreateUserSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
+			assert.Equal(s.T(), expectedUserID+"@test.com", ctx.GetString(context.EmailKey))
 			return signup, nil
 		}
 
@@ -105,7 +104,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockCreateUserSignup = func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
+		svc.MockCreateUserSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 
@@ -208,13 +207,13 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 type FakeSignupService struct {
 	MockGetSignup        func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup func(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error)
+	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 	return m.MockGetSignup(userID)
 }
 
-func (m *FakeSignupService) CreateUserSignup(username, userID, email, givenName, familyName, company string) (*crtapi.UserSignup, error) {
-	return m.MockCreateUserSignup(username, userID, email, givenName, familyName, company)
+func (m *FakeSignupService) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error) {
+	return m.MockCreateUserSignup(ctx)
 }

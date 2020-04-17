@@ -3,7 +3,10 @@ package signup_test
 import (
 	"errors"
 	"fmt"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 
@@ -11,6 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -41,7 +45,15 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup("jsmith", userID.String(), "jsmith@gmail.com", "jane", "doe", "red hat")
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	ctx.Set(context.GivenNameKey, "jane")
+	ctx.Set(context.FamilyNameKey, "doe")
+	ctx.Set(context.CompanyKey, "red hat")
+	userSignup, err := svc.CreateUserSignup(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -88,7 +100,13 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("john@gmail.com", userID.String(), "john@gmail.com", "", "", "")
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	_, err = svc.CreateUserSignup(ctx)
+
 	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
 }
 
@@ -115,7 +133,13 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com", "", "", "")
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	_, err = svc.CreateUserSignup(ctx)
+
 	require.Error(s.T(), err)
 	require.IsType(s.T(), &errors2.StatusError{}, err)
 	errStatus := err.(*errors2.StatusError).ErrStatus
@@ -147,7 +171,12 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	})
 	require.NoError(s.T(), err)
 
-	userSignup, err := svc.CreateUserSignup("jsmith@gmail.com", userID.String(), "jsmith@gmail.com", "", "", "")
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	userSignup, err := svc.CreateUserSignup(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -165,7 +194,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	val := userSignups.Items[0]
 	require.Equal(s.T(), TestNamespace, val.Namespace)
 	require.Equal(s.T(), userID.String(), val.Name)
-	require.Equal(s.T(), "jsmith@gmail.com", val.Spec.Username)
+	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.Equal(s.T(), "", val.Spec.GivenName)
 	require.Equal(s.T(), "", val.Spec.FamilyName)
 	require.Equal(s.T(), "", val.Spec.Company)

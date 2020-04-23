@@ -35,6 +35,7 @@ func (c *TokenClaims) Valid() error {
 	now := time.Now().Unix()
 	err := c.StandardClaims.Valid()
 	if err != nil {
+		log.Error(nil, err, "Token validation failed")
 		log.Infof(nil, "Current time: %s", strconv.FormatInt(now, 10))
 		log.Infof(nil, "Token IssuedAt time: %s", strconv.FormatInt(c.StandardClaims.IssuedAt, 10))
 	}

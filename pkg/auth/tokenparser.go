@@ -2,7 +2,10 @@ package auth
 
 import (
 	"errors"
+	"strconv"
+	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -26,9 +29,15 @@ type TokenClaims struct {
 	jwt.StandardClaims
 }
 
+// Valid checks whether the token claims are valid
 func (c *TokenClaims) Valid() error {
 	c.StandardClaims.IssuedAt -= leeway
+	now := time.Now().Unix()
 	err := c.StandardClaims.Valid()
+	if err != nil {
+		log.Infof(nil, "Current time: %s", strconv.FormatInt(now, 10))
+		log.Infof(nil, "Token IssuedAt time: %s", strconv.FormatInt(c.StandardClaims.IssuedAt, 10))
+	}
 	c.StandardClaims.IssuedAt += leeway
 	return err
 }

@@ -151,6 +151,7 @@ function updateSignupState() {
       hideUser();
       hideAll();
       show('state-getstarted');
+      show('state-error');
     } else {
       // other error, show error box.
       showError(err);

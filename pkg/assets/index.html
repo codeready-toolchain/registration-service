@@ -109,6 +109,18 @@
       </nav> 
     </section>
     <section class="pf-c-page__main-section">
+      <div id="state-error">
+        <div class="pf-c-alert pf-m-danger pf-m-inline" aria-label="error">
+          <div class="pf-c-alert__icon">
+            <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+          </div>
+          <h4 class="pf-c-alert__title">
+          <span class="pf-screen-reader">Error:</span>Something went wrong, please try again.</h4>
+          <div class="pf-c-alert__description">
+            <p><span id="errorStatus"></span></p>
+          </div>
+        </div>
+      </div>
       <div class="pf-c-content">
         <div class="toolchain-state" id="state-getstarted">
           <button class="getstartedbutton" onclick="login()">Get Started with CodeReady Toolchain</button>
@@ -182,15 +194,6 @@
             </div>
           </div>    
         </div>  
-      </div>
-      <div id="state-error">
-        <div class="pf-c-alert pf-m-danger pf-m-inline" aria-label="error">
-          <div class="pf-c-alert__icon">
-            <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-          </div>
-          <h4 class="pf-c-alert__title">
-          <span class="pf-screen-reader">Error:</span>Something went wrong, please try again. <span id="errorStatus"></span></h4>
-        </div>
       </div>
     </section>
     <section class="pf-c-page__main-section pf-m-light">

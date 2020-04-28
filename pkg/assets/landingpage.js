@@ -88,7 +88,7 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
 function getSignupState(cbSuccess, cbError) {
   getJSON('GET', '/api/v1/signup', keycloak.idToken, function(err, data) {
     if (err != null) {
-      cbError(err);
+      cbError(err, data);
     } else {
       cbSuccess(data);
     }
@@ -132,7 +132,7 @@ function updateSignupState() {
         intervalRef = setInterval(updateSignupState, 1000);
       }
     }
-  }, function(err) {
+  }, function(err, data) {
     if (err === 404) {
       // signup does not exist, but user is authorized, check if we can start signup process.
       if ('true' === window.sessionStorage.getItem('autoSignup')) {
@@ -151,6 +151,10 @@ function updateSignupState() {
       hideUser();
       hideAll();
       show('state-getstarted');
+      show('state-error');
+      if(data != null && data.error != null){
+        document.getElementById('errorStatus').textContent = data.error;
+      }
     } else {
       // other error, show error box.
       showError(err);

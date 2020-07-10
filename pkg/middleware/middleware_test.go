@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -91,7 +91,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	require.NotNil(s.T(), srv.Engine())
 
 	s.Run("health check requests", func() {
-		health := &controller.Health{}
+		health := &status.Health{}
 		resp := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 		require.NoError(s.T(), err)

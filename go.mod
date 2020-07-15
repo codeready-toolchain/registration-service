@@ -4,8 +4,8 @@ go 1.13
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20200702155133-4e0f9a1d7b18
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20200608102500-f81c6b7e77cf
+	github.com/codeready-toolchain/api v0.0.0-20200715195555-28ba37e37ddd
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20200715201956-5cea174a453d
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -33,9 +33,4 @@ replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20200414152312-3e8f22fb0b56 // Using 'github.com/openshift/api@release-4.4'
 	k8s.io/client-go => k8s.io/client-go v0.17.4 // Required by prometheus-operator
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20200204173128-addea2498afe // avoids case-insensitive import collision: "github.com/googleapis/gnostic/openapiv2" and "github.com/googleapis/gnostic/OpenAPIv2"
-)
-
-replace (
-	github.com/codeready-toolchain/api => github.com/rajivnathan/api v0.0.0-20200714193119-b97434990434
-	github.com/codeready-toolchain/toolchain-common => github.com/rajivnathan/toolchain-common v0.0.0-20200714193302-5e6099c72da5
 )

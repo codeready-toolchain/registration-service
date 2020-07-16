@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &controller.Health{}
+		data := &status.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -77,7 +78,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &controller.Health{}
+		data := &status.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -102,7 +103,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &controller.Health{}
+		data := &status.Health{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
@@ -110,7 +111,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	})
 }
 
-func assertHealth(t *testing.T, expectedAlive bool, expectedEnvironment string, actual *controller.Health) {
+func assertHealth(t *testing.T, expectedAlive bool, expectedEnvironment string, actual *status.Health) {
 	assert.Equal(t, expectedAlive, actual.Alive, "wrong alive in health response")
 	assert.Equal(t, configuration.Commit, actual.Revision, "wrong revision in health response")
 	assert.Equal(t, configuration.BuildTime, actual.BuildTime, "wrong build_time in health response")

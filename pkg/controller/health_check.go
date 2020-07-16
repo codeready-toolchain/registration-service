@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,15 +19,6 @@ type HealthCheck struct {
 	checker HealthChecker
 }
 
-// Health payload
-type Health struct {
-	Alive       bool   `json:"alive"`
-	Environment string `json:"environment"`
-	Revision    string `json:"revision"`
-	BuildTime   string `json:"buildTime"`
-	StartTime   string `json:"startTime"`
-}
-
 // HealthCheck returns a new HealthCheck instance.
 func NewHealthCheck(config HealthCheckConfig, checker HealthChecker) *HealthCheck {
 	return &HealthCheck{
@@ -36,8 +28,8 @@ func NewHealthCheck(config HealthCheckConfig, checker HealthChecker) *HealthChec
 }
 
 // getHealthInfo returns the health info.
-func (hc *HealthCheck) getHealthInfo() *Health {
-	return &Health{
+func (hc *HealthCheck) getHealthInfo() *status.Health {
+	return &status.Health{
 		Alive:       hc.checker.Alive(),
 		Environment: hc.config.GetEnvironment(),
 		Revision:    configuration.Commit,

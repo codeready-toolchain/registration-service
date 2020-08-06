@@ -59,7 +59,7 @@ type Status struct {
 	// VerificationRequired is used to determine if a user requires phone verification.
 	// The user should not be provisioned if VerificationRequired is set to true.
 	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
-	// Default value is true.
+	// Default value is false.
 	VerificationRequired bool `json:verificationRequired`
 }
 

@@ -56,6 +56,11 @@ type Status struct {
 	Reason string `json:"reason"`
 	// Human readable message indicating details about last transition.
 	Message string `json:"message,omitempty"`
+	// VerificationRequired is used to determine if a user requires phone verification.
+	// The user should not be provisioned if VerificationRequired is set to true.
+	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
+	// Default value is true.
+	VerificationRequired bool `json:verificationRequired`
 }
 
 // ServiceConfiguration represents the config used for the signup service.

@@ -67,6 +67,7 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
+	PostVerification(countryCode, phoneNumber string)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -207,4 +208,8 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	return signupResponse, nil
+}
+
+func (s *ServiceImpl) PostVerification(countryCode, phoneNumber string) {
+
 }

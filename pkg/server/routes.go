@@ -98,6 +98,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
+		securedV1.POST("/signup/verification", signupCtrl.PostHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing

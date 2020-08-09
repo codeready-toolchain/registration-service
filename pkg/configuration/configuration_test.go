@@ -495,3 +495,87 @@ func (s *TestConfigurationSuite) TestGetNamespace() {
 		assert.Equal(s.T(), newVal, config.GetNamespace())
 	})
 }
+
+func (s *TestConfigurationSuite) TestVerificationEnabled() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), true, config.GetVerificationEnabled())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.enabled: "` + strconv.FormatBool(false) + `"`)
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := strconv.FormatBool(false)
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+}
+
+func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), configuration.DefaultVerificationDailyLimit, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.daily_limit: 2`)
+		assert.Equal(s.T(), 2, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "6"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 6, config.GetVerificationDailyLimit())
+	})
+}
+
+func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), configuration.DefaultVerificationAttemptsAllowed, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.attempts_allowed: 4`)
+		assert.Equal(s.T(), 4, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "2"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 2, config.GetVerificationAttemptsAllowed())
+	})
+}

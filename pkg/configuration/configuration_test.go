@@ -579,3 +579,65 @@ func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
 		assert.Equal(s.T(), 2, config.GetVerificationAttemptsAllowed())
 	})
 }
+
+func (s *TestConfigurationSuite) TestTwilioAccountSID() {
+	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetTwilioAccountSID())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		config := s.getFileConfiguration(`twilio.account_sid: ` + u.String())
+		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
+	})
+}
+
+func (s *TestConfigurationSuite) TestTwilioAuthToken() {
+	key := configuration.EnvPrefix + "_" + "TWILIO_AUTH_TOKEN"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetTwilioAuthToken())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		config := s.getFileConfiguration(`twilio.auth_token: ` + u.String())
+		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+	})
+}

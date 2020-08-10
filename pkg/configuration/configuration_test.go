@@ -505,22 +505,21 @@ func (s *TestConfigurationSuite) TestVerificationEnabled() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), true, config.GetVerificationEnabled())
+		require.True(s.T(), config.GetVerificationEnabled())
 	})
 
 	s.Run("file", func() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config := s.getFileConfiguration(`verification.enabled: "` + strconv.FormatBool(false) + `"`)
-		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+		assert.False(s.T(), config.GetVerificationEnabled())
 	})
 
 	s.Run("env overwrite", func() {
-		newVal := strconv.FormatBool(false)
-		err := os.Setenv(key, newVal)
+		err := os.Setenv(key, "false")
 		require.NoError(s.T(), err)
 		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+		assert.False(s.T(), config.GetVerificationEnabled())
 	})
 }
 

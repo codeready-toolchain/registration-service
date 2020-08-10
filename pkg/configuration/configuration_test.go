@@ -511,7 +511,7 @@ func (s *TestConfigurationSuite) TestVerificationEnabled() {
 	s.Run("file", func() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
-		config := s.getFileConfiguration(`verification.enabled: "` + strconv.FormatBool(false) + `"`)
+		config := s.getFileConfiguration(`verification.enabled: "false"`)
 		assert.False(s.T(), config.GetVerificationEnabled())
 	})
 

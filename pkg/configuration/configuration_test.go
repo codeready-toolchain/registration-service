@@ -335,36 +335,36 @@ func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config.raw: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		err = os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
-	})
-}
+//func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
+//	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
+//
+//	s.Run("default", func() {
+//		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+//		defer resetFunc()
+//		config := s.getDefaultConfiguration()
+//		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
+//	})
+//
+//	s.Run("file", func() {
+//		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+//		defer resetFunc()
+//		u, err := uuid.NewV4()
+//		require.NoError(s.T(), err)
+//		newVal := u.String()
+//		config := s.getFileConfiguration(`auth_client.config.raw: "` + newVal + `"`)
+//		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
+//	})
+//
+//	s.Run("env overwrite", func() {
+//		u, err := uuid.NewV4()
+//		require.NoError(s.T(), err)
+//		newVal := u.String()
+//		err = os.Setenv(key, newVal)
+//		require.NoError(s.T(), err)
+//		config := s.getDefaultConfiguration()
+//		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
+//	})
+//}
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"

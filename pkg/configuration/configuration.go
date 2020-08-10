@@ -72,16 +72,12 @@ const (
 	// DefaultAuthClientLibraryURL is the default auth library location.
 	DefaultAuthClientLibraryURL = "https://sso.prod-preview.openshift.io/auth/js/keycloak.js"
 
-	varAuthClientConfigRaw = "auth_client.config.raw"
-	// DefaultAuthClientConfigRaw specifies the auth client config.
-	DefaultAuthClientConfigRaw = `{
-  "realm": "toolchain-public",
-  "auth-server-url": "https://sso.prod-preview.openshift.io/auth",
-  "ssl-required": "none",
-  "resource": "crt",
-  "clientId": "crt",
-  "public-client": true
-}`
+	varAuthClientConfigRawRealm        = "auth_client.config_raw.realm"
+	varAuthClientConfigRawServerURL    = "auth_client.config_raw.auth_server_url"
+	varAuthClientConfigRawSSLRequired  = "auth_client.config_raw.ssl-required"
+	varAuthClientConfigRawResource     = "auth_client.config_raw.resource"
+	varAuthClientConfigRawClientID     = "auth_client.config_raw.clientId"
+	varAuthClientConfigRawPublicClient = "auth_client.config_raw.public_client"
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
@@ -149,10 +145,16 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
-	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
+
+	c.v.SetDefault(varAuthClientConfigRawRealm, "")
+	c.v.SetDefault(varAuthClientConfigRawServerURL, "")
+	c.v.SetDefault(varAuthClientConfigRawSSLRequired, "")
+	c.v.SetDefault(varAuthClientConfigRawResource, "")
+	c.v.SetDefault(varAuthClientConfigRawClientID, "")
+	c.v.SetDefault(varAuthClientConfigRawPublicClient, "")
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -224,8 +226,28 @@ func (c *Registry) GetAuthClientConfigAuthContentType() string {
 
 // GetAuthClientConfigAuthRaw returns the auth config config (as
 // set via config file or environment variable).
-func (c *Registry) GetAuthClientConfigAuthRaw() string {
-	return c.v.GetString(varAuthClientConfigRaw)
+func (c *Registry) GetAuthClientConfigAuthRawClientID() string {
+	return c.v.GetString(varAuthClientConfigRawClientID)
+}
+
+func (c *Registry) GetAuthClientConfigAuthRawPublicClient() string {
+	return c.v.GetString(varAuthClientConfigRawPublicClient)
+}
+
+func (c *Registry) GetAuthClientConfigAuthRawRealm() string {
+	return c.v.GetString(varAuthClientConfigRawRealm)
+}
+
+func (c *Registry) GetAuthClientConfigAuthRawResource() string {
+	return c.v.GetString(varAuthClientConfigRawResource)
+}
+
+func (c *Registry) GetAuthClientConfigAuthRawServerURL() string {
+	return c.v.GetString(varAuthClientConfigRawServerURL)
+}
+
+func (c *Registry) GetAuthClientConfigAuthRawSSLReuired() string {
+	return c.v.GetString(varAuthClientConfigRawSSLRequired)
 }
 
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file

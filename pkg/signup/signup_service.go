@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 
@@ -56,6 +57,11 @@ type Status struct {
 	Reason string `json:"reason"`
 	// Human readable message indicating details about last transition.
 	Message string `json:"message,omitempty"`
+	// VerificationRequired is used to determine if a user requires phone verification.
+	// The user should not be provisioned if VerificationRequired is set to true.
+	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
+	// Default value is false.
+	VerificationRequired bool `json:verificationRequired`
 }
 
 // ServiceConfiguration represents the config used for the signup service.
@@ -67,7 +73,7 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
-	PostVerification(countryCode, phoneNumber string)
+	PostVerification(countryCode, phoneNumber string) error
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -126,7 +132,8 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 			Name:      ctx.GetString(context.SubKey),
 			Namespace: s.Namespace,
 			Annotations: map[string]string{
-				crtapi.UserSignupUserEmailAnnotationKey: userEmail,
+				crtapi.UserSignupUserEmailAnnotationKey:           userEmail,
+				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
 			},
 			Labels: map[string]string{
 				crtapi.UserSignupUserEmailHashLabelKey: emailHash,
@@ -210,6 +217,41 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
-func (s *ServiceImpl) PostVerification(countryCode, phoneNumber string) {
+func (s *ServiceImpl) PostVerification(userID, countryCode, phoneNumber string) error {
+	// Retrieve UserSignup resource from the host cluster
+	userSignup, err := s.UserSignups.Get(userID)
+	if err != nil {
+		return err
+	}
 
+	annotationCounter := userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+	counter := 0
+	if annotationCounter != "" {
+		counter, err = strconv.Atoi(annotationCounter)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO: generate verification code
+
+	userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
+	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = "1234"
+	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = string(time.Now().Unix())
+
+	userSignup, err = s.UserSignups.Patch(userSignup.Name, userSignup.Annotations)
+	if err != nil {
+		return err
+	}
+
+	// Create possible message bodies
+	quotes := []string{"1234"}
+	reader := CreateMessage("12268213049", "18009024569", quotes)
+	resp := Send(reader)
+	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+		return errors2.New("failed sending phone verification")
+	}
+
+	return nil
 }

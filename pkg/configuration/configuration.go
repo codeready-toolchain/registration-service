@@ -94,6 +94,29 @@ const (
 	varNamespace = "namespace"
 	// DefaultNamespace is the default k8s namespace to use.
 	DefaultNamespace = "toolchain-host-operator"
+
+	varVerificationEnabled = "verification.enabled"
+	// DefaultVerificationEnabled is the default value for whether the phone verification feature is enabled
+	DefaultVerificationEnabled = true
+
+	varVerificationDailyLimit = "verification.daily_limit"
+	// DefaultVerificationDailyLimit is the default number of times a user may request phone verification
+	// in a 24 hour period
+	DefaultVerificationDailyLimit = 5
+
+	varVerificationAttemptsAllowed = "verification.attempts_allowed"
+	// DefaultVerificationAttemptsAllowed is the default number of maximum attempts a user may make to
+	// provide a correct verification code
+	DefaultVerificationAttemptsAllowed = 3
+
+	// varTwilioAccountSID is the constant used to read the configuration parameter for the
+	// Twilio account identifier, used for sending SMS verification codes.  Twilio is a service that
+	// provides an API for sending SMS messages anywhere in the world.  http://twilio.com
+	varTwilioAccountSID = "twilio.account_sid"
+
+	// varTwilioAuthToken is the constant used to read the configuration parameter for the
+	// Twilio authentication token, used for sending SMS verification codes
+	varTwilioAuthToken = "twilio.auth_token"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -153,6 +176,9 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
+	c.v.SetDefault(varVerificationEnabled, DefaultVerificationEnabled)
+	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
+	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -237,4 +263,31 @@ func (c *Registry) GetAuthClientPublicKeysURL() string {
 // GetNamespace returns the namespace in which the registration service and host operator is running
 func (c *Registry) GetNamespace() string {
 	return c.v.GetString(varNamespace)
+}
+
+// GetVerificationEnabled indicates whether the phone verification feature is enabled or not
+func (c *Registry) GetVerificationEnabled() bool {
+	return c.v.GetBool(varVerificationEnabled)
+}
+
+// GetVerificationDailyLimit is the number of times a user may initiate a phone verification request within a
+// 24 hour period
+func (c *Registry) GetVerificationDailyLimit() int {
+	return c.v.GetInt(varVerificationDailyLimit)
+}
+
+// GetVerificationAttemptsAllowed is the number of times a user may attempt to correctly enter a verification code,
+// if they fail then they must request another code
+func (c *Registry) GetVerificationAttemptsAllowed() int {
+	return c.v.GetInt(varVerificationAttemptsAllowed)
+}
+
+// GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages
+func (c *Registry) GetTwilioAccountSID() string {
+	return c.v.GetString(varTwilioAccountSID)
+}
+
+// GetTwilioAuthToken is the Twilio authentication token, used for sending phone verification messages
+func (c *Registry) GetTwilioAuthToken() string {
+	return c.v.GetString(varTwilioAuthToken)
 }

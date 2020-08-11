@@ -495,3 +495,148 @@ func (s *TestConfigurationSuite) TestGetNamespace() {
 		assert.Equal(s.T(), newVal, config.GetNamespace())
 	})
 }
+
+func (s *TestConfigurationSuite) TestVerificationEnabled() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.True(s.T(), config.GetVerificationEnabled())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.enabled: "false"`)
+		assert.False(s.T(), config.GetVerificationEnabled())
+	})
+
+	s.Run("env overwrite", func() {
+		err := os.Setenv(key, "false")
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.False(s.T(), config.GetVerificationEnabled())
+	})
+}
+
+func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), configuration.DefaultVerificationDailyLimit, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.daily_limit: 2`)
+		assert.Equal(s.T(), 2, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "6"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 6, config.GetVerificationDailyLimit())
+	})
+}
+
+func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), configuration.DefaultVerificationAttemptsAllowed, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.attempts_allowed: 4`)
+		assert.Equal(s.T(), 4, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "2"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 2, config.GetVerificationAttemptsAllowed())
+	})
+}
+
+func (s *TestConfigurationSuite) TestTwilioAccountSID() {
+	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetTwilioAccountSID())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		config := s.getFileConfiguration(`twilio.account_sid: ` + u.String())
+		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
+	})
+}
+
+func (s *TestConfigurationSuite) TestTwilioAuthToken() {
+	key := configuration.EnvPrefix + "_" + "TWILIO_AUTH_TOKEN"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetTwilioAuthToken())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		config := s.getFileConfiguration(`twilio.auth_token: ` + u.String())
+		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+	})
+}

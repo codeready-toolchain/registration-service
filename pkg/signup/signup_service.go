@@ -225,6 +225,7 @@ func (s *ServiceImpl) PostVerification(userID, countryCode, phoneNumber string) 
 	}
 
 	annotationCounter := userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+	// check if counter has exceeded the limit of daily limit - if at limit error out
 	counter := 0
 	if annotationCounter != "" {
 		counter, err = strconv.Atoi(annotationCounter)

@@ -6,6 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+
 	errs "github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -72,12 +76,26 @@ const (
 	// DefaultAuthClientLibraryURL is the default auth library location.
 	DefaultAuthClientLibraryURL = "https://sso.prod-preview.openshift.io/auth/js/keycloak.js"
 
-	varAuthClientConfigRawRealm        = "auth_client.config_raw.realm"
-	varAuthClientConfigRawServerURL    = "auth_client.config_raw.auth_server_url"
-	varAuthClientConfigRawSSLRequired  = "auth_client.config_raw.ssl-required"
+	varAuthClientConfigRawRealm     = "auth_client.config_raw.realm"
+	DefaultAuthClientConfigRawRealm = "toolchain-public"
+
+	varAuthClientConfigRawServerURL     = "auth_client.config_raw.auth_server_url"
+	DefaultAuthClientConfigRawServerURL = "https://sso.prod-preview.openshift.io/auth"
+
+	varAuthClientConfigRawSSLRequired = "auth_client.config_raw.ssl_required"
+	DefaultAuthClientRawSSLRequired   = "none"
+
 	varAuthClientConfigRawResource     = "auth_client.config_raw.resource"
-	varAuthClientConfigRawClientID     = "auth_client.config_raw.clientId"
-	varAuthClientConfigRawPublicClient = "auth_client.config_raw.public_client"
+	DefaultAuthClientConfigRawResource = "crt"
+
+	varAuthClientConfigRawClientID     = "auth_client.config_raw.client_id"
+	DefaultAuthClientConfigRawClientID = "crt"
+
+	varAuthClientConfigRawPublicClient     = "auth_client.config_raw.public_client"
+	DefaultAuthClientConfigRawPublicClient = "true"
+
+	varTwilioAccountSID = "twilio.account.sid"
+	varTwilioAuthToken  = "twilio.auth.token"
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
@@ -95,27 +113,44 @@ const (
 // Registry encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type Registry struct {
-	v *viper.Viper
+	v            *viper.Viper
+	secretValues map[string]string
 }
 
 // CreateEmptyRegistry creates an initial, empty registry.
-func CreateEmptyRegistry() *Registry {
+func CreateEmptyRegistry(cl client.Client) (*Registry, error) {
+
+	err := configuration.LoadFromConfigMap(EnvPrefix, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", cl)
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := configuration.LoadFromSecret("REGISTRATION_SERVICE_SECRET_NAME", cl)
+	if err != nil {
+		return nil, err
+	}
+
 	c := Registry{
-		v: viper.New(),
+		v:            viper.New(),
+		secretValues: secret,
 	}
 	c.v.SetEnvPrefix(EnvPrefix)
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
-	return &c
+	return &c, nil
 }
 
 // New creates a configuration reader object using a configurable configuration
 // file path. If the provided config file path is empty, a default configuration
 // will be created.
-func New(configFilePath string) (*Registry, error) {
-	c := CreateEmptyRegistry()
+func New(configFilePath string, cl client.Client) (*Registry, error) {
+	c, err := CreateEmptyRegistry(cl)
+	if err != nil {
+		return nil, err
+	}
+
 	if configFilePath != "" {
 		c.v.SetConfigType("yaml")
 		c.v.SetConfigFile(configFilePath)
@@ -148,13 +183,12 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
-
-	c.v.SetDefault(varAuthClientConfigRawRealm, "")
-	c.v.SetDefault(varAuthClientConfigRawServerURL, "")
-	c.v.SetDefault(varAuthClientConfigRawSSLRequired, "")
-	c.v.SetDefault(varAuthClientConfigRawResource, "")
-	c.v.SetDefault(varAuthClientConfigRawClientID, "")
-	c.v.SetDefault(varAuthClientConfigRawPublicClient, "")
+	c.v.SetDefault(varAuthClientConfigRawRealm, DefaultAuthClientConfigRawRealm)
+	c.v.SetDefault(varAuthClientConfigRawServerURL, DefaultAuthClientConfigRawServerURL)
+	c.v.SetDefault(varAuthClientConfigRawSSLRequired, DefaultAuthClientRawSSLRequired)
+	c.v.SetDefault(varAuthClientConfigRawResource, DefaultAuthClientConfigRawResource)
+	c.v.SetDefault(varAuthClientConfigRawClientID, DefaultAuthClientConfigRawClientID)
+	c.v.SetDefault(varAuthClientConfigRawPublicClient, DefaultAuthClientConfigRawPublicClient)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -224,8 +258,6 @@ func (c *Registry) GetAuthClientConfigAuthContentType() string {
 	return c.v.GetString(varAuthClientConfigContentType)
 }
 
-// GetAuthClientConfigAuthRaw returns the auth config config (as
-// set via config file or environment variable).
 func (c *Registry) GetAuthClientConfigAuthRawClientID() string {
 	return c.v.GetString(varAuthClientConfigRawClientID)
 }
@@ -248,6 +280,14 @@ func (c *Registry) GetAuthClientConfigAuthRawServerURL() string {
 
 func (c *Registry) GetAuthClientConfigAuthRawSSLReuired() string {
 	return c.v.GetString(varAuthClientConfigRawSSLRequired)
+}
+
+func (c *Registry) GetTwilioAccountSID() string {
+	return c.secretValues[varTwilioAccountSID]
+}
+
+func (c *Registry) GetTwilioAuthToken() string {
+	return c.secretValues[varTwilioAuthToken]
 }
 
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file

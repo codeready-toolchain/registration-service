@@ -12,6 +12,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/spf13/pflag"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 func main() {
@@ -37,12 +39,33 @@ func main() {
 		}
 	}
 
-	config, err := configuration.New(configFilePath)
+	// Get a config to talk to the apiserver
+	cfg, err := config.GetConfig()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	// create client that will be used for retrieving the host operator secret
+	cl, err := client.New(cfg, client.Options{})
 	if err != nil {
 		panic(err.Error())
 	}
 
-	srv := server.New(config)
+	crtConfig, err := configuration.New(configFilePath, cl)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	log.Info(nil, "AuthRawSSLRequired: "+crtConfig.GetAuthClientConfigAuthRawSSLReuired())
+	log.Info(nil, "AuthRawServerURL: "+crtConfig.GetAuthClientConfigAuthRawServerURL())
+	log.Info(nil, "AuthRawResource: "+crtConfig.GetAuthClientConfigAuthRawResource())
+	log.Info(nil, "AuthRawRealm: "+crtConfig.GetAuthClientConfigAuthRawRealm())
+	log.Info(nil, "AuthRawPublicClient: "+crtConfig.GetAuthClientConfigAuthRawPublicClient())
+	log.Info(nil, "AuthRawClientID: "+crtConfig.GetAuthClientConfigAuthRawClientID())
+	log.Info(nil, "TwilioAccountSID:"+crtConfig.GetTwilioAccountSID())
+	log.Info(nil, "TwilioAuthToken:"+crtConfig.GetTwilioAuthToken())
+
+	srv := server.New(crtConfig)
 
 	err = srv.SetupRoutes()
 	if err != nil {

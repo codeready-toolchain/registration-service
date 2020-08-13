@@ -128,7 +128,7 @@ const (
 
 	// DefaultVerificationMessageTemplate is the default verification message template sent to users
 	// via SMS for phone verification.  The string parameter is replaced with a random verification code
-	DefaultVerificationMessageTemplate = "Your CodeReady Toolchain verification code is: %s"
+	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the

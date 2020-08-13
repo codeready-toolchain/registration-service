@@ -4,9 +4,12 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/kevinburke/twilio-go"
+	"github.com/gin-gonic/gin"
+	errs "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/kevinburke/twilio-go"
 )
 
 const (
@@ -24,7 +27,7 @@ type ServiceConfiguration interface {
 
 // Service represents the verification service for controllers.
 type Service interface {
-	SendVerification(signup *v1alpha1.UserSignup) error
+	SendVerification(ctx *gin.Context, signup *v1alpha1.UserSignup) error
 }
 
 // ServiceImpl represents the implementation of the verification service.
@@ -33,15 +36,15 @@ type ServiceImpl struct {
 }
 
 // NewVerificationService creates a service object for performing user verification
-func NewVerificationService(cfg ServiceConfiguration) (Service, error) {
+func NewVerificationService(cfg ServiceConfiguration) Service {
 	s := &ServiceImpl{
 		config: cfg,
 	}
-	return s, nil
+	return s
 }
 
 // SendVerification sends a verification message to the specified user
-func (s *ServiceImpl) SendVerification(signup *v1alpha1.UserSignup) error {
+func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSignup) error {
 	verificationCode, err := generateVerificationCode()
 	if err != nil {
 		return err
@@ -56,11 +59,8 @@ func (s *ServiceImpl) SendVerification(signup *v1alpha1.UserSignup) error {
 	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber,
 		content, nil)
 	if err != nil {
-		return err
-	}
-
-	if msg.ErrorCode != 0 {
-		fmt.Printf(msg.ErrorMessage)
+		log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
+		return errs.NewInternalError(err)
 	}
 
 	return nil

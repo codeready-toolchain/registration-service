@@ -81,11 +81,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 				err = errs.Wrapf(err, "failed to init signup service")
 				return
 			}
-			verificationSrv, err = verification.NewVerificationService(srv.Config())
-			if err != nil {
-				err = errs.Wrapf(err, "failed to init verification service")
-				return
-			}
+			verificationSrv = verification.NewVerificationService(srv.Config())
 		}
 		signupCtrl := controller.NewSignup(srv.Config(), signupSrv, verificationSrv)
 

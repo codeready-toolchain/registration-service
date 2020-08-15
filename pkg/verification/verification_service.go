@@ -3,6 +3,7 @@ package verification
 import (
 	"crypto/rand"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	errs "k8s.io/apimachinery/pkg/api/errors"
@@ -32,13 +33,20 @@ type Service interface {
 
 // ServiceImpl represents the implementation of the verification service.
 type ServiceImpl struct {
-	config ServiceConfiguration
+	config     ServiceConfiguration
+	HttpClient *http.Client
 }
 
+type VerificationServiceOption func(svc *ServiceImpl)
+
 // NewVerificationService creates a service object for performing user verification
-func NewVerificationService(cfg ServiceConfiguration) Service {
+func NewVerificationService(cfg ServiceConfiguration, opts ...VerificationServiceOption) Service {
 	s := &ServiceImpl{
 		config: cfg,
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 	return s
 }
@@ -55,7 +63,7 @@ func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), verificationCode)
 
 	toNumber := signup.Labels[v1alpha1.UserSignupPhoneNumberLabelKey]
-	client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), nil)
+	client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
 	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber,
 		content, nil)
 	if err != nil {

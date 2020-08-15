@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	errs "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/gin-gonic/gin"
 	"github.com/kevinburke/twilio-go"
 )
 
@@ -66,7 +64,7 @@ func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 		content, nil)
 	if err != nil {
 		log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
-		return errs.NewInternalError(err)
+		return err
 	}
 
 	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode

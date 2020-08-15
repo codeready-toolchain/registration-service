@@ -58,8 +58,6 @@ func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 		return err
 	}
 
-	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
-
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), verificationCode)
 
 	toNumber := signup.Labels[v1alpha1.UserSignupPhoneNumberLabelKey]
@@ -71,6 +69,7 @@ func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 		return errs.NewInternalError(err)
 	}
 
+	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
 	return nil
 }
 

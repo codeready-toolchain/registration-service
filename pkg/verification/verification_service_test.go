@@ -63,6 +63,9 @@ func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verific
 
 func (s *TestVerificationServiceSuite) TestVerify() {
 	defer gock.Off()
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
@@ -91,6 +94,39 @@ func (s *TestVerificationServiceSuite) TestVerify() {
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
+func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
+	defer gock.Off()
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusInternalServerError).
+		BodyString("")
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+
+	userSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "123",
+			Namespace: "test",
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username: "sbryzak@redhat.com",
+		},
+	}
+
+	err := svc.SendVerification(ctx, userSignup)
+	require.Error(s.T(), err)
+
+	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
 func (s *TestVerificationServiceSuite) createVerificationService() (verification.Service, *http.Client) {
 	cfg := NewMockVerificationConfig(
 		"xxx",
@@ -99,10 +135,6 @@ func (s *TestVerificationServiceSuite) createVerificationService() (verification
 	)
 
 	httpClient := &http.Client{Transport: &http.Transport{}}
-
-	gock.New("https://api.twilio.com").
-		Reply(http.StatusNoContent).
-		BodyString("")
 	gock.InterceptClient(httpClient)
 
 	var mockClientOpt verification.VerificationServiceOption

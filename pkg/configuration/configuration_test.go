@@ -579,6 +579,34 @@ func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
 	})
 }
 
+func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_MESSAGE_TEMPLATE"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), configuration.DefaultVerificationMessageTemplate, config.GetVerificationMessageTemplate())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.message_template: "here is your code: %s"`)
+		assert.Equal(s.T(), "here is your code: %s", config.GetVerificationMessageTemplate())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "%s is your verification code"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), "%s is your verification code", config.GetVerificationMessageTemplate())
+	})
+}
+
 func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
@@ -638,5 +666,36 @@ func (s *TestConfigurationSuite) TestTwilioAuthToken() {
 		require.NoError(s.T(), err)
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+	})
+}
+
+func (s *TestConfigurationSuite) TestTwilioFromNumber() {
+	key := configuration.EnvPrefix + "_" + "TWILIO_FROM_NUMBER"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetTwilioFromNumber())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		config := s.getFileConfiguration(`twilio.from_number: ` + u.String())
+		assert.Equal(s.T(), u.String(), config.GetTwilioFromNumber())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetTwilioFromNumber())
 	})
 }

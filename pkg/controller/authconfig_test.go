@@ -63,35 +63,14 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		s.Run("envelope client config", func() {
 			assert.NotEmpty(s.T(), dataEnvelope.AuthClientLibraryURL, "no 'auth-client-config' key in authconfig response")
-
-			s.Run("realm", func() {
-				assert.Equal(s.T(), s.Config.GetAuthClientConfigRawRealm(), dataEnvelope.AuthClientConfigRawRealm, "wrong 'realm' in authconfig response")
-			})
-
-			s.Run("auth-server-url", func() {
-				assert.Equal(s.T(), s.Config.GetAuthClientConfigRawAuthServerURL(), dataEnvelope.AuthClientConfigRawServerURL, "wrong 'auth-server-url' in authconfig response")
-			})
-
-			s.Run("ssl-required", func() {
-				assert.Equal(s.T(), s.Config.GetAuthClientConfigRawSSLRequired(), dataEnvelope.AuthClientConfigRawSSLRequired, "wrong 'ssl-required' in authconfig response")
-			})
-
-			s.Run("resource", func() {
-				assert.Equal(s.T(), s.Config.GetAuthClientConfigRawResource(), dataEnvelope.AuthClientConfigRawResource, "wrong 'resource' in authconfig response")
-			})
-
-			s.Run("public-client", func() {
-				assert.Equal(s.T(), s.Config.GetAuthClientConfigRawPublicClient(), dataEnvelope.AuthClientConfigRawPublicClient, "wrong 'public-client' in authconfig response")
-			})
-			s.Run("verification-daily-limit", func() {
-				assert.Equal(s.T(), s.Config.GetVerificationDailyLimit(), dataEnvelope.VerificationDailyLimit, "wrong 'verification daily limit' in authconfig response")
-			})
-			s.Run("verification-attempts-allowed", func() {
-				assert.Equal(s.T(), s.Config.GetVerificationAttemptsAllowed(), dataEnvelope.VerificationAttemptsAllowed, "wrong 'verification attempts allowed' in authconfig response")
-			})
-			s.Run("verification-enabled", func() {
-				assert.Equal(s.T(), s.Config.GetVerificationEnabled(), dataEnvelope.VerificationEnabled, "wrong 'verification enabled' in authconfig response")
-			})
+			assert.Equal(s.T(), s.Config.GetAuthClientConfigRawRealm(), dataEnvelope.AuthClientConfigRawRealm, "wrong 'realm' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetAuthClientConfigRawAuthServerURL(), dataEnvelope.AuthClientConfigRawServerURL, "wrong 'auth-server-url' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetAuthClientConfigRawSSLRequired(), dataEnvelope.AuthClientConfigRawSSLRequired, "wrong 'ssl-required' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetAuthClientConfigRawResource(), dataEnvelope.AuthClientConfigRawResource, "wrong 'resource' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetAuthClientConfigRawPublicClient(), dataEnvelope.AuthClientConfigRawPublicClient, "wrong 'public-client' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetVerificationDailyLimit(), dataEnvelope.VerificationDailyLimit, "wrong 'verification daily limit' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetVerificationAttemptsAllowed(), dataEnvelope.VerificationAttemptsAllowed, "wrong 'verification attempts allowed' in authconfig response")
+			assert.Equal(s.T(), s.Config.GetVerificationEnabled(), dataEnvelope.VerificationEnabled, "wrong 'verification enabled' in authconfig response")
 		})
 	})
 }

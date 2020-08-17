@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -56,14 +57,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	log.Info(nil, "AuthRawSSLRequired: "+crtConfig.GetAuthClientConfigAuthRawSSLReuired())
-	log.Info(nil, "AuthRawServerURL: "+crtConfig.GetAuthClientConfigAuthRawServerURL())
-	log.Info(nil, "AuthRawResource: "+crtConfig.GetAuthClientConfigAuthRawResource())
-	log.Info(nil, "AuthRawRealm: "+crtConfig.GetAuthClientConfigAuthRawRealm())
-	log.Info(nil, "AuthRawPublicClient: "+crtConfig.GetAuthClientConfigAuthRawPublicClient())
-	log.Info(nil, "AuthRawClientID: "+crtConfig.GetAuthClientConfigAuthRawClientID())
-	log.Info(nil, "TwilioAccountSID:"+crtConfig.GetTwilioAccountSID())
-	log.Info(nil, "TwilioAuthToken:"+crtConfig.GetTwilioAuthToken())
+	printConfig(crtConfig)
 
 	srv := server.New(crtConfig)
 
@@ -85,6 +79,18 @@ func main() {
 	}()
 
 	gracefulShutdown(srv.HTTPServer(), srv.Config().GetGracefulTimeout())
+}
+
+func printConfig(cfg *configuration.Registry) {
+	log.Info(nil, "AuthRawSSLRequired: "+cfg.GetAuthClientConfigAuthRawSSLReuired())
+	log.Info(nil, "AuthRawServerURL: "+cfg.GetAuthClientConfigAuthRawServerURL())
+	log.Info(nil, "AuthRawResource: "+cfg.GetAuthClientConfigAuthRawResource())
+	log.Info(nil, "AuthRawRealm: "+cfg.GetAuthClientConfigAuthRawRealm())
+	log.Info(nil, "AuthRawPublicClient: "+strconv.FormatBool(cfg.GetAuthClientConfigAuthRawPublicClient()))
+	log.Info(nil, "AuthRawClientID: "+cfg.GetAuthClientConfigAuthRawClientID())
+	log.Info(nil, "VerificationEnabled: "+strconv.FormatBool(cfg.GetVerificationEnabled()))
+	log.Info(nil, "VerificationDailyLimit: "+strconv.Itoa(cfg.GetVerificationDailyLimit()))
+	log.Info(nil, "VerificationAttemptsAllowed: "+strconv.Itoa(cfg.GetVerificationAttemptsAllowed()))
 }
 
 func gracefulShutdown(hs *http.Server, timeout time.Duration) {

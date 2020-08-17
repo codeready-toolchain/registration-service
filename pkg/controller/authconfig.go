@@ -16,7 +16,10 @@ type configResponse struct {
 	AuthClientConfigRawSSLRequired  string `json:"auth-client-config-ssl-required"`
 	AuthClientConfigRawResource     string `json:"auth-client-config-resource"`
 	AuthClientConfigRawClientID     string `json:"auth-client-config-client-id"`
-	AuthClientConfigRawPublicClient string `json:"auth-client-config-public-client"`
+	AuthClientConfigRawPublicClient bool   `json:"auth-client-config-public-client"`
+	VerificationEnabled             bool   `json:"verification-enabled"`
+	VerificationDailyLimit          int    `json:"verification-daily-limit"`
+	VerificationAttemptsAllowed     int    `json:"verification-attempts-allowed"`
 }
 
 // AuthConfig implements the auth config endpoint, which is invoked to
@@ -42,6 +45,9 @@ func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 		AuthClientConfigRawResource:     ac.config.GetAuthClientConfigAuthRawResource(),
 		AuthClientConfigRawServerURL:    ac.config.GetAuthClientConfigAuthRawServerURL(),
 		AuthClientConfigRawSSLRequired:  ac.config.GetAuthClientConfigAuthRawSSLReuired(),
+		VerificationEnabled:             ac.config.GetVerificationEnabled(),
+		VerificationDailyLimit:          ac.config.GetVerificationDailyLimit(),
+		VerificationAttemptsAllowed:     ac.config.GetVerificationAttemptsAllowed(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

@@ -285,8 +285,8 @@ func (c *Registry) GetAuthClientConfigAuthRawClientID() string {
 	return c.v.GetString(varAuthClientConfigRawClientID)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawPublicClient() string {
-	return c.v.GetString(varAuthClientConfigRawPublicClient)
+func (c *Registry) GetAuthClientConfigAuthRawPublicClient() bool {
+	return c.v.GetBool(varAuthClientConfigRawPublicClient)
 }
 
 func (c *Registry) GetAuthClientConfigAuthRawRealm() string {

@@ -3,6 +3,7 @@ package test
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -18,7 +19,12 @@ func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	log.Init("registration-service-testing")
 
-	s.Config = configuration.CreateEmptyRegistry()
+	cfg, errs := configuration.CreateEmptyRegistry(test.NewFakeClient(s.T()))
+	if errs != nil {
+		panic(errs.Error())
+	}
+
+	s.Config = cfg
 
 	// set environment to unit-tests
 	s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)

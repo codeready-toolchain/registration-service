@@ -8,6 +8,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
+	. "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	uuid "github.com/satori/go.uuid"
@@ -25,12 +26,14 @@ func TestRunTokenParserSuite(t *testing.T) {
 }
 
 func (s *TestTokenParserSuite) TestTokenParser() {
-	configRegistry := configuration.CreateEmptyRegistry()
+
+	configRegistry, err := configuration.CreateEmptyRegistry(NewFakeClient(s.T()))
+	require.NoError(s.T(), err)
 
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.NewV4().String()
-	_, err := tokengenerator.AddPrivateKey(kid0)
+	_, err = tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
 	kid1 := uuid.NewV4().String()
 	_, err = tokengenerator.AddPrivateKey(kid1)

@@ -39,12 +39,12 @@ func NewAuthConfig(config *configuration.Registry) *AuthConfig {
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	configRespData := configResponse{
 		AuthClientLibraryURL:            ac.config.GetAuthClientLibraryURL(),
-		AuthClientConfigRawClientID:     ac.config.GetAuthClientConfigAuthRawClientID(),
-		AuthClientConfigRawPublicClient: ac.config.GetAuthClientConfigAuthRawPublicClient(),
-		AuthClientConfigRawRealm:        ac.config.GetAuthClientConfigAuthRawRealm(),
-		AuthClientConfigRawResource:     ac.config.GetAuthClientConfigAuthRawResource(),
-		AuthClientConfigRawServerURL:    ac.config.GetAuthClientConfigAuthRawServerURL(),
-		AuthClientConfigRawSSLRequired:  ac.config.GetAuthClientConfigAuthRawSSLReuired(),
+		AuthClientConfigRawClientID:     ac.config.GetAuthClientConfigRawClientID(),
+		AuthClientConfigRawPublicClient: ac.config.GetAuthClientConfigRawPublicClient(),
+		AuthClientConfigRawRealm:        ac.config.GetAuthClientConfigRawRealm(),
+		AuthClientConfigRawResource:     ac.config.GetAuthClientConfigRawResource(),
+		AuthClientConfigRawServerURL:    ac.config.GetAuthClientConfigRawAuthServerURL(),
+		AuthClientConfigRawSSLRequired:  ac.config.GetAuthClientConfigRawSSLRequired(),
 		VerificationEnabled:             ac.config.GetVerificationEnabled(),
 		VerificationDailyLimit:          ac.config.GetVerificationDailyLimit(),
 		VerificationAttemptsAllowed:     ac.config.GetVerificationAttemptsAllowed(),

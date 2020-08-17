@@ -243,7 +243,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	}
 
 	s.Run("fail to retrieve e2e keys for default environment", func() {
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)
@@ -253,7 +253,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	s.Run("fail to retrieve e2e keys for prod environment", func() {
 		resetFunc := commontest.SetEnvVarAndRestore(s.T(), key, "prod")
 		defer resetFunc()
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)
@@ -262,7 +262,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	s.Run("fail to retrieve e2e keys if environment is not set", func() {
 		resetFunc := commontest.UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)

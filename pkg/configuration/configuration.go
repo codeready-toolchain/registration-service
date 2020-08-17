@@ -79,8 +79,8 @@ const (
 	varAuthClientConfigRawRealm     = "auth_client.config_raw.realm"
 	DefaultAuthClientConfigRawRealm = "toolchain-public"
 
-	varAuthClientConfigRawServerURL     = "auth_client.config_raw.auth_server_url"
-	DefaultAuthClientConfigRawServerURL = "https://sso.prod-preview.openshift.io/auth"
+	varAuthClientConfigRawAuthServerURL     = "auth_client.config_raw.auth_server_url"
+	DefaultAuthClientConfigRawAuthServerURL = "https://sso.prod-preview.openshift.io/auth"
 
 	varAuthClientConfigRawSSLRequired = "auth_client.config_raw.ssl_required"
 	DefaultAuthClientRawSSLRequired   = "none"
@@ -92,7 +92,7 @@ const (
 	DefaultAuthClientConfigRawClientID = "crt"
 
 	varAuthClientConfigRawPublicClient     = "auth_client.config_raw.public_client"
-	DefaultAuthClientConfigRawPublicClient = "true"
+	DefaultAuthClientConfigRawPublicClient = true
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
@@ -204,7 +204,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
 	c.v.SetDefault(varAuthClientConfigRawRealm, DefaultAuthClientConfigRawRealm)
-	c.v.SetDefault(varAuthClientConfigRawServerURL, DefaultAuthClientConfigRawServerURL)
+	c.v.SetDefault(varAuthClientConfigRawAuthServerURL, DefaultAuthClientConfigRawAuthServerURL)
 	c.v.SetDefault(varAuthClientConfigRawSSLRequired, DefaultAuthClientRawSSLRequired)
 	c.v.SetDefault(varAuthClientConfigRawResource, DefaultAuthClientConfigRawResource)
 	c.v.SetDefault(varAuthClientConfigRawClientID, DefaultAuthClientConfigRawClientID)
@@ -281,27 +281,27 @@ func (c *Registry) GetAuthClientConfigAuthContentType() string {
 	return c.v.GetString(varAuthClientConfigContentType)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawClientID() string {
+func (c *Registry) GetAuthClientConfigRawClientID() string {
 	return c.v.GetString(varAuthClientConfigRawClientID)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawPublicClient() bool {
+func (c *Registry) GetAuthClientConfigRawPublicClient() bool {
 	return c.v.GetBool(varAuthClientConfigRawPublicClient)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawRealm() string {
+func (c *Registry) GetAuthClientConfigRawRealm() string {
 	return c.v.GetString(varAuthClientConfigRawRealm)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawResource() string {
+func (c *Registry) GetAuthClientConfigRawResource() string {
 	return c.v.GetString(varAuthClientConfigRawResource)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawServerURL() string {
-	return c.v.GetString(varAuthClientConfigRawServerURL)
+func (c *Registry) GetAuthClientConfigRawAuthServerURL() string {
+	return c.v.GetString(varAuthClientConfigRawAuthServerURL)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRawSSLReuired() string {
+func (c *Registry) GetAuthClientConfigRawSSLRequired() string {
 	return c.v.GetString(varAuthClientConfigRawSSLRequired)
 }
 

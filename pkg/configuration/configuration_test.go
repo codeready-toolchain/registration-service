@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	. "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -30,7 +33,7 @@ func TestRunConfigurationSuite(t *testing.T) {
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
 func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Registry {
-	config, err := configuration.New("")
+	config, err := configuration.New("", NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
 }
@@ -50,21 +53,21 @@ func (s *TestConfigurationSuite) getFileConfiguration(content string) *configura
 	_, err = tmpFile.Write([]byte(content))
 	require.NoError(s.T(), err)
 	require.NoError(s.T(), tmpFile.Close())
-	config, err := configuration.New(tmpFile.Name())
+	config, err := configuration.New(tmpFile.Name(), NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
 }
 
 func (s *TestConfigurationSuite) TestNew() {
 	s.Run("default configuration", func() {
-		reg, err := configuration.New("")
+		reg, err := configuration.New("", NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), reg)
 	})
 	s.Run("non existing file path", func() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
-		reg, err := configuration.New(u.String())
+		reg, err := configuration.New(u.String(), NewFakeClient(s.T()))
 		require.Error(s.T(), err)
 		require.Nil(s.T(), reg)
 	})
@@ -335,36 +338,268 @@ func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
 	})
 }
 
-//func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
-//	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
-//
-//	s.Run("default", func() {
-//		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-//		defer resetFunc()
-//		config := s.getDefaultConfiguration()
-//		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
-//	})
-//
-//	s.Run("file", func() {
-//		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-//		defer resetFunc()
-//		u, err := uuid.NewV4()
-//		require.NoError(s.T(), err)
-//		newVal := u.String()
-//		config := s.getFileConfiguration(`auth_client.config.raw: "` + newVal + `"`)
-//		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
-//	})
-//
-//	s.Run("env overwrite", func() {
-//		u, err := uuid.NewV4()
-//		require.NoError(s.T(), err)
-//		newVal := u.String()
-//		err = os.Setenv(key, newVal)
-//		require.NoError(s.T(), err)
-//		config := s.getDefaultConfiguration()
-//		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
-//	})
-//}
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawPublicClient() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_PUBLIC_CLIENT"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawPublicClient, config.GetAuthClientConfigRawPublicClient())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "false"
+		config := s.getFileConfiguration(`auth_client.config_raw.public_client: "` + newVal + `"`)
+		assert.Equal(s.T(), false, config.GetAuthClientConfigRawPublicClient())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "false"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), false, config.GetAuthClientConfigRawPublicClient())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawAuthServerURL() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_AUTH_SERVER_URL"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawAuthServerURL, config.GetAuthClientConfigRawAuthServerURL())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`auth_client.config_raw.auth_server_url: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawAuthServerURL())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		err = os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawAuthServerURL())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawSSLRequired() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_SSL_REQUIRED"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientRawSSLRequired, config.GetAuthClientConfigRawSSLRequired())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`auth_client.config_raw.ssl_required: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawSSLRequired())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		err = os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawSSLRequired())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawRealm() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_REALM"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawRealm, config.GetAuthClientConfigRawRealm())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`auth_client.config_raw.realm: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawRealm())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		err = os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawRealm())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawResource() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_RESOURCE"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawResource, config.GetAuthClientConfigRawResource())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`auth_client.config_raw.resource: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawResource())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		err = os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawResource())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRawClientID() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_CLIENT_ID"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawClientID, config.GetAuthClientConfigRawClientID())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		config := s.getFileConfiguration(`auth_client.config_raw.client_id: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawClientID())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		newVal := u.String()
+		err = os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawClientID())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationEnabled() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationEnabled, config.GetVerificationEnabled())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "false"
+		config := s.getFileConfiguration(`verification.enabled: "` + newVal + `"`)
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "false"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationDailyLimit() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationDailyLimit, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "10"
+		config := s.getFileConfiguration(`verification.daily_limit: "` + newVal + `"`)
+		assert.Equal(s.T(), 10, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "12"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 12, config.GetVerificationDailyLimit())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationAttemptsAllowed() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationAttemptsAllowed, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "10"
+		config := s.getFileConfiguration(`verification.attempts_allowed: "` + newVal + `"`)
+		assert.Equal(s.T(), 10, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "12"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 12, config.GetVerificationAttemptsAllowed())
+	})
+}
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
@@ -579,64 +814,116 @@ func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestTwilioAccountSID() {
-	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
-	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-	defer resetFunc()
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
+func (s *TestConfigurationSuite) TestLoadSecret() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	s.T().Run("default", func(t *testing.T) {
+		// when
 		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), "", config.GetTwilioAccountSID())
+
+		// then
+		assert.Equal(t, "", config.GetTwilioAccountSID())
+		assert.Equal(t, "", config.GetTwilioAuthToken())
+	})
+	s.T().Run("env overwrite", func(t *testing.T) {
+		// given
+		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_SECRET_NAME", "test-secret")
+		defer restore()
+
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: "toolchain-host-operator",
+			},
+			Data: map[string][]byte{
+				"twilio.account.sid": []byte("test-account-sid"),
+				"twilio.auth.token":  []byte("test-auth-token"),
+			},
+		}
+
+		// when
+		config, err := configuration.New("", NewFakeClient(t, secret))
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "test-account-sid", config.GetTwilioAccountSID())
+		assert.Equal(t, "test-auth-token", config.GetTwilioAuthToken())
 	})
 
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		config := s.getFileConfiguration(`twilio.account_sid: ` + u.String())
-		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
-	})
+	s.T().Run("secret not found", func(t *testing.T) {
+		// given
+		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_SECRET_NAME", "test-secret")
+		defer restore()
 
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		err = os.Setenv(key, u.String())
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
+		// when
+		config, err := configuration.New("", NewFakeClient(t))
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, config)
 	})
 }
 
-func (s *TestConfigurationSuite) TestTwilioAuthToken() {
-	key := configuration.EnvPrefix + "_" + "TWILIO_AUTH_TOKEN"
-	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-	defer resetFunc()
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
+func (s *TestConfigurationSuite) TestLoadConfigMap() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	s.T().Run("default", func(t *testing.T) {
+		// when
 		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), "", config.GetTwilioAuthToken())
+
+		// then
+		assert.Equal(t, "", config.GetTwilioAccountSID())
+		assert.Equal(t, "", config.GetTwilioAuthToken())
+	})
+	s.T().Run("env overwrite", func(t *testing.T) {
+		// given
+		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", "test-config-map")
+		defer restore()
+
+		configMap := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-config-map",
+				Namespace: "toolchain-host-operator",
+			},
+			Data: map[string]string{
+				"auth_client.config_raw.realm":           "test-realm",
+				"auth_client.config_raw.auth_server_url": "test-auth-server-url",
+				"auth_client.config_raw.ssl_required":    "test-ssl-required",
+				"auth_client.config_raw.resource":        "test-resource",
+				"auth_client.config_raw.client_id":       "test-client-id",
+				"auth_client.config_raw.public_client":   "true",
+				"verification.enabled":                   "false",
+				"verification.daily_limit":               "20",
+				"verification.attempts_allowed":          "100",
+			},
+		}
+
+		// when
+		config, err := configuration.New("", NewFakeClient(t, configMap))
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "test-realm", config.GetAuthClientConfigRawRealm())
+		assert.Equal(t, "test-auth-server-url", config.GetAuthClientConfigRawAuthServerURL())
+		assert.Equal(t, "test-ssl-required", config.GetAuthClientConfigRawSSLRequired())
+		assert.Equal(t, "test-resource", config.GetAuthClientConfigRawResource())
+		assert.Equal(t, "test-client-id", config.GetAuthClientConfigRawClientID())
+		assert.Equal(t, true, config.GetAuthClientConfigRawPublicClient())
+		assert.Equal(t, false, config.GetVerificationEnabled())
+		assert.Equal(t, 20, config.GetVerificationDailyLimit())
+		assert.Equal(t, 100, config.GetVerificationAttemptsAllowed())
 	})
 
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		config := s.getFileConfiguration(`twilio.auth_token: ` + u.String())
-		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
-	})
+	s.T().Run("secret not found", func(t *testing.T) {
+		// given
+		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", "test-config-map")
+		defer restore()
 
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		err = os.Setenv(key, u.String())
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+		// when
+		config, err := configuration.New("", NewFakeClient(t))
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, config)
 	})
 }

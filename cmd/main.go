@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create client that will be used for retrieving the host operator secret
+	// create client that will be used for retrieving the registration service configmaps and secrets
 	cl, err := client.New(cfg, client.Options{})
 	if err != nil {
 		panic(err.Error())
@@ -82,12 +82,12 @@ func main() {
 }
 
 func printConfig(cfg *configuration.Registry) {
-	log.Info(nil, "AuthRawSSLRequired: "+cfg.GetAuthClientConfigAuthRawSSLReuired())
-	log.Info(nil, "AuthRawServerURL: "+cfg.GetAuthClientConfigAuthRawServerURL())
-	log.Info(nil, "AuthRawResource: "+cfg.GetAuthClientConfigAuthRawResource())
-	log.Info(nil, "AuthRawRealm: "+cfg.GetAuthClientConfigAuthRawRealm())
-	log.Info(nil, "AuthRawPublicClient: "+strconv.FormatBool(cfg.GetAuthClientConfigAuthRawPublicClient()))
-	log.Info(nil, "AuthRawClientID: "+cfg.GetAuthClientConfigAuthRawClientID())
+	log.Info(nil, "AuthRawSSLRequired: "+cfg.GetAuthClientConfigRawSSLRequired())
+	log.Info(nil, "AuthRawServerURL: "+cfg.GetAuthClientConfigRawAuthServerURL())
+	log.Info(nil, "AuthRawResource: "+cfg.GetAuthClientConfigRawResource())
+	log.Info(nil, "AuthRawRealm: "+cfg.GetAuthClientConfigRawRealm())
+	log.Info(nil, "AuthRawPublicClient: "+strconv.FormatBool(cfg.GetAuthClientConfigRawPublicClient()))
+	log.Info(nil, "AuthRawClientID: "+cfg.GetAuthClientConfigRawClientID())
 	log.Info(nil, "VerificationEnabled: "+strconv.FormatBool(cfg.GetVerificationEnabled()))
 	log.Info(nil, "VerificationDailyLimit: "+strconv.Itoa(cfg.GetVerificationDailyLimit()))
 	log.Info(nil, "VerificationAttemptsAllowed: "+strconv.Itoa(cfg.GetVerificationAttemptsAllowed()))

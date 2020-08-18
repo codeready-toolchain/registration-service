@@ -338,41 +338,14 @@ func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawPublicClient() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_PUBLIC_CLIENT"
+func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
+	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
 	s.Run("default", func() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawPublicClient, config.GetAuthClientConfigRawPublicClient())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		newVal := "false"
-		config := s.getFileConfiguration(`auth_client.config_raw.public_client: "` + newVal + `"`)
-		assert.Equal(s.T(), false, config.GetAuthClientConfigRawPublicClient())
-	})
-
-	s.Run("env overwrite", func() {
-		newVal := "false"
-		err := os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), false, config.GetAuthClientConfigRawPublicClient())
-	})
-}
-
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawAuthServerURL() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_AUTH_SERVER_URL"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawAuthServerURL, config.GetAuthClientConfigRawAuthServerURL())
+		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRaw, config.GetAuthClientConfigAuthRaw())
 	})
 
 	s.Run("file", func() {
@@ -381,8 +354,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRawAuthServerURL() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config_raw.auth_server_url: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawAuthServerURL())
+		config := s.getFileConfiguration(`auth_client.config.raw: "` + newVal + `"`)
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
 	})
 
 	s.Run("env overwrite", func() {
@@ -392,131 +365,7 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRawAuthServerURL() {
 		err = os.Setenv(key, newVal)
 		require.NoError(s.T(), err)
 		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawAuthServerURL())
-	})
-}
-
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawSSLRequired() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_SSL_REQUIRED"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientRawSSLRequired, config.GetAuthClientConfigRawSSLRequired())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config_raw.ssl_required: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawSSLRequired())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		err = os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawSSLRequired())
-	})
-}
-
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawRealm() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_REALM"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawRealm, config.GetAuthClientConfigRawRealm())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config_raw.realm: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawRealm())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		err = os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawRealm())
-	})
-}
-
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawResource() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_RESOURCE"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawResource, config.GetAuthClientConfigRawResource())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config_raw.resource: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawResource())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		err = os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawResource())
-	})
-}
-
-func (s *TestConfigurationSuite) TestGetAuthClientConfigRawClientID() {
-	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW_CLIENT_ID"
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultAuthClientConfigRawClientID, config.GetAuthClientConfigRawClientID())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		config := s.getFileConfiguration(`auth_client.config_raw.client_id: "` + newVal + `"`)
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawClientID())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		newVal := u.String()
-		err = os.Setenv(key, newVal)
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.GetAuthClientConfigRawClientID())
+		assert.Equal(s.T(), newVal, config.GetAuthClientConfigAuthRaw())
 	})
 }
 
@@ -886,15 +735,10 @@ func (s *TestConfigurationSuite) TestLoadConfigMap() {
 				Namespace: "toolchain-host-operator",
 			},
 			Data: map[string]string{
-				"auth_client.config_raw.realm":           "test-realm",
-				"auth_client.config_raw.auth_server_url": "test-auth-server-url",
-				"auth_client.config_raw.ssl_required":    "test-ssl-required",
-				"auth_client.config_raw.resource":        "test-resource",
-				"auth_client.config_raw.client_id":       "test-client-id",
-				"auth_client.config_raw.public_client":   "true",
-				"verification.enabled":                   "false",
-				"verification.daily_limit":               "20",
-				"verification.attempts_allowed":          "100",
+				"auth_client.config_raw":        "{\"realm\": \"toolchain-public\",\"auth-server-url\": \"https://sso.prod-preview.openshift.io/auth\",\"ssl-required\": \"none\",\"resource\": \"crt\",\"clientId\": \"crt\",\"public-client\": \"true\"}",
+				"verification.daily_limit":      "100",
+				"verification.enabled":          "false",
+				"verification.attempts_allowed": "120",
 			},
 		}
 
@@ -903,15 +747,10 @@ func (s *TestConfigurationSuite) TestLoadConfigMap() {
 
 		// then
 		require.NoError(t, err)
-		assert.Equal(t, "test-realm", config.GetAuthClientConfigRawRealm())
-		assert.Equal(t, "test-auth-server-url", config.GetAuthClientConfigRawAuthServerURL())
-		assert.Equal(t, "test-ssl-required", config.GetAuthClientConfigRawSSLRequired())
-		assert.Equal(t, "test-resource", config.GetAuthClientConfigRawResource())
-		assert.Equal(t, "test-client-id", config.GetAuthClientConfigRawClientID())
-		assert.Equal(t, true, config.GetAuthClientConfigRawPublicClient())
+		assert.Equal(t, "{\"realm\": \"toolchain-public\",\"auth-server-url\": \"https://sso.prod-preview.openshift.io/auth\",\"ssl-required\": \"none\",\"resource\": \"crt\",\"clientId\": \"crt\",\"public-client\": \"true\"}", config.GetAuthClientConfigAuthRaw())
 		assert.Equal(t, false, config.GetVerificationEnabled())
-		assert.Equal(t, 20, config.GetVerificationDailyLimit())
-		assert.Equal(t, 100, config.GetVerificationAttemptsAllowed())
+		assert.Equal(t, 100, config.GetVerificationDailyLimit())
+		assert.Equal(t, 120, config.GetVerificationAttemptsAllowed())
 	})
 
 	s.T().Run("secret not found", func(t *testing.T) {

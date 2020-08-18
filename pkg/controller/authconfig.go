@@ -11,15 +11,7 @@ type configResponse struct {
 	AuthClientLibraryURL string `json:"auth-client-library-url"`
 	// this holds the raw config. Note: this is intentionally a string
 	// not json as this field may also hold non-json configs!
-	AuthClientConfigRawRealm        string `json:"auth-client-config-realm"`
-	AuthClientConfigRawServerURL    string `json:"auth-client-config-server-url"`
-	AuthClientConfigRawSSLRequired  string `json:"auth-client-config-ssl-required"`
-	AuthClientConfigRawResource     string `json:"auth-client-config-resource"`
-	AuthClientConfigRawClientID     string `json:"auth-client-config-client-id"`
-	AuthClientConfigRawPublicClient bool   `json:"auth-client-config-public-client"`
-	VerificationEnabled             bool   `json:"verification-enabled"`
-	VerificationDailyLimit          int    `json:"verification-daily-limit"`
-	VerificationAttemptsAllowed     int    `json:"verification-attempts-allowed"`
+	AuthClientConfigRaw string `json:"auth-client-config"`
 }
 
 // AuthConfig implements the auth config endpoint, which is invoked to
@@ -38,16 +30,8 @@ func NewAuthConfig(config *configuration.Registry) *AuthConfig {
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	configRespData := configResponse{
-		AuthClientLibraryURL:            ac.config.GetAuthClientLibraryURL(),
-		AuthClientConfigRawClientID:     ac.config.GetAuthClientConfigRawClientID(),
-		AuthClientConfigRawPublicClient: ac.config.GetAuthClientConfigRawPublicClient(),
-		AuthClientConfigRawRealm:        ac.config.GetAuthClientConfigRawRealm(),
-		AuthClientConfigRawResource:     ac.config.GetAuthClientConfigRawResource(),
-		AuthClientConfigRawServerURL:    ac.config.GetAuthClientConfigRawAuthServerURL(),
-		AuthClientConfigRawSSLRequired:  ac.config.GetAuthClientConfigRawSSLRequired(),
-		VerificationEnabled:             ac.config.GetVerificationEnabled(),
-		VerificationDailyLimit:          ac.config.GetVerificationDailyLimit(),
-		VerificationAttemptsAllowed:     ac.config.GetVerificationAttemptsAllowed(),
+		AuthClientLibraryURL: ac.config.GetAuthClientLibraryURL(),
+		AuthClientConfigRaw:  ac.config.GetAuthClientConfigAuthRaw(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

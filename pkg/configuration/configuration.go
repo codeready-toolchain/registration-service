@@ -76,23 +76,15 @@ const (
 	// DefaultAuthClientLibraryURL is the default auth library location.
 	DefaultAuthClientLibraryURL = "https://sso.prod-preview.openshift.io/auth/js/keycloak.js"
 
-	varAuthClientConfigRawRealm     = "auth_client.config_raw.realm"
-	DefaultAuthClientConfigRawRealm = "toolchain-public"
-
-	varAuthClientConfigRawAuthServerURL     = "auth_client.config_raw.auth_server_url"
-	DefaultAuthClientConfigRawAuthServerURL = "https://sso.prod-preview.openshift.io/auth"
-
-	varAuthClientConfigRawSSLRequired = "auth_client.config_raw.ssl_required"
-	DefaultAuthClientRawSSLRequired   = "none"
-
-	varAuthClientConfigRawResource     = "auth_client.config_raw.resource"
-	DefaultAuthClientConfigRawResource = "crt"
-
-	varAuthClientConfigRawClientID     = "auth_client.config_raw.client_id"
-	DefaultAuthClientConfigRawClientID = "crt"
-
-	varAuthClientConfigRawPublicClient     = "auth_client.config_raw.public_client"
-	DefaultAuthClientConfigRawPublicClient = true
+	varAuthClientConfigRaw     = "auth_client.config.raw"
+	DefaultAuthClientConfigRaw = `{
+		"realm": "toolchain-public",
+		"auth-server-url": "https://sso.prod-preview.openshift.io/auth",
+		"ssl-required": "none",
+		"resource": "crt",
+		"clientId": "crt",
+		"public-client": true
+	}`
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.
@@ -203,12 +195,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
-	c.v.SetDefault(varAuthClientConfigRawRealm, DefaultAuthClientConfigRawRealm)
-	c.v.SetDefault(varAuthClientConfigRawAuthServerURL, DefaultAuthClientConfigRawAuthServerURL)
-	c.v.SetDefault(varAuthClientConfigRawSSLRequired, DefaultAuthClientRawSSLRequired)
-	c.v.SetDefault(varAuthClientConfigRawResource, DefaultAuthClientConfigRawResource)
-	c.v.SetDefault(varAuthClientConfigRawClientID, DefaultAuthClientConfigRawClientID)
-	c.v.SetDefault(varAuthClientConfigRawPublicClient, DefaultAuthClientConfigRawPublicClient)
+	c.v.SetDefault(varAuthClientConfigRaw, DefaultAuthClientConfigRaw)
 	c.v.SetDefault(varVerificationEnabled, DefaultVerificationEnabled)
 	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
 	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
@@ -281,28 +268,8 @@ func (c *Registry) GetAuthClientConfigAuthContentType() string {
 	return c.v.GetString(varAuthClientConfigContentType)
 }
 
-func (c *Registry) GetAuthClientConfigRawClientID() string {
-	return c.v.GetString(varAuthClientConfigRawClientID)
-}
-
-func (c *Registry) GetAuthClientConfigRawPublicClient() bool {
-	return c.v.GetBool(varAuthClientConfigRawPublicClient)
-}
-
-func (c *Registry) GetAuthClientConfigRawRealm() string {
-	return c.v.GetString(varAuthClientConfigRawRealm)
-}
-
-func (c *Registry) GetAuthClientConfigRawResource() string {
-	return c.v.GetString(varAuthClientConfigRawResource)
-}
-
-func (c *Registry) GetAuthClientConfigRawAuthServerURL() string {
-	return c.v.GetString(varAuthClientConfigRawAuthServerURL)
-}
-
-func (c *Registry) GetAuthClientConfigRawSSLRequired() string {
-	return c.v.GetString(varAuthClientConfigRawSSLRequired)
+func (c *Registry) GetAuthClientConfigAuthRaw() string {
+	return c.v.GetString(varAuthClientConfigRaw)
 }
 
 // GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages

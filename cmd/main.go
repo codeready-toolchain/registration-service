@@ -82,12 +82,7 @@ func main() {
 }
 
 func printConfig(cfg *configuration.Registry) {
-	log.Info(nil, "AuthRawSSLRequired: "+cfg.GetAuthClientConfigRawSSLRequired())
-	log.Info(nil, "AuthRawServerURL: "+cfg.GetAuthClientConfigRawAuthServerURL())
-	log.Info(nil, "AuthRawResource: "+cfg.GetAuthClientConfigRawResource())
-	log.Info(nil, "AuthRawRealm: "+cfg.GetAuthClientConfigRawRealm())
-	log.Info(nil, "AuthRawPublicClient: "+strconv.FormatBool(cfg.GetAuthClientConfigRawPublicClient()))
-	log.Info(nil, "AuthRawClientID: "+cfg.GetAuthClientConfigRawClientID())
+	log.Info(nil, "AuthRawConfig: "+cfg.GetAuthClientConfigAuthRaw())
 	log.Info(nil, "VerificationEnabled: "+strconv.FormatBool(cfg.GetVerificationEnabled()))
 	log.Info(nil, "VerificationDailyLimit: "+strconv.Itoa(cfg.GetVerificationDailyLimit()))
 	log.Info(nil, "VerificationAttemptsAllowed: "+strconv.Itoa(cfg.GetVerificationAttemptsAllowed()))

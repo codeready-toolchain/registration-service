@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20200805071634-c62858ce3204
+	github.com/codeready-toolchain/api v0.0.0-20200810164016-1a79a0101726
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20200805073859-f231c3ee728e
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/gzip v0.0.1
@@ -12,6 +12,11 @@ require (
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
+	github.com/inconshreveable/log15 v0.0.0-20200109203555-b30bc20e4fd1 // indirect
+	github.com/kevinburke/go-types v0.0.0-20200309064045-f2d4aea18a7a // indirect
+	github.com/kevinburke/go.uuid v1.2.0 // indirect
+	github.com/kevinburke/rest v0.0.0-20200429221318-0d2892b400f8 // indirect
+	github.com/kevinburke/twilio-go v0.0.0-20200810163702-320748330fac
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1
@@ -19,7 +24,10 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0
-	github.com/ugorji/go v1.1.7 // indirect
+	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
+	github.com/ttacon/libphonenumber v1.1.0 // indirect
+	github.com/ugorji/go/codec v1.1.7 // indirect
+	gopkg.in/h2non/gock.v1 v1.0.14
 	gopkg.in/square/go-jose.v2 v2.3.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.17.4

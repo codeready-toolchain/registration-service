@@ -117,6 +117,18 @@ const (
 	// varTwilioAuthToken is the constant used to read the configuration parameter for the
 	// Twilio authentication token, used for sending SMS verification codes
 	varTwilioAuthToken = "twilio.auth_token"
+
+	// varTwilioFromNumber is the constant used to read the configuration parameter for the
+	// Twilio from number, used for sending SMS verification codes
+	varTwilioFromNumber = "twilio.from_number"
+
+	// varVerificationMessageTemplate is the constant used to read the configuration parameter for the
+	// verification message send to users via SMS
+	varVerificationMessageTemplate = "verification.message_template"
+
+	// DefaultVerificationMessageTemplate is the default verification message template sent to users
+	// via SMS for phone verification.  The string parameter is replaced with a random verification code
+	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -179,6 +191,7 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varVerificationEnabled, DefaultVerificationEnabled)
 	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
 	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
+	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -282,6 +295,12 @@ func (c *Registry) GetVerificationAttemptsAllowed() int {
 	return c.v.GetInt(varVerificationAttemptsAllowed)
 }
 
+// GetVerificationMessageTemplate is the message template used to generate the content sent to users via SMS for
+// phone verification
+func (c *Registry) GetVerificationMessageTemplate() string {
+	return c.v.GetString(varVerificationMessageTemplate)
+}
+
 // GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages
 func (c *Registry) GetTwilioAccountSID() string {
 	return c.v.GetString(varTwilioAccountSID)
@@ -290,4 +309,9 @@ func (c *Registry) GetTwilioAccountSID() string {
 // GetTwilioAuthToken is the Twilio authentication token, used for sending phone verification messages
 func (c *Registry) GetTwilioAuthToken() string {
 	return c.v.GetString(varTwilioAuthToken)
+}
+
+// GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages
+func (c *Registry) GetTwilioFromNumber() string {
+	return c.v.GetString(varTwilioFromNumber)
 }

@@ -1,8 +1,12 @@
 package verification_test
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -71,6 +75,13 @@ func (s *TestVerificationServiceSuite) TestVerify() {
 	ctx, _ := gin.CreateTestContext(rr)
 	svc, _ := s.createVerificationService()
 
+	var reqBody io.ReadCloser
+	obs := func(request *http.Request, mock gock.Mock) {
+		reqBody = request.Body
+	}
+
+	gock.Observe(obs)
+
 	userSignup := &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -90,8 +101,19 @@ func (s *TestVerificationServiceSuite) TestVerify() {
 
 	err := svc.SendVerification(ctx, userSignup)
 	require.NoError(s.T(), err)
-
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reqBody)
+	reqValue := buf.String()
+
+	params, err := url.ParseQuery(reqValue)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), fmt.Sprintf("Your verification code for Red Hat Developer Sandbox is: %s",
+		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		params.Get("Body"))
+	require.Equal(s.T(), "CodeReady", params.Get("From"))
+	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
 func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
@@ -123,6 +145,7 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 
 	err := svc.SendVerification(ctx, userSignup)
 	require.Error(s.T(), err)
+	require.Equal(s.T(), "invalid response body: ", err.Error())
 
 	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
@@ -134,6 +157,7 @@ func (s *TestVerificationServiceSuite) createVerificationService() (verification
 		"CodeReady",
 	)
 
+	//	httpClient := &ClientMock{client: &http.Client{Transport: &http.Transport{}}}
 	httpClient := &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(httpClient)
 

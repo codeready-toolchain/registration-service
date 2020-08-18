@@ -49,7 +49,9 @@ func NewVerificationService(cfg ServiceConfiguration, opts ...VerificationServic
 	return s
 }
 
-// SendVerification sends a verification message to the specified user
+// SendVerification sends a verification message to the specified user.  If successful, it will modify the
+// specified UserSignup parameter, setting the verification code annotation label to the value of the
+// generated verification code
 func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSignup) error {
 	verificationCode, err := generateVerificationCode()
 	if err != nil {

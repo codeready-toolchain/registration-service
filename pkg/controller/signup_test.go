@@ -226,7 +226,6 @@ func (m *FakeSignupService) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSign
 }
 
 type FakeVerificationService struct {
-	MockSendVerification func(ctx *gin.Context, signup *crtapi.UserSignup) error
 }
 
 func (m *FakeVerificationService) SendVerification(ctx *gin.Context, signup *crtapi.UserSignup) error {

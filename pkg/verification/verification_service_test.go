@@ -157,7 +157,6 @@ func (s *TestVerificationServiceSuite) createVerificationService() (verification
 		"CodeReady",
 	)
 
-	//	httpClient := &ClientMock{client: &http.Client{Transport: &http.Transport{}}}
 	httpClient := &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(httpClient)
 

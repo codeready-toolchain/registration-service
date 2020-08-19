@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -57,7 +56,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	printConfig(crtConfig)
+	crtConfig.PrintConfig()
 
 	srv := server.New(crtConfig)
 
@@ -79,13 +78,6 @@ func main() {
 	}()
 
 	gracefulShutdown(srv.HTTPServer(), srv.Config().GetGracefulTimeout())
-}
-
-func printConfig(cfg *configuration.Registry) {
-	log.Info(nil, "AuthRawConfig: "+cfg.GetAuthClientConfigAuthRaw())
-	log.Info(nil, "VerificationEnabled: "+strconv.FormatBool(cfg.GetVerificationEnabled()))
-	log.Info(nil, "VerificationDailyLimit: "+strconv.Itoa(cfg.GetVerificationDailyLimit()))
-	log.Info(nil, "VerificationAttemptsAllowed: "+strconv.Itoa(cfg.GetVerificationAttemptsAllowed()))
 }
 
 func gracefulShutdown(hs *http.Server, timeout time.Duration) {

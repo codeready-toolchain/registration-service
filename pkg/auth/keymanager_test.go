@@ -229,7 +229,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		}
 	})
 
-	checkE2EKeysNotFound := func(config *configuration.Registry) {
+	checkE2EKeysNotFound := func(config *configuration.Config) {
 		keyManager, err := auth.NewKeyManager(config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()

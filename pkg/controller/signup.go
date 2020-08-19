@@ -14,12 +14,12 @@ import (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config        *configuration.Registry
+	config        *configuration.Config
 	signupService signup.Service
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(config *configuration.Registry, signupService signup.Service) *Signup {
+func NewSignup(config *configuration.Config, signupService signup.Service) *Signup {
 	return &Signup{
 		config:        config,
 		signupService: signupService,

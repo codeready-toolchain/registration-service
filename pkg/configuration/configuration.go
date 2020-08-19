@@ -6,13 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 
 	errs "github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
+
+var log = logf.Log.WithName("manager")
 
 var (
 	// Commit current build commit set by build script.
@@ -124,13 +126,13 @@ const (
 
 // Registry encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
-type Registry struct {
+type Config struct {
 	v            *viper.Viper
 	secretValues map[string]string
 }
 
 // CreateEmptyRegistry creates an initial, empty registry.
-func CreateEmptyRegistry(cl client.Client) (*Registry, error) {
+func CreateEmptyRegistry(cl client.Client) (*Config, error) {
 
 	err := configuration.LoadFromConfigMap(EnvPrefix, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", cl)
 	if err != nil {
@@ -142,7 +144,7 @@ func CreateEmptyRegistry(cl client.Client) (*Registry, error) {
 		return nil, err
 	}
 
-	c := Registry{
+	c := Config{
 		v:            viper.New(),
 		secretValues: secret,
 	}
@@ -157,7 +159,7 @@ func CreateEmptyRegistry(cl client.Client) (*Registry, error) {
 // New creates a configuration reader object using a configurable configuration
 // file path. If the provided config file path is empty, a default configuration
 // will be created.
-func New(configFilePath string, cl client.Client) (*Registry, error) {
+func New(configFilePath string, cl client.Client) (*Config, error) {
 	c, err := CreateEmptyRegistry(cl)
 	if err != nil {
 		return nil, err
@@ -174,12 +176,27 @@ func New(configFilePath string, cl client.Client) (*Registry, error) {
 	return c, nil
 }
 
+func getRegistrationEnvVarKey(key string) string {
+	envKey := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+	return EnvPrefix + "_" + envKey
+}
+
+func (c *Config) PrintConfig() {
+	logWithValuesHost := log.WithValues(
+		getRegistrationEnvVarKey(varAuthClientConfigRaw), c.GetAuthClientConfigAuthRaw(),
+		getRegistrationEnvVarKey(varVerificationEnabled), c.GetVerificationEnabled(),
+		getRegistrationEnvVarKey(varVerificationDailyLimit), c.GetVerificationDailyLimit(),
+		getRegistrationEnvVarKey(varVerificationAttemptsAllowed), c.GetVerificationAttemptsAllowed())
+
+	logWithValuesHost.Info("Host Operator configuration variables:")
+}
+
 // GetViperInstance returns the underlying Viper instance.
-func (c *Registry) GetViperInstance() *viper.Viper {
+func (c *Config) GetViperInstance() *viper.Viper {
 	return c.v
 }
 
-func (c *Registry) setConfigDefaults() {
+func (c *Config) setConfigDefaults() {
 	c.v.SetTypeByDefaultValue(true)
 
 	c.v.SetDefault(varHTTPAddress, DefaultHTTPAddress)
@@ -203,109 +220,109 @@ func (c *Registry) setConfigDefaults() {
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
 // environment variable) that the app-server binds to (e.g. "0.0.0.0:8080").
-func (c *Registry) GetHTTPAddress() string {
+func (c *Config) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }
 
 // GetHTTPCompressResponses returns true if HTTP responses should be compressed
 // for clients that support it via the 'Accept-Encoding' header.
-func (c *Registry) GetHTTPCompressResponses() bool {
+func (c *Config) GetHTTPCompressResponses() bool {
 	return c.v.GetBool(varHTTPCompressResponses)
 }
 
 // GetHTTPWriteTimeout returns the duration for the write timeout.
-func (c *Registry) GetHTTPWriteTimeout() time.Duration {
+func (c *Config) GetHTTPWriteTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPWriteTimeout)
 }
 
 // GetHTTPReadTimeout returns the duration for the read timeout.
-func (c *Registry) GetHTTPReadTimeout() time.Duration {
+func (c *Config) GetHTTPReadTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPReadTimeout)
 }
 
 // GetHTTPIdleTimeout returns the duration for the idle timeout.
-func (c *Registry) GetHTTPIdleTimeout() time.Duration {
+func (c *Config) GetHTTPIdleTimeout() time.Duration {
 	return c.v.GetDuration(varHTTPIdleTimeout)
 }
 
 // GetEnvironment returns the environment such as prod, stage, unit-tests, e2e-tests, dev, etc
-func (c *Registry) GetEnvironment() string {
+func (c *Config) GetEnvironment() string {
 	return c.v.GetString(varEnvironment)
 }
 
 // GetLogLevel returns the logging level (as set via config file or environment
 // variable).
-func (c *Registry) GetLogLevel() string {
+func (c *Config) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
 }
 
 // IsLogJSON returns if we should log json format (as set via config file or
 // environment variable).
-func (c *Registry) IsLogJSON() bool {
+func (c *Config) IsLogJSON() bool {
 	return c.v.GetBool(varLogJSON)
 }
 
 // GetGracefulTimeout returns the duration for which the server gracefully wait
 // for existing connections to finish - e.g. 15s or 1m.
-func (c *Registry) GetGracefulTimeout() time.Duration {
+func (c *Config) GetGracefulTimeout() time.Duration {
 	return c.v.GetDuration(varGracefulTimeout)
 }
 
 // IsTestingMode returns if the service runs in unit-tests environment
-func (c *Registry) IsTestingMode() bool {
+func (c *Config) IsTestingMode() bool {
 	return c.GetEnvironment() == UnitTestsEnvironment
 }
 
 // GetAuthClientLibraryURL returns the auth library location (as set via
 // config file or environment variable).
-func (c *Registry) GetAuthClientLibraryURL() string {
+func (c *Config) GetAuthClientLibraryURL() string {
 	return c.v.GetString(varAuthClientLibraryURL)
 }
 
 // GetAuthClientConfigAuthContentType returns the auth config config content type (as
 // set via config file or environment variable).
-func (c *Registry) GetAuthClientConfigAuthContentType() string {
+func (c *Config) GetAuthClientConfigAuthContentType() string {
 	return c.v.GetString(varAuthClientConfigContentType)
 }
 
-func (c *Registry) GetAuthClientConfigAuthRaw() string {
+func (c *Config) GetAuthClientConfigAuthRaw() string {
 	return c.v.GetString(varAuthClientConfigRaw)
 }
 
 // GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages
-func (c *Registry) GetTwilioAccountSID() string {
+func (c *Config) GetTwilioAccountSID() string {
 	return c.secretValues[varTwilioAccountSID]
 }
 
 // GetTwilioAuthToken is the Twilio authentication token, used for sending phone verification messages
-func (c *Registry) GetTwilioAuthToken() string {
+func (c *Config) GetTwilioAuthToken() string {
 	return c.secretValues[varTwilioAuthToken]
 }
 
 // GetAuthClientPublicKeysURL returns the public keys URL (as set via config file
 // or environment variable).
-func (c *Registry) GetAuthClientPublicKeysURL() string {
+func (c *Config) GetAuthClientPublicKeysURL() string {
 	return c.v.GetString(varAuthClientPublicKeysURL)
 }
 
 // GetNamespace returns the namespace in which the registration service and host operator is running
-func (c *Registry) GetNamespace() string {
+func (c *Config) GetNamespace() string {
 	return c.v.GetString(varNamespace)
 }
 
 // GetVerificationEnabled indicates whether the phone verification feature is enabled or not
-func (c *Registry) GetVerificationEnabled() bool {
+func (c *Config) GetVerificationEnabled() bool {
 	return c.v.GetBool(varVerificationEnabled)
 }
 
 // GetVerificationDailyLimit is the number of times a user may initiate a phone verification request within a
 // 24 hour period
-func (c *Registry) GetVerificationDailyLimit() int {
+func (c *Config) GetVerificationDailyLimit() int {
 	return c.v.GetInt(varVerificationDailyLimit)
 }
 
 // GetVerificationAttemptsAllowed is the number of times a user may attempt to correctly enter a verification code,
 // if they fail then they must request another code
-func (c *Registry) GetVerificationAttemptsAllowed() int {
+func (c *Config) GetVerificationAttemptsAllowed() int {
 	return c.v.GetInt(varVerificationAttemptsAllowed)
 }

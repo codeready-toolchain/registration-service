@@ -32,7 +32,7 @@ func TestRunConfigurationSuite(t *testing.T) {
 // defaults set. Remember that environment variables can overwrite defaults, so
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Registry {
+func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config {
 	config, err := configuration.New("", NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
@@ -43,7 +43,7 @@ func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Regist
 // getDefaultConfiguration() remember that environment variables can overwrite
 // defaults, so please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Registry {
+func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Config {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")
 	require.NoError(s.T(), err)
 	defer func() {

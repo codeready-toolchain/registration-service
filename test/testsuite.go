@@ -11,7 +11,7 @@ import (
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Config *configuration.Registry
+	Config *configuration.Config
 }
 
 // SetupSuite sets the suite up and sets testmode.

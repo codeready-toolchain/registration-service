@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 
+	"github.com/codeready-toolchain/registration-service/pkg/verification"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -14,15 +16,17 @@ import (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config        *configuration.Config
-	signupService signup.Service
+	config              *configuration.Config
+	signupService       signup.Service
+	verificationService verification.Service
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(config *configuration.Config, signupService signup.Service) *Signup {
+func NewSignup(config *configuration.Config, signupService signup.Service, verificationService verification.Service) *Signup {
 	return &Signup{
-		config:        config,
-		signupService: signupService,
+		config:              config,
+		signupService:       signupService,
+		verificationService: verificationService,
 	}
 }
 

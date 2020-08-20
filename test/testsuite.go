@@ -18,6 +18,8 @@ type UnitTestSuite struct {
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	log.Init("registration-service-testing")
+	restore := test.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 
 	cfg, errs := configuration.CreateEmptyRegistry(test.NewFakeClient(s.T()))
 	if errs != nil {

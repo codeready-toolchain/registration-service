@@ -3,6 +3,7 @@
 package configuration
 
 import (
+	"os"
 	"strings"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var log = logf.Log.WithName("manager")
+var log = logf.Log.WithName("configuration")
 
 var (
 	// Commit current build commit set by build script.
@@ -136,7 +137,7 @@ const (
 	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
 )
 
-// Registry encapsulates the Viper configuration registry which stores the
+// Config encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type Config struct {
 	v            *viper.Viper
@@ -145,12 +146,7 @@ type Config struct {
 
 // CreateEmptyRegistry creates an initial, empty registry.
 func CreateEmptyRegistry(cl client.Client) (*Config, error) {
-
-	err := configuration.LoadFromConfigMap(EnvPrefix, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", cl)
-	if err != nil {
-		return nil, err
-	}
-
+	os.Setenv("REGISTRATION_SERVICE_SECRET_NAME", "reg-service-secret")
 	secret, err := configuration.LoadFromSecret("REGISTRATION_SERVICE_SECRET_NAME", cl)
 	if err != nil {
 		return nil, err

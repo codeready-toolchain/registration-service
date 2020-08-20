@@ -59,6 +59,9 @@ func (s *TestConfigurationSuite) getFileConfiguration(content string) *configura
 }
 
 func (s *TestConfigurationSuite) TestNew() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	s.Run("default configuration", func() {
 		reg, err := configuration.New("", NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
@@ -74,6 +77,8 @@ func (s *TestConfigurationSuite) TestNew() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPAddress() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_ADDRESS"
 
 	s.Run("default", func() {
@@ -105,6 +110,9 @@ func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 }
 
 func (s *TestConfigurationSuite) TestGetLogLevel() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "LOG_LEVEL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -138,6 +146,9 @@ func (s *TestConfigurationSuite) TestGetLogLevel() {
 }
 
 func (s *TestConfigurationSuite) TestIsLogJSON() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "LOG_JSON"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -167,6 +178,9 @@ func (s *TestConfigurationSuite) TestIsLogJSON() {
 }
 
 func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "GRACEFUL_TIMEOUT"
 
 	s.Run("default", func() {
@@ -194,6 +208,8 @@ func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_WRITE_TIMEOUT"
 
 	s.Run("default", func() {
@@ -221,6 +237,8 @@ func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_READ_TIMEOUT"
 
 	s.Run("default", func() {
@@ -248,6 +266,8 @@ func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_IDLE_TIMEOUT"
 
 	s.Run("default", func() {
@@ -275,6 +295,8 @@ func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_COMPRESS"
 
 	s.Run("default", func() {
@@ -302,6 +324,8 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 }
 
 func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -339,6 +363,8 @@ func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
 	s.Run("default", func() {
@@ -370,6 +396,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationEnabled() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
 
 	s.Run("default", func() {
@@ -397,6 +425,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationEnabled() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationDailyLimit() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
 
 	s.Run("default", func() {
@@ -424,6 +454,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationDailyLimit()
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationAttemptsAllowed() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
 
 	s.Run("default", func() {
@@ -451,6 +483,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationAttemptsAllo
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
 
 	s.Run("default", func() {
@@ -482,6 +516,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_LIBRARY_URL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -515,6 +551,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_PUBLIC_KEYS_URL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -548,6 +586,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 }
 
 func (s *TestConfigurationSuite) TestGetNamespace() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "NAMESPACE"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -581,6 +621,8 @@ func (s *TestConfigurationSuite) TestGetNamespace() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationEnabled() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -608,6 +650,8 @@ func (s *TestConfigurationSuite) TestVerificationEnabled() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -636,6 +680,8 @@ func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -672,6 +718,8 @@ func (s *TestConfigurationSuite) TestLoadSecret() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_MESSAGE_TEMPLATE"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -717,12 +765,9 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 	})
 	s.T().Run("env overwrite", func(t *testing.T) {
 		// given
-		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_SECRET_NAME", "test-secret")
-		defer restore()
-
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-secret",
+				Name:      "reg-service-secret",
 				Namespace: "toolchain-host-operator",
 			},
 			Data: map[string][]byte{
@@ -754,61 +799,9 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestLoadConfigMap() {
+func (s *TestConfigurationSuite) TestTwilioFromNumber() {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()
-	s.T().Run("default", func(t *testing.T) {
-		// when
-		config := s.getDefaultConfiguration()
-
-		// then
-		assert.Equal(t, "", config.GetTwilioAccountSID())
-		assert.Equal(t, "", config.GetTwilioAuthToken())
-	})
-	s.T().Run("env overwrite", func(t *testing.T) {
-		// given
-		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", "test-config-map")
-		defer restore()
-
-		configMap := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-config-map",
-				Namespace: "toolchain-host-operator",
-			},
-			Data: map[string]string{
-				"auth_client.config_raw":        "{\"realm\": \"toolchain-public\",\"auth-server-url\": \"https://sso.prod-preview.openshift.io/auth\",\"ssl-required\": \"none\",\"resource\": \"crt\",\"clientId\": \"crt\",\"public-client\": \"true\"}",
-				"verification.daily_limit":      "100",
-				"verification.enabled":          "false",
-				"verification.attempts_allowed": "120",
-			},
-		}
-
-		// when
-		config, err := configuration.New("", NewFakeClient(t, configMap))
-
-		// then
-		require.NoError(t, err)
-		assert.Equal(t, "{\"realm\": \"toolchain-public\",\"auth-server-url\": \"https://sso.prod-preview.openshift.io/auth\",\"ssl-required\": \"none\",\"resource\": \"crt\",\"clientId\": \"crt\",\"public-client\": \"true\"}", config.GetAuthClientConfigAuthRaw())
-		assert.Equal(t, false, config.GetVerificationEnabled())
-		assert.Equal(t, 100, config.GetVerificationDailyLimit())
-		assert.Equal(t, 120, config.GetVerificationAttemptsAllowed())
-	})
-
-	s.T().Run("secret not found", func(t *testing.T) {
-		// given
-		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_CONFIG_MAP_NAME", "test-config-map")
-		defer restore()
-
-		// when
-		config, err := configuration.New("", NewFakeClient(t))
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-	})
-}
-
-func (s *TestConfigurationSuite) TestTwilioFromNumber() {
 	key := configuration.EnvPrefix + "_" + "TWILIO_FROM_NUMBER"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()

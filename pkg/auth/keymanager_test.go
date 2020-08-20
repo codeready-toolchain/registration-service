@@ -39,6 +39,9 @@ func (s *TestKeyManagerSuite) TestKeyManager() {
 }
 
 func (s *TestKeyManagerSuite) TestKeyFetching() {
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.NewV4().String()
@@ -216,6 +219,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 }
 
 func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	s.Run("retrieve key for e2e-tests environment", func() {
 		s.Config.GetViperInstance().Set("environment", "e2e-tests")
 		keyManager, err := auth.NewKeyManager(s.Config)

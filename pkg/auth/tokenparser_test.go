@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	. "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	uuid "github.com/satori/go.uuid"
@@ -26,6 +27,8 @@ func TestRunTokenParserSuite(t *testing.T) {
 }
 
 func (s *TestTokenParserSuite) TestTokenParser() {
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 
 	configRegistry, err := configuration.CreateEmptyRegistry(NewFakeClient(s.T()))
 	require.NoError(s.T(), err)

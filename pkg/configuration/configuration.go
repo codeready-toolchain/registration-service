@@ -81,13 +81,13 @@ const (
 
 	varAuthClientConfigRaw     = "auth_client.config.raw"
 	DefaultAuthClientConfigRaw = `{
-      "realm": "toolchain-public",
-      "auth-server-url": "https://sso.prod-preview.openshift.io/auth",
-      "ssl-required": "none",
-      "resource": "crt",
-      "clientId": "crt",
-      "public-client": true
-   }`
+	  "realm": "toolchain-public",
+	  "auth-server-url": "https://sso.prod-preview.openshift.io/auth",
+	  "ssl-required": "none",
+	  "resource": "crt",
+	  "clientId": "crt",
+	  "public-client": true
+	}`
 
 	varAuthClientConfigContentType = "auth_client.config.content_type"
 	// DefaultAuthClientConfigContentType specifies the auth client config content type.

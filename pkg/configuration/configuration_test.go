@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	. "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -29,8 +32,8 @@ func TestRunConfigurationSuite(t *testing.T) {
 // defaults set. Remember that environment variables can overwrite defaults, so
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Registry {
-	config, err := configuration.New("")
+func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config {
+	config, err := configuration.New("", NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
 }
@@ -40,7 +43,7 @@ func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Regist
 // getDefaultConfiguration() remember that environment variables can overwrite
 // defaults, so please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Registry {
+func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Config {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")
 	require.NoError(s.T(), err)
 	defer func() {
@@ -50,27 +53,32 @@ func (s *TestConfigurationSuite) getFileConfiguration(content string) *configura
 	_, err = tmpFile.Write([]byte(content))
 	require.NoError(s.T(), err)
 	require.NoError(s.T(), tmpFile.Close())
-	config, err := configuration.New(tmpFile.Name())
+	config, err := configuration.New(tmpFile.Name(), NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
 }
 
 func (s *TestConfigurationSuite) TestNew() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	s.Run("default configuration", func() {
-		reg, err := configuration.New("")
+		reg, err := configuration.New("", NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), reg)
 	})
 	s.Run("non existing file path", func() {
 		u, err := uuid.NewV4()
 		require.NoError(s.T(), err)
-		reg, err := configuration.New(u.String())
+		reg, err := configuration.New(u.String(), NewFakeClient(s.T()))
 		require.Error(s.T(), err)
 		require.Nil(s.T(), reg)
 	})
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPAddress() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_ADDRESS"
 
 	s.Run("default", func() {
@@ -102,6 +110,9 @@ func (s *TestConfigurationSuite) TestGetHTTPAddress() {
 }
 
 func (s *TestConfigurationSuite) TestGetLogLevel() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "LOG_LEVEL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -135,6 +146,9 @@ func (s *TestConfigurationSuite) TestGetLogLevel() {
 }
 
 func (s *TestConfigurationSuite) TestIsLogJSON() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "LOG_JSON"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -164,6 +178,9 @@ func (s *TestConfigurationSuite) TestIsLogJSON() {
 }
 
 func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	key := configuration.EnvPrefix + "_" + "GRACEFUL_TIMEOUT"
 
 	s.Run("default", func() {
@@ -191,6 +208,8 @@ func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_WRITE_TIMEOUT"
 
 	s.Run("default", func() {
@@ -218,6 +237,8 @@ func (s *TestConfigurationSuite) TestGetHTTPWriteTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_READ_TIMEOUT"
 
 	s.Run("default", func() {
@@ -245,6 +266,8 @@ func (s *TestConfigurationSuite) TestGetHTTPReadTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_IDLE_TIMEOUT"
 
 	s.Run("default", func() {
@@ -272,6 +295,8 @@ func (s *TestConfigurationSuite) TestGetHTTPIdleTimeout() {
 }
 
 func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "HTTP_COMPRESS"
 
 	s.Run("default", func() {
@@ -299,6 +324,8 @@ func (s *TestConfigurationSuite) TestGetHTTPCompressResponses() {
 }
 
 func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -336,6 +363,8 @@ func (s *TestConfigurationSuite) TestGetEnvironmentAndTestingMode() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_RAW"
 
 	s.Run("default", func() {
@@ -366,7 +395,96 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigRaw() {
 	})
 }
 
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationEnabled() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationEnabled, config.GetVerificationEnabled())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "false"
+		config := s.getFileConfiguration(`verification.enabled: "` + newVal + `"`)
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "false"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), false, config.GetVerificationEnabled())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationDailyLimit() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationDailyLimit, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "10"
+		config := s.getFileConfiguration(`verification.daily_limit: "` + newVal + `"`)
+		assert.Equal(s.T(), 10, config.GetVerificationDailyLimit())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "12"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 12, config.GetVerificationDailyLimit())
+	})
+}
+
+func (s *TestConfigurationSuite) TestGetAuthClientConfigVerificationAttemptsAllowed() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), configuration.DefaultVerificationAttemptsAllowed, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		newVal := "10"
+		config := s.getFileConfiguration(`verification.attempts_allowed: "` + newVal + `"`)
+		assert.Equal(s.T(), 10, config.GetVerificationAttemptsAllowed())
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "12"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), 12, config.GetVerificationAttemptsAllowed())
+	})
+}
+
 func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_CONFIG_CONTENT_TYPE"
 
 	s.Run("default", func() {
@@ -398,6 +516,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientConfigContentType() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_LIBRARY_URL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -431,6 +551,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientLibraryURL() {
 }
 
 func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "AUTH_CLIENT_PUBLIC_KEYS_URL"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -464,6 +586,8 @@ func (s *TestConfigurationSuite) TestGetAuthClientPublicKeysURL() {
 }
 
 func (s *TestConfigurationSuite) TestGetNamespace() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "NAMESPACE"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -497,6 +621,8 @@ func (s *TestConfigurationSuite) TestGetNamespace() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationEnabled() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ENABLED"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -524,6 +650,8 @@ func (s *TestConfigurationSuite) TestVerificationEnabled() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -552,6 +680,8 @@ func (s *TestConfigurationSuite) TestVerificationDailyLimit() {
 }
 
 func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_ATTEMPTS_ALLOWED"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -579,7 +709,17 @@ func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
 	})
 }
 
+func (s *TestConfigurationSuite) TestLoadSecret() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	s.T().Run("default", func(t *testing.T) {
+		// when
+	})
+}
+
 func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "VERIFICATION_MESSAGE_TEMPLATE"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -608,6 +748,8 @@ func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
 }
 
 func (s *TestConfigurationSuite) TestTwilioAccountSID() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()
@@ -616,60 +758,50 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), "", config.GetTwilioAccountSID())
+
+		// then
+		assert.Equal(s.T(), "", config.GetTwilioAccountSID())
+		assert.Equal(s.T(), "", config.GetTwilioAuthToken())
+	})
+	s.T().Run("env overwrite", func(t *testing.T) {
+		// given
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "reg-service-secret",
+				Namespace: "toolchain-host-operator",
+			},
+			Data: map[string][]byte{
+				"twilio.account.sid": []byte("test-account-sid"),
+				"twilio.auth.token":  []byte("test-auth-token"),
+			},
+		}
+
+		// when
+		config, err := configuration.New("", NewFakeClient(t, secret))
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "test-account-sid", config.GetTwilioAccountSID())
+		assert.Equal(t, "test-auth-token", config.GetTwilioAuthToken())
 	})
 
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		config := s.getFileConfiguration(`twilio.account_sid: ` + u.String())
-		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
-	})
+	s.T().Run("secret not found", func(t *testing.T) {
+		// given
+		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_SECRET_NAME", "test-secret")
+		defer restore()
 
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		err = os.Setenv(key, u.String())
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), u.String(), config.GetTwilioAccountSID())
-	})
-}
+		// when
+		config, err := configuration.New("", NewFakeClient(t))
 
-func (s *TestConfigurationSuite) TestTwilioAuthToken() {
-	key := configuration.EnvPrefix + "_" + "TWILIO_AUTH_TOKEN"
-	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-	defer resetFunc()
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), "", config.GetTwilioAuthToken())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		config := s.getFileConfiguration(`twilio.auth_token: ` + u.String())
-		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		err = os.Setenv(key, u.String())
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), u.String(), config.GetTwilioAuthToken())
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, config)
 	})
 }
 
 func (s *TestConfigurationSuite) TestTwilioFromNumber() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	key := configuration.EnvPrefix + "_" + "TWILIO_FROM_NUMBER"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 	defer resetFunc()

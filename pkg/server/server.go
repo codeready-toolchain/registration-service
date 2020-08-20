@@ -15,14 +15,14 @@ import (
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      *configuration.Registry
+	config      *configuration.Config
 	router      *gin.Engine
 	httpServer  *http.Server
 	routesSetup sync.Once
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config *configuration.Registry) *RegistrationServer {
+func New(config *configuration.Config) *RegistrationServer {
 	srv := &RegistrationServer{
 		router: gin.Default(),
 	}
@@ -45,7 +45,7 @@ func New(config *configuration.Registry) *RegistrationServer {
 }
 
 // Config returns the app server's config object.
-func (srv *RegistrationServer) Config() *configuration.Registry {
+func (srv *RegistrationServer) Config() *configuration.Config {
 	return srv.config
 }
 

@@ -709,14 +709,6 @@ func (s *TestConfigurationSuite) TestVerificationAttemptsAllowed() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestLoadSecret() {
-	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
-	defer restore()
-	s.T().Run("default", func(t *testing.T) {
-		// when
-	})
-}
-
 func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()

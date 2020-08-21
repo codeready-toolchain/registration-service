@@ -196,7 +196,7 @@ func (c *Config) PrintConfig() {
 		getRegistrationEnvVarKey(varVerificationDailyLimit), c.GetVerificationDailyLimit(),
 		getRegistrationEnvVarKey(varVerificationAttemptsAllowed), c.GetVerificationAttemptsAllowed())
 
-	logWithValuesHost.Info("Host Operator configuration variables:")
+	logWithValuesHost.Info("Registration service configuration variables:")
 }
 
 // GetViperInstance returns the underlying Viper instance.

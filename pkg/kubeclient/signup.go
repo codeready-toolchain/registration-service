@@ -16,6 +16,7 @@ type userSignupClient struct {
 type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	Update(obj *crtapi.UserSignup) error
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -48,4 +49,18 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 		return nil, err
 	}
 	return result, err
+}
+
+// Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
+func (c *userSignupClient) Update(obj *crtapi.UserSignup) error {
+	err := c.client.Put().
+		Namespace(c.ns).
+		Resource(userSignupResourcePlural).
+		Name(obj.Name).
+		Body(obj).
+		Do().Error()
+	if err != nil {
+		return err
+	}
+	return nil
 }

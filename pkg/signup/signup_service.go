@@ -72,6 +72,8 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
+	GetUserSignup(userID string) (*crtapi.UserSignup, error)
+	UpdateUserSignup(userSignup *crtapi.UserSignup) error
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -212,4 +214,26 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	return signupResponse, nil
+}
+
+func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
+	// Retrieve UserSignup resource from the host cluster
+	userSignup, err := s.UserSignups.Get(userID)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return userSignup, nil
+}
+
+func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) error {
+	err := s.UserSignups.Update(userSignup)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

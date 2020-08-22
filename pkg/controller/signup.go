@@ -60,3 +60,34 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, signupResource)
 	}
 }
+
+// VerifyCodeHandler validates the phone verification code passed in by the user
+func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
+	code := ctx.Param("code")
+
+	userID := ctx.GetString(context.SubKey)
+	signupResource, err := s.signupService.GetUserSignup(userID)
+	if err != nil {
+		log.Error(ctx, err, "error getting UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+	}
+	if signupResource == nil {
+		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
+		ctx.AbortWithStatus(http.StatusNotFound)
+	}
+
+	err = s.verificationService.VerifyCode(ctx, signupResource, code)
+	if err != nil {
+		log.Error(ctx, err, "error validating user verification code")
+		// TODO we need to check what type of error is returned here
+		//errors.AbortWithError(ctx)
+	}
+
+	err = s.signupService.UpdateUserSignup(signupResource)
+	if err != nil {
+		log.Error(ctx, err, "error while updating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while updating UserSignup resource")
+	}
+
+	ctx.Status(http.StatusOK)
+}

@@ -129,6 +129,10 @@ const (
 	// DefaultVerificationMessageTemplate is the default verification message template sent to users
 	// via SMS for phone verification.  The string parameter is replaced with a random verification code
 	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
+
+	// varVerificationExcludedEmailDomains contains a comma-separated list of domain names for which phone verification
+	// is not required.  For example: "redhat.com,ibm.com"
+	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -299,6 +303,12 @@ func (c *Registry) GetVerificationAttemptsAllowed() int {
 // phone verification
 func (c *Registry) GetVerificationMessageTemplate() string {
 	return c.v.GetString(varVerificationMessageTemplate)
+}
+
+// GetVerificationExcludedEmailDomains returns the list of email address domains for which phone verification
+// is not required
+func (c *Registry) GetVerificationExcludedEmailDomains() string {
+	return c.v.GetString(varVerificationExcludedEmailDomains)
 }
 
 // GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages

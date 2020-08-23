@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 
@@ -66,6 +67,8 @@ type Status struct {
 // ServiceConfiguration represents the config used for the signup service.
 type ServiceConfiguration interface {
 	GetNamespace() string
+	GetVerificationEnabled() bool
+	GetVerificationExcludedEmailDomains() string
 }
 
 // Service represents the signup service for controllers.
@@ -82,6 +85,8 @@ type ServiceImpl struct {
 	UserSignups       kubeclient.UserSignupInterface
 	MasterUserRecords kubeclient.MasterUserRecordInterface
 	BannedUsers       kubeclient.BannedUserInterface
+	config            ServiceConfiguration
+	excludedDomains   []string
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
@@ -97,11 +102,15 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 		return nil, err
 	}
 
+	excludedDomains := strings.Split(cfg.GetVerificationExcludedEmailDomains(), ",")
+
 	s := &ServiceImpl{
 		Namespace:         cfg.GetNamespace(),
 		UserSignups:       client.UserSignups(),
 		MasterUserRecords: client.MasterUserRecords(),
 		BannedUsers:       client.BannedUsers(),
+		config:            cfg,
+		excludedDomains:   excludedDomains,
 	}
 	return s, nil
 }
@@ -127,6 +136,17 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 		}
 	}
 
+	verificationRequired := s.config.GetVerificationEnabled()
+
+	// Check if the user's email address is in the list of domains excluded for phone verification
+	_, emailHost := splitEmail(userEmail)
+	for _, d := range s.excludedDomains {
+		if d == emailHost {
+			verificationRequired = false
+			break
+		}
+	}
+
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      ctx.GetString(context.SubKey),
@@ -139,12 +159,13 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 			},
 		},
 		Spec: crtapi.UserSignupSpec{
-			TargetCluster: "",
-			Approved:      false,
-			Username:      ctx.GetString(context.UsernameKey),
-			GivenName:     ctx.GetString(context.GivenNameKey),
-			FamilyName:    ctx.GetString(context.FamilyNameKey),
-			Company:       ctx.GetString(context.CompanyKey),
+			TargetCluster:        "",
+			Approved:             false,
+			Username:             ctx.GetString(context.UsernameKey),
+			GivenName:            ctx.GetString(context.GivenNameKey),
+			FamilyName:           ctx.GetString(context.FamilyNameKey),
+			Company:              ctx.GetString(context.CompanyKey),
+			VerificationRequired: verificationRequired,
 		},
 	}
 
@@ -154,6 +175,13 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 	}
 
 	return created, nil
+}
+
+func splitEmail(email string) (account, host string) {
+	i := strings.LastIndexByte(email, '@')
+	account = email[:i]
+	host = email[i+1:]
+	return
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup

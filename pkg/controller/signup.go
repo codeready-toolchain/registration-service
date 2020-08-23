@@ -85,7 +85,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
 		case *errors2.StatusError:
-			errors.AbortWithError(ctx, int(t.ErrStatus.Code), t, t.ErrStatus.Message)
+			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
 	}
 

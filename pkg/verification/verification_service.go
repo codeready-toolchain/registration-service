@@ -19,7 +19,7 @@ const (
 	codeCharset = "0123456789"
 	codeLength  = 6
 
-	timestampLayout = "2006-01-02T15:04:05.000Z"
+	TimestampLayout = "2006-01-02T15:04:05.000Z"
 )
 
 // ServiceConfiguration represents the config used for the verification service.
@@ -103,10 +103,10 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 	now := time.Now()
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
-	ts, err := time.Parse(timestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey])
+	ts, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey])
 	if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
 		// Set a new timestamp
-		signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = now.Format(timestampLayout)
+		signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = now.Format(TimestampLayout)
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(0)
 	}
 
@@ -123,7 +123,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 		return errors2.NewTooManyRequestsError("too many verification attempts")
 	}
 
-	exp, err := time.Parse(timestampLayout, signup.Annotations[v1alpha1.UserVerficationExpiryAnnotationKey])
+	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerficationExpiryAnnotationKey])
 	if err != nil {
 		// If the verification expiry timestamp is corrupt or missing, then return an error
 		return errors2.NewInternalError(err)

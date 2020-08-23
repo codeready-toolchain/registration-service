@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gin-gonic/gin"
 
@@ -67,10 +70,11 @@ func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verific
 		authToken:       authToken,
 		fromNumber:      fromNumber,
 		messageTemplate: configuration.DefaultVerificationMessageTemplate,
+		attemptsAllowed: 3,
 	}
 }
 
-func (s *TestVerificationServiceSuite) TestVerify() {
+func (s *TestVerificationServiceSuite) TestSendVerification() {
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -153,6 +157,43 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
 	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
+func (s *TestVerificationServiceSuite) TestVerifyCode() {
+	// given
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+	now := time.Now()
+
+	s.T().Run("when verification code has expired", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerficationExpiryAnnotationKey:           now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "000000")
+		require.Error(s.T(), err)
+		require.IsType(s.T(), err, &errors.StatusError{})
+		require.Equal(s.T(), "invalid code", err.(*errors.StatusError).Error())
+	})
 }
 
 func (s *TestVerificationServiceSuite) createVerificationService() (verification.Service, *http.Client) {

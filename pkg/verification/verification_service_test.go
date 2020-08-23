@@ -38,6 +38,7 @@ type mockVerificationConfig struct {
 	authToken       string
 	fromNumber      string
 	messageTemplate string
+	attemptsAllowed int
 }
 
 func (c *mockVerificationConfig) GetTwilioAccountSID() string {
@@ -54,6 +55,10 @@ func (c *mockVerificationConfig) GetTwilioFromNumber() string {
 
 func (c *mockVerificationConfig) GetVerificationMessageTemplate() string {
 	return c.messageTemplate
+}
+
+func (c *mockVerificationConfig) GetVerificationAttemptsAllowed() int {
+	return c.attemptsAllowed
 }
 
 func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verification.ServiceConfiguration {

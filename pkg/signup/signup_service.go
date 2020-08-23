@@ -73,7 +73,7 @@ type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
 	GetUserSignup(userID string) (*crtapi.UserSignup, error)
-	UpdateUserSignup(userSignup *crtapi.UserSignup) error
+	UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -229,11 +229,11 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
 	return userSignup, nil
 }
 
-func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) error {
-	err := s.UserSignups.Update(userSignup)
+func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	userSignup, err := s.UserSignups.Update(userSignup)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return userSignup, nil
 }

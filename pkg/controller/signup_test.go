@@ -215,6 +215,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 type FakeSignupService struct {
 	MockGetSignup        func(userID string) (*signup.Signup, error)
 	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockGetUserSignup    func(userID string) (*crtapi.UserSignup, error)
+	MockUpdateUserSignup func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -225,9 +227,21 @@ func (m *FakeSignupService) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSign
 	return m.MockCreateUserSignup(ctx)
 }
 
+func (m *FakeSignupService) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
+	return m.MockGetUserSignup(userID)
+}
+
+func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	return m.MockUpdateUserSignup(userSignup)
+}
+
 type FakeVerificationService struct {
 }
 
 func (m *FakeVerificationService) SendVerification(ctx *gin.Context, signup *crtapi.UserSignup) error {
 	return m.SendVerification(ctx, signup)
+}
+
+func (m *FakeVerificationService) VerifyCode(ctx *gin.Context, signup *crtapi.UserSignup, code string) error {
+	return m.VerifyCode(ctx, signup, code)
 }

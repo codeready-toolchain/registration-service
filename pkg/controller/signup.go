@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/codeready-toolchain/registration-service/pkg/verification"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -79,11 +81,15 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	err = s.verificationService.VerifyCode(ctx, signupResource, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
-		// TODO we need to check what type of error is returned here
-		//errors.AbortWithError(ctx)
+		switch t := err.(type) {
+		default:
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
+		case *errors2.StatusError:
+			errors.AbortWithError(ctx, int(t.ErrStatus.Code), t, t.ErrStatus.Message)
+		}
 	}
 
-	err = s.signupService.UpdateUserSignup(signupResource)
+	_, err = s.signupService.UpdateUserSignup(signupResource)
 	if err != nil {
 		log.Error(ctx, err, "error while updating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while updating UserSignup resource")

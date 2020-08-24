@@ -177,7 +177,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerficationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
@@ -204,7 +204,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerficationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
@@ -233,7 +233,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerficationExpiryAnnotationKey:           now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",

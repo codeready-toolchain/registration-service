@@ -97,7 +97,7 @@ const (
 
 	varVerificationEnabled = "verification.enabled"
 	// DefaultVerificationEnabled is the default value for whether the phone verification feature is enabled
-	DefaultVerificationEnabled = true
+	DefaultVerificationEnabled = false
 
 	varVerificationDailyLimit = "verification.daily_limit"
 	// DefaultVerificationDailyLimit is the default number of times a user may request phone verification

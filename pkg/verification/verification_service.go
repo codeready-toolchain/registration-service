@@ -123,7 +123,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 		return errors2.NewTooManyRequestsError("too many verification attempts")
 	}
 
-	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerficationExpiryAnnotationKey])
+	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey])
 	if err != nil {
 		// If the verification expiry timestamp is corrupt or missing, then return an error
 		return errors2.NewInternalError(err)
@@ -141,7 +141,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 		delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserVerficationExpiryAnnotationKey)
+		delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
 		return nil
 	} else {
 		// If the code doesn't match

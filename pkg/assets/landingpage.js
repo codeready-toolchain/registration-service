@@ -2,12 +2,22 @@
 // interval reference
 var intervalRef;
 
+// given country code and phone number
+var countryCode;
+var phoneNumber;
+
 // this is where we load our config from
 configURL = '/api/v1/authconfig'
 
+// signup endpoint
+signupURL = '/api/v1/signup'
+
+// phone verification endpoint
+phoneVerificationURL = '/api/v1/signup/verification'
+
 // loads json data from url, the callback is called with
 // error and data, with data the parsed json.
-var getJSON = function(method, url, token, callback) {
+var getJSON = function(method, url, token, callback, body) {
   var xhr = new XMLHttpRequest();
   xhr.open(method, url, true);
   if (token != null)
@@ -21,7 +31,10 @@ var getJSON = function(method, url, token, callback) {
       callback(status, xhr.response);
     }
   };
-  xhr.send();
+  if (body)
+    xhr.send(JSON.stringify(params));
+  else
+    xhr.send();
 };
 
 // hides all state content.
@@ -32,6 +45,8 @@ function hideAll() {
   document.getElementById('state-getstarted').style.display = 'none';
   document.getElementById('state-error').style.display = 'none';
   document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('state-initiate-phone-verification').style.display = 'none';
+  document.getElementById('state-complete-phone-verification').style.display = 'none';
 }
 
 // shows state content. Given Id needs to be one of
@@ -86,7 +101,7 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
       
 // gets the signup state once.
 function getSignupState(cbSuccess, cbError) {
-  getJSON('GET', '/api/v1/signup', keycloak.idToken, function(err, data) {
+  getJSON('GET', signupURL, keycloak.idToken, function(err, data) {
     if (err != null) {
       cbError(err, data);
     } else {
@@ -98,7 +113,10 @@ function getSignupState(cbSuccess, cbError) {
 // updates the signup state.
 function updateSignupState() {
   getSignupState(function(data) {
-    if (data.status.ready === true) {
+    if (data.status.verificationRequired) {
+      hideAll();
+      show('state-initiate-phone-verification');
+    } else if (data.status.ready === true) {
       // account is ready to use; stop interval.
       clearInterval(intervalRef);
       consoleURL = data.consoleURL;
@@ -170,7 +188,7 @@ function login() {
 
 // start signup process.
 function signup() {
-  getJSON('POST', '/api/v1/signup', keycloak.idToken, function(err, data) {
+  getJSON('POST', signupURL, keycloak.idToken, function(err, data) {
     if (err != null) {
       showError(JSON.stringify(data, null, 2));
     } else {
@@ -180,7 +198,64 @@ function signup() {
   });
   intervalRef = setInterval(updateSignupState, 1000);
 }
-      
+
+function initiatePhoneVerification() {
+  countryCode = document.getElementById("phone-countrycode").value;
+  phoneNumber = document.getElementById("phone-phonenumber").value;
+  // check validity
+  let phoneValid = /^[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/im.test(phoneNumber);
+  let countryCodeValid = /^[\+]?[0-9]{1,4}$/.test(countryCode);
+  if (!phoneValid || !countryCodeValid) {
+    showError('phone or country code invalid, please check your input.');
+    show('state-initiate-phone-verification');
+  } else {
+    getJSON('POST', phoneVerificationURL, keycloak.idToken, function(err, data) {
+      if (err != null) {
+        showError('Error while sending verification code. Please try again later.');
+      } else {
+        hideAll();
+        show('state-complete-phone-verification');
+      }
+    }, {
+      country_code: countryCode,
+      phone_number: phoneNumber
+    });
+  }
+}
+
+function completePhoneVerification() {
+  let verificationCode = document.getElementById("phone-verificationcode").value;
+  let verificationCodeValid = /^[\+]?[a-z0-9]{1,4}$/im.test(verificationCode);
+  if (!verificationCodeValid) {
+    showError('verification code has the wrong format, please check your input.');
+    show('state-complete-phone-verification');
+  } else {
+    getJSON('GET', phoneVerificationURL + '/' + verificationCode, keycloak.idToken, function(err, data) {
+      if (err != null) {
+        showError('Error while sending verification code. Please try again later.');
+      } else {
+        // code verification success, refresh signup state
+        updateSignupState();
+      }
+    });
+  }
+}
+
+function resendPhoneVerification() {
+    getJSON('POST', phoneVerificationURL, keycloak.idToken, function(err, data) {
+      if (err != null) {
+        showError('Error while sending verification code. Please try again later.');
+      } 
+    }, {
+      country_code: countryCode,
+      phone_number: phoneNumber
+    });
+    document.getElementById('phone-verificationcode-resend-status').style.display = 'inline';
+    setTimeout(function() {
+      document.getElementById('phone-verificationcode-resend-status').style.display = 'none';
+    }, 2000);
+}
+
 // main operation, load config, load client, run client
 getJSON('GET', configURL, null, function(err, data) {
   if (err !== null) {
@@ -217,4 +292,3 @@ getJSON('GET', configURL, null, function(err, data) {
     });
   }
 });
-  

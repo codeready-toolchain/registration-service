@@ -126,6 +126,25 @@
           <button class="getstartedbutton" onclick="login()">Get Started with CodeReady Toolchain</button>
           <p class="terms"><a href="#">Terms and Conditions</a> &copy; 2020, Red Hat Inc.</p>
         </div>
+        <div class="toolchain-state" id="state-initiate-phone-verification">
+          <p>You need to confirm your account using a mobile phone. Please enter you phone number including country code:</p>
+          <p>
+            Country Code and Phone Number: <input type="text" name="countrycode" id="phone-countrycode" required minlength="4" maxlength="4" size="4" placeholder="+01">
+            - <input type="text" name="phonenumber" id="phone-phonenumber" required minlength="6" maxlength="32" size="15" placeholder="123-4567890">
+            <button class="phone-button" onclick="initiatePhoneVerification()">Send Code</button>
+          </p>
+          <p>Cost may apply for receiving texts if abroad. Please consult with your service provider for details.</p>
+        </div>
+        <div class="toolchain-state" id="state-complete-phone-verification">
+          <p>A text was sent to your mobile phone. Please enter the received code below:</p>
+          <p>
+            Received Code: <input type="text" name="verificationcode" id="phone-verificationcode" required minlength="4" maxlength="10" size="10" placeholder="123456">
+            <button class="phone-button" onclick="completePhoneVerification()">Verify Code</button>
+          </p>
+          <p>
+            No text received? <button class="phone-button" onclick="resendPhoneVerification()">Resend Code</button> <span id="phone-verificationcode-resend-status"><b>Code was resent..</b></span>
+          </p>
+        </div>
         <div class="toolchain-state" id="state-waiting-for-approval">
           <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account is waiting for approval</h1>
         </div>

@@ -68,7 +68,7 @@ type Status struct {
 type ServiceConfiguration interface {
 	GetNamespace() string
 	GetVerificationEnabled() bool
-	GetVerificationExcludedEmailDomains() string
+	GetVerificationExcludedEmailDomains() []string
 }
 
 // Service represents the signup service for controllers.
@@ -85,8 +85,7 @@ type ServiceImpl struct {
 	UserSignups       kubeclient.UserSignupInterface
 	MasterUserRecords kubeclient.MasterUserRecordInterface
 	BannedUsers       kubeclient.BannedUserInterface
-	config            ServiceConfiguration
-	excludedDomains   []string
+	Config            ServiceConfiguration
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
@@ -102,15 +101,12 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 		return nil, err
 	}
 
-	excludedDomains := strings.Split(cfg.GetVerificationExcludedEmailDomains(), ",")
-
 	s := &ServiceImpl{
 		Namespace:         cfg.GetNamespace(),
 		UserSignups:       client.UserSignups(),
 		MasterUserRecords: client.MasterUserRecords(),
 		BannedUsers:       client.BannedUsers(),
-		config:            cfg,
-		excludedDomains:   excludedDomains,
+		Config:            cfg,
 	}
 	return s, nil
 }
@@ -136,11 +132,11 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 		}
 	}
 
-	verificationRequired := s.config.GetVerificationEnabled()
+	verificationRequired := s.Config.GetVerificationEnabled()
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
 	_, emailHost := splitEmail(userEmail)
-	for _, d := range s.excludedDomains {
+	for _, d := range s.Config.GetVerificationExcludedEmailDomains() {
 		if d == emailHost {
 			verificationRequired = false
 			break

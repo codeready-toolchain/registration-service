@@ -19,7 +19,7 @@ const (
 	codeCharset = "0123456789"
 	codeLength  = 6
 
-	TimestampLayout = "2006-01-02T15:04:05.000Z"
+	TimestampLayout = "2006-01-02T15:04:05.000Z07:00"
 )
 
 // ServiceConfiguration represents the config used for the verification service.

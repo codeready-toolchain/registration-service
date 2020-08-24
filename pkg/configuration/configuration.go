@@ -138,7 +138,8 @@ const (
 // Registry encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type Registry struct {
-	v *viper.Viper
+	v               *viper.Viper
+	excludedDomains []string
 }
 
 // CreateEmptyRegistry creates an initial, empty registry.
@@ -307,8 +308,11 @@ func (c *Registry) GetVerificationMessageTemplate() string {
 
 // GetVerificationExcludedEmailDomains returns the list of email address domains for which phone verification
 // is not required
-func (c *Registry) GetVerificationExcludedEmailDomains() string {
-	return c.v.GetString(varVerificationExcludedEmailDomains)
+func (c *Registry) GetVerificationExcludedEmailDomains() []string {
+	if c.excludedDomains == nil {
+		c.excludedDomains = strings.Split(c.v.GetString(varVerificationExcludedEmailDomains), ",")
+	}
+	return c.excludedDomains
 }
 
 // GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages

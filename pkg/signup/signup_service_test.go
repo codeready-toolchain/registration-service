@@ -403,6 +403,24 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
+type FakeSignupServiceConfiguration struct {
+	namespace           string
+	verificationEnabled bool
+	excludedDomains     []string
+}
+
+func (c *FakeSignupServiceConfiguration) GetNamespace() string {
+	return c.namespace
+}
+
+func (c *FakeSignupServiceConfiguration) GetVerificationEnabled() bool {
+	return c.verificationEnabled
+}
+
+func (c *FakeSignupServiceConfiguration) GetVerificationExcludedEmailDomains() []string {
+	return c.excludedDomains
+}
+
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient, *fake.FakeBannedUserClient) {
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
 	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
@@ -412,6 +430,11 @@ func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClien
 		UserSignups:       fakeClient,
 		MasterUserRecords: fakeMURClient,
 		BannedUsers:       fakeBannedUserClient,
+		Config: &FakeSignupServiceConfiguration{
+			namespace:           "default",
+			verificationEnabled: false,
+			excludedDomains:     make([]string, 0),
+		},
 	}, fakeClient, fakeMURClient, fakeBannedUserClient
 }
 

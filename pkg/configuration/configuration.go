@@ -146,8 +146,8 @@ type Config struct {
 
 // CreateEmptyRegistry creates an initial, empty registry.
 func CreateEmptyRegistry(cl client.Client) (*Config, error) {
-	os.Setenv("REGISTRATION_SERVICE_SECRET_NAME", "reg-service-secret")
-	secret, err := configuration.LoadFromSecret("REGISTRATION_SERVICE_SECRET_NAME", cl)
+	os.Setenv("HOST_OPERATOR_SECRET_NAME", "host-operator-secret")
+	secret, err := configuration.LoadFromSecret("HOST_OPERATOR_SECRET_NAME", cl)
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +191,24 @@ func getRegistrationEnvVarKey(key string) string {
 
 func (c *Config) PrintConfig() {
 	logWithValuesHost := log.WithValues(
+		getRegistrationEnvVarKey(varNamespace), c.GetNamespace(),
+		getRegistrationEnvVarKey(varEnvironment), c.GetEnvironment(),
+		getRegistrationEnvVarKey(varLogLevel), c.GetLogLevel(),
+		getRegistrationEnvVarKey(varGracefulTimeout), c.GetGracefulTimeout(),
+		getRegistrationEnvVarKey(varHTTPIdleTimeout), c.GetHTTPIdleTimeout(),
+		getRegistrationEnvVarKey(varHTTPReadTimeout), c.GetHTTPReadTimeout(),
+		getRegistrationEnvVarKey(varHTTPWriteTimeout), c.GetHTTPWriteTimeout(),
+		getRegistrationEnvVarKey(varHTTPAddress), c.GetHTTPAddress(),
+		getRegistrationEnvVarKey(varHTTPCompressResponses), c.GetHTTPCompressResponses(),
+		getRegistrationEnvVarKey(varLogJSON), c.IsLogJSON(),
+		getRegistrationEnvVarKey(varAuthClientConfigContentType), c.GetAuthClientConfigAuthContentType(),
+		getRegistrationEnvVarKey(varAuthClientLibraryURL), c.GetAuthClientLibraryURL(),
+		getRegistrationEnvVarKey(varAuthClientPublicKeysURL), c.GetAuthClientPublicKeysURL(),
 		getRegistrationEnvVarKey(varAuthClientConfigRaw), c.GetAuthClientConfigAuthRaw(),
 		getRegistrationEnvVarKey(varVerificationEnabled), c.GetVerificationEnabled(),
 		getRegistrationEnvVarKey(varVerificationDailyLimit), c.GetVerificationDailyLimit(),
-		getRegistrationEnvVarKey(varVerificationAttemptsAllowed), c.GetVerificationAttemptsAllowed())
+		getRegistrationEnvVarKey(varVerificationAttemptsAllowed), c.GetVerificationAttemptsAllowed(),
+		getRegistrationEnvVarKey(varTwilioFromNumber), c.GetTwilioFromNumber())
 
 	logWithValuesHost.Info("Registration service configuration variables:")
 }

@@ -440,13 +440,33 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
-	us := s.newUserSignupComplete()
-	err := fakeClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
+	s.Run("getusersignup ok", func() {
+		us := s.newUserSignupComplete()
+		err := fakeClient.Tracker.Add(us)
+		require.NoError(s.T(), err)
 
-	val, err := svc.GetUserSignup(us.Name)
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), us.Name, val.Name)
+		val, err := svc.GetUserSignup(us.Name)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), us.Name, val.Name)
+	})
+
+	s.Run("getusersignup returns error", func() {
+		fakeClient.MockGet = func(s string) (userSignup *v1alpha1.UserSignup, e error) {
+			return nil, errors.New("get failed")
+		}
+
+		val, err := svc.GetUserSignup("foo")
+		require.Error(s.T(), err)
+		require.Nil(s.T(), val)
+	})
+
+	s.Run("getusersignup returns not found error", func() {
+		fakeClient.MockGet = nil
+
+		val, err := svc.GetUserSignup("unknown")
+		require.Nil(s.T(), err)
+		require.Nil(s.T(), val)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
@@ -456,15 +476,30 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	err := fakeClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	val, err := svc.GetUserSignup(us.Name)
-	require.NoError(s.T(), err)
+	s.Run("updateusersignup ok", func() {
+		val, err := svc.GetUserSignup(us.Name)
+		require.NoError(s.T(), err)
 
-	val.Spec.FamilyName = "Johnson"
+		val.Spec.FamilyName = "Johnson"
 
-	updated, err := svc.UpdateUserSignup(val)
-	require.NoError(s.T(), err)
+		updated, err := svc.UpdateUserSignup(val)
+		require.NoError(s.T(), err)
 
-	require.Equal(s.T(), val.Spec.FamilyName, updated.Spec.FamilyName)
+		require.Equal(s.T(), val.Spec.FamilyName, updated.Spec.FamilyName)
+	})
+
+	s.Run("updateusersignup returns error", func() {
+		fakeClient.MockUpdate = func(userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
+			return nil, errors.New("update failed")
+		}
+
+		val, err := svc.GetUserSignup(us.Name)
+		require.NoError(s.T(), err)
+
+		updated, err := svc.UpdateUserSignup(val)
+		require.Error(s.T(), err)
+		require.Nil(s.T(), updated)
+	})
 }
 
 type FakeSignupServiceConfiguration struct {

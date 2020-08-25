@@ -69,6 +69,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	if code == "" {
 		log.Error(ctx, nil, "no code provided in request")
 		ctx.AbortWithStatus(http.StatusNotFound)
+		return
 	}
 
 	userID := ctx.GetString(context.SubKey)

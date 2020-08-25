@@ -512,6 +512,33 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
 	})
+
+	s.Run("no code provided", func() {
+		// Create a mock SignupService
+		svc := &FakeSignupService{}
+
+		// Create a mock VerificationService
+		verifyService := &FakeVerificationService{}
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/", nil)
+		require.NoError(s.T(), err)
+
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusNotFound, rr.Code)
+	})
 }
 
 type FakeSignupService struct {

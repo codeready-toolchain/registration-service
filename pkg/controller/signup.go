@@ -76,10 +76,13 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+		return
 	}
+
 	if signupResource == nil {
 		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
 		ctx.AbortWithStatus(http.StatusNotFound)
+		return
 	}
 
 	err = s.verificationService.VerifyCode(ctx, signupResource, code)
@@ -91,6 +94,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	if err2 != nil {
 		log.Error(ctx, err2, "error while updating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
+		return
 	}
 
 	if err != nil {
@@ -101,6 +105,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		case *errors2.StatusError:
 			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
+		return
 	}
 
 	ctx.Status(http.StatusOK)

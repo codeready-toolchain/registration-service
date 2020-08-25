@@ -76,9 +76,43 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Equal(s.T(), "doe", val.Spec.FamilyName)
 	require.Equal(s.T(), "red hat", val.Spec.Company)
 	require.False(s.T(), val.Spec.Approved)
+	require.True(s.T(), val.Spec.VerificationRequired)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+}
 
+func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@redhat.com")
+	ctx.Set(context.GivenNameKey, "jane")
+	ctx.Set(context.FamilyNameKey, "smith")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	userSignup, err := svc.CreateUserSignup(ctx)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), userSignup)
+
+	gvk, err := apiutil.GVKForObject(userSignup, fakeClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := fakeClient.Tracker.List(gvr, gvk, TestNamespace)
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*v1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+	require.False(s.T(), val.Spec.VerificationRequired)
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
@@ -403,6 +437,36 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
+func (s *TestSignupServiceSuite) TestGetUserSignup() {
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
+
+	us := s.newUserSignupComplete()
+	err := fakeClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	val, err := svc.GetUserSignup(us.Name)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), us.Name, val.Name)
+}
+
+func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
+	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
+
+	us := s.newUserSignupComplete()
+	err := fakeClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	val, err := svc.GetUserSignup(us.Name)
+	require.NoError(s.T(), err)
+
+	val.Spec.FamilyName = "Johnson"
+
+	updated, err := svc.UpdateUserSignup(val)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), val.Spec.FamilyName, updated.Spec.FamilyName)
+}
+
 type FakeSignupServiceConfiguration struct {
 	namespace           string
 	verificationEnabled bool
@@ -432,8 +496,8 @@ func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClien
 		BannedUsers:       fakeBannedUserClient,
 		Config: &FakeSignupServiceConfiguration{
 			namespace:           "default",
-			verificationEnabled: false,
-			excludedDomains:     make([]string, 0),
+			verificationEnabled: true,
+			excludedDomains:     []string{"redhat.com"},
 		},
 	}, fakeClient, fakeMURClient, fakeBannedUserClient
 }

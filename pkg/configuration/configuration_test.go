@@ -759,7 +759,7 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 		// given
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "reg-service-secret",
+				Name:      "host-operator-secret",
 				Namespace: "toolchain-host-operator",
 			},
 			Data: map[string][]byte{
@@ -779,7 +779,7 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 
 	s.T().Run("secret not found", func(t *testing.T) {
 		// given
-		restore := SetEnvVarAndRestore(t, "REGISTRATION_SERVICE_SECRET_NAME", "test-secret")
+		restore := SetEnvVarAndRestore(t, "HOST_OPERATOR_SECRET_NAME", "test-secret")
 		defer restore()
 
 		// when

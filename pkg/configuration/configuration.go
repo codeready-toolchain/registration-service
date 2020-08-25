@@ -144,8 +144,8 @@ type Config struct {
 	secretValues map[string]string
 }
 
-// CreateEmptyRegistry creates an initial, empty registry.
-func CreateEmptyRegistry(cl client.Client) (*Config, error) {
+// CreateEmptyConfig creates an initial, empty config.
+func CreateEmptyConfig(cl client.Client) (*Config, error) {
 	os.Setenv("HOST_OPERATOR_SECRET_NAME", "host-operator-secret")
 	secret, err := configuration.LoadFromSecret("HOST_OPERATOR_SECRET_NAME", cl)
 	if err != nil {
@@ -168,7 +168,7 @@ func CreateEmptyRegistry(cl client.Client) (*Config, error) {
 // file path. If the provided config file path is empty, a default configuration
 // will be created.
 func New(configFilePath string, cl client.Client) (*Config, error) {
-	c, err := CreateEmptyRegistry(cl)
+	c, err := CreateEmptyConfig(cl)
 	if err != nil {
 		return nil, err
 	}

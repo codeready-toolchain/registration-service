@@ -21,7 +21,7 @@ func (s *UnitTestSuite) SetupSuite() {
 	restore := test.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()
 
-	cfg, errs := configuration.CreateEmptyRegistry(test.NewFakeClient(s.T()))
+	cfg, errs := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
 	if errs != nil {
 		panic(errs.Error())
 	}

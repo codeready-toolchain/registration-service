@@ -2,10 +2,13 @@ package verification
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 
@@ -148,5 +151,8 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 	// The code doesn't match
 	attemptsMade++
 	signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-	return errors2.NewBadRequest("invalid code")
+	return errors2.NewForbidden(schema.GroupResource{
+		Group:    "",
+		Resource: "",
+	}, "", errors.New("invalid code"))
 }

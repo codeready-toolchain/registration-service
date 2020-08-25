@@ -135,9 +135,9 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 	verificationRequired := s.Config.GetVerificationEnabled()
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
-	_, emailHost := splitEmail(userEmail)
+	emailHost := extractEmailHost(userEmail)
 	for _, d := range s.Config.GetVerificationExcludedEmailDomains() {
-		if d == emailHost {
+		if strings.EqualFold(d, emailHost) {
 			verificationRequired = false
 			break
 		}
@@ -173,11 +173,9 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 	return created, nil
 }
 
-func splitEmail(email string) (account, host string) {
+func extractEmailHost(email string) string {
 	i := strings.LastIndexByte(email, '@')
-	account = email[:i]
-	host = email[i+1:]
-	return
+	return email[i+1:]
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -240,6 +238,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
+// GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
@@ -253,6 +252,7 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
 	return userSignup, nil
 }
 
+// UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
 func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	userSignup, err := s.UserSignups.Update(userSignup)
 	if err != nil {

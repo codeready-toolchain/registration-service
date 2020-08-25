@@ -143,12 +143,10 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
 		return nil
-	} else {
-		// If the code doesn't match
-		attemptsMade++
-		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-		return errors2.NewBadRequest("invalid code")
 	}
 
-	return nil
+	// The code doesn't match
+	attemptsMade++
+	signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+	return errors2.NewBadRequest("invalid code")
 }

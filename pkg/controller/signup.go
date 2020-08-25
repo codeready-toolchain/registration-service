@@ -66,6 +66,10 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 // VerifyCodeHandler validates the phone verification code passed in by the user
 func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	code := ctx.Param("code")
+	if code == "" {
+		log.Error(ctx, nil, "no code provided in request")
+		ctx.AbortWithStatus(http.StatusNotFound)
+	}
 
 	userID := ctx.GetString(context.SubKey)
 	signupResource, err := s.signupService.GetUserSignup(userID)
@@ -79,6 +83,16 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	}
 
 	err = s.verificationService.VerifyCode(ctx, signupResource, code)
+
+	// Regardless of whether the VerifyCode() call returns an error or not, we need to update the UserSignup instance
+	// as its state can be updated even in the case of an error.  This may result in the slight possibility that any
+	// errors returned by VerifyCode() are suppressed, as error handling for the UserSignup update is given precedence.
+	_, err2 := s.signupService.UpdateUserSignup(signupResource)
+	if err2 != nil {
+		log.Error(ctx, err2, "error while updating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
+	}
+
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
 		switch t := err.(type) {
@@ -87,12 +101,6 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		case *errors2.StatusError:
 			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
-	}
-
-	_, err = s.signupService.UpdateUserSignup(signupResource)
-	if err != nil {
-		log.Error(ctx, err, "error while updating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while updating UserSignup resource")
 	}
 
 	ctx.Status(http.StatusOK)

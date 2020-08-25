@@ -193,7 +193,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.False(s.T(), userSignup.Spec.VerificationRequired)
 	})
 
-	s.T().Run("when verification code has expired", func(t *testing.T) {
+	s.T().Run("when verification code is invalid", func(t *testing.T) {
 
 		userSignup := &v1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
@@ -203,7 +203,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
 					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
@@ -215,13 +215,42 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "000000")
+		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.StatusError{})
 		require.Equal(s.T(), "invalid code", err.(*errors.StatusError).Error())
 	})
 
-	s.T().Run("when previous verifications exceeded maximum attempts", func(t *testing.T) {
+	s.T().Run("when verification code has expired", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.IsType(s.T(), err, &errors.StatusError{})
+		require.Equal(s.T(), "verification code expired", err.(*errors.StatusError).Error())
+		require.Equal(s.T(), http.StatusBadRequest, int(err.(*errors.StatusError).Status().Code))
+	})
+
+	s.T().Run("when previous verifications exceeded maximum attempts but timestamp has elapsed", func(t *testing.T) {
 
 		userSignup := &v1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
@@ -246,6 +275,91 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.NoError(s.T(), err)
+	})
+
+	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "Too many requests: too many verification attempts", err.Error())
+	})
+
+	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "ABC",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "strconv.Atoi: parsing \"ABC\": invalid syntax", err.Error())
+		require.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
+	})
+
+	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "Internal error occurred: parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\"", err.Error())
 	})
 }
 

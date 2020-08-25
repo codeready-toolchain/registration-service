@@ -133,8 +133,11 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 	}
 
 	if now.After(exp) {
-		// If it is now past the expiry timestamp for the verification code, return a 400 Bad Request error
-		return errors2.NewBadRequest("verification code expired")
+		// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
+		return errors2.NewForbidden(schema.GroupResource{
+			Group:    "",
+			Resource: "",
+		}, "", errors.New("verification code expired"))
 	}
 
 	// If the code matches then set VerificationRequired to false, reset other verification annotations

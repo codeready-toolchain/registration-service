@@ -247,8 +247,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.StatusError{})
-		require.Equal(s.T(), "verification code expired", err.(*errors.StatusError).Error())
-		require.Equal(s.T(), http.StatusBadRequest, int(err.(*errors.StatusError).Status().Code))
+		require.Equal(s.T(), "forbidden: verification code expired", err.(*errors.StatusError).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.StatusError).Status().Code))
 	})
 
 	s.T().Run("when previous verifications exceeded maximum attempts but timestamp has elapsed", func(t *testing.T) {

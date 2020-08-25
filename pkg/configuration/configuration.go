@@ -190,27 +190,13 @@ func getRegistrationEnvVarKey(key string) string {
 }
 
 func (c *Config) PrintConfig() {
-	logWithValuesHost := log.WithValues(
-		getRegistrationEnvVarKey(varNamespace), c.GetNamespace(),
-		getRegistrationEnvVarKey(varEnvironment), c.GetEnvironment(),
-		getRegistrationEnvVarKey(varLogLevel), c.GetLogLevel(),
-		getRegistrationEnvVarKey(varGracefulTimeout), c.GetGracefulTimeout(),
-		getRegistrationEnvVarKey(varHTTPIdleTimeout), c.GetHTTPIdleTimeout(),
-		getRegistrationEnvVarKey(varHTTPReadTimeout), c.GetHTTPReadTimeout(),
-		getRegistrationEnvVarKey(varHTTPWriteTimeout), c.GetHTTPWriteTimeout(),
-		getRegistrationEnvVarKey(varHTTPAddress), c.GetHTTPAddress(),
-		getRegistrationEnvVarKey(varHTTPCompressResponses), c.GetHTTPCompressResponses(),
-		getRegistrationEnvVarKey(varLogJSON), c.IsLogJSON(),
-		getRegistrationEnvVarKey(varAuthClientConfigContentType), c.GetAuthClientConfigAuthContentType(),
-		getRegistrationEnvVarKey(varAuthClientLibraryURL), c.GetAuthClientLibraryURL(),
-		getRegistrationEnvVarKey(varAuthClientPublicKeysURL), c.GetAuthClientPublicKeysURL(),
-		getRegistrationEnvVarKey(varAuthClientConfigRaw), c.GetAuthClientConfigAuthRaw(),
-		getRegistrationEnvVarKey(varVerificationEnabled), c.GetVerificationEnabled(),
-		getRegistrationEnvVarKey(varVerificationDailyLimit), c.GetVerificationDailyLimit(),
-		getRegistrationEnvVarKey(varVerificationAttemptsAllowed), c.GetVerificationAttemptsAllowed(),
-		getRegistrationEnvVarKey(varTwilioFromNumber), c.GetTwilioFromNumber())
+	logWithValuesRegServ := log
+	keys := c.v.AllKeys()
+	for _, key := range keys {
+		logWithValuesRegServ = logWithValuesRegServ.WithValues(key, c.v.Get(key))
+	}
 
-	logWithValuesHost.Info("Registration service configuration variables:")
+	logWithValuesRegServ.Info("Registration service configuration variables:")
 }
 
 // GetViperInstance returns the underlying Viper instance.

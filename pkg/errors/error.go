@@ -48,8 +48,8 @@ func NewTooManyRequestsError(message, details string) *Error {
 
 func NewInternalError(err error, details string) *Error {
 	return &Error{
-		Status:  http.StatusText(http.StatusTooManyRequests),
-		Code:    http.StatusTooManyRequests,
+		Status:  http.StatusText(http.StatusInternalServerError),
+		Code:    http.StatusInternalServerError,
 		Message: err.Error(),
 		Details: details,
 	}

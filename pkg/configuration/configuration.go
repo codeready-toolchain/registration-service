@@ -316,7 +316,10 @@ func (c *Registry) GetVerificationExcludedEmailDomains() []string {
 		lock.Lock()
 		defer lock.Unlock()
 
-		c.excludedDomains = strings.Split(c.v.GetString(varVerificationExcludedEmailDomains), ",")
+		split := func(c rune) bool {
+			return c == ','
+		}
+		c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), split)
 	}
 	return c.excludedDomains
 }

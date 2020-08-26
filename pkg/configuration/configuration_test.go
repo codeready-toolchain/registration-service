@@ -607,6 +607,37 @@ func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
 	})
 }
 
+func (s *TestConfigurationSuite) TestVerificationExcludedDomains() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_EXCLUDED_EMAIL_DOMAINS"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 0)
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.excluded_email_domains: "redhat.com,ibm.com"`)
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 2)
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "redhat.com")
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "ibm.com")
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "redhat.com"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 1)
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "redhat.com")
+	})
+}
+
 func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 	key := configuration.EnvPrefix + "_" + "TWILIO_ACCOUNT_SID"
 	resetFunc := UnsetEnvVarAndRestore(s.T(), key)

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/verification"
+
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -66,6 +68,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.Config())
 		var signupSrv signup.Service
+		var verificationSrv verification.Service
 
 		if srv.Config().IsTestingMode() {
 			// testing mode, return default impl instance. This is needed for tests
@@ -78,8 +81,9 @@ func (srv *RegistrationServer) SetupRoutes() error {
 				err = errs.Wrapf(err, "failed to init signup service")
 				return
 			}
+			verificationSrv = verification.NewVerificationService(srv.Config())
 		}
-		signupCtrl := controller.NewSignup(srv.Config(), signupSrv)
+		signupCtrl := controller.NewSignup(srv.Config(), signupSrv, verificationSrv)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

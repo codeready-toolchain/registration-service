@@ -94,6 +94,41 @@ const (
 	varNamespace = "namespace"
 	// DefaultNamespace is the default k8s namespace to use.
 	DefaultNamespace = "toolchain-host-operator"
+
+	varVerificationEnabled = "verification.enabled"
+	// DefaultVerificationEnabled is the default value for whether the phone verification feature is enabled
+	DefaultVerificationEnabled = true
+
+	varVerificationDailyLimit = "verification.daily_limit"
+	// DefaultVerificationDailyLimit is the default number of times a user may request phone verification
+	// in a 24 hour period
+	DefaultVerificationDailyLimit = 5
+
+	varVerificationAttemptsAllowed = "verification.attempts_allowed"
+	// DefaultVerificationAttemptsAllowed is the default number of maximum attempts a user may make to
+	// provide a correct verification code
+	DefaultVerificationAttemptsAllowed = 3
+
+	// varTwilioAccountSID is the constant used to read the configuration parameter for the
+	// Twilio account identifier, used for sending SMS verification codes.  Twilio is a service that
+	// provides an API for sending SMS messages anywhere in the world.  http://twilio.com
+	varTwilioAccountSID = "twilio.account_sid"
+
+	// varTwilioAuthToken is the constant used to read the configuration parameter for the
+	// Twilio authentication token, used for sending SMS verification codes
+	varTwilioAuthToken = "twilio.auth_token"
+
+	// varTwilioFromNumber is the constant used to read the configuration parameter for the
+	// Twilio from number, used for sending SMS verification codes
+	varTwilioFromNumber = "twilio.from_number"
+
+	// varVerificationMessageTemplate is the constant used to read the configuration parameter for the
+	// verification message send to users via SMS
+	varVerificationMessageTemplate = "verification.message_template"
+
+	// DefaultVerificationMessageTemplate is the default verification message template sent to users
+	// via SMS for phone verification.  The string parameter is replaced with a random verification code
+	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
 )
 
 // Registry encapsulates the Viper configuration registry which stores the
@@ -153,6 +188,10 @@ func (c *Registry) setConfigDefaults() {
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
 	c.v.SetDefault(varAuthClientPublicKeysURL, DefaultAuthClientPublicKeysURL)
 	c.v.SetDefault(varNamespace, DefaultNamespace)
+	c.v.SetDefault(varVerificationEnabled, DefaultVerificationEnabled)
+	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
+	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
+	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -237,4 +276,42 @@ func (c *Registry) GetAuthClientPublicKeysURL() string {
 // GetNamespace returns the namespace in which the registration service and host operator is running
 func (c *Registry) GetNamespace() string {
 	return c.v.GetString(varNamespace)
+}
+
+// GetVerificationEnabled indicates whether the phone verification feature is enabled or not
+func (c *Registry) GetVerificationEnabled() bool {
+	return c.v.GetBool(varVerificationEnabled)
+}
+
+// GetVerificationDailyLimit is the number of times a user may initiate a phone verification request within a
+// 24 hour period
+func (c *Registry) GetVerificationDailyLimit() int {
+	return c.v.GetInt(varVerificationDailyLimit)
+}
+
+// GetVerificationAttemptsAllowed is the number of times a user may attempt to correctly enter a verification code,
+// if they fail then they must request another code
+func (c *Registry) GetVerificationAttemptsAllowed() int {
+	return c.v.GetInt(varVerificationAttemptsAllowed)
+}
+
+// GetVerificationMessageTemplate is the message template used to generate the content sent to users via SMS for
+// phone verification
+func (c *Registry) GetVerificationMessageTemplate() string {
+	return c.v.GetString(varVerificationMessageTemplate)
+}
+
+// GetTwilioAccountSID is the Twilio account identifier, used for sending phone verification messages
+func (c *Registry) GetTwilioAccountSID() string {
+	return c.v.GetString(varTwilioAccountSID)
+}
+
+// GetTwilioAuthToken is the Twilio authentication token, used for sending phone verification messages
+func (c *Registry) GetTwilioAuthToken() string {
+	return c.v.GetString(varTwilioAuthToken)
+}
+
+// GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages
+func (c *Registry) GetTwilioFromNumber() string {
+	return c.v.GetString(varTwilioFromNumber)
 }

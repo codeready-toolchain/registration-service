@@ -42,8 +42,11 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
 
+	// Create a mock VerificationService
+	verifySvc := &FakeVerificationService{}
+
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(s.Config, svc)
+	signupCtrl := controller.NewSignup(s.Config, svc, verifySvc)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	userID, err := uuid.NewV4()
@@ -123,13 +126,17 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
+
+	// Create a mock VerificationService
+	verifyService := &FakeVerificationService{}
+
 	// Create UserSignup
 	ob, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	userID := ob.String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Config, svc)
+	ctrl := controller.NewSignup(s.Config, svc, verifyService)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -216,4 +223,11 @@ func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 
 func (m *FakeSignupService) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error) {
 	return m.MockCreateUserSignup(ctx)
+}
+
+type FakeVerificationService struct {
+}
+
+func (m *FakeVerificationService) SendVerification(ctx *gin.Context, signup *crtapi.UserSignup) error {
+	return m.SendVerification(ctx, signup)
 }

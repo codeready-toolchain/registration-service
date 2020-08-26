@@ -4,16 +4,16 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/context"
-
-	"github.com/gin-gonic/gin"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+
+	"github.com/gin-gonic/gin"
 
 	errors2 "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
@@ -73,7 +73,7 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
-	PostVerification(countryCode, phoneNumber string) error
+	PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -217,42 +217,38 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
-func (s *ServiceImpl) PostVerification(userID, countryCode, phoneNumber string) error {
+func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
-		return err
+		return nil, http.StatusNotFound, err
 	}
 
 	annotationCounter := userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	counter := 0
 	if annotationCounter != "" {
 		counter, err = strconv.Atoi(annotationCounter)
-		if err != nil {
-			return err
+		if err != nil || counter > dailyLimit {
+			return nil, http.StatusInternalServerError, err
 		}
 	}
 
-	// TODO: generate verification code
+	if counter > dailyLimit {
+		return nil, http.StatusForbidden, errors2.New("daily limit has been exceeded")
+	}
 
 	userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
-	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = "1234"
+	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
 	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = string(time.Now().Unix())
 
 	userSignup, err = s.UserSignups.Patch(userSignup.Name, userSignup.Annotations)
 	if err != nil {
-		return err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	// Create possible message bodies
-	quotes := []string{"1234"}
-	reader := CreateMessage("12268213049", "18009024569", quotes)
-	resp := Send(reader)
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
-		return errors2.New("failed sending phone verification")
-	}
-
-	return nil
+	// send message
+	return userSignup, http.StatusOK, nil
 }

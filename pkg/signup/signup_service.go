@@ -217,6 +217,8 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
+// PostVerification returns userSignup resource from the host cluster.
+// Returns the usersignup, an http code and an error if present.
 func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
@@ -224,31 +226,32 @@ func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode
 		return nil, http.StatusNotFound, err
 	}
 
+	// get the annotation counter
 	annotationCounter := userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
-
-	// check if counter has exceeded the limit of daily limit - if at limit error out
 	counter := 0
 	if annotationCounter != "" {
 		counter, err = strconv.Atoi(annotationCounter)
-		if err != nil || counter > dailyLimit {
+		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
 	}
 
+	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter > dailyLimit {
 		return nil, http.StatusForbidden, errors2.New("daily limit has been exceeded")
 	}
 
+	// set the usersignup annotations
 	userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
 	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
 	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = string(time.Now().Unix())
 
-	userSignup, err = s.UserSignups.Patch(userSignup.Name, userSignup.Annotations)
+	// update the usersignup
+	userSignup, err = s.UserSignups.Update(userSignup)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
 
-	// send message
 	return userSignup, http.StatusOK, nil
 }

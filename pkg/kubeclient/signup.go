@@ -1,10 +1,7 @@
 package kubeclient
 
 import (
-	"encoding/json"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -19,7 +16,7 @@ type userSignupClient struct {
 type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	Patch(name string, obj map[string]string) (*crtapi.UserSignup, error)
+	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -54,36 +51,18 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	return result, err
 }
 
-// Patch updates a new UserSignup resource in the cluster, and returns the resulting UserSignup that was created, or
-// an error if something went wrong
-func (c *userSignupClient) Patch(name string, obj map[string]string) (*crtapi.UserSignup, error) {
-	//result := &crtapi.UserSignup{}
-	//err := c.client.Put().
-	//	Namespace(c.ns).
-	//	Resource(userSignupResourcePlural).
-	//	Body(obj).
-	//	Do().
-	//	Into(result)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return result, err
-
-	data, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
+// Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
+func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err = c.client.Patch(types.JSONPatchType).
+	err := c.client.Put().
 		Namespace(c.ns).
-		Name(name).
 		Resource(userSignupResourcePlural).
-		Body(data).
+		Name(obj.Name).
+		Body(obj).
 		Do().
 		Into(result)
 	if err != nil {
 		return nil, err
 	}
-	return result, err
+	return result, nil
 }

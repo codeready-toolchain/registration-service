@@ -2,15 +2,12 @@ package verification
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -123,21 +120,18 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 
 	// If the user has made more attempts than is allowed per day, return an error
 	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
-		return errors2.NewTooManyRequestsError("too many verification attempts")
+		return errors3.NewTooManyRequestsError("too many verification attempts", "")
 	}
 
 	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey])
 	if err != nil {
 		// If the verification expiry timestamp is corrupt or missing, then return an error
-		return errors2.NewInternalError(err)
+		return errors3.NewInternalError(err, "error parsing expiry timestamp")
 	}
 
 	if now.After(exp) {
 		// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
-		return errors2.NewForbidden(schema.GroupResource{
-			Group:    "",
-			Resource: "",
-		}, "", errors.New("verification code expired"))
+		return errors3.NewForbiddenError("expired", "verification code expired")
 	}
 
 	// If the code matches then set VerificationRequired to false, reset other verification annotations
@@ -154,8 +148,5 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 	// The code doesn't match
 	attemptsMade++
 	signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-	return errors2.NewForbidden(schema.GroupResource{
-		Group:    "",
-		Resource: "",
-	}, "", errors.New("invalid code"))
+	return errors3.NewForbiddenError("invalid code", "the provided code is invalid")
 }

@@ -537,7 +537,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusNotFound, rr.Code)
+		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
 }
 

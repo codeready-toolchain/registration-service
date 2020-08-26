@@ -10,13 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/gin-gonic/gin"
 
 	"gopkg.in/h2non/gock.v1"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/stretchr/testify/require"
@@ -217,9 +216,9 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.StatusError{})
-		require.Equal(s.T(), "forbidden: invalid code", err.(*errors.StatusError).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.StatusError).Status().Code))
+		require.IsType(s.T(), err, &errors.Error{})
+		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
 	})
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
@@ -246,9 +245,9 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.StatusError{})
-		require.Equal(s.T(), "forbidden: verification code expired", err.(*errors.StatusError).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.StatusError).Status().Code))
+		require.IsType(s.T(), err, &errors.Error{})
+		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
 	})
 
 	s.T().Run("when previous verifications exceeded maximum attempts but timestamp has elapsed", func(t *testing.T) {
@@ -303,7 +302,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
-		require.Equal(s.T(), "Too many requests: too many verification attempts", err.Error())
+		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
 
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
@@ -360,7 +359,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		err := svc.VerifyCode(ctx, userSignup, "123456")
 		require.Error(s.T(), err)
-		require.Equal(s.T(), "Internal error occurred: parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\"", err.Error())
+		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})
 }
 

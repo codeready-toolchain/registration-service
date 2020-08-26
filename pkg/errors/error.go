@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,4 +22,35 @@ func AbortWithError(ctx *gin.Context, code int, err error, details string) {
 		Message: err.Error(),
 		Details: details,
 	})
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:%s", e.Message, e.Details)
+}
+
+func NewForbiddenError(message, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusForbidden),
+		Code:    http.StatusForbidden,
+		Message: message,
+		Details: details,
+	}
+}
+
+func NewTooManyRequestsError(message, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusTooManyRequests),
+		Code:    http.StatusTooManyRequests,
+		Message: message,
+		Details: details,
+	}
+}
+
+func NewInternalError(err error, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusTooManyRequests),
+		Code:    http.StatusTooManyRequests,
+		Message: err.Error(),
+		Details: details,
+	}
 }

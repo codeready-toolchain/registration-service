@@ -457,10 +457,11 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 
 		val, err := svc.GetUserSignup("foo")
 		require.Error(s.T(), err)
+		require.Equal(s.T(), "get failed", err.Error())
 		require.Nil(s.T(), val)
 	})
 
-	s.Run("getusersignup returns not found error", func() {
+	s.Run("getusersignup with unknown user", func() {
 		fakeClient.MockGet = nil
 
 		val, err := svc.GetUserSignup("unknown")
@@ -498,6 +499,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 
 		updated, err := svc.UpdateUserSignup(val)
 		require.Error(s.T(), err)
+		require.Equal(s.T(), "update failed", err.Error())
 		require.Nil(s.T(), updated)
 	})
 }

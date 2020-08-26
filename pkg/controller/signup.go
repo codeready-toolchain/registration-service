@@ -68,7 +68,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	code := ctx.Param("code")
 	if code == "" {
 		log.Error(ctx, nil, "no code provided in request")
-		ctx.AbortWithStatus(http.StatusNotFound)
+		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
@@ -95,6 +95,10 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	if err2 != nil {
 		log.Error(ctx, err2, "error while updating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
+
+		if err != nil {
+			log.Error(ctx, err, "error validating user verification code")
+		}
 		return
 	}
 

@@ -4,6 +4,7 @@ package configuration
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	errs "github.com/pkg/errors"
@@ -134,6 +135,8 @@ const (
 	// is not required.  For example: "redhat.com,ibm.com"
 	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 )
+
+var lock sync.Mutex
 
 // Registry encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
@@ -310,6 +313,9 @@ func (c *Registry) GetVerificationMessageTemplate() string {
 // is not required
 func (c *Registry) GetVerificationExcludedEmailDomains() []string {
 	if c.excludedDomains == nil {
+		lock.Lock()
+		defer lock.Unlock()
+
 		c.excludedDomains = strings.Split(c.v.GetString(varVerificationExcludedEmailDomains), ",")
 	}
 	return c.excludedDomains

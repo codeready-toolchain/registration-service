@@ -3,6 +3,7 @@ package controller_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -224,9 +225,14 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	userID := ob.String()
 
 	s.Run("verification successful", func() {
+		var storedUserID string
+		var storedUserSignup *crtapi.UserSignup
+		var storedVerifySignup *crtapi.UserSignup
+
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
+				storedUserID = userID
 				return &crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
@@ -243,6 +249,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 				}, nil
 			},
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
+				storedUserSignup = userSignup
 				return userSignup, nil
 			},
 		}
@@ -250,6 +257,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
 			MockVerifyCode: func(ctx *gin.Context, signup *crtapi.UserSignup, code string) error {
+				storedVerifySignup = signup
 				return nil
 			},
 		}
@@ -276,6 +284,15 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
+
+		// Check that the correct userID is passed into the FakeSignupService
+		require.Equal(s.T(), userID, storedUserID)
+
+		// Check that the correct UserSignup is passed into the FakeSignupService
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+
+		// Check that the correct UserSignup is passed into the FakeVerificationService
+		require.Equal(s.T(), userID, storedVerifySignup.Name)
 	})
 
 	s.Run("getsignup returns error", func() {
@@ -321,28 +338,9 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
-		// Create a mock VerificationService
-		verifyService := &FakeVerificationService{}
-
-		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/111233", nil)
-		require.NoError(s.T(), err)
-
-		ctx.Request = req
-		ctx.Set(context.SubKey, userID)
-		ctx.Params = append(ctx.Params, gin.Param{
-			Key:   "code",
-			Value: "111233",
-		})
-
-		handler(ctx)
+		// Create Signup controller instance and handle the verification request
+		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		rr := s.handleVerify(ctrl, userID, "111233")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusNotFound, rr.Code)
@@ -381,23 +379,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Config, svc, verifyService)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/555555", nil)
-		require.NoError(s.T(), err)
-
-		ctx.Request = req
-		ctx.Set(context.SubKey, userID)
-		ctx.Params = append(ctx.Params, gin.Param{
-			Key:   "code",
-			Value: "555555",
-		})
-
-		handler(ctx)
+		rr := s.handleVerify(ctrl, userID, "555555")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -436,23 +418,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Config, svc, verifyService)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/333333", nil)
-		require.NoError(s.T(), err)
-
-		ctx.Request = req
-		ctx.Set(context.SubKey, userID)
-		ctx.Params = append(ctx.Params, gin.Param{
-			Key:   "code",
-			Value: "333333",
-		})
-
-		handler(ctx)
+		rr := s.handleVerify(ctrl, userID, "333333")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusTooManyRequests, rr.Code)
@@ -491,23 +457,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Config, svc, verifyService)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/222222", nil)
-		require.NoError(s.T(), err)
-
-		ctx.Request = req
-		ctx.Set(context.SubKey, userID)
-		ctx.Params = append(ctx.Params, gin.Param{
-			Key:   "code",
-			Value: "222222",
-		})
-
-		handler(ctx)
+		rr := s.handleVerify(ctrl, userID, "222222")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -522,23 +472,33 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Config, svc, verifyService)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/signup/verification/", nil)
-		require.NoError(s.T(), err)
-
-		ctx.Request = req
-		ctx.Set(context.SubKey, userID)
-
-		handler(ctx)
+		rr := s.handleVerify(ctrl, userID, "")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
+}
+
+func (s *TestSignupSuite) handleVerify(controller *controller.Signup, userID, code string) *httptest.ResponseRecorder {
+	handler := gin.HandlerFunc(controller.VerifyCodeHandler)
+
+	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/signup/verification/%s", code), nil)
+	require.NoError(s.T(), err)
+
+	ctx.Request = req
+	ctx.Set(context.SubKey, userID)
+	ctx.Params = append(ctx.Params, gin.Param{
+		Key:   "code",
+		Value: code,
+	})
+
+	handler(ctx)
+
+	return rr
 }
 
 type FakeSignupService struct {

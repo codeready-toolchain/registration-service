@@ -259,6 +259,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
 			MockVerifyCode: func(ctx *gin.Context, signup *crtapi.UserSignup, code string) error {
+				signup.Annotations["handled"] = "true"
 				storedVerifySignup = signup
 				return nil
 			},
@@ -290,12 +291,13 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Check that the correct userID is passed into the FakeSignupService
 		require.Equal(s.T(), userID, storedUserID)
 
-		// Check that the correct UserSignup is passed into the FakeSignupService
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
 		require.Equal(s.T(), userID, storedUserSignup.Name)
 		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
 		require.Equal(s.T(), "999888", storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Equal(s.T(), expiryTimestamp, storedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), "true", storedUserSignup.Annotations["handled"])
 
 		// Check that the correct UserSignup is passed into the FakeVerificationService
 		require.Equal(s.T(), userID, storedVerifySignup.Name)

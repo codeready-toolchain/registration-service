@@ -4,7 +4,6 @@ package configuration
 
 import (
 	"strings"
-	"sync"
 	"time"
 
 	errs "github.com/pkg/errors"
@@ -136,8 +135,6 @@ const (
 	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 )
 
-var lock sync.Mutex
-
 // Registry encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type Registry struct {
@@ -155,6 +152,9 @@ func CreateEmptyRegistry() *Registry {
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
+	c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+		return c == ','
+	})
 	return &c
 }
 
@@ -169,6 +169,11 @@ func New(configFilePath string) (*Registry, error) {
 		err := c.v.ReadInConfig() // Find and read the config file
 		if err != nil {           // Handle errors reading the config file.
 			return nil, errs.Wrap(err, "failed to read config file")
+		}
+		if c.v.GetString(varVerificationExcludedEmailDomains) != "" {
+			c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+				return c == ','
+			})
 		}
 	}
 	return c, nil
@@ -312,15 +317,6 @@ func (c *Registry) GetVerificationMessageTemplate() string {
 // GetVerificationExcludedEmailDomains returns the list of email address domains for which phone verification
 // is not required
 func (c *Registry) GetVerificationExcludedEmailDomains() []string {
-	lock.Lock()
-	defer lock.Unlock()
-
-	if c.excludedDomains == nil {
-		split := func(c rune) bool {
-			return c == ','
-		}
-		c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), split)
-	}
 	return c.excludedDomains
 }
 

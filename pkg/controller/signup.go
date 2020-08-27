@@ -86,6 +86,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		return
 	}
 
+	// The VerifyCode() call here MAY make changes to the specified signupResource
 	err = s.verificationService.VerifyCode(ctx, signupResource, code)
 
 	// Regardless of whether the VerifyCode() call returns an error or not, we need to update the UserSignup instance

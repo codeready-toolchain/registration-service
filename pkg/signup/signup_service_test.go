@@ -527,12 +527,15 @@ func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClien
 	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
 	fakeBannedUserClient := fake.NewFakeBannedUserClient(TestNamespace)
 	return &signup.ServiceImpl{
-		Namespace:            TestNamespace,
-		UserSignups:          fakeClient,
-		MasterUserRecords:    fakeMURClient,
-		BannedUsers:          fakeBannedUserClient,
-		VerificationEnabled:  true,
-		ExcludedEmailDomains: []string{"redhat.com"},
+		Namespace:         TestNamespace,
+		UserSignups:       fakeClient,
+		MasterUserRecords: fakeMURClient,
+		BannedUsers:       fakeBannedUserClient,
+		Config: &FakeSignupServiceConfiguration{
+			namespace:           "test",
+			verificationEnabled: true,
+			excludedDomains:     []string{"redhat.com"},
+		},
 	}, fakeClient, fakeMURClient, fakeBannedUserClient
 }
 

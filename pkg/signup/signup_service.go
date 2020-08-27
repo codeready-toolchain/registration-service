@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
@@ -14,7 +15,6 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
-
 	errors2 "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,6 +67,8 @@ type Status struct {
 // ServiceConfiguration represents the config used for the signup service.
 type ServiceConfiguration interface {
 	GetNamespace() string
+	GetVerificationEnabled() bool
+	GetVerificationExcludedEmailDomains() []string
 }
 
 // Service represents the signup service for controllers.
@@ -74,6 +76,8 @@ type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
 	PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error)
+	GetUserSignup(userID string) (*crtapi.UserSignup, error)
+	UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -82,6 +86,7 @@ type ServiceImpl struct {
 	UserSignups       kubeclient.UserSignupInterface
 	MasterUserRecords kubeclient.MasterUserRecordInterface
 	BannedUsers       kubeclient.BannedUserInterface
+	Config            ServiceConfiguration
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
@@ -102,6 +107,7 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 		UserSignups:       client.UserSignups(),
 		MasterUserRecords: client.MasterUserRecords(),
 		BannedUsers:       client.BannedUsers(),
+		Config:            cfg,
 	}
 	return s, nil
 }
@@ -127,6 +133,17 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 		}
 	}
 
+	verificationRequired := s.Config.GetVerificationEnabled()
+
+	// Check if the user's email address is in the list of domains excluded for phone verification
+	emailHost := extractEmailHost(userEmail)
+	for _, d := range s.Config.GetVerificationExcludedEmailDomains() {
+		if strings.EqualFold(d, emailHost) {
+			verificationRequired = false
+			break
+		}
+	}
+
 	userSignup := &crtapi.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      ctx.GetString(context.SubKey),
@@ -140,12 +157,13 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 			},
 		},
 		Spec: crtapi.UserSignupSpec{
-			TargetCluster: "",
-			Approved:      false,
-			Username:      ctx.GetString(context.UsernameKey),
-			GivenName:     ctx.GetString(context.GivenNameKey),
-			FamilyName:    ctx.GetString(context.FamilyNameKey),
-			Company:       ctx.GetString(context.CompanyKey),
+			TargetCluster:        "",
+			Approved:             false,
+			Username:             ctx.GetString(context.UsernameKey),
+			GivenName:            ctx.GetString(context.GivenNameKey),
+			FamilyName:           ctx.GetString(context.FamilyNameKey),
+			Company:              ctx.GetString(context.CompanyKey),
+			VerificationRequired: verificationRequired,
 		},
 	}
 
@@ -155,6 +173,11 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 	}
 
 	return created, nil
+}
+
+func extractEmailHost(email string) string {
+	i := strings.LastIndexByte(email, '@')
+	return email[i+1:]
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -254,4 +277,28 @@ func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode
 	}
 
 	return userSignup, http.StatusOK, nil
+}
+
+// GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
+func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
+	// Retrieve UserSignup resource from the host cluster
+	userSignup, err := s.UserSignups.Get(userID)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return userSignup, nil
+}
+
+// UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
+func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+	userSignup, err := s.UserSignups.Update(userSignup)
+	if err != nil {
+		return nil, err
+	}
+
+	return userSignup, nil
 }

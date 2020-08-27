@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	err "github.com/codeready-toolchain/registration-service/pkg/errors"
+	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
@@ -33,9 +33,9 @@ func (s *TestErrorsSuite) TestErrors() {
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
 
-		err.AbortWithError(ctx, code, errors.New(errMsg), details)
+		errs.AbortWithError(ctx, code, errors.New(errMsg), details)
 
-		res := err.Error{}
+		res := errs.Error{}
 		err := json.Unmarshal(rr.Body.Bytes(), &res)
 		require.NoError(s.T(), err)
 
@@ -43,5 +43,26 @@ func (s *TestErrorsSuite) TestErrors() {
 		assert.Equal(s.T(), res.Details, details)
 		assert.Equal(s.T(), res.Message, errMsg)
 		assert.Equal(s.T(), res.Status, http.StatusText(code))
+	})
+
+	s.Run("check specific error types", func() {
+		err := errs.NewForbiddenError("foo", "bar")
+		require.Equal(s.T(), "foo", err.Message)
+		require.Equal(s.T(), "bar", err.Details)
+		require.Equal(s.T(), http.StatusForbidden, err.Code)
+		require.Equal(s.T(), http.StatusText(http.StatusForbidden), err.Status)
+		require.Equal(s.T(), "foo:bar", err.Error())
+
+		err = errs.NewTooManyRequestsError("foo", "bar")
+		require.Equal(s.T(), "foo", err.Message)
+		require.Equal(s.T(), "bar", err.Details)
+		require.Equal(s.T(), http.StatusTooManyRequests, err.Code)
+		require.Equal(s.T(), http.StatusText(http.StatusTooManyRequests), err.Status)
+
+		err = errs.NewInternalError(errors.New("some error"), "bar")
+		require.Equal(s.T(), "some error", err.Message)
+		require.Equal(s.T(), "bar", err.Details)
+		require.Equal(s.T(), http.StatusInternalServerError, err.Code)
+		require.Equal(s.T(), http.StatusText(http.StatusInternalServerError), err.Status)
 	})
 }

@@ -212,6 +212,67 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	})
 }
 
+func (s *TestSignupSuite) TestVerificationPostHandler() {
+	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
+	// pass 'nil' as the third parameter.
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", nil)
+	require.NoError(s.T(), err)
+
+	// Create a mock SignupService
+	svc := &FakeSignupService{}
+
+	// Create a mock VerificationService
+	verifyService := &FakeVerificationService{}
+
+	// Create UserSignup
+	ob, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	userID := ob.String()
+
+	// Create Signup controller instance.
+	ctrl := controller.NewSignup(s.Config, svc, verifyService)
+	handler := gin.HandlerFunc(ctrl.PostVerificationHandler)
+
+	s.Run("signups found", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		targetCluster, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		expected := &signup.Signup{
+			ConsoleURL:      "https://console." + targetCluster.String(),
+			CheDashboardURL: "http://che-toolchain-che.member-123.com",
+			Username:        "jsmith",
+			Status: signup.Status{
+				Reason: "Provisioning",
+			},
+		}
+		svc.MockGetSignup = func(id string) (*signup.Signup, error) {
+			if id == userID {
+				return expected, nil
+			}
+			return nil, nil
+		}
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
+
+		// Check the response body is what we expect.
+		data := &signup.Signup{}
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
+		require.NoError(s.T(), err)
+
+		assert.Equal(s.T(), expected, data)
+	})
+
+}
+
 type FakeSignupService struct {
 	MockGetSignup        func(userID string) (*signup.Signup, error)
 	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
@@ -230,4 +291,8 @@ type FakeVerificationService struct {
 
 func (m *FakeVerificationService) SendVerification(ctx *gin.Context, signup *crtapi.UserSignup) error {
 	return m.SendVerification(ctx, signup)
+}
+
+func (m *FakeVerificationService) GenerateVerificationCode() (string, error) {
+	return m.GenerateVerificationCode()
 }

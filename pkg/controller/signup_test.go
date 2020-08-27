@@ -229,6 +229,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		var storedUserSignup *crtapi.UserSignup
 		var storedVerifySignup *crtapi.UserSignup
 
+		expiryTimestamp := time.Now().Add(10 * time.Second).Format(verification.TimestampLayout)
+
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
@@ -241,7 +243,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 							crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 							crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 							crtapi.UserSignupVerificationCodeAnnotationKey: "999888",
-							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(verification.TimestampLayout),
+							crtapi.UserVerificationExpiryAnnotationKey:     expiryTimestamp,
 						},
 					},
 					Spec:   crtapi.UserSignupSpec{},
@@ -290,9 +292,17 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Check that the correct UserSignup is passed into the FakeSignupService
 		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
+		require.Equal(s.T(), "999888", storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), expiryTimestamp, storedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
 
 		// Check that the correct UserSignup is passed into the FakeVerificationService
 		require.Equal(s.T(), userID, storedVerifySignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedVerifySignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "0", storedVerifySignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
+		require.Equal(s.T(), "999888", storedVerifySignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), expiryTimestamp, storedVerifySignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
 	})
 
 	s.Run("getsignup returns error", func() {
@@ -461,6 +471,14 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
+
+		bodyParams := make(map[string]interface{})
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
+		require.Equal(s.T(), float64(500), bodyParams["code"])
+		require.Equal(s.T(), "some other error", bodyParams["message"])
+		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("no code provided", func() {

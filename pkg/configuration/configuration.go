@@ -312,10 +312,10 @@ func (c *Registry) GetVerificationMessageTemplate() string {
 // GetVerificationExcludedEmailDomains returns the list of email address domains for which phone verification
 // is not required
 func (c *Registry) GetVerificationExcludedEmailDomains() []string {
-	if c.excludedDomains == nil {
-		lock.Lock()
-		defer lock.Unlock()
+	lock.Lock()
+	defer lock.Unlock()
 
+	if c.excludedDomains == nil {
 		split := func(c rune) bool {
 			return c == ','
 		}

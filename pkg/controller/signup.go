@@ -103,10 +103,9 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	if signupResource == nil {
 		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
 		ctx.AbortWithStatus(http.StatusNotFound)
+	} else {
+		ctx.JSON(http.StatusOK, signupResource)
 	}
-
-	ctx.JSON(http.StatusOK, signupResource)
-
 }
 
 // VerifyCodeHandler validates the phone verification code passed in by the user

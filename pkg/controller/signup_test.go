@@ -1,22 +1,26 @@
 package controller_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/gofrs/uuid"
 	apiv1 "k8s.io/api/core/v1"
@@ -215,6 +219,193 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 		// Check the error is what we expect.
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
+	})
+}
+
+func (s *TestSignupSuite) TestVerificationPostHandler() {
+	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
+	// pass 'nil' as the third parameter.
+	data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+	require.NoError(s.T(), err)
+
+	dataMap := make(map[string]string)
+	err = json.Unmarshal(data, &dataMap)
+
+	// Create a mock SignupService
+	svc := &FakeSignupService{}
+
+	// Create a mock VerificationService
+	verifyService := &FakeVerificationService{}
+
+	// Create UserSignup
+	ob, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	userID := ob.String()
+
+	// Create Signup controller instance.
+	ctrl := controller.NewSignup(s.Config, svc, verifyService)
+	handler := gin.HandlerFunc(ctrl.PostVerificationHandler)
+
+	var storedVerificationCode string
+	var verificationTimeStamp string
+
+	expiryTimestamp := time.Now().Add(10 * time.Second).Format(verification.TimestampLayout)
+	expected := &crtapi.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name: userID,
+			Annotations: map[string]string{
+				crtapi.UserSignupUserEmailAnnotationKey:      "jsmith@redhat.com",
+				crtapi.UserVerificationAttemptsAnnotationKey: "0",
+				crtapi.UserVerificationExpiryAnnotationKey:   expiryTimestamp,
+			},
+		},
+		Spec:   crtapi.UserSignupSpec{},
+		Status: crtapi.UserSignupStatus{},
+	}
+
+	svc.MockPostVerification = func(dailyLimit int, responseBody map[string]string, id, code string) (userSignup *crtapi.UserSignup, i int, err error) {
+		if id != userID {
+			return nil, http.StatusNotFound, errors.New("not found")
+		}
+
+		annotationCounter := expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+		counter := 0
+		if annotationCounter != "" {
+			counter, err = strconv.Atoi(annotationCounter)
+			if err != nil {
+				return nil, http.StatusInternalServerError, err
+			}
+		}
+
+		// check if counter has exceeded the limit of daily limit - if at limit error out
+		if counter > dailyLimit {
+			return nil, http.StatusForbidden, errors.New("daily limit has been exceeded")
+		}
+
+		verificationTimeStamp = time.Now().Format(verification.TimestampLayout)
+		expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+		expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = responseBody["country_code"] + responseBody["phone_number"]
+		expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
+		expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = verificationTimeStamp
+
+		return expected, http.StatusOK, nil
+	}
+
+	svc.MockGetUserSignup = func(id string) (*crtapi.UserSignup, error) {
+		if id == userID {
+			return expected, nil
+		}
+		return nil, nil
+	}
+
+	verifyService.MockGenerateVerificationCode = func() (s string, err error) {
+		rand.Seed(time.Now().UnixNano())
+		storedVerificationCode = strconv.Itoa(rand.Intn(1000))
+		return storedVerificationCode, nil
+	}
+
+	verifyService.MockSendVerification = func(ctx *gin.Context, signup *crtapi.UserSignup) error {
+		return nil
+	}
+
+	s.Run("post verification success", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, expected.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+	})
+
+	s.Run("post verification request body could not be read", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, expected.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+	})
+
+	s.Run("post verification usersignup not found", func() {
+		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.SubKey, "1111")
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, expected.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.NotEqual(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+	})
+
+	s.Run("post verification daily limit exceeded", func() {
+		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
+		err = os.Setenv(key, "0")
+		defer os.Unsetenv(key)
+
+		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, expected.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.NotEqual(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
 	})
 }
 
@@ -526,6 +717,7 @@ type FakeSignupService struct {
 	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup    func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockPostVerification func(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -544,9 +736,14 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
+func (m *FakeSignupService) PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error) {
+	return m.MockPostVerification(dailyLimit, responseBody, userID, code)
+}
+
 type FakeVerificationService struct {
-	MockSendVerification func(ctx *gin.Context, signup *crtapi.UserSignup) error
-	MockVerifyCode       func(ctx *gin.Context, signup *crtapi.UserSignup, code string) error
+	MockSendVerification         func(ctx *gin.Context, signup *crtapi.UserSignup) error
+	MockVerifyCode               func(ctx *gin.Context, signup *crtapi.UserSignup, code string) error
+	MockGenerateVerificationCode func() (string, error)
 }
 
 func (m *FakeVerificationService) SendVerification(ctx *gin.Context, signup *crtapi.UserSignup) error {
@@ -558,5 +755,5 @@ func (m *FakeVerificationService) VerifyCode(ctx *gin.Context, signup *crtapi.Us
 }
 
 func (m *FakeVerificationService) GenerateVerificationCode() (string, error) {
-	return m.GenerateVerificationCode()
+	return m.MockGenerateVerificationCode()
 }

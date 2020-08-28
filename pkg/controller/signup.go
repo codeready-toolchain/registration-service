@@ -62,28 +62,29 @@ func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
 	if err != nil {
 		log.Errorf(ctx, nil, "Request body could not be read")
 		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
-	countryCode := m["country_code"]
-	phoneNumber := m["phone_number"]
 
 	// generate verification code
-	service := verification.NewVerificationService(s.config)
-	code, err := service.GenerateVerificationCode()
+	code, err := s.verificationService.GenerateVerificationCode()
 	if err != nil {
 		log.Errorf(ctx, nil, "verification code could not be generated")
 		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
-	userSignup, httpCode, err := s.signupService.PostVerification(s.config.GetVerificationDailyLimit(), userID, code, countryCode, phoneNumber)
+	userSignup, httpCode, err := s.signupService.PostVerification(s.config.GetVerificationDailyLimit(), m, userID, code)
 	if err != nil {
 		log.Errorf(ctx, nil, "phone verification has failed: %s", err.Error())
 		ctx.AbortWithError(httpCode, err)
+		return
 	}
 
-	err = service.SendVerification(ctx, userSignup)
+	err = s.verificationService.SendVerification(ctx, userSignup)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
 	}
 
 	log.Infof(ctx, "phone verification has passed for userID %s", userID)

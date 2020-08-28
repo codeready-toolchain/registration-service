@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/verification"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -75,7 +77,7 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
-	PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error)
+	PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error)
 	GetUserSignup(userID string) (*crtapi.UserSignup, error)
 	UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
@@ -242,7 +244,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 // PostVerification returns userSignup resource from the host cluster.
 // Returns the usersignup, an http code and an error if present.
-func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode, phoneNumber string) (*crtapi.UserSignup, int, error) {
+func (s *ServiceImpl) PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
@@ -266,9 +268,9 @@ func (s *ServiceImpl) PostVerification(dailyLimit int, userID, code, countryCode
 
 	// set the usersignup annotations
 	userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
+	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = responseBody["country_code"] + responseBody["phone_number"]
 	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
-	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = string(time.Now().Unix())
+	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(verification.TimestampLayout)
 
 	// update the usersignup
 	userSignup, err = s.UserSignups.Update(userSignup)

@@ -96,7 +96,8 @@ func (s *TestVerificationServiceSuite) TestSendVerification() {
 			Name:      "123",
 			Namespace: "test",
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
+				v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+				v1alpha1.UserSignupVerificationCodeAnnotationKey: "1234",
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",

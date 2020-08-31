@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -22,14 +22,15 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/gofrs/uuid"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	apiv1 "k8s.io/api/core/v1"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestSignupSuite struct {
@@ -265,9 +266,9 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		Status: crtapi.UserSignupStatus{},
 	}
 
-	svc.MockPostVerification = func(dailyLimit int, responseBody map[string]string, id, code string) (userSignup *crtapi.UserSignup, i int, err error) {
+	svc.MockUpdateWithVerificationCode = func(dailyLimit int, responseBody map[string]string, id, code string) (userSignup *crtapi.UserSignup, err error) {
 		if id != userID {
-			return nil, http.StatusNotFound, errors.New("not found")
+			return nil, errors2.NewNotFound(schema.GroupResource{}, "not found")
 		}
 
 		annotationCounter := expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
@@ -275,13 +276,13 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		if annotationCounter != "" {
 			counter, err = strconv.Atoi(annotationCounter)
 			if err != nil {
-				return nil, http.StatusInternalServerError, err
+				return nil, errors2.NewInternalError(err)
 			}
 		}
 
 		// check if counter has exceeded the limit of daily limit - if at limit error out
 		if counter > dailyLimit {
-			return nil, http.StatusForbidden, errors.New("daily limit has been exceeded")
+			return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
 		}
 
 		verificationTimeStamp = time.Now().Format(verification.TimestampLayout)
@@ -290,7 +291,7 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
 		expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = verificationTimeStamp
 
-		return expected, http.StatusOK, nil
+		return expected, nil
 	}
 
 	svc.MockGetUserSignup = func(id string) (*crtapi.UserSignup, error) {
@@ -713,11 +714,11 @@ func (s *TestSignupSuite) handleVerify(controller *controller.Signup, userID, co
 }
 
 type FakeSignupService struct {
-	MockGetSignup        func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockGetUserSignup    func(userID string) (*crtapi.UserSignup, error)
-	MockUpdateUserSignup func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockPostVerification func(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error)
+	MockGetSignup                  func(userID string) (*signup.Signup, error)
+	MockCreateUserSignup           func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockGetUserSignup              func(userID string) (*crtapi.UserSignup, error)
+	MockUpdateUserSignup           func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdateWithVerificationCode func(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -736,8 +737,8 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-func (m *FakeSignupService) PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error) {
-	return m.MockPostVerification(dailyLimit, responseBody, userID, code)
+func (m *FakeSignupService) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error) {
+	return m.MockUpdateWithVerificationCode(dailyLimit, responseBody, userID, code)
 }
 
 type FakeVerificationService struct {

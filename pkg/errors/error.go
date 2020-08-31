@@ -54,3 +54,12 @@ func NewInternalError(err error, details string) *Error {
 		Details: details,
 	}
 }
+
+func NewNotFoundError(err error, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusNotFound),
+		Code:    http.StatusNotFound,
+		Message: err.Error(),
+		Details: details,
+	}
+}

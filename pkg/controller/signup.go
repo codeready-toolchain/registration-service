@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -15,6 +13,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/verification"
 
 	"github.com/gin-gonic/gin"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -73,10 +72,14 @@ func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	userSignup, httpCode, err := s.signupService.PostVerification(s.config.GetVerificationDailyLimit(), m, userID, code)
+	userSignup, err := s.signupService.UpdateWithVerificationCode(s.config.GetVerificationDailyLimit(), m, userID, code)
 	if err != nil {
-		log.Errorf(ctx, nil, "phone verification has failed: %s", err.Error())
-		ctx.AbortWithError(httpCode, err)
+		switch t := err.(type) {
+		default:
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
+		case *errors2.StatusError:
+			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
+		}
 		return
 	}
 
@@ -87,7 +90,7 @@ func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	log.Infof(ctx, "phone verification has passed for userID %s", userID)
+	log.Infof(ctx, "phone verification has been sent for userID %s", userID)
 	ctx.JSON(http.StatusOK, userSignup)
 }
 

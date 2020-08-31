@@ -4,16 +4,15 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
@@ -77,7 +76,7 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
-	PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error)
+	UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error)
 	GetUserSignup(userID string) (*crtapi.UserSignup, error)
 	UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 }
@@ -242,13 +241,16 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
-// PostVerification returns userSignup resource from the host cluster.
-// Returns the usersignup, an http code and an error if present.
-func (s *ServiceImpl) PostVerification(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, int, error) {
+// UpdateWithVerificationCode returns userSignup resource from the host cluster.
+// Returns nil if the usersignup is not found and an error if present.
+func (s *ServiceImpl) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
-		return nil, http.StatusNotFound, err
+		if errors.IsNotFound(err) {
+			return nil, errors3.NewNotFoundError(err, fmt.Sprintf("usersignup not found: %s", userID))
+		}
+		return nil, errors3.NewInternalError(err, fmt.Sprintf("error retreiving usersignup: %s", userID))
 	}
 
 	// get the annotation counter
@@ -257,13 +259,14 @@ func (s *ServiceImpl) PostVerification(dailyLimit int, responseBody map[string]s
 	if annotationCounter != "" {
 		counter, err = strconv.Atoi(annotationCounter)
 		if err != nil {
-			return nil, http.StatusInternalServerError, err
+			return nil, errors3.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s", userSignup.GetName()))
 		}
 	}
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter > dailyLimit {
-		return nil, http.StatusForbidden, errors2.New("daily limit has been exceeded")
+		// fmt.Sprintf("%s attempts made. the daily limit of %s has been exceeded", counter, dailyLimit)
+		return nil, errors3.NewForbiddenError("daily limit exceeded", fmt.Sprintf("%s attempts made. the daily limit of %s has been exceeded", counter, dailyLimit))
 	}
 
 	// set the usersignup annotations
@@ -275,10 +278,10 @@ func (s *ServiceImpl) PostVerification(dailyLimit int, responseBody map[string]s
 	// update the usersignup
 	userSignup, err = s.UserSignups.Update(userSignup)
 	if err != nil {
-		return nil, http.StatusInternalServerError, err
+		return nil, errors3.NewInternalError(err, fmt.Sprintf("error when updating UserSignup %s", userSignup.GetName()))
 	}
 
-	return userSignup, http.StatusOK, nil
+	return userSignup, nil
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO

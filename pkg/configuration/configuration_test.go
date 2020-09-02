@@ -33,6 +33,8 @@ func TestRunConfigurationSuite(t *testing.T) {
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
 func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	config, err := configuration.New("", NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return config
@@ -44,6 +46,8 @@ func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config
 // defaults, so please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
 func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Config {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")
 	require.NoError(s.T(), err)
 	defer func() {

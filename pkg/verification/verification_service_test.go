@@ -41,6 +41,7 @@ type mockVerificationConfig struct {
 	fromNumber      string
 	messageTemplate string
 	attemptsAllowed int
+	dailyLimit      int
 }
 
 func (c *mockVerificationConfig) GetTwilioAccountSID() string {
@@ -61,6 +62,10 @@ func (c *mockVerificationConfig) GetVerificationMessageTemplate() string {
 
 func (c *mockVerificationConfig) GetVerificationAttemptsAllowed() int {
 	return c.attemptsAllowed
+}
+
+func (c *mockVerificationConfig) GetVerificationDailyLimit() int {
+	return c.dailyLimit
 }
 
 func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verification.ServiceConfiguration {
@@ -108,7 +113,7 @@ func (s *TestVerificationServiceSuite) TestSendVerification() {
 		},
 	}
 
-	err := svc.SendVerification(ctx, userSignup)
+	_, err := svc.InitVerification(ctx, userSignup, "1", "NUMBER")
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
@@ -152,17 +157,15 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 		},
 	}
 
-	err := svc.SendVerification(ctx, userSignup)
+	_, err := svc.InitVerification(ctx, userSignup, "1", "NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
-	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	// given
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
 	svc, _ := s.createVerificationService()
 	now := time.Now()
 
@@ -188,7 +191,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.NoError(s.T(), err)
 		require.False(s.T(), userSignup.Spec.VerificationRequired)
 	})
@@ -215,7 +218,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
@@ -244,7 +247,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
@@ -274,7 +277,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.NoError(s.T(), err)
 	})
 
@@ -301,7 +304,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
@@ -329,7 +332,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "strconv.Atoi: parsing \"ABC\": invalid syntax", err.Error())
 		require.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
@@ -358,7 +361,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		err := svc.VerifyCode(ctx, userSignup, "123456")
+		_, err := svc.VerifyCode(userSignup, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})

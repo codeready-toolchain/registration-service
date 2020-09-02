@@ -102,7 +102,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
-		securedV1.POST("/signup/verification", signupCtrl.PostVerificationHandler)
+		securedV1.PUT("/signup/verification", signupCtrl.UpdateVerificationHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyCodeHandler)
 

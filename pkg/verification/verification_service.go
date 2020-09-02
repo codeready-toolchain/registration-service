@@ -29,13 +29,13 @@ type ServiceConfiguration interface {
 	GetTwilioFromNumber() string
 	GetVerificationMessageTemplate() string
 	GetVerificationAttemptsAllowed() int
+	GetVerificationDailyLimit() int
 }
 
 // Service represents the verification service for controllers.
 type Service interface {
-	SendVerification(ctx *gin.Context, signup *v1alpha1.UserSignup) error
-	GenerateVerificationCode() (string, error)
-	VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, code string) error
+	InitVerification(ctx *gin.Context, signup *v1alpha1.UserSignup, countryCode, phoneNumber string) (*v1alpha1.UserSignup, error)
+	VerifyCode(signup *v1alpha1.UserSignup, code string) (*v1alpha1.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the verification service.
@@ -58,26 +58,69 @@ func NewVerificationService(cfg ServiceConfiguration, opts ...VerificationServic
 	return s
 }
 
-// SendVerification sends a verification message to the specified user.  If successful,
+// InitVerification sends a verification message to the specified user.  If successful,
 // the user will receive a verification SMS.
-func (s *ServiceImpl) SendVerification(ctx *gin.Context, signup *v1alpha1.UserSignup) error {
-	verificationCode := signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]
+func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSignup, countryCode, phoneNumber string) (*v1alpha1.UserSignup, error) {
+	now := time.Now()
 
-	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), verificationCode)
+	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
+	ts, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationCodeGeneratedTimestampAnnotationKey])
+	if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
+		// Set a new timestamp
+		signup.Annotations[v1alpha1.UserSignupVerificationCodeGeneratedTimestampAnnotationKey] = now.Format(TimestampLayout)
+		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
+	}
 
+	// get the annotation counter
+	annotationCounter := signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey]
+	var counter int
+	if annotationCounter == "" {
+		counter = 0
+	}
+
+	dailyLimit := s.config.GetVerificationDailyLimit()
+	counter, err = strconv.Atoi(annotationCounter)
+	if err != nil {
+		// We shouldn't get an error here, but if we do, we should probably set verification attempts to daily limit
+		// so that we at least now have a valid value
+		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
+		return signup, errors3.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s, set to daily limit", signup.GetName()))
+	}
+
+	// check if counter has exceeded the limit of daily limit - if at limit error out
+	if counter > dailyLimit {
+		err := errors3.NewForbiddenError("daily limit exceeded", fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
+		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
+		return signup, err
+	}
+
+	// generate verification code
+	code, err := generateVerificationCode()
+	if err != nil {
+		log.Errorf(ctx, nil, "verification code could not be generated")
+		return signup, ctx.AbortWithError(http.StatusInternalServerError, err)
+	}
+
+	// set the usersignup annotations
+	signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+	signup.Annotations[v1alpha1.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
+	signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(TimestampLayout)
+	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = code
+
+	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
 	toNumber := signup.Labels[v1alpha1.UserSignupPhoneNumberLabelKey]
 	client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
 	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber,
 		content, nil)
 	if err != nil {
 		log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
-		return err
+		return signup, err
 	}
 
-	return nil
+	return signup, nil
 }
 
-func (s *ServiceImpl) GenerateVerificationCode() (string, error) {
+func generateVerificationCode() (string, error) {
 	buf := make([]byte, codeLength)
 	_, err := rand.Read(buf)
 	if err != nil {
@@ -94,8 +137,7 @@ func (s *ServiceImpl) GenerateVerificationCode() (string, error) {
 
 // VerifyCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
-func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, code string) error {
-
+func (s *ServiceImpl) VerifyCode(signup *v1alpha1.UserSignup, code string) (*v1alpha1.UserSignup, error) {
 	now := time.Now()
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
@@ -103,7 +145,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 	if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
 		// Set a new timestamp
 		signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = now.Format(TimestampLayout)
-		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(0)
+		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
 	}
 
 	attemptsMade, err := strconv.Atoi(signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
@@ -111,38 +153,39 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, signup *v1alpha1.UserSignup, 
 		// We shouldn't get an error here, but if we do, we should probably set verification attempts to max allowed
 		// so that we at least now have a valid value
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(s.config.GetVerificationAttemptsAllowed())
-		return err
+		return signup, err
 	}
 
 	// If the user has made more attempts than is allowed per day, return an error
 	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
-		return errors3.NewTooManyRequestsError("too many verification attempts", "")
+		return signup, errors3.NewTooManyRequestsError("too many verification attempts", "")
 	}
 
 	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey])
 	if err != nil {
 		// If the verification expiry timestamp is corrupt or missing, then return an error
-		return errors3.NewInternalError(err, "error parsing expiry timestamp")
+		return signup, errors3.NewInternalError(err, "error parsing expiry timestamp")
 	}
 
 	if now.After(exp) {
 		// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
-		return errors3.NewForbiddenError("expired", "verification code expired")
+		return signup, errors3.NewForbiddenError("expired", "verification code expired")
+	}
+
+	if code != signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] {
+		// The code doesn't match
+		attemptsMade++
+		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+		return signup, errors3.NewForbiddenError("invalid code", "the provided code is invalid")
 	}
 
 	// If the code matches then set VerificationRequired to false, reset other verification annotations
-	if code == signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] {
-		signup.Spec.VerificationRequired = false
-		delete(signup.Annotations, v1alpha1.UserSignupVerificationCodeAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
-		return nil
-	}
+	signup.Spec.VerificationRequired = false
+	delete(signup.Annotations, v1alpha1.UserSignupVerificationCodeAnnotationKey)
+	delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
+	delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)
+	delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
+	delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
 
-	// The code doesn't match
-	attemptsMade++
-	signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-	return errors3.NewForbiddenError("invalid code", "the provided code is invalid")
+	return signup, nil
 }

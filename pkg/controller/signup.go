@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -46,9 +47,19 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeaderNow()
 }
 
-// PostVerificationHandler creates a verification and updates a usersignup resource
-func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
+// UpdateVerificationHandler stars the verification process and updates a usersignup resource
+func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
+	signup, err := s.signupService.GetUserSignup(ctx, userID)
+	if err != nil {
+		if errors2.IsNotFound(err) {
+			log.Error(ctx, err, "usersignup not found")
+			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
+		}
+		log.Error(ctx, err, "error retreiving usersignup")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retreiving usersignup: %s", userID))
+		return
+	}
 
 	// Read the Body content
 	var bodyBytes []byte
@@ -57,23 +68,16 @@ func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
 	}
 
 	m := make(map[string]string)
-	err := json.Unmarshal(bodyBytes, &m)
+	err = json.Unmarshal(bodyBytes, &m)
 	if err != nil {
 		log.Errorf(ctx, nil, "Request body could not be read")
 		ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	// generate verification code
-	code, err := s.verificationService.GenerateVerificationCode()
+	signup, err = s.verificationService.InitVerification(ctx, signup, m["country_code"], m["phone_number"])
 	if err != nil {
-		log.Errorf(ctx, nil, "verification code could not be generated")
-		ctx.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	userSignup, err := s.signupService.UpdateWithVerificationCode(s.config.GetVerificationDailyLimit(), m, userID, code)
-	if err != nil {
+		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
@@ -83,22 +87,16 @@ func (s *Signup) PostVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	err = s.verificationService.SendVerification(ctx, userSignup)
-	if err != nil {
-		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
-		ctx.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
 	log.Infof(ctx, "phone verification has been sent for userID %s", userID)
-	ctx.JSON(http.StatusOK, userSignup)
+	ctx.Status(http.StatusOK)
+	ctx.Writer.WriteHeaderNow()
 }
 
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
-	signupResource, err := s.signupService.GetSignup(userID)
+	signupResource, err := s.signupService.GetSignup(ctx, userID)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
@@ -121,26 +119,25 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	}
 
 	userID := ctx.GetString(context.SubKey)
-	signupResource, err := s.signupService.GetUserSignup(userID)
-	if err != nil {
-		log.Error(ctx, err, "error getting UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
-		return
-	}
 
-	if signupResource == nil {
-		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
-		ctx.AbortWithStatus(http.StatusNotFound)
+	signup, err := s.signupService.GetUserSignup(ctx, userID)
+	if err != nil {
+		if errors2.IsNotFound(err) {
+			log.Error(ctx, err, "usersignup not found")
+			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
+		}
+		log.Error(ctx, err, "error retreiving usersignup")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retreiving usersignup: %s", userID))
 		return
 	}
 
 	// The VerifyCode() call here MAY make changes to the specified signupResource
-	err = s.verificationService.VerifyCode(ctx, signupResource, code)
+	signup, err = s.verificationService.VerifyCode(signup, code)
 
 	// Regardless of whether the VerifyCode() call returns an error or not, we need to update the UserSignup instance
 	// as its state can be updated even in the case of an error.  This may result in the slight possibility that any
 	// errors returned by VerifyCode() are suppressed, as error handling for the UserSignup update is given precedence.
-	_, err2 := s.signupService.UpdateUserSignup(signupResource)
+	_, err2 := s.signupService.UpdateUserSignup(ctx, signup)
 	if err2 != nil {
 		log.Error(ctx, err2, "error while updating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
@@ -161,6 +158,5 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		}
 		return
 	}
-
 	ctx.Status(http.StatusOK)
 }

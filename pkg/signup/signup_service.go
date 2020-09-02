@@ -6,13 +6,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
@@ -74,11 +71,11 @@ type ServiceConfiguration interface {
 
 // Service represents the signup service for controllers.
 type Service interface {
-	GetSignup(userID string) (*Signup, error)
-	CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error)
-	UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error)
-	GetUserSignup(userID string) (*crtapi.UserSignup, error)
-	UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	GetSignup(ctx *gin.Context, userID string) (*Signup, error)
+	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
+	//UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID string) (*v1alpha1.UserSignup, error)
+	GetUserSignup(ctx *gin.Context, userID string) (*v1alpha1.UserSignup, error)
+	UpdateUserSignup(ctx *gin.Context, userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -114,7 +111,7 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	userEmail := ctx.GetString(context.EmailKey)
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
@@ -145,19 +142,19 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 		}
 	}
 
-	userSignup := &crtapi.UserSignup{
+	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      ctx.GetString(context.SubKey),
 			Namespace: s.Namespace,
 			Annotations: map[string]string{
-				crtapi.UserSignupUserEmailAnnotationKey:           userEmail,
-				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
+				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
+				v1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
 			},
 			Labels: map[string]string{
-				crtapi.UserSignupUserEmailHashLabelKey: emailHash,
+				v1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
 			},
 		},
-		Spec: crtapi.UserSignupSpec{
+		Spec: v1alpha1.UserSignupSpec{
 			TargetCluster:        "",
 			Approved:             false,
 			Username:             ctx.GetString(context.UsernameKey),
@@ -168,7 +165,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 		},
 	}
 
-	created, err := s.UserSignups.Create(userSignup)
+	created, err := s.UserSignups.Create(ctx, userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -184,10 +181,10 @@ func extractEmailHost(email string) string {
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found.
-func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(userID)
+	userSignup, err := s.UserSignups.Get(ctx, userID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -203,7 +200,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, crtapi.UserSignupComplete)
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if !found {
 		signupResponse.Status = Status{
 			Reason: PendingApprovalReason,
@@ -218,11 +215,11 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.MasterUserRecords.Get(userSignup.Status.CompliantUsername)
+	mur, err := s.MasterUserRecords.Get(ctx, userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, crtapi.ConditionReady)
+	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, v1alpha1.ConditionReady)
 	ready, err := strconv.ParseBool(string(murCondition.Status))
 	if err != nil {
 		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
@@ -241,66 +238,33 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	return signupResponse, nil
 }
 
-// UpdateWithVerificationCode returns userSignup resource from the host cluster.
-// Returns nil if the usersignup is not found and an error if present.
-func (s *ServiceImpl) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error) {
-	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(userID)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, errors3.NewNotFoundError(err, fmt.Sprintf("usersignup not found: %s", userID))
-		}
-		return nil, errors3.NewInternalError(err, fmt.Sprintf("error retreiving usersignup: %s", userID))
-	}
-
-	// get the annotation counter
-	annotationCounter := userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
-	counter := 0
-	if annotationCounter != "" {
-		counter, err = strconv.Atoi(annotationCounter)
-		if err != nil {
-			return nil, errors3.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s", userSignup.GetName()))
-		}
-	}
-
-	// check if counter has exceeded the limit of daily limit - if at limit error out
-	if counter > dailyLimit {
-		// fmt.Sprintf("%s attempts made. the daily limit of %s has been exceeded", counter, dailyLimit)
-		return nil, errors3.NewForbiddenError("daily limit exceeded", fmt.Sprintf("%s attempts made. the daily limit of %s has been exceeded", counter, dailyLimit))
-	}
-
-	// set the usersignup annotations
-	userSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-	userSignup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = responseBody["country_code"] + responseBody["phone_number"]
-	userSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
-	userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(verification.TimestampLayout)
-
-	// update the usersignup
-	userSignup, err = s.UserSignups.Update(userSignup)
-	if err != nil {
-		return nil, errors3.NewInternalError(err, fmt.Sprintf("error when updating UserSignup %s", userSignup.GetName()))
-	}
-
-	return userSignup, nil
-}
-
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(userID string) (*crtapi.UserSignup, error) {
+func (s *ServiceImpl) GetUserSignup(ctx *gin.Context, userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(userID)
+	userSignup, err := s.UserSignups.Get(ctx, userID)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
 	return userSignup, nil
 }
 
+//
+//func (s *ServiceImpl) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID string) (*v1alpha1.UserSignup, error) {
+//	// Retrieve UserSignup resource from the host cluster
+//	signup, err := s.UserSignups.Get(userID)
+//	if err != nil {
+//		if errors.IsNotFound(err) {
+//			return nil, errors3.NewNotFoundError(err, fmt.Sprintf("usersignup not found: %s", userID))
+//		}
+//		return nil, errors3.NewInternalError(err, fmt.Sprintf("error retreiving usersignup: %s", userID))
+//	}
+//	return signup, nil
+//}
+
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
-func (s *ServiceImpl) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	userSignup, err := s.UserSignups.Update(userSignup)
+func (s *ServiceImpl) UpdateUserSignup(ctx *gin.Context, userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+	userSignup, err := s.UserSignups.Update(ctx, userSignup)
 	if err != nil {
 		return nil, err
 	}

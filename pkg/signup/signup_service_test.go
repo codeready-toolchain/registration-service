@@ -238,36 +238,42 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 	expectedErr := errors.New("an error occurred")
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	fakeClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
+	fakeClient.MockGet = func(ctx *gin.Context, name string) (*v1alpha1.UserSignup, error) {
 		if name == userID.String() {
 			return nil, expectedErr
 		}
 		return &v1alpha1.UserSignup{}, nil
 	}
 
-	_, err = svc.GetSignup(userID.String())
+	_, err = svc.GetSignup(ctx, userID.String())
 	require.Error(s.T(), err)
 	require.Equal(s.T(), expectedErr, err)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, _, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	signup, err := svc.GetSignup(userID.String())
+	signup, err := svc.GetSignup(ctx, userID.String())
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
@@ -295,7 +301,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := svc.GetSignup(userID.String())
+	response, err := svc.GetSignup(ctx, userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -309,6 +315,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	userID, err := uuid.NewV4()
@@ -327,7 +335,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := svc.GetSignup(userID.String())
+	response, err := svc.GetSignup(ctx, userID.String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -341,6 +349,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
@@ -374,7 +384,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := svc.GetSignup(us.Name)
+	response, err := svc.GetSignup(ctx, us.Name)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -388,6 +398,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
@@ -395,18 +407,20 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	require.NoError(s.T(), err)
 
 	returnedErr := errors.New("an error occurred")
-	fakeMURClient.MockGet = func(name string) (*v1alpha1.MasterUserRecord, error) {
+	fakeMURClient.MockGet = func(ctx *gin.Context, name string) (*v1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
 		}
 		return &v1alpha1.MasterUserRecord{}, nil
 	}
 
-	_, err = svc.GetSignup(us.Name)
+	_, err = svc.GetSignup(ctx, us.Name)
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, fakeMURClient, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
@@ -433,11 +447,13 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = svc.GetSignup(us.Name)
+	_, err = svc.GetSignup(ctx, us.Name)
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	s.Run("getusersignup ok", func() {
@@ -445,17 +461,17 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		err := fakeClient.Tracker.Add(us)
 		require.NoError(s.T(), err)
 
-		val, err := svc.GetUserSignup(us.Name)
+		val, err := svc.GetUserSignup(ctx, us.Name)
 		require.NoError(s.T(), err)
 		require.Equal(s.T(), us.Name, val.Name)
 	})
 
 	s.Run("getusersignup returns error", func() {
-		fakeClient.MockGet = func(s string) (userSignup *v1alpha1.UserSignup, e error) {
+		fakeClient.MockGet = func(ctx *gin.Context, s string) (userSignup *v1alpha1.UserSignup, e error) {
 			return nil, errors.New("get failed")
 		}
 
-		val, err := svc.GetUserSignup("foo")
+		val, err := svc.GetUserSignup(ctx, "foo")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "get failed", err.Error())
 		require.Nil(s.T(), val)
@@ -464,13 +480,15 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	s.Run("getusersignup with unknown user", func() {
 		fakeClient.MockGet = nil
 
-		val, err := svc.GetUserSignup("unknown")
-		require.Nil(s.T(), err)
+		val, err := svc.GetUserSignup(ctx, "unknown")
+		require.True(s.T(), errors2.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
 	svc, fakeClient, _, _ := newSignupServiceWithFakeClient()
 
 	us := s.newUserSignupComplete()
@@ -478,26 +496,26 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	require.NoError(s.T(), err)
 
 	s.Run("updateusersignup ok", func() {
-		val, err := svc.GetUserSignup(us.Name)
+		val, err := svc.GetUserSignup(ctx, us.Name)
 		require.NoError(s.T(), err)
 
 		val.Spec.FamilyName = "Johnson"
 
-		updated, err := svc.UpdateUserSignup(val)
+		updated, err := svc.UpdateUserSignup(ctx, val)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), val.Spec.FamilyName, updated.Spec.FamilyName)
 	})
 
 	s.Run("updateusersignup returns error", func() {
-		fakeClient.MockUpdate = func(userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
+		fakeClient.MockUpdate = func(ctx *gin.Context, userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
 			return nil, errors.New("update failed")
 		}
 
-		val, err := svc.GetUserSignup(us.Name)
+		val, err := svc.GetUserSignup(ctx, us.Name)
 		require.NoError(s.T(), err)
 
-		updated, err := svc.UpdateUserSignup(val)
+		updated, err := svc.UpdateUserSignup(ctx, val)
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "update failed", err.Error())
 		require.Nil(s.T(), updated)

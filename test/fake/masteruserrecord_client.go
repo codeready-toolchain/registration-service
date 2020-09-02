@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/gin-gonic/gin"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,9 +18,9 @@ type FakeMasterUserRecordClient struct {
 	Tracker    testing.ObjectTracker
 	Scheme     *runtime.Scheme
 	namespace  string
-	MockGet    func(string) (*crtapi.MasterUserRecord, error)
-	MockCreate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
-	MockUpdate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
+	MockGet    func(*gin.Context, string) (*crtapi.MasterUserRecord, error)
+	MockCreate func(*gin.Context, *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
+	MockUpdate func(*gin.Context, *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
 	MockDelete func(name string, options *v1.DeleteOptions) error
 }
 
@@ -46,9 +48,9 @@ func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object)
 	}
 }
 
-func (c *FakeMasterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, error) {
+func (c *FakeMasterUserRecordClient) Get(ctx *gin.Context, name string) (*crtapi.MasterUserRecord, error) {
 	if c.MockGet != nil {
-		return c.MockGet(name)
+		return c.MockGet(ctx, name)
 	}
 
 	obj := &crtapi.MasterUserRecord{}
@@ -75,9 +77,9 @@ func (c *FakeMasterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord,
 	return obj, nil
 }
 
-func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
+func (c *FakeMasterUserRecordClient) Create(ctx *gin.Context, obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
 	if c.MockCreate != nil {
-		return c.MockCreate(obj)
+		return c.MockCreate(ctx, obj)
 	}
 
 	gvr, err := getGVRFromObject(obj, c.Scheme)
@@ -98,9 +100,9 @@ func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crta
 	return obj, nil
 }
 
-func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
+func (c *FakeMasterUserRecordClient) Update(ctx *gin.Context, obj *crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error) {
 	if c.MockUpdate != nil {
-		return c.MockUpdate(obj)
+		return c.MockUpdate(ctx, obj)
 	}
 
 	gvr, err := getGVRFromObject(obj, c.Scheme)

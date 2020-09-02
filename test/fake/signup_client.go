@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/gin-gonic/gin"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,10 +18,10 @@ type FakeUserSignupClient struct {
 	Tracker    testing.ObjectTracker
 	Scheme     *runtime.Scheme
 	namespace  string
-	MockGet    func(string) (*crtapi.UserSignup, error)
-	MockCreate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockUpdate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete func(name string, options *v1.DeleteOptions) error
+	MockGet    func(*gin.Context, string) (*crtapi.UserSignup, error)
+	MockCreate func(*gin.Context, *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdate func(*gin.Context, *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockDelete func(ctx *gin.Context, name string, options *v1.DeleteOptions) error
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -46,9 +48,9 @@ func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
+func (c *FakeUserSignupClient) Get(ctx *gin.Context, name string) (*crtapi.UserSignup, error) {
 	if c.MockGet != nil {
-		return c.MockGet(name)
+		return c.MockGet(ctx, name)
 	}
 
 	obj := &crtapi.UserSignup{}
@@ -75,9 +77,9 @@ func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+func (c *FakeUserSignupClient) Create(ctx *gin.Context, obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	if c.MockCreate != nil {
-		return c.MockCreate(obj)
+		return c.MockCreate(ctx, obj)
 	}
 
 	gvr, err := getGVRFromObject(obj, c.Scheme)
@@ -98,9 +100,9 @@ func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
+func (c *FakeUserSignupClient) Update(ctx *gin.Context, obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	if c.MockUpdate != nil {
-		return c.MockUpdate(obj)
+		return c.MockUpdate(ctx, obj)
 	}
 
 	gvr, err := getGVRFromObject(obj, c.Scheme)
@@ -118,9 +120,9 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeUserSignupClient) Delete(ctx *gin.Context, name string, options *v1.DeleteOptions) error {
 	if c.MockDelete != nil {
-		return c.MockDelete(name, options)
+		return c.MockDelete(ctx, name, options)
 	}
 
 	gvr, err := getGVRFromObject(&crtapi.UserSignup{}, c.Scheme)

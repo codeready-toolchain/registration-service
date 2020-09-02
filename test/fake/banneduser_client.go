@@ -3,6 +3,8 @@ package fake
 import (
 	"os"
 
+	"github.com/gin-gonic/gin"
+
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
@@ -15,7 +17,7 @@ type FakeBannedUserClient struct {
 	Tracker   testing.ObjectTracker
 	Scheme    *runtime.Scheme
 	namespace string
-	MockList  func(string) (*crtapi.BannedUserList, error)
+	MockList  func(*gin.Context, string) (*crtapi.BannedUserList, error)
 }
 
 func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
@@ -42,9 +44,9 @@ func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeBannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
+func (c *FakeBannedUserClient) List(ctx *gin.Context, email string) (*crtapi.BannedUserList, error) {
 	if c.MockList != nil {
-		return c.MockList(email)
+		return c.MockList(ctx, email)
 	}
 
 	obj := &crtapi.BannedUser{}

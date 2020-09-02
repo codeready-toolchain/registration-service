@@ -103,7 +103,7 @@ const (
 
 	varVerificationEnabled = "verification.enabled"
 	// DefaultVerificationEnabled is the default value for whether the phone verification feature is enabled
-	DefaultVerificationEnabled = true
+	DefaultVerificationEnabled = false
 
 	varVerificationDailyLimit = "verification.daily_limit"
 	// DefaultVerificationDailyLimit is the default number of times a user may request phone verification
@@ -135,13 +135,18 @@ const (
 	// DefaultVerificationMessageTemplate is the default verification message template sent to users
 	// via SMS for phone verification.  The string parameter is replaced with a random verification code
 	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
+
+	// varVerificationExcludedEmailDomains contains a comma-separated list of domain names for which phone verification
+	// is not required.  For example: "redhat.com,ibm.com"
+	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 )
 
 // Config encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type Config struct {
-	v            *viper.Viper
-	secretValues map[string]string
+	v               *viper.Viper
+	secretValues    map[string]string
+	excludedDomains []string
 }
 
 // CreateEmptyConfig creates an initial, empty config.
@@ -161,6 +166,9 @@ func CreateEmptyConfig(cl client.Client) (*Config, error) {
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
+	c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+		return c == ','
+	})
 	return &c, nil
 }
 
@@ -179,6 +187,11 @@ func New(configFilePath string, cl client.Client) (*Config, error) {
 		err := c.v.ReadInConfig() // Find and read the config file
 		if err != nil {           // Handle errors reading the config file.
 			return nil, errs.Wrap(err, "failed to read config file")
+		}
+		if c.v.GetString(varVerificationExcludedEmailDomains) != "" {
+			c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+				return c == ','
+			})
 		}
 	}
 	return c, nil
@@ -340,6 +353,12 @@ func (c *Config) GetVerificationAttemptsAllowed() int {
 // phone verification
 func (c *Config) GetVerificationMessageTemplate() string {
 	return c.v.GetString(varVerificationMessageTemplate)
+}
+
+// GetVerificationExcludedEmailDomains returns the list of email address domains for which phone verification
+// is not required
+func (c *Config) GetVerificationExcludedEmailDomains() []string {
+	return c.excludedDomains
 }
 
 // GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages

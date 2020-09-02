@@ -631,21 +631,21 @@ func (s *TestConfigurationSuite) TestVerificationEnabled() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
 		config := s.getDefaultConfiguration()
-		require.True(s.T(), config.GetVerificationEnabled())
+		require.False(s.T(), config.GetVerificationEnabled())
 	})
 
 	s.Run("file", func() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
-		config := s.getFileConfiguration(`verification.enabled: "false"`)
-		assert.False(s.T(), config.GetVerificationEnabled())
+		config := s.getFileConfiguration(`verification.enabled: "true"`)
+		assert.True(s.T(), config.GetVerificationEnabled())
 	})
 
 	s.Run("env overwrite", func() {
-		err := os.Setenv(key, "false")
+		err := os.Setenv(key, "true")
 		require.NoError(s.T(), err)
 		config := s.getDefaultConfiguration()
-		assert.False(s.T(), config.GetVerificationEnabled())
+		assert.True(s.T(), config.GetVerificationEnabled())
 	})
 }
 
@@ -736,6 +736,37 @@ func (s *TestConfigurationSuite) TestVerificationMessageTemplate() {
 		require.NoError(s.T(), err)
 		config := s.getDefaultConfiguration()
 		assert.Equal(s.T(), "%s is your verification code", config.GetVerificationMessageTemplate())
+	})
+}
+
+func (s *TestConfigurationSuite) TestVerificationExcludedDomains() {
+	key := configuration.EnvPrefix + "_" + "VERIFICATION_EXCLUDED_EMAIL_DOMAINS"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 0)
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration(`verification.excluded_email_domains: "redhat.com,ibm.com"`)
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 2)
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "redhat.com")
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "ibm.com")
+	})
+
+	s.Run("env overwrite", func() {
+		newVal := "redhat.com"
+		err := os.Setenv(key, newVal)
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		require.Len(s.T(), config.GetVerificationExcludedEmailDomains(), 1)
+		require.Contains(s.T(), config.GetVerificationExcludedEmailDomains(), "redhat.com")
 	})
 }
 

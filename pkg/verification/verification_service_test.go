@@ -8,12 +8,14 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"gopkg.in/h2non/gock.v1"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/stretchr/testify/require"
@@ -38,6 +40,7 @@ type mockVerificationConfig struct {
 	authToken       string
 	fromNumber      string
 	messageTemplate string
+	attemptsAllowed int
 }
 
 func (c *mockVerificationConfig) GetTwilioAccountSID() string {
@@ -56,16 +59,21 @@ func (c *mockVerificationConfig) GetVerificationMessageTemplate() string {
 	return c.messageTemplate
 }
 
+func (c *mockVerificationConfig) GetVerificationAttemptsAllowed() int {
+	return c.attemptsAllowed
+}
+
 func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verification.ServiceConfiguration {
 	return &mockVerificationConfig{
 		accountSID:      accountSID,
 		authToken:       authToken,
 		fromNumber:      fromNumber,
 		messageTemplate: configuration.DefaultVerificationMessageTemplate,
+		attemptsAllowed: 3,
 	}
 }
 
-func (s *TestVerificationServiceSuite) TestVerify() {
+func (s *TestVerificationServiceSuite) TestSendVerification() {
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -148,6 +156,211 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
 	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
+func (s *TestVerificationServiceSuite) TestVerifyCode() {
+	// given
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+	now := time.Now()
+
+	s.T().Run("verification ok", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.NoError(s.T(), err)
+		require.False(s.T(), userSignup.Spec.VerificationRequired)
+	})
+
+	s.T().Run("when verification code is invalid", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.IsType(s.T(), err, &errors.Error{})
+		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+	})
+
+	s.T().Run("when verification code has expired", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.IsType(s.T(), err, &errors.Error{})
+		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+	})
+
+	s.T().Run("when previous verifications exceeded maximum attempts but timestamp has elapsed", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.NoError(s.T(), err)
+	})
+
+	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "too many verification attempts:", err.Error())
+	})
+
+	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "ABC",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "strconv.Atoi: parsing \"ABC\": invalid syntax", err.Error())
+		require.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
+	})
+
+	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "123",
+				Namespace: "test",
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+
+		err := svc.VerifyCode(ctx, userSignup, "123456")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
+	})
 }
 
 func (s *TestVerificationServiceSuite) createVerificationService() (verification.Service, *http.Client) {

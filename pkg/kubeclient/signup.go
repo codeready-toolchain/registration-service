@@ -1,6 +1,8 @@
 package kubeclient
 
 import (
+	"context"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 )
 
@@ -27,7 +29,7 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 		Namespace(c.ns).
 		Resource(userSignupResourcePlural).
 		Name(name).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	if err != nil {
 		return nil, err
@@ -43,7 +45,7 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 		Namespace(c.ns).
 		Resource(userSignupResourcePlural).
 		Body(obj).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	if err != nil {
 		return nil, err
@@ -59,7 +61,7 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 		Resource(userSignupResourcePlural).
 		Name(obj.Name).
 		Body(obj).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	if err != nil {
 		return nil, err

@@ -1,11 +1,10 @@
 package kubeclient
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-
-	"github.com/gin-gonic/gin"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,11 +21,11 @@ type bannedUserClient struct {
 }
 
 type BannedUserInterface interface {
-	List(ctx *gin.Context, email string) (*crtapi.BannedUserList, error)
+	List(email string) (*crtapi.BannedUserList, error)
 }
 
 // List returns a BannedUserList containing any BannedUser resources that have a label matching the specified email address
-func (c *bannedUserClient) List(ctx *gin.Context, email string) (*crtapi.BannedUserList, error) {
+func (c *bannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
 
 	// Calculate the md5 hash for the email
 	md5hash := md5.New()
@@ -44,7 +43,7 @@ func (c *bannedUserClient) List(ctx *gin.Context, email string) (*crtapi.BannedU
 		LabelSelector: fmt.Sprintf("%s=%s", crtapi.BannedUserEmailHashLabelKey, emailHash),
 	}
 
-	list, err := intf.Resource(r).Namespace(c.ns).List(ctx, listOptions)
+	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
 	if err != nil {
 		return nil, err
 	}

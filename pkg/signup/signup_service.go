@@ -71,11 +71,11 @@ type ServiceConfiguration interface {
 
 // Service represents the signup service for controllers.
 type Service interface {
-	GetSignup(ctx *gin.Context, userID string) (*Signup, error)
+	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
 	//UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID string) (*v1alpha1.UserSignup, error)
-	GetUserSignup(ctx *gin.Context, userID string) (*v1alpha1.UserSignup, error)
-	UpdateUserSignup(ctx *gin.Context, userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
+	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
+	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -165,7 +165,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		},
 	}
 
-	created, err := s.UserSignups.Create(ctx, userSignup)
+	created, err := s.UserSignups.Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -181,10 +181,10 @@ func extractEmailHost(email string) string {
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found.
-func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID string) (*Signup, error) {
+func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(ctx, userID)
+	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -215,7 +215,7 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID string) (*Signup, error
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.MasterUserRecords.Get(ctx, userSignup.Status.CompliantUsername)
+	mur, err := s.MasterUserRecords.Get(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -239,9 +239,9 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID string) (*Signup, error
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(ctx *gin.Context, userID string) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(ctx, userID)
+	userSignup, err := s.UserSignups.Get(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -263,8 +263,8 @@ func (s *ServiceImpl) GetUserSignup(ctx *gin.Context, userID string) (*v1alpha1.
 //}
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
-func (s *ServiceImpl) UpdateUserSignup(ctx *gin.Context, userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-	userSignup, err := s.UserSignups.Update(ctx, userSignup)
+func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+	userSignup, err := s.UserSignups.Update(userSignup)
 	if err != nil {
 		return nil, err
 	}

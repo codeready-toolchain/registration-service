@@ -50,7 +50,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 // UpdateVerificationHandler stars the verification process and updates a usersignup resource
 func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
-	signup, err := s.signupService.GetUserSignup(ctx, userID)
+	signup, err := s.signupService.GetUserSignup(userID)
 	if err != nil {
 		if errors2.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
@@ -96,7 +96,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
-	signupResource, err := s.signupService.GetSignup(ctx, userID)
+	signupResource, err := s.signupService.GetSignup(userID)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
@@ -120,7 +120,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 
 	userID := ctx.GetString(context.SubKey)
 
-	signup, err := s.signupService.GetUserSignup(ctx, userID)
+	signup, err := s.signupService.GetUserSignup(userID)
 	if err != nil {
 		if errors2.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
@@ -137,7 +137,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	// Regardless of whether the VerifyCode() call returns an error or not, we need to update the UserSignup instance
 	// as its state can be updated even in the case of an error.  This may result in the slight possibility that any
 	// errors returned by VerifyCode() are suppressed, as error handling for the UserSignup update is given precedence.
-	_, err2 := s.signupService.UpdateUserSignup(ctx, signup)
+	_, err2 := s.signupService.UpdateUserSignup(signup)
 	if err2 != nil {
 		log.Error(ctx, err2, "error while updating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")

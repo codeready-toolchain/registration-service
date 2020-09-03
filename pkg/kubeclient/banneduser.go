@@ -42,7 +42,7 @@ func (c *bannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
 		LabelSelector: fmt.Sprintf("%s=%s", crtapi.BannedUserEmailHashLabelKey, emailHash),
 	}
 
-	list, err := intf.Resource(r).Namespace(c.ns).List(nil, listOptions)
+	list, err := intf.Resource(r).Namespace(c.ns).List(listOptions)
 	if err != nil {
 		return nil, err
 	}

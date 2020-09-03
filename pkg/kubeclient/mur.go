@@ -1,6 +1,8 @@
 package kubeclient
 
 import (
+	"context"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 )
 
@@ -23,7 +25,7 @@ func (c *masterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, err
 		Namespace(c.ns).
 		Resource(masterUserRecordResourcePlural).
 		Name(name).
-		Do().
+		Do(context.TODO()).
 		Into(result)
 	return result, err
 }

@@ -1,6 +1,7 @@
 package kubeclient
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -42,7 +43,7 @@ func (c *bannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
 		LabelSelector: fmt.Sprintf("%s=%s", crtapi.BannedUserEmailHashLabelKey, emailHash),
 	}
 
-	list, err := intf.Resource(r).Namespace(c.ns).List(listOptions)
+	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
 	if err != nil {
 		return nil, err
 	}

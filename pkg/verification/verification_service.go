@@ -64,10 +64,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	now := time.Now()
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
-	ts, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationCodeGeneratedTimestampAnnotationKey])
+	ts, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationInitTimestampAnnotationKey])
 	if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
 		// Set a new timestamp
-		signup.Annotations[v1alpha1.UserSignupVerificationCodeGeneratedTimestampAnnotationKey] = now.Format(TimestampLayout)
+		signup.Annotations[v1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
 		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
 	}
 
@@ -104,7 +104,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	// set the usersignup annotations
 	signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 	signup.Annotations[v1alpha1.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
-	signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(TimestampLayout)
 	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = code
 
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
@@ -185,6 +184,7 @@ func (s *ServiceImpl) VerifyCode(signup *v1alpha1.UserSignup, code string) (*v1a
 	delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
 	delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)
 	delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
+	delete(signup.Annotations, v1alpha1.UserSignupVerificationInitTimestampAnnotationKey)
 	delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
 
 	return signup, nil

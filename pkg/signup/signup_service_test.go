@@ -244,7 +244,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	fakeClient.MockGet = func(ctx *gin.Context, name string) (*v1alpha1.UserSignup, error) {
+	fakeClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
 		if name == userID.String() {
 			return nil, expectedErr
 		}
@@ -395,7 +395,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	require.NoError(s.T(), err)
 
 	returnedErr := errors.New("an error occurred")
-	fakeMURClient.MockGet = func(ctx *gin.Context, name string) (*v1alpha1.MasterUserRecord, error) {
+	fakeMURClient.MockGet = func(name string) (*v1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
 		}
@@ -451,7 +451,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	})
 
 	s.Run("getusersignup returns error", func() {
-		fakeClient.MockGet = func(ctx *gin.Context, s string) (userSignup *v1alpha1.UserSignup, e error) {
+		fakeClient.MockGet = func(s string) (userSignup *v1alpha1.UserSignup, e error) {
 			return nil, errors.New("get failed")
 		}
 
@@ -490,7 +490,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 
 	s.Run("updateusersignup returns error", func() {
-		fakeClient.MockUpdate = func(ctx *gin.Context, userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
+		fakeClient.MockUpdate = func(userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
 			return nil, errors.New("update failed")
 		}
 

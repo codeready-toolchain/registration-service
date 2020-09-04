@@ -222,7 +222,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	})
 }
 
-func (s *TestSignupSuite) TestVerificationPostHandler() {
+func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
 	data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -248,9 +248,8 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 	handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
 
 	var storedVerificationCode string
-	var verificationTimeStamp string
+	var verificationInitTimeStamp string
 
-	expiryTimestamp := time.Now().Add(10 * time.Second).Format(verification.TimestampLayout)
 	expected := &crtapi.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -258,39 +257,10 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey:      "jsmith@redhat.com",
 				crtapi.UserVerificationAttemptsAnnotationKey: "0",
-				crtapi.UserVerificationExpiryAnnotationKey:   expiryTimestamp,
 			},
 		},
 		Spec:   crtapi.UserSignupSpec{},
 		Status: crtapi.UserSignupStatus{},
-	}
-
-	svc.MockUpdateWithVerificationCode = func(dailyLimit int, responseBody map[string]string, id, code string) (userSignup *crtapi.UserSignup, err error) {
-		if id != userID {
-			return nil, errors2.NewNotFound(schema.GroupResource{}, "not found")
-		}
-
-		annotationCounter := expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
-		counter := 0
-		if annotationCounter != "" {
-			counter, err = strconv.Atoi(annotationCounter)
-			if err != nil {
-				return nil, errors2.NewInternalError(err)
-			}
-		}
-
-		// check if counter has exceeded the limit of daily limit - if at limit error out
-		if counter > dailyLimit {
-			return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
-		}
-
-		verificationTimeStamp = time.Now().Format(verification.TimestampLayout)
-		expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-		expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = responseBody["country_code"] + responseBody["phone_number"]
-		expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = code
-		expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = verificationTimeStamp
-
-		return expected, nil
 	}
 
 	svc.MockGetUserSignup = func(id string) (*crtapi.UserSignup, error) {
@@ -300,17 +270,45 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		return nil, nil
 	}
 
-	verifyService.MockGenerateVerificationCode = func() (s string, err error) {
-		rand.Seed(time.Now().UnixNano())
-		storedVerificationCode = strconv.Itoa(rand.Intn(1000))
-		return storedVerificationCode, nil
-	}
-
 	verifyService.MockInitVerification = func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
-		return nil, nil
+		now := time.Now()
+
+		// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
+		ts, err := time.Parse("2006-01-02T15:04:05.000Z07:00", signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
+			// Set a new timestamp
+			signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey] = now.Format("2006-01-02T15:04:05.000Z07:00")
+			signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = "0"
+			verificationInitTimeStamp = signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey]
+		}
+
+		annotationCounter := signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+		counter := 0
+		if annotationCounter != "" {
+			counter, err = strconv.Atoi(annotationCounter)
+			if err != nil {
+				return nil, errors2.NewInternalError(err)
+			}
+		}
+
+		// check if counter has exceeded the limit of daily limit - if at limit error out
+		if counter > s.Config.GetVerificationDailyLimit() {
+			return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
+		}
+
+		// generate verification code
+		rand.Seed(time.Now().UnixNano())
+		randomNum := rand.Intn(9999-1000) + 1000
+		storedVerificationCode = strconv.Itoa(randomNum)
+		signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+		signup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
+		signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
+
+		expected = signup
+		return signup, nil
 	}
 
-	s.Run("post verification success", func() {
+	s.Run("init verification success", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -328,8 +326,7 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
-		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
 	s.Run("post verification request body could not be read", func() {
@@ -350,33 +347,7 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
-		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
-	})
-
-	s.Run("post verification usersignup not found", func() {
-		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
-		require.NoError(s.T(), err)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
-		ctx.Set(context.SubKey, "1111")
-
-		handler(ctx)
-
-		// Check the status code is what we expect.
-		assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
-
-		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.Equal(s.T(), userID, expected.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.NotEqual(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
-		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
 	s.Run("post verification daily limit exceeded", func() {
@@ -402,10 +373,8 @@ func (s *TestSignupSuite) TestVerificationPostHandler() {
 		require.Equal(s.T(), userID, expected.Name)
 		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.NotEqual(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
-		require.Equal(s.T(), expiryTimestamp, expected.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), verificationTimeStamp, expected.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 }
 
@@ -736,14 +705,9 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-//func (m *FakeSignupService) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error) {
-//	return m.MockUpdateWithVerificationCode(dailyLimit, responseBody, userID, code)
-//}
-
 type FakeVerificationService struct {
-	MockInitVerification         func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error)
-	MockVerifyCode               func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error)
-	MockGenerateVerificationCode func() (string, error)
+	MockInitVerification func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error)
+	MockVerifyCode       func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeVerificationService) InitVerification(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
@@ -752,8 +716,4 @@ func (m *FakeVerificationService) InitVerification(ctx *gin.Context, signup *crt
 
 func (m *FakeVerificationService) VerifyCode(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
 	return m.MockVerifyCode(signup, code)
-}
-
-func (m *FakeVerificationService) GenerateVerificationCode() (string, error) {
-	return m.MockGenerateVerificationCode()
 }

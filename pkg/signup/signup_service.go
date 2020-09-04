@@ -73,7 +73,6 @@ type ServiceConfiguration interface {
 type Service interface {
 	GetSignup(userID string) (*Signup, error)
 	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
-	//UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID string) (*v1alpha1.UserSignup, error)
 	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
 }
@@ -248,19 +247,6 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 
 	return userSignup, nil
 }
-
-//
-//func (s *ServiceImpl) UpdateWithVerificationCode(dailyLimit int, responseBody map[string]string, userID string) (*v1alpha1.UserSignup, error) {
-//	// Retrieve UserSignup resource from the host cluster
-//	signup, err := s.UserSignups.Get(userID)
-//	if err != nil {
-//		if errors.IsNotFound(err) {
-//			return nil, errors3.NewNotFoundError(err, fmt.Sprintf("usersignup not found: %s", userID))
-//		}
-//		return nil, errors3.NewInternalError(err, fmt.Sprintf("error retreiving usersignup: %s", userID))
-//	}
-//	return signup, nil
-//}
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
 func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {

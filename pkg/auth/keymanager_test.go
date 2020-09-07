@@ -148,7 +148,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		assert.EqualError(s.T(), err, "Get not%20an%20url: unsupported protocol scheme \"\"")
+		assert.EqualError(s.T(), err, "Get \"not%20an%20url\": unsupported protocol scheme \"\"")
 	})
 
 	s.Run("parse keys, server not reachable", func() {

@@ -152,6 +152,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, er
 			},
 			Labels: map[string]string{
 				crtapi.UserSignupUserEmailHashLabelKey: emailHash,
+				crtapi.UserSignupApprovedLabelKey:      crtapi.UserSignupApprovedLabelValueFalse,
 			},
 		},
 		Spec: crtapi.UserSignupSpec{

@@ -14,7 +14,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/verification"
 
 	"github.com/gin-gonic/gin"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -52,7 +52,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
 	signup, err := s.signupService.GetUserSignup(userID)
 	if err != nil {
-		if errors2.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
 		}
@@ -68,9 +68,14 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	// Read the Body content
+	defer ctx.Request.Body.Close()
 	var bodyBytes []byte
 	if ctx.Request.Body != nil {
-		bodyBytes, _ = ioutil.ReadAll(ctx.Request.Body)
+		bodyBytes, err = ioutil.ReadAll(ctx.Request.Body)
+		if err != nil {
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	m := make(map[string]string)
@@ -85,7 +90,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	phoneNumber := m["phone_number"]
 	err = s.signupService.CheckIfUserIsKnown(countryCode, phoneNumber)
 	if err != nil {
-		if errors2.IsInternalError(err) {
+		if apierrors.IsInternalError(err) {
 			log.Error(ctx, err, "error while looking up users by phone number")
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
 		}
@@ -99,7 +104,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		switch t := err.(type) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
-		case *errors2.StatusError:
+		case *apierrors.StatusError:
 			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
 		return
@@ -140,7 +145,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 
 	signup, err := s.signupService.GetUserSignup(userID)
 	if err != nil {
-		if errors2.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
 		}
@@ -171,7 +176,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		switch t := err.(type) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
-		case *errors2.StatusError:
+		case *apierrors.StatusError:
 			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
 		return

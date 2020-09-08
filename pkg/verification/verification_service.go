@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -94,12 +94,12 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 		// We shouldn't get an error here, but if we do, we should probably set verification attempts to daily limit
 		// so that we at least now have a valid value
 		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
-		return signup, errors3.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s, set to daily limit", signup.GetName()))
+		return signup, errors.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s, set to daily limit", signup.GetName()))
 	}
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter > dailyLimit {
-		err := errors3.NewForbiddenError("daily limit exceeded", fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
+		err := errors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		return signup, err
 	}
@@ -166,25 +166,25 @@ func (s *ServiceImpl) VerifyCode(signup *v1alpha1.UserSignup, code string) (*v1a
 
 	// If the user has made more attempts than is allowed per day, return an error
 	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
-		return signup, errors3.NewTooManyRequestsError("too many verification attempts", "")
+		return signup, errors.NewTooManyRequestsError("too many verification attempts", "")
 	}
 
 	exp, err := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey])
 	if err != nil {
 		// If the verification expiry timestamp is corrupt or missing, then return an error
-		return signup, errors3.NewInternalError(err, "error parsing expiry timestamp")
+		return signup, errors.NewInternalError(err, "error parsing expiry timestamp")
 	}
 
 	if now.After(exp) {
 		// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
-		return signup, errors3.NewForbiddenError("expired", "verification code expired")
+		return signup, errors.NewForbiddenError("expired", "verification code expired")
 	}
 
 	if code != signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] {
 		// The code doesn't match
 		attemptsMade++
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-		return signup, errors3.NewForbiddenError("invalid code", "the provided code is invalid")
+		return signup, errors.NewForbiddenError("invalid code", "the provided code is invalid")
 	}
 
 	// If the code matches then set VerificationRequired to false, reset other verification annotations

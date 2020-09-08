@@ -301,7 +301,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		randomNum := rand.Intn(9999-1000) + 1000
 		storedVerificationCode = strconv.Itoa(randomNum)
 		signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-		signup.Annotations[crtapi.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
+		signup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
 		signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
 
 		expected = signup
@@ -325,7 +325,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
 		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
@@ -346,7 +346,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
 		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
@@ -373,7 +373,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), userID, expected.Name)
 		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupPhoneNumberLabelKey])
+		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
 		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 }
@@ -421,7 +421,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
 				signup.Annotations["handled"] = "true"
 				storedVerifySignup = signup
-				return nil, nil
+				return storedVerifySignup, nil
 			},
 		}
 
@@ -458,13 +458,6 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "999888", storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Equal(s.T(), expiryTimestamp, storedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
 		require.Equal(s.T(), "true", storedUserSignup.Annotations["handled"])
-
-		// Check that the correct UserSignup is passed into the FakeVerificationService
-		require.Equal(s.T(), userID, storedVerifySignup.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", storedVerifySignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "0", storedVerifySignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
-		require.Equal(s.T(), "999888", storedVerifySignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), expiryTimestamp, storedVerifySignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
 	})
 
 	s.Run("getsignup returns error", func() {
@@ -506,7 +499,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-				return nil, nil
+				return nil, errors2.NewNotFound(schema.GroupResource{}, userID)
 			},
 		}
 
@@ -686,7 +679,6 @@ type FakeSignupService struct {
 	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup    func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	//MockUpdateWithVerificationCode func(dailyLimit int, responseBody map[string]string, userID, code string) (*crtapi.UserSignup, error)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {

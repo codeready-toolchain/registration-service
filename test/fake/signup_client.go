@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,13 +15,14 @@ import (
 )
 
 type FakeUserSignupClient struct {
-	Tracker    testing.ObjectTracker
-	Scheme     *runtime.Scheme
-	namespace  string
-	MockGet    func(string) (*crtapi.UserSignup, error)
-	MockCreate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockUpdate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete func(name string, options *v1.DeleteOptions) error
+	Tracker               testing.ObjectTracker
+	Scheme                *runtime.Scheme
+	namespace             string
+	MockGet               func(string) (*crtapi.UserSignup, error)
+	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockDelete            func(name string, options *v1.DeleteOptions) error
+	MockListByPhoneNumber func(phoneHash string) (*crtapi.UserSignupList, error)
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -128,4 +131,40 @@ func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) er
 		return err
 	}
 	return c.Tracker.Delete(gvr, c.namespace, name)
+}
+
+func (c *FakeUserSignupClient) ListByPhoneNumber(phoneHash string) (*crtapi.UserSignupList, error) {
+	if c.MockListByPhoneNumber != nil {
+		return c.MockListByPhoneNumber(phoneHash)
+	}
+
+	obj := &crtapi.UserSignup{}
+	gvr, err := getGVRFromObject(obj, c.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	gvk, err := apiutil.GVKForObject(obj, c.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	o, err := c.Tracker.List(gvr, gvk, c.namespace)
+	if err != nil {
+		return nil, err
+	}
+	list := o.(*crtapi.UserSignupList)
+
+	objs := []crtapi.UserSignup{}
+
+	for _, bu := range list.Items {
+		if bu.Labels[crtapi.UserSignupUserPhoneHashLabelKey] == phoneHash {
+			objs = append(objs, bu)
+		}
+	}
+
+	return &crtapi.UserSignupList{
+			Items: objs,
+		},
+		nil
 }

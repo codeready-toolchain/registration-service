@@ -105,7 +105,7 @@ func (s *TestVerificationServiceSuite) TestSendVerification() {
 				v1alpha1.UserSignupVerificationCodeAnnotationKey: "1234",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
@@ -113,7 +113,7 @@ func (s *TestVerificationServiceSuite) TestSendVerification() {
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "1", "NUMBER")
+	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
@@ -149,7 +149,7 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
@@ -157,7 +157,7 @@ func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "1", "NUMBER")
+	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
@@ -183,7 +183,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -210,7 +210,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -239,7 +239,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -269,7 +269,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -296,7 +296,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -324,7 +324,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
@@ -353,7 +353,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupPhoneNumberLabelKey: "+1NUMBER",
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{

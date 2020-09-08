@@ -56,8 +56,8 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 			log.Error(ctx, err, "usersignup not found")
 			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
 		}
-		log.Error(ctx, err, "error retreiving usersignup")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retreiving usersignup: %s", userID))
+		log.Error(ctx, err, "error retrieving usersignup")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 		return
 	}
 
@@ -144,8 +144,8 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 			log.Error(ctx, err, "usersignup not found")
 			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
 		}
-		log.Error(ctx, err, "error retreiving usersignup")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retreiving usersignup: %s", userID))
+		log.Error(ctx, err, "error retrieving usersignup")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 		return
 	}
 

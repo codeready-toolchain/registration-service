@@ -259,7 +259,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 				crtapi.UserVerificationAttemptsAnnotationKey: "0",
 			},
 		},
-		Spec:   crtapi.UserSignupSpec{},
+		Spec:   crtapi.UserSignupSpec{VerificationRequired: true},
 		Status: crtapi.UserSignupStatus{},
 	}
 
@@ -268,6 +268,10 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			return expected, nil
 		}
 		return nil, nil
+	}
+
+	svc.MockCheckIfUserIsKnown = func(userSignup *crtapi.UserSignup, countryCode, phoneNumber string) error {
+		return nil
 	}
 
 	verifyService.MockInitVerification = func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
@@ -675,10 +679,11 @@ func (s *TestSignupSuite) handleVerify(controller *controller.Signup, userID, co
 }
 
 type FakeSignupService struct {
-	MockGetSignup        func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockGetUserSignup    func(userID string) (*crtapi.UserSignup, error)
-	MockUpdateUserSignup func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockGetSignup          func(userID string) (*signup.Signup, error)
+	MockCreateUserSignup   func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockGetUserSignup      func(userID string) (*crtapi.UserSignup, error)
+	MockUpdateUserSignup   func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockCheckIfUserIsKnown func(userSignup *crtapi.UserSignup, countryCode, phoneNumber string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -695,6 +700,10 @@ func (m *FakeSignupService) GetUserSignup(userID string) (*crtapi.UserSignup, er
 
 func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	return m.MockUpdateUserSignup(userSignup)
+}
+
+func (m *FakeSignupService) CheckIfUserIsKnown(userSignup *crtapi.UserSignup, countryCode, phoneNumber string) error {
+	return m.MockCheckIfUserIsKnown(userSignup, countryCode, phoneNumber)
 }
 
 type FakeVerificationService struct {

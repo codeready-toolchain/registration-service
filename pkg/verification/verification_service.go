@@ -63,6 +63,14 @@ func NewVerificationService(cfg ServiceConfiguration, opts ...VerificationServic
 // InitVerification sends a verification message to the specified user.  If successful,
 // the user will receive a verification SMS.
 func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSignup, countryCode, phoneNumber string) (*v1alpha1.UserSignup, error) {
+	// get phone number hash
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(countryCode + phoneNumber))
+	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+
+	signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
+
 	now := time.Now()
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
@@ -106,13 +114,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	// set the usersignup annotations
 	signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = code
-
-	// get phone number hash
-	md5hash := md5.New()
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(countryCode + phoneNumber))
-	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
-	signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
 
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
 	toNumber := countryCode + phoneNumber

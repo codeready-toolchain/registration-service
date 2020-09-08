@@ -61,6 +61,12 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
+	// check that verification is required before proceeding
+	if signup.Spec.VerificationRequired == false {
+		log.Errorf(ctx, nil, "phone verification not required for usersignup: %s", userID)
+		ctx.AbortWithStatus(http.StatusBadRequest)
+	}
+
 	// Read the Body content
 	var bodyBytes []byte
 	if ctx.Request.Body != nil {
@@ -75,7 +81,19 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	signup, err = s.verificationService.InitVerification(ctx, signup, m["country_code"], m["phone_number"])
+	countryCode := m["country_code"]
+	phoneNumber := m["phone_number"]
+	err = s.signupService.CheckIfUserIsKnown(signup, countryCode, phoneNumber)
+	if err != nil {
+		if errors2.IsInternalError(err) {
+			log.Error(ctx, err, "error while looking up users by phone number")
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
+		}
+		log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber)
+		errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber))
+	}
+
+	signup, err = s.verificationService.InitVerification(ctx, signup, countryCode, phoneNumber)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {

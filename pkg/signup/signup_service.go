@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
+
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -75,6 +77,7 @@ type Service interface {
 	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
 	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
+	CheckIfUserIsKnown(userSignup *v1alpha1.UserSignup, countryCode, phoneNumber string) error
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -256,4 +259,24 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 	}
 
 	return userSignup, nil
+}
+
+func (s *ServiceImpl) CheckIfUserIsKnown(userSignup *v1alpha1.UserSignup, countryCode, phoneNumber string) error {
+	bannedUserList, err := s.BannedUsers.ListByPhoneNumber(countryCode + phoneNumber)
+	if err != nil {
+		return errors3.NewInternalError(err, "failed listing banned users")
+	}
+	if len(bannedUserList.Items) > 0 {
+		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+	}
+
+	userSignupList, err := s.UserSignups.ListByPhoneNumber(countryCode + phoneNumber)
+	if err != nil {
+		return errors3.NewInternalError(err, "failed listing userSignups")
+	}
+	if len(userSignupList.Items) > 0 {
+		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+	}
+
+	return nil
 }

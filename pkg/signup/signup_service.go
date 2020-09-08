@@ -154,6 +154,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
+				v1alpha1.UserSignupApprovedLabelKey:      v1alpha1.UserSignupApprovedLabelValueFalse,
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{

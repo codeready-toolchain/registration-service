@@ -77,7 +77,7 @@ type Service interface {
 	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
 	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
-	CheckIfUserIsKnown(userSignup *v1alpha1.UserSignup, countryCode, phoneNumber string) error
+	CheckIfUserIsKnown(countryCode, phoneNumber string) error
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -262,7 +262,7 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 	return userSignup, nil
 }
 
-func (s *ServiceImpl) CheckIfUserIsKnown(userSignup *v1alpha1.UserSignup, countryCode, phoneNumber string) error {
+func (s *ServiceImpl) CheckIfUserIsKnown(countryCode, phoneNumber string) error {
 	bannedUserList, err := s.BannedUsers.ListByPhoneNumber(countryCode + phoneNumber)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing banned users")

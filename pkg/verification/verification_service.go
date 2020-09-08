@@ -1,7 +1,9 @@
 package verification
 
 import (
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -103,11 +105,17 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 
 	// set the usersignup annotations
 	signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-	signup.Annotations[v1alpha1.UserSignupPhoneNumberLabelKey] = countryCode + phoneNumber
 	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = code
 
+	// get phone number hash
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(countryCode + phoneNumber))
+	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+	signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
+
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
-	toNumber := signup.Labels[v1alpha1.UserSignupPhoneNumberLabelKey]
+	toNumber := countryCode + phoneNumber
 	client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
 	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber,
 		content, nil)

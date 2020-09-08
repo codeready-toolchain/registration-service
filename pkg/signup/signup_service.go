@@ -118,7 +118,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.BannedUsers.List(userEmail)
+	bannedUsers, err := s.BannedUsers.ListByEmail(userEmail)
 	if err != nil {
 		return nil, err
 	}

@@ -72,7 +72,6 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	defer func() {
 		if err := ctx.Request.Body.Close(); err != nil {
 			log.Error(nil, err, "failed to close response after reading")
-			ctx.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 	}()

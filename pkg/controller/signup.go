@@ -77,10 +77,6 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		}
 	}()
 
-	defer func() {
-		defer ctx.Request.Body.Close()
-	}()
-
 	if ctx.Request.Body != nil {
 		bodyBytes, err = ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {

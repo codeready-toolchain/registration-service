@@ -47,7 +47,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeaderNow()
 }
 
-// UpdateVerificationHandler stars the verification process and updates a usersignup resource
+// UpdateVerificationHandler starts the verification process and updates a usersignup resource
 func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
 	signup, err := s.signupService.GetUserSignup(userID)

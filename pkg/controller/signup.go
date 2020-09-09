@@ -68,8 +68,19 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	// Read the Body content
-	defer ctx.Request.Body.Close()
 	var bodyBytes []byte
+	defer func() {
+		if err := ctx.Request.Body.Close(); err != nil {
+			log.Error(nil, err, "failed to close response after reading")
+			ctx.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+	}()
+
+	defer func() {
+		defer ctx.Request.Body.Close()
+	}()
+
 	if ctx.Request.Body != nil {
 		bodyBytes, err = ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {

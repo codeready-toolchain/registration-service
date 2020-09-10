@@ -94,7 +94,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 
 	countryCode := m["country_code"]
 	phoneNumber := m["phone_number"]
-	err = s.signupService.CheckIfUserIsKnown(userID, countryCode, phoneNumber)
+	err = s.signupService.CheckPhoneNumberValid(userID, countryCode, phoneNumber)
 	if err != nil {
 		if apierrors.IsInternalError(err) {
 			log.Error(ctx, err, "error while looking up users by phone number")

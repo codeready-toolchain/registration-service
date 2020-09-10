@@ -98,7 +98,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	}
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
-	if counter > dailyLimit {
+	if counter >= dailyLimit {
 		err := errors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		return signup, err

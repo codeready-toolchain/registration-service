@@ -357,6 +357,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 	s.Run("post verification daily limit exceeded", func() {
 		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
 		err = os.Setenv(key, "0")
+		require.NoError(s.T(), err)
 		defer os.Unsetenv(key)
 
 		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))

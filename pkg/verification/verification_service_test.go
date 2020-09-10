@@ -75,10 +75,11 @@ func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verific
 		fromNumber:      fromNumber,
 		messageTemplate: configuration.DefaultVerificationMessageTemplate,
 		attemptsAllowed: 3,
+		dailyLimit:      3,
 	}
 }
 
-func (s *TestVerificationServiceSuite) TestSendVerification() {
+func (s *TestVerificationServiceSuite) TestInitVerification() {
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -130,7 +131,7 @@ func (s *TestVerificationServiceSuite) TestSendVerification() {
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
-func (s *TestVerificationServiceSuite) TestSendVerifyMessageFails() {
+func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusInternalServerError).

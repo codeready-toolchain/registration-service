@@ -262,6 +262,9 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 	return userSignup, nil
 }
 
+// CheckPhoneNumberValid checks if the phone number has been banned. If so, return
+// an internal server error. If not, check if a signup with a different userID
+// exists. If so, return an internal server error. Otherwise, return without error.
 func (s *ServiceImpl) CheckPhoneNumberValid(userID, countryCode, phoneNumber string) error {
 	bannedUserList, err := s.BannedUsers.ListByPhoneNumber(countryCode + phoneNumber)
 	if err != nil {

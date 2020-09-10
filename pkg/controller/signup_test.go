@@ -270,7 +270,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		return nil, nil
 	}
 
-	svc.MockCheckIfUserIsKnown = func(countryCode, phoneNumber string) error {
+	svc.MockCheckIfUserIsKnown = func(userID, countryCode, phoneNumber string) error {
 		return nil
 	}
 
@@ -684,7 +684,7 @@ type FakeSignupService struct {
 	MockCreateUserSignup   func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup      func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup   func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockCheckIfUserIsKnown func(countryCode, phoneNumber string) error
+	MockCheckIfUserIsKnown func(userID, countryCode, phoneNumber string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -703,8 +703,8 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-func (m *FakeSignupService) CheckIfUserIsKnown(countryCode, phoneNumber string) error {
-	return m.MockCheckIfUserIsKnown(countryCode, phoneNumber)
+func (m *FakeSignupService) CheckIfUserIsKnown(userID, countryCode, phoneNumber string) error {
+	return m.MockCheckIfUserIsKnown(userID, countryCode, phoneNumber)
 }
 
 type FakeVerificationService struct {

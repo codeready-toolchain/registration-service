@@ -84,17 +84,17 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	// get the annotation counter
 	annotationCounter := signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey]
 	var counter int
+	dailyLimit := s.config.GetVerificationDailyLimit()
 	if annotationCounter == "" {
 		counter = 0
-	}
-
-	dailyLimit := s.config.GetVerificationDailyLimit()
-	counter, err = strconv.Atoi(annotationCounter)
-	if err != nil {
-		// We shouldn't get an error here, but if we do, we should probably set verification attempts to daily limit
-		// so that we at least now have a valid value
-		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
-		return signup, errors.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s, set to daily limit", signup.GetName()))
+	} else {
+		counter, err = strconv.Atoi(annotationCounter)
+		if err != nil {
+			// We shouldn't get an error here, but if we do, we should probably set verification attempts to daily limit
+			// so that we at least now have a valid value
+			signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
+			return signup, errors.NewInternalError(err, fmt.Sprintf("error when retrieving counter annotation for UserSignup %s, set to daily limit", signup.GetName()))
+		}
 	}
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out

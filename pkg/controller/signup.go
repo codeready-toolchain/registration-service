@@ -47,7 +47,8 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeaderNow()
 }
 
-// UpdateVerificationHandler starts the verification process and updates a usersignup resource
+// UpdateVerificationHandler starts the verification process and updates a usersignup resource. The
+// ctx should contain a JSON body in the request with a country_code and a phone_number string
 func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
 	signup, err := s.signupService.GetUserSignup(userID)
@@ -87,21 +88,22 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	m := make(map[string]string)
 	err = json.Unmarshal(bodyBytes, &m)
 	if err != nil {
-		log.Errorf(ctx, nil, "Request body could not be read")
+		log.Errorf(ctx, err, "Request body could not be read")
 		ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	countryCode := m["country_code"]
 	phoneNumber := m["phone_number"]
-	err = s.signupService.CheckPhoneNumberValid(userID, countryCode, phoneNumber)
+	err = s.signupService.PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber)
 	if err != nil {
-		if apierrors.IsInternalError(err) {
-			log.Error(ctx, err, "error while looking up users by phone number")
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
+		if apierrors.IsForbidden(err) {
+			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber)
+			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber))
 		}
-		log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber)
-		errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber))
+		log.Error(ctx, err, "error while looking up users by phone number")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
+
 	}
 
 	signup, err = s.verificationService.InitVerification(ctx, signup, countryCode, phoneNumber)

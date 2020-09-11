@@ -270,7 +270,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		return nil, nil
 	}
 
-	svc.MockCheckPhoneNumberValid = func(userID, countryCode, phoneNumber string) error {
+	svc.MockPhoneNumberAlreadyInUse = func(userID, countryCode, phoneNumber string) error {
 		return nil
 	}
 
@@ -680,11 +680,11 @@ func (s *TestSignupSuite) handleVerify(controller *controller.Signup, userID, co
 }
 
 type FakeSignupService struct {
-	MockGetSignup             func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup      func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockGetUserSignup         func(userID string) (*crtapi.UserSignup, error)
-	MockUpdateUserSignup      func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockCheckPhoneNumberValid func(userID, countryCode, phoneNumber string) error
+	MockGetSignup               func(userID string) (*signup.Signup, error)
+	MockCreateUserSignup        func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockGetUserSignup           func(userID string) (*crtapi.UserSignup, error)
+	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockPhoneNumberAlreadyInUse func(userID, countryCode, phoneNumber string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -703,8 +703,8 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-func (m *FakeSignupService) CheckPhoneNumberValid(userID, countryCode, phoneNumber string) error {
-	return m.MockCheckPhoneNumberValid(userID, countryCode, phoneNumber)
+func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error {
+	return m.MockPhoneNumberAlreadyInUse(userID, countryCode, phoneNumber)
 }
 
 type FakeVerificationService struct {

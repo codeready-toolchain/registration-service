@@ -39,6 +39,9 @@ func (s *TestKeyManagerSuite) TestKeyManager() {
 }
 
 func (s *TestKeyManagerSuite) TestKeyFetching() {
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.NewV4().String()
@@ -145,7 +148,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager(s.Config)
 		// this needs to fail with an error
-		assert.EqualError(s.T(), err, "Get not%20an%20url: unsupported protocol scheme \"\"")
+		require.Error(s.T(), err)
+		assert.Contains(s.T(), err.Error(), "not%20an%20url")
+		assert.Contains(s.T(), err.Error(), ": unsupported protocol scheme")
 	})
 
 	s.Run("parse keys, server not reachable", func() {
@@ -216,6 +221,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 }
 
 func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+
 	s.Run("retrieve key for e2e-tests environment", func() {
 		s.Config.GetViperInstance().Set("environment", "e2e-tests")
 		keyManager, err := auth.NewKeyManager(s.Config)
@@ -229,7 +237,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		}
 	})
 
-	checkE2EKeysNotFound := func(config *configuration.Registry) {
+	checkE2EKeysNotFound := func(config *configuration.Config) {
 		keyManager, err := auth.NewKeyManager(config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()
@@ -243,7 +251,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	}
 
 	s.Run("fail to retrieve e2e keys for default environment", func() {
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)
@@ -253,7 +261,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	s.Run("fail to retrieve e2e keys for prod environment", func() {
 		resetFunc := commontest.SetEnvVarAndRestore(s.T(), key, "prod")
 		defer resetFunc()
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)
@@ -262,7 +270,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	s.Run("fail to retrieve e2e keys if environment is not set", func() {
 		resetFunc := commontest.UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
-		config, err := configuration.New("")
+		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
 		require.NoError(s.T(), err)
 
 		checkE2EKeysNotFound(config)

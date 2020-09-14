@@ -113,7 +113,7 @@ function getSignupState(cbSuccess, cbError) {
 // updates the signup state.
 function updateSignupState() {
   getSignupState(function(data) {
-    if (data.status.verificationRequired) {
+    if (data.status.ready === false && data.status.reason == 'VerificationRequired') {
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {

@@ -242,7 +242,7 @@ function completePhoneVerification() {
 }
 
 function resendPhoneVerification() {
-    getJSON('POST', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } 

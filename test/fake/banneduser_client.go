@@ -14,10 +14,10 @@ import (
 )
 
 type FakeBannedUserClient struct {
-	Tracker         testing.ObjectTracker
-	Scheme          *runtime.Scheme
-	namespace       string
-	MockListByValue func(value, label string) (*crtapi.BannedUserList, error)
+	Tracker               testing.ObjectTracker
+	Scheme                *runtime.Scheme
+	namespace             string
+	MockListByHashedLabel func(value, label string) (*crtapi.BannedUserList, error)
 }
 
 func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
@@ -44,14 +44,14 @@ func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeBannedUserClient) ListByValue(value, label string) (*crtapi.BannedUserList, error) {
+func (c *FakeBannedUserClient) ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error) {
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(value))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
 
-	if c.MockListByValue != nil {
-		return c.MockListByValue(value, label)
+	if c.MockListByHashedLabel != nil {
+		return c.MockListByHashedLabel(value, label)
 	}
 
 	obj := &crtapi.BannedUser{}

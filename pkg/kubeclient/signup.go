@@ -26,7 +26,7 @@ type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	ListByValue(value, label string) (*crtapi.UserSignupList, error)
+	ListByHashedLabel(value, label string) (*crtapi.UserSignupList, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -77,8 +77,8 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	return result, nil
 }
 
-// ListByValue returns a UserSignupList containing any UserSignup resources that have a label matching the specified label
-func (c *userSignupClient) ListByValue(value, label string) (*crtapi.UserSignupList, error) {
+// ListByHashedLabel returns a UserSignupList containing any UserSignup resources that have a label matching the specified label
+func (c *userSignupClient) ListByHashedLabel(value, label string) (*crtapi.UserSignupList, error) {
 
 	// Calculate the md5 hash for the phoneNumber
 	md5hash := md5.New()

@@ -21,11 +21,11 @@ type bannedUserClient struct {
 }
 
 type BannedUserInterface interface {
-	ListByValue(value, label string) (*crtapi.BannedUserList, error)
+	ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error)
 }
 
-// ListByValue returns a BannedUserList containing any BannedUser resources that have a label matching the specified label
-func (c *bannedUserClient) ListByValue(value, label string) (*crtapi.BannedUserList, error) {
+// ListByHashedLabel returns a BannedUserList containing any BannedUser resources that have a label matching the specified label
+func (c *bannedUserClient) ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error) {
 
 	// Calculate the md5 hash for the phoneNumber
 	md5hash := md5.New()

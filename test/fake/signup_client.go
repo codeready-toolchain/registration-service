@@ -1,6 +1,8 @@
 package fake
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 
@@ -15,14 +17,14 @@ import (
 )
 
 type FakeUserSignupClient struct {
-	Tracker               testing.ObjectTracker
-	Scheme                *runtime.Scheme
-	namespace             string
-	MockGet               func(string) (*crtapi.UserSignup, error)
-	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete            func(name string, options *v1.DeleteOptions) error
-	MockListByPhoneNumber func(phoneHash string) (*crtapi.UserSignupList, error)
+	Tracker         testing.ObjectTracker
+	Scheme          *runtime.Scheme
+	namespace       string
+	MockGet         func(string) (*crtapi.UserSignup, error)
+	MockCreate      func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdate      func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockDelete      func(name string, options *v1.DeleteOptions) error
+	MockListByValue func(value, label string) (*crtapi.UserSignupList, error)
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -133,9 +135,14 @@ func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) er
 	return c.Tracker.Delete(gvr, c.namespace, name)
 }
 
-func (c *FakeUserSignupClient) ListByPhoneNumber(phoneHash string) (*crtapi.UserSignupList, error) {
-	if c.MockListByPhoneNumber != nil {
-		return c.MockListByPhoneNumber(phoneHash)
+func (c *FakeUserSignupClient) ListByValue(value, label string) (*crtapi.UserSignupList, error) {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(value))
+	hash := hex.EncodeToString(md5hash.Sum(nil))
+
+	if c.MockListByValue != nil {
+		return c.MockListByValue(value, label)
 	}
 
 	obj := &crtapi.UserSignup{}
@@ -158,7 +165,7 @@ func (c *FakeUserSignupClient) ListByPhoneNumber(phoneHash string) (*crtapi.User
 	objs := []crtapi.UserSignup{}
 
 	for _, bu := range list.Items {
-		if bu.Labels[crtapi.UserSignupUserPhoneHashLabelKey] == phoneHash {
+		if bu.Labels[label] == hash {
 			objs = append(objs, bu)
 		}
 	}

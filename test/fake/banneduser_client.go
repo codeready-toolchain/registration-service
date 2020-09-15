@@ -1,6 +1,8 @@
 package fake
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"os"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -12,11 +14,10 @@ import (
 )
 
 type FakeBannedUserClient struct {
-	Tracker               testing.ObjectTracker
-	Scheme                *runtime.Scheme
-	namespace             string
-	MockListByEmail       func(string) (*crtapi.BannedUserList, error)
-	MockListByPhoneNumber func(string) (*crtapi.BannedUserList, error)
+	Tracker         testing.ObjectTracker
+	Scheme          *runtime.Scheme
+	namespace       string
+	MockListByValue func(value, label string) (*crtapi.BannedUserList, error)
 }
 
 func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
@@ -43,9 +44,14 @@ func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeBannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, error) {
-	if c.MockListByEmail != nil {
-		return c.MockListByEmail(email)
+func (c *FakeBannedUserClient) ListByValue(value, label string) (*crtapi.BannedUserList, error) {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(value))
+	hash := hex.EncodeToString(md5hash.Sum(nil))
+
+	if c.MockListByValue != nil {
+		return c.MockListByValue(value, label)
 	}
 
 	obj := &crtapi.BannedUser{}
@@ -68,43 +74,7 @@ func (c *FakeBannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList
 	objs := []crtapi.BannedUser{}
 
 	for _, bu := range list.Items {
-		if bu.Spec.Email == email {
-			objs = append(objs, bu)
-		}
-	}
-
-	return &crtapi.BannedUserList{
-			Items: objs,
-		},
-		nil
-}
-
-func (c *FakeBannedUserClient) ListByPhoneNumber(phoneHash string) (*crtapi.BannedUserList, error) {
-	if c.MockListByPhoneNumber != nil {
-		return c.MockListByPhoneNumber(phoneHash)
-	}
-
-	obj := &crtapi.BannedUser{}
-	gvr, err := getGVRFromObject(obj, c.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	gvk, err := apiutil.GVKForObject(obj, c.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	o, err := c.Tracker.List(gvr, gvk, c.namespace)
-	if err != nil {
-		return nil, err
-	}
-	list := o.(*crtapi.BannedUserList)
-
-	objs := []crtapi.BannedUser{}
-
-	for _, bu := range list.Items {
-		if bu.Labels[crtapi.BannedUserPhoneNumberHashLabelKey] == phoneHash {
+		if bu.Labels[label] == hash {
 			objs = append(objs, bu)
 		}
 	}

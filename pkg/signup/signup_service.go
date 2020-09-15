@@ -121,7 +121,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.BannedUsers.ListByEmail(userEmail)
+	bannedUsers, err := s.BannedUsers.ListByValue(userEmail, v1alpha1.BannedUserEmailHashLabelKey)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 // an internal server error. If not, check if a signup with a different userID
 // exists. If so, return an internal server error. Otherwise, return without error.
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error {
-	bannedUserList, err := s.BannedUsers.ListByPhoneNumber(countryCode + phoneNumber)
+	bannedUserList, err := s.BannedUsers.ListByValue(countryCode+phoneNumber, v1alpha1.BannedUserPhoneNumberHashLabelKey)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing banned users")
 	}
@@ -274,7 +274,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber s
 		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignupList, err := s.UserSignups.ListByPhoneNumber(countryCode + phoneNumber)
+	userSignupList, err := s.UserSignups.ListByValue(countryCode+phoneNumber, v1alpha1.UserSignupUserPhoneHashLabelKey)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing userSignups")
 	}

@@ -59,6 +59,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
+			return
 		}
 		log.Error(ctx, err, "error retrieving usersignup")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retrieving usersignup: %s", userID))
@@ -69,6 +70,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	if signup.Spec.VerificationRequired == false {
 		log.Errorf(ctx, nil, "phone verification not required for usersignup: %s", userID)
 		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
 
 	// Read the Body content
@@ -83,9 +85,11 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		if apierrors.IsForbidden(err) {
 			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber)
 			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber))
+			return
 		}
 		log.Error(ctx, err, "error while looking up users by phone number")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
+		return
 	}
 
 	signup, err = s.verificationService.InitVerification(ctx, signup, phone.CountryCode, phone.PhoneNumber)

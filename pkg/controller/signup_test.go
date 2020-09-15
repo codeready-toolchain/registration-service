@@ -333,17 +333,19 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
-	s.Run("post verification request body could not be read", func() {
+	s.Run("init verification request body could not be read", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
+		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), http.StatusInternalServerError, rr.Code, "handler returned wrong status code")
+		assert.Equal(s.T(), http.StatusBadRequest, rr.Code, "handler returned wrong status code")
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
 		require.Equal(s.T(), userID, expected.Name)
@@ -354,7 +356,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
-	s.Run("post verification daily limit exceeded", func() {
+	s.Run("init verification daily limit exceeded", func() {
 		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
 		err = os.Setenv(key, "0")
 		require.NoError(s.T(), err)

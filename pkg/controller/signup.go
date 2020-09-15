@@ -1,9 +1,7 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -22,6 +20,11 @@ type Signup struct {
 	config              *configuration.Config
 	signupService       signup.Service
 	verificationService verification.Service
+}
+
+type Phone struct {
+	CountryCode string `form:"country_code" json:"country_code" binding:"required"`
+	PhoneNumber string `form:"phone_number" json:"phone_number" binding:"required"`
 }
 
 // NewSignup returns a new Signup instance.
@@ -69,44 +72,23 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	// Read the Body content
-	var bodyBytes []byte
-	defer func() {
-		if err := ctx.Request.Body.Close(); err != nil {
-			log.Error(nil, err, "failed to close response after reading")
-			return
-		}
-	}()
-
-	if ctx.Request.Body != nil {
-		bodyBytes, err = ioutil.ReadAll(ctx.Request.Body)
-		if err != nil {
-			ctx.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-	}
-
-	m := make(map[string]string)
-	err = json.Unmarshal(bodyBytes, &m)
-	if err != nil {
-		log.Errorf(ctx, err, "Request body could not be read")
-		ctx.AbortWithError(http.StatusInternalServerError, err)
+	var phone Phone
+	if err := ctx.BindJSON(&phone); err != nil {
+		errors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
 		return
 	}
 
-	countryCode := m["country_code"]
-	phoneNumber := m["phone_number"]
-	err = s.signupService.PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber)
+	err = s.signupService.PhoneNumberAlreadyInUse(userID, phone.CountryCode, phone.PhoneNumber)
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber)
-			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", countryCode+phoneNumber))
+			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber)
+			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber))
 		}
 		log.Error(ctx, err, "error while looking up users by phone number")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
-
 	}
 
-	signup, err = s.verificationService.InitVerification(ctx, signup, countryCode, phoneNumber)
+	signup, err = s.verificationService.InitVerification(ctx, signup, phone.CountryCode, phone.PhoneNumber)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {

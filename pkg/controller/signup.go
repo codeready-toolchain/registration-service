@@ -76,6 +76,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	// Read the Body content
 	var phone Phone
 	if err := ctx.BindJSON(&phone); err != nil {
+		log.Errorf(ctx, err, "request body does not contain required fields phone_number and country_code")
 		errors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
 		return
 	}

@@ -32,7 +32,7 @@ var getJSON = function(method, url, token, callback, body) {
     }
   };
   if (body)
-    xhr.send(JSON.stringify(params));
+    xhr.send(JSON.stringify(body));
   else
     xhr.send();
 };
@@ -209,7 +209,7 @@ function initiatePhoneVerification() {
     showError('phone or country code invalid, please check your input.');
     show('state-initiate-phone-verification');
   } else {
-    getJSON('POST', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } else {

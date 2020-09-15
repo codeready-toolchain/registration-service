@@ -105,7 +105,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	log.Infof(ctx, "phone verification has been sent for userID %s", userID)
-	ctx.Status(http.StatusOK)
+	ctx.Status(http.StatusNoContent)
 	ctx.Writer.WriteHeaderNow()
 }
 

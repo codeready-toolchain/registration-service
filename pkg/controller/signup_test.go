@@ -322,7 +322,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		handler(ctx)
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
+		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
 		require.Equal(s.T(), userID, expected.Name)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -69,7 +70,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 
 	// check that verification is required before proceeding
 	if signup.Spec.VerificationRequired == false {
-		log.Errorf(ctx, errors.NewForbiddenError("bad request", "verification code will not be sent"), "phone verification not required for usersignup: %s", userID)
+		log.Errorf(ctx, errors.NewForbiddenError("forbidden request", "verification code will not be sent"), "phone verification not required for usersignup: %s", userID)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -83,14 +84,23 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	// normalize phone number
-	reg, err := regexp.Compile("[^0-9]+")
-	if err != nil {
-		panic(err)
+	r := strings.NewReplacer("(", "",
+		")", "",
+		" ", "",
+		"-", "")
+	countryCode := r.Replace(phone.CountryCode)
+	phoneNumber := r.Replace(phone.PhoneNumber)
+	matchedCode, err := regexp.MatchString("[^0-9]+", countryCode)
+	matchedPhone, err := regexp.MatchString("[^0-9]+", phoneNumber)
+
+	// if phone number contains odd characters, return error
+	if matchedCode || matchedPhone {
+		log.Errorf(ctx, errors.NewBadRequest("bad request", "invalid request"), "phone number entered contains invalid characters")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
 	}
-	numericCountryCode := reg.ReplaceAllString(phone.CountryCode, "")
-	numericPhoneNumber := reg.ReplaceAllString(phone.PhoneNumber, "")
-	phone.PhoneNumber = numericPhoneNumber
-	phone.CountryCode = numericCountryCode
+	phone.PhoneNumber = phoneNumber
+	phone.CountryCode = countryCode
 
 	err = s.signupService.PhoneNumberAlreadyInUse(userID, phone.CountryCode, phone.PhoneNumber)
 	if err != nil {

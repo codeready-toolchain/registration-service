@@ -63,3 +63,12 @@ func NewNotFoundError(err error, details string) *Error {
 		Details: details,
 	}
 }
+
+func NewBadRequest(message, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusBadRequest),
+		Code:    http.StatusBadRequest,
+		Message: message,
+		Details: details,
+	}
+}

@@ -26,7 +26,7 @@ type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	ListByHashedLabel(value, label string) (*crtapi.UserSignupList, error)
+	ListByPhone(phone string) (*crtapi.UserSignupList, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -77,13 +77,17 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	return result, nil
 }
 
+func (c *userSignupClient) ListByPhone(phone string) (*crtapi.UserSignupList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
+}
+
 // ListByHashedLabel returns a UserSignupList containing any UserSignup resources that have a label matching the specified label
-func (c *userSignupClient) ListByHashedLabel(value, label string) (*crtapi.UserSignupList, error) {
+func (c *userSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
 
 	// Calculate the md5 hash for the phoneNumber
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(value))
+	_, _ = md5hash.Write([]byte(labelValue))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
 
 	intf, err := dynamic.NewForConfig(&c.cfg)
@@ -93,7 +97,7 @@ func (c *userSignupClient) ListByHashedLabel(value, label string) (*crtapi.UserS
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
 	listOptions := v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", label, hash),
+		LabelSelector: fmt.Sprintf("%s=%s", labelKey, hash),
 	}
 
 	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)

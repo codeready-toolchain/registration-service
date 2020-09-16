@@ -21,16 +21,23 @@ type bannedUserClient struct {
 }
 
 type BannedUserInterface interface {
-	ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error)
+	ListByEmail(email string) (*crtapi.BannedUserList, error)
+	ListByPhone(phoneNumber string) (*crtapi.BannedUserList, error)
+}
+
+func (c *bannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserEmailHashLabelKey, email)
+}
+func (c *bannedUserClient) ListByPhone(phone string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
 }
 
 // ListByHashedLabel returns a BannedUserList containing any BannedUser resources that have a label matching the specified label
-func (c *bannedUserClient) ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error) {
-
+func (c *bannedUserClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.BannedUserList, error) {
 	// Calculate the md5 hash for the phoneNumber
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(value))
+	_, _ = md5hash.Write([]byte(labelValue))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
 
 	intf, err := dynamic.NewForConfig(&c.cfg)
@@ -40,7 +47,7 @@ func (c *bannedUserClient) ListByHashedLabel(value, label string) (*crtapi.Banne
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: bannedUserResourcePlural}
 	listOptions := v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", label, hash),
+		LabelSelector: fmt.Sprintf("%s=%s", labelKey, hash),
 	}
 
 	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)

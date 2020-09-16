@@ -24,7 +24,7 @@ type FakeUserSignupClient struct {
 	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockDelete            func(name string, options *v1.DeleteOptions) error
-	MockListByHashedLabel func(value, label string) (*crtapi.UserSignupList, error)
+	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -135,14 +135,18 @@ func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) er
 	return c.Tracker.Delete(gvr, c.namespace, name)
 }
 
-func (c *FakeUserSignupClient) ListByHashedLabel(value, label string) (*crtapi.UserSignupList, error) {
+func (c *FakeUserSignupClient) ListByPhone(phone string) (*crtapi.UserSignupList, error) {
+	return c.listByHashedLabel(crtapi.UserSignupUserPhoneHashLabelKey, phone)
+}
+
+func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(value))
+	_, _ = md5hash.Write([]byte(labelValue))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
 
 	if c.MockListByHashedLabel != nil {
-		return c.MockListByHashedLabel(value, label)
+		return c.MockListByHashedLabel(labelValue, labelKey)
 	}
 
 	obj := &crtapi.UserSignup{}
@@ -165,7 +169,7 @@ func (c *FakeUserSignupClient) ListByHashedLabel(value, label string) (*crtapi.U
 	objs := []crtapi.UserSignup{}
 
 	for _, bu := range list.Items {
-		if bu.Labels[label] == hash {
+		if bu.Labels[labelKey] == hash {
 			objs = append(objs, bu)
 		}
 	}

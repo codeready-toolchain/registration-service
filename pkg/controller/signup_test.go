@@ -223,99 +223,90 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 }
 
 func (s *TestSignupSuite) TestUpdateVerificationHandler() {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
-	data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
-	require.NoError(s.T(), err)
-
-	dataMap := make(map[string]string)
-	err = json.Unmarshal(data, &dataMap)
-
-	// Create a mock SignupService
-	svc := &FakeSignupService{}
-
-	// Create a mock VerificationService
-	verifyService := &FakeVerificationService{}
-
 	// Create UserSignup
 	ob, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	userID := ob.String()
 
+	var storedUserID string
+	var storedUserSignup *crtapi.UserSignup
+
+	// Create a mock SignupService
+	svc := &FakeSignupService{
+		MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
+			storedUserID = userID
+			storedUserSignup = &crtapi.UserSignup{
+				TypeMeta: v1.TypeMeta{},
+				ObjectMeta: v1.ObjectMeta{
+					Name: userID,
+					Annotations: map[string]string{
+						crtapi.UserSignupUserEmailAnnotationKey:           "jsmith@redhat.com",
+						crtapi.UserSignupVerificationCounterAnnotationKey: "0",
+						crtapi.UserSignupVerificationCodeAnnotationKey:    "",
+					},
+				},
+				Spec: crtapi.UserSignupSpec{
+					VerificationRequired: true,
+				},
+				Status: crtapi.UserSignupStatus{},
+			}
+			return storedUserSignup, nil
+		},
+	}
+
+	// Create a mock VerificationService
+	var storedVerificationCode string
+	var verificationInitTimeStamp string
+	verifyService := &FakeVerificationService{
+		MockInitVerification: func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
+			now := time.Now()
+
+			// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
+			ts, err := time.Parse("2006-01-02T15:04:05.000Z07:00", signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+			if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
+				// Set a new timestamp
+				signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey] = now.Format("2006-01-02T15:04:05.000Z07:00")
+				verificationInitTimeStamp = signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey]
+			}
+
+			annotationCounter := signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
+			counter := 0
+			if annotationCounter != "" {
+				counter, err = strconv.Atoi(annotationCounter)
+				if err != nil {
+					return nil, errors2.NewInternalError(err)
+				}
+			}
+
+			// check if counter has exceeded the limit of daily limit - if at limit error out
+			if counter >= s.Config.GetVerificationDailyLimit() {
+				return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
+			}
+
+			// generate verification code
+			rand.Seed(time.Now().UnixNano())
+			randomNum := rand.Intn(9999-1000) + 1000
+			storedVerificationCode = strconv.Itoa(randomNum)
+			signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+			signup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
+			signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
+
+			storedUserSignup = signup
+			return signup, nil
+		},
+	}
+
 	// Create Signup controller instance.
 	ctrl := controller.NewSignup(s.Config, svc, verifyService)
 	handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
-
-	var storedVerificationCode string
-	var verificationInitTimeStamp string
-
-	expected := &crtapi.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name: userID,
-			Annotations: map[string]string{
-				crtapi.UserSignupUserEmailAnnotationKey:      "jsmith@redhat.com",
-				crtapi.UserVerificationAttemptsAnnotationKey: "0",
-			},
-		},
-		Spec:   crtapi.UserSignupSpec{VerificationRequired: true},
-		Status: crtapi.UserSignupStatus{},
-	}
-
-	svc.MockGetUserSignup = func(id string) (*crtapi.UserSignup, error) {
-		if id == userID {
-			return expected, nil
-		}
-		return nil, nil
-	}
-
-	svc.MockPhoneNumberAlreadyInUse = func(userID, countryCode, phoneNumber string) error {
-		return nil
-	}
-
-	verifyService.MockInitVerification = func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
-		now := time.Now()
-
-		// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
-		ts, err := time.Parse("2006-01-02T15:04:05.000Z07:00", signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		if err != nil || (err == nil && now.After(ts.Add(24*time.Hour))) {
-			// Set a new timestamp
-			signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey] = now.Format("2006-01-02T15:04:05.000Z07:00")
-			signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = "0"
-			verificationInitTimeStamp = signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey]
-		}
-
-		annotationCounter := signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey]
-		counter := 0
-		if annotationCounter != "" {
-			counter, err = strconv.Atoi(annotationCounter)
-			if err != nil {
-				return nil, errors2.NewInternalError(err)
-			}
-		}
-
-		// check if counter has exceeded the limit of daily limit - if at limit error out
-		if counter > s.Config.GetVerificationDailyLimit() {
-			return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
-		}
-
-		// generate verification code
-		rand.Seed(time.Now().UnixNano())
-		randomNum := rand.Intn(9999-1000) + 1000
-		storedVerificationCode = strconv.Itoa(randomNum)
-		signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-		signup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
-		signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
-
-		expected = signup
-		return signup, nil
-	}
 
 	s.Run("init verification success", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
@@ -325,12 +316,12 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.Equal(s.T(), userID, expected.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
-		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
 	s.Run("init verification request body could not be read", func() {
@@ -338,8 +329,9 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
-		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
 		ctx.Request = req
+		require.NoError(s.T(), err)
 		ctx.Set(context.SubKey, userID)
 
 		handler(ctx)
@@ -348,21 +340,21 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code, "handler returned wrong status code")
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.Equal(s.T(), userID, expected.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), storedVerificationCode, expected.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
-		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), storedUserID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
+		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
 		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
-		err = os.Setenv(key, "0")
+		err := os.Setenv(key, "0")
 		require.NoError(s.T(), err)
 		defer os.Unsetenv(key)
-
-		req, err = http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
 		require.NoError(s.T(), err)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -370,18 +362,16 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
-
 		handler(ctx)
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.Equal(s.T(), userID, expected.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", expected.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "1", expected.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), dataMap["country_code"]+dataMap["phone_number"], expected.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
-		require.Equal(s.T(), verificationInitTimeStamp, expected.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), storedUserID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 }
 

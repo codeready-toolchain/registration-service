@@ -17,7 +17,7 @@ type FakeBannedUserClient struct {
 	Tracker               testing.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string
-	MockListByHashedLabel func(value, label string) (*crtapi.BannedUserList, error)
+	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.BannedUserList, error)
 }
 
 func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
@@ -44,14 +44,21 @@ func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeBannedUserClient) ListByHashedLabel(value, label string) (*crtapi.BannedUserList, error) {
+func (c *FakeBannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserEmailHashLabelKey, email)
+}
+func (c *FakeBannedUserClient) ListByPhone(phone string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
+}
+
+func (c *FakeBannedUserClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.BannedUserList, error) {
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(value))
+	_, _ = md5hash.Write([]byte(labelValue))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
 
 	if c.MockListByHashedLabel != nil {
-		return c.MockListByHashedLabel(value, label)
+		return c.MockListByHashedLabel(labelKey, labelValue)
 	}
 
 	obj := &crtapi.BannedUser{}
@@ -74,7 +81,7 @@ func (c *FakeBannedUserClient) ListByHashedLabel(value, label string) (*crtapi.B
 	objs := []crtapi.BannedUser{}
 
 	for _, bu := range list.Items {
-		if bu.Labels[label] == hash {
+		if bu.Labels[labelKey] == hash {
 			objs = append(objs, bu)
 		}
 	}

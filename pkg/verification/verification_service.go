@@ -118,8 +118,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
 	toNumber := countryCode + phoneNumber
 	client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
-	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber,
-		content, nil)
+	msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), toNumber, content, nil)
 	if err != nil {
 		log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
 		return signup, err

@@ -107,7 +107,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	// generate verification code
 	code, err := generateVerificationCode()
 	if err != nil {
-		log.Errorf(ctx, nil, "verification code could not be generated")
+		log.Errorf(ctx, err, "verification code could not be generated")
 		return signup, ctx.AbortWithError(http.StatusInternalServerError, err)
 	}
 

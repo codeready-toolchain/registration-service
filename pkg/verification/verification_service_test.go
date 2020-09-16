@@ -42,6 +42,7 @@ type mockVerificationConfig struct {
 	messageTemplate string
 	attemptsAllowed int
 	dailyLimit      int
+	codeExpiry      int
 }
 
 func (c *mockVerificationConfig) GetTwilioAccountSID() string {
@@ -68,6 +69,10 @@ func (c *mockVerificationConfig) GetVerificationDailyLimit() int {
 	return c.dailyLimit
 }
 
+func (c *mockVerificationConfig) GetVerificationCodeExpiry() int {
+	return c.codeExpiry
+}
+
 func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verification.ServiceConfiguration {
 	return &mockVerificationConfig{
 		accountSID:      accountSID,
@@ -76,6 +81,7 @@ func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verific
 		messageTemplate: configuration.DefaultVerificationMessageTemplate,
 		attemptsAllowed: 3,
 		dailyLimit:      3,
+		codeExpiry:      5,
 	}
 }
 
@@ -131,6 +137,63 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
+func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountReachedAndTimestampElapsed() {
+	defer gock.Off()
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+
+	now := time.Now()
+
+	var reqBody io.ReadCloser
+	obs := func(request *http.Request, mock gock.Mock) {
+		reqBody = request.Body
+	}
+
+	gock.Observe(obs)
+
+	userSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "123",
+			Namespace: "test",
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
+				v1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
+				v1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username: "sbryzak@redhat.com",
+		},
+	}
+
+	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	require.NoError(s.T(), err)
+	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reqBody)
+	reqValue := buf.String()
+
+	params, err := url.ParseQuery(reqValue)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), fmt.Sprintf("Your verification code for Red Hat Developer Sandbox is: %s",
+		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		params.Get("Body"))
+	require.Equal(s.T(), "CodeReady", params.Get("From"))
+	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+	require.Equal(s.T(), "1", userSignup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey])
+}
+
 func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
@@ -163,6 +226,80 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
+func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContainsInvalidValue() {
+	defer gock.Off()
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusInternalServerError).
+		BodyString("")
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+
+	now := time.Now()
+
+	userSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "123",
+			Namespace: "test",
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verification.TimestampLayout),
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username: "sbryzak@redhat.com",
+		},
+	}
+
+	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "strconv.Atoi: parsing \"abc\": invalid syntax:error when retrieving counter annotation for UserSignup 123, set to daily limit", err.Error())
+}
+
+func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExceeded() {
+	defer gock.Off()
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusInternalServerError).
+		BodyString("")
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	svc, _ := s.createVerificationService()
+
+	now := time.Now()
+
+	userSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "123",
+			Namespace: "test",
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "3",
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verification.TimestampLayout),
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username: "sbryzak@redhat.com",
+		},
+	}
+
+	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
+
+	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestVerifyCode() {

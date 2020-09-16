@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -80,6 +81,16 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		errors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
 		return
 	}
+
+	// normalize phone number
+	reg, err := regexp.Compile("[^0-9]+")
+	if err != nil {
+		panic(err)
+	}
+	numericCountryCode := reg.ReplaceAllString(phone.CountryCode, "")
+	numericPhoneNumber := reg.ReplaceAllString(phone.PhoneNumber, "")
+	phone.PhoneNumber = numericPhoneNumber
+	phone.CountryCode = numericCountryCode
 
 	err = s.signupService.PhoneNumberAlreadyInUse(userID, phone.CountryCode, phone.PhoneNumber)
 	if err != nil {

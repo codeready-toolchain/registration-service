@@ -32,6 +32,7 @@ type ServiceConfiguration interface {
 	GetVerificationMessageTemplate() string
 	GetVerificationAttemptsAllowed() int
 	GetVerificationDailyLimit() int
+	GetVerificationCodeExpiry() int
 }
 
 // Service represents the verification service for controllers.
@@ -114,6 +115,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, signup *v1alpha1.UserSi
 	// set the usersignup annotations
 	signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 	signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = code
+	signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(time.Duration(s.config.GetVerificationCodeExpiry()) * time.Minute).Format(TimestampLayout)
 
 	content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), code)
 	toNumber := countryCode + phoneNumber

@@ -69,7 +69,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 
 	// check that verification is required before proceeding
 	if signup.Spec.VerificationRequired == false {
-		log.Errorf(ctx, nil, "phone verification not required for usersignup: %s", userID)
+		log.Errorf(ctx, errors.NewForbiddenError("bad request", "verification code will not be sent"), "phone verification not required for usersignup: %s", userID)
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}

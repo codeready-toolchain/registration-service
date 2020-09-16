@@ -244,6 +244,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 						crtapi.UserSignupVerificationCounterAnnotationKey: "0",
 						crtapi.UserSignupVerificationCodeAnnotationKey:    "",
 					},
+					Labels: map[string]string{},
 				},
 				Spec: crtapi.UserSignupSpec{
 					VerificationRequired: true,
@@ -251,6 +252,10 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 				Status: crtapi.UserSignupStatus{},
 			}
 			return storedUserSignup, nil
+		},
+
+		MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+			return nil
 		},
 	}
 
@@ -288,9 +293,8 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			randomNum := rand.Intn(9999-1000) + 1000
 			storedVerificationCode = strconv.Itoa(randomNum)
 			signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-			signup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
 			signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
-
+			signup.Labels[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
 			storedUserSignup = signup
 			return signup, nil
 		},
@@ -320,8 +324,8 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), "12268213044", storedUserSignup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
 		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 	})
 
 	s.Run("init verification request body could not be read", func() {

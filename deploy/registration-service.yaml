@@ -150,11 +150,11 @@ objects:
                     configMapKeyRef:
                       name: registration-service
                       key: verification.attempts_allowed
-                - name: REGISTRATION_VERIFICATION_CODE_EXPIRY
+                - name: REGISTRATION_VERIFICATION_CODE_EXPIRES_IN_MIN
                   valueFrom:
                     configMapKeyRef:
                       name: registration-service
-                      key: verification.code_expiry
+                      key: verification.code_expires_in_min
   - kind: Service
     apiVersion: v1
     metadata:
@@ -208,7 +208,7 @@ objects:
       verification.enabled: ${VERIFICATION_ENABLED}
       verification.daily_limit: ${VERIFICATION_DAILY_LIMIT}
       verification.attempts_allowed: ${VERIFICATION_ATTEMPTS_ALLOWED}
-      verification.code_expiry: ${VERIFICATION_CODE_EXPIRY}
+      verification.code_expiry: ${VERIFICATION_CODE_EXPIRES_IN_MIN}
 parameters:
   - name: NAMESPACE
     value: 'toolchain-host-operator'
@@ -230,5 +230,5 @@ parameters:
     value: ''
   - name: VERIFICATION_ATTEMPTS_ALLOWED
     value: ''
-  - name: VERIFICATION_CODE_EXPIRY
+  - name: VERIFICATION_CODE_EXPIRES_IN_MIN
     value: ''

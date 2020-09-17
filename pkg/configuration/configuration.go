@@ -140,8 +140,8 @@ const (
 	// is not required.  For example: "redhat.com,ibm.com"
 	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 
-	// varVerificationExpiry is used to set the amount of time a verification code is active for before expiring
-	varVerificationCodeExpiry     = "verification.code_expiry"
+	// varVerificationExpiry is used to set the amount of time (in minutes) that a verification code is active for before expiring
+	varVerificationCodeExpiry     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiry = 5
 )
 

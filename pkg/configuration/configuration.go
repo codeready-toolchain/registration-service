@@ -140,9 +140,9 @@ const (
 	// is not required.  For example: "redhat.com,ibm.com"
 	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
 
-	// varVerificationExpiry is used to set the amount of time (in minutes) that a verification code is active for before expiring
-	varVerificationCodeExpiry     = "verification.code_expires_in_min"
-	DefaultVerificationCodeExpiry = 5
+	// varVerificationCodeExpiresInMin is used to set the amount of time (in minutes) that a verification code is active for before expiring
+	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
+	DefaultVerificationCodeExpiresInMin = 5
 )
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -242,7 +242,7 @@ func (c *Config) setConfigDefaults() {
 	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
 	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
 	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
-	c.v.SetDefault(varVerificationCodeExpiry, DefaultVerificationCodeExpiry)
+	c.v.SetDefault(varVerificationCodeExpiresInMin, DefaultVerificationCodeExpiresInMin)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -371,8 +371,8 @@ func (c *Config) GetTwilioFromNumber() string {
 	return c.v.GetString(varTwilioFromNumber)
 }
 
-// GetVerificationCodeExpiry returns an int representing the number of minutes before a verification code should
+// GetVerificationCodeExpiresIn returns an int representing the number of minutes before a verification code should
 // be expired
-func (c *Config) GetVerificationCodeExpiry() int {
-	return c.v.GetInt(varVerificationCodeExpiry)
+func (c *Config) GetVerificationCodeExpiresIn() int {
+	return c.v.GetInt(varVerificationCodeExpiresInMin)
 }

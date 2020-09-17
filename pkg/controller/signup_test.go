@@ -328,6 +328,99 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 	})
 
+	s.Run("init verification success phone number with parenthesis and spaces", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "(226) 821 3044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+	})
+
+	s.Run("init verification success phone number with dashes", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "226-821-3044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+	})
+	s.Run("init verification success phone number with spaces", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "2 2 6 8 2 1 3 0 4 4", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+	})
+	s.Run("init verification success country code with parenthesis", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusNoContent, rr.Code, "handler returned wrong status code")
+
+		// Check that the correct UserSignup is passed into the FakeSignupService for update
+		require.Equal(s.T(), userID, storedUserSignup.Name)
+		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "1", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.Equal(s.T(), storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
+		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
+		require.Equal(s.T(), "12268213044", storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+	})
 	s.Run("init verification request body could not be read", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()

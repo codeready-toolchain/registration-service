@@ -70,5 +70,11 @@ func (s *TestErrorsSuite) TestErrors() {
 		require.Equal(s.T(), "bar", err.Details)
 		require.Equal(s.T(), http.StatusNotFound, err.Code)
 		require.Equal(s.T(), http.StatusText(http.StatusNotFound), err.Status)
+
+		err = errs.NewBadRequest("foo", "bar")
+		require.Equal(s.T(), "foo", err.Message)
+		require.Equal(s.T(), "bar", err.Details)
+		require.Equal(s.T(), http.StatusBadRequest, err.Code)
+		require.Equal(s.T(), http.StatusText(http.StatusBadRequest), err.Status)
 	})
 }

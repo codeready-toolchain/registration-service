@@ -69,6 +69,7 @@ type ServiceConfiguration interface {
 	GetNamespace() string
 	GetVerificationEnabled() bool
 	GetVerificationExcludedEmailDomains() []string
+	GetVerificationCodeExpiresInMin() int
 }
 
 // Service represents the signup service for controllers.

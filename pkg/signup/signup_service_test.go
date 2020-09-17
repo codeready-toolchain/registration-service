@@ -572,9 +572,10 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 }
 
 type FakeSignupServiceConfiguration struct {
-	namespace           string
-	verificationEnabled bool
-	excludedDomains     []string
+	namespace                    string
+	verificationEnabled          bool
+	excludedDomains              []string
+	verificationCodeExpiresInMin int
 }
 
 func (c *FakeSignupServiceConfiguration) GetNamespace() string {
@@ -587,6 +588,10 @@ func (c *FakeSignupServiceConfiguration) GetVerificationEnabled() bool {
 
 func (c *FakeSignupServiceConfiguration) GetVerificationExcludedEmailDomains() []string {
 	return c.excludedDomains
+}
+
+func (c *FakeSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
+	return c.verificationCodeExpiresInMin
 }
 
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient, *fake.FakeBannedUserClient) {

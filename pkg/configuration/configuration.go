@@ -371,8 +371,8 @@ func (c *Config) GetTwilioFromNumber() string {
 	return c.v.GetString(varTwilioFromNumber)
 }
 
-// GetVerificationCodeExpiresIn returns an int representing the number of minutes before a verification code should
+// GetVerificationCodeExpiresInMin returns an int representing the number of minutes before a verification code should
 // be expired
-func (c *Config) GetVerificationCodeExpiresIn() int {
+func (c *Config) GetVerificationCodeExpiresInMin() int {
 	return c.v.GetInt(varVerificationCodeExpiresInMin)
 }

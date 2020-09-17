@@ -69,7 +69,7 @@ func (c *mockVerificationConfig) GetVerificationDailyLimit() int {
 	return c.dailyLimit
 }
 
-func (c *mockVerificationConfig) GetVerificationCodeExpiry() int {
+func (c *mockVerificationConfig) GetVerificationCodeExpiresInMin() int {
 	return c.codeExpiry
 }
 

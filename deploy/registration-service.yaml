@@ -149,6 +149,21 @@ objects:
                     configMapKeyRef:
                       name: registration-service
                       key: verification.attempts_allowed
+                - name: REGISTRATION_VERIFICATION_EXCLUDED_EMAIL_DOMAINS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: verification.excluded_email_domains
+                - name: REGISTRATION_VERIFICATION_MESSAGE_TEMPLATE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: verification.message_template
+                - name: REGISTRATION_TWILIO_FROM_NUMBER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: twilio.from_number
   - kind: Service
     apiVersion: v1
     metadata:
@@ -202,6 +217,9 @@ objects:
       verification.enabled: ${VERIFICATION_ENABLED}
       verification.daily_limit: ${VERIFICATION_DAILY_LIMIT}
       verification.attempts_allowed: ${VERIFICATION_ATTEMPTS_ALLOWED}
+      verification.excluded_email_domains: ${VERIFICATION_EXCLUDED_EMAIL_DOMAINS}
+      verification.message_template: ${VERIFICATION_MESSAGE_TEMPLATE}
+      twilio.from_number: ${TWILIO_FROM_NUMBER}
 parameters:
   - name: NAMESPACE
     value: 'toolchain-host-operator'
@@ -222,4 +240,10 @@ parameters:
   - name: VERIFICATION_DAILY_LIMIT
     value: ''
   - name: VERIFICATION_ATTEMPTS_ALLOWED
+    value: ''
+  - name: VERIFICATION_EXCLUDED_EMAIL_DOMAINS
+    value: ''
+  - name: VERIFICATION_MESSAGE_TEMPLATE
+    value: ''
+  - name: TWILIO_FROM_NUMBER
     value: ''

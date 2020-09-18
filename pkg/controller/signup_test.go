@@ -230,7 +230,6 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 
 	var storedUserID string
 	var storedUserSignup *crtapi.UserSignup
-
 	// Create a mock SignupService
 	svc := &FakeSignupService{
 		MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
@@ -470,104 +469,104 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
-}
 
-func (s *TestSignupSuite) TestUpdateVerificationHandlerFailsWhenVerificatioNotRequired() {
-	// Create UserSignup
-	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	userID := ob.String()
+	s.Run("init verification hanlder fails when verification not required", func() {
+		// Create UserSignup
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		userID := ob.String()
 
-	// Create a mock SignupService
-	svc := &FakeSignupService{
-		MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-			return &crtapi.UserSignup{
-				TypeMeta: v1.TypeMeta{},
-				ObjectMeta: v1.ObjectMeta{
-					Name: userID,
-					Annotations: map[string]string{
-						crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+		// Create a mock SignupService
+		svc := &FakeSignupService{
+			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
+				return &crtapi.UserSignup{
+					TypeMeta: v1.TypeMeta{},
+					ObjectMeta: v1.ObjectMeta{
+						Name: userID,
+						Annotations: map[string]string{
+							crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+						},
+						Labels: map[string]string{},
 					},
-					Labels: map[string]string{},
-				},
-				Spec: crtapi.UserSignupSpec{
-					VerificationRequired: false,
-				},
-				Status: crtapi.UserSignupStatus{},
-			}, nil
-		},
-
-		MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
-			return nil
-		},
-	}
-
-	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
-	handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
-
-	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
-	require.NoError(s.T(), err)
-	ctx.Request = req
-	ctx.Set(context.SubKey, userID)
-
-	handler(ctx)
-
-	// Check the status code is what we expect.
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
-}
-
-func (s *TestSignupSuite) TestUpdateVerificationHandlerFailsWhenInvalidPhoneNumberProvided() {
-	// Create UserSignup
-	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	userID := ob.String()
-
-	// Create a mock SignupService
-	svc := &FakeSignupService{
-		MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-			return &crtapi.UserSignup{
-				TypeMeta: v1.TypeMeta{},
-				ObjectMeta: v1.ObjectMeta{
-					Name: userID,
-					Annotations: map[string]string{
-						crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+					Spec: crtapi.UserSignupSpec{
+						VerificationRequired: false,
 					},
-					Labels: map[string]string{},
-				},
-				Spec: crtapi.UserSignupSpec{
-					VerificationRequired: true,
-				},
-				Status: crtapi.UserSignupStatus{},
-			}, nil
-		},
+					Status: crtapi.UserSignupStatus{},
+				}, nil
+			},
 
-		MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
-			return nil
-		},
-	}
+			MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+				return nil
+			},
+		}
 
-	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
-	handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
 
-	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	data := []byte(`{"phone_number": "!226abc8213044", "country_code": "1"}`)
-	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
-	require.NoError(s.T(), err)
-	ctx.Request = req
-	ctx.Set(context.SubKey, userID)
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
 
-	handler(ctx)
+		handler(ctx)
 
-	// Check the status code is what we expect.
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
+	})
+
+	s.Run("init verification hanlder fails when invalid phone number provided", func() {
+		// Create UserSignup
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		userID := ob.String()
+
+		// Create a mock SignupService
+		svc := &FakeSignupService{
+			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
+				return &crtapi.UserSignup{
+					TypeMeta: v1.TypeMeta{},
+					ObjectMeta: v1.ObjectMeta{
+						Name: userID,
+						Annotations: map[string]string{
+							crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+						},
+						Labels: map[string]string{},
+					},
+					Spec: crtapi.UserSignupSpec{
+						VerificationRequired: true,
+					},
+					Status: crtapi.UserSignupStatus{},
+				}, nil
+			},
+
+			MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+				return nil
+			},
+		}
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
+
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		data := []byte(`{"phone_number": "!226abc8213044", "country_code": "1"}`)
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification", bytes.NewBuffer(data))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
+	})
 }
 
 func (s *TestSignupSuite) TestVerifyCodeHandler() {

@@ -1,6 +1,8 @@
 package fake
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"os"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -12,10 +14,10 @@ import (
 )
 
 type FakeBannedUserClient struct {
-	Tracker   testing.ObjectTracker
-	Scheme    *runtime.Scheme
-	namespace string
-	MockList  func(string) (*crtapi.BannedUserList, error)
+	Tracker               testing.ObjectTracker
+	Scheme                *runtime.Scheme
+	namespace             string
+	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.BannedUserList, error)
 }
 
 func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
@@ -42,9 +44,21 @@ func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *Fake
 	}
 }
 
-func (c *FakeBannedUserClient) List(email string) (*crtapi.BannedUserList, error) {
-	if c.MockList != nil {
-		return c.MockList(email)
+func (c *FakeBannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserEmailHashLabelKey, email)
+}
+func (c *FakeBannedUserClient) ListByPhone(phone string) (*crtapi.BannedUserList, error) {
+	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
+}
+
+func (c *FakeBannedUserClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.BannedUserList, error) {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(labelValue))
+	hash := hex.EncodeToString(md5hash.Sum(nil))
+
+	if c.MockListByHashedLabel != nil {
+		return c.MockListByHashedLabel(labelKey, labelValue)
 	}
 
 	obj := &crtapi.BannedUser{}
@@ -67,7 +81,7 @@ func (c *FakeBannedUserClient) List(email string) (*crtapi.BannedUserList, error
 	objs := []crtapi.BannedUser{}
 
 	for _, bu := range list.Items {
-		if bu.Spec.Email == email {
+		if bu.Labels[labelKey] == hash {
 			objs = append(objs, bu)
 		}
 	}

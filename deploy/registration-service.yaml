@@ -26,6 +26,7 @@ objects:
       - create
       - get
       - update
+      - list
     - apiGroups:
       - toolchain.dev.openshift.com
       resources:
@@ -149,6 +150,11 @@ objects:
                     configMapKeyRef:
                       name: registration-service
                       key: verification.attempts_allowed
+                - name: REGISTRATION_VERIFICATION_CODE_EXPIRES_IN_MIN
+                  valueFrom:
+                    configMapKeyRef:
+                      name: registration-service
+                      key: verification.code_expires_in_min
                 - name: REGISTRATION_VERIFICATION_EXCLUDED_EMAIL_DOMAINS
                   valueFrom:
                     configMapKeyRef:
@@ -217,6 +223,7 @@ objects:
       verification.enabled: ${VERIFICATION_ENABLED}
       verification.daily_limit: ${VERIFICATION_DAILY_LIMIT}
       verification.attempts_allowed: ${VERIFICATION_ATTEMPTS_ALLOWED}
+      verification.code_expiry: ${VERIFICATION_CODE_EXPIRES_IN_MIN}
       verification.excluded_email_domains: ${VERIFICATION_EXCLUDED_EMAIL_DOMAINS}
       verification.message_template: ${VERIFICATION_MESSAGE_TEMPLATE}
       twilio.from_number: ${TWILIO_FROM_NUMBER}
@@ -241,9 +248,10 @@ parameters:
     value: ''
   - name: VERIFICATION_ATTEMPTS_ALLOWED
     value: ''
+  - name: VERIFICATION_CODE_EXPIRES_IN_MIN
+    value: ''
   - name: VERIFICATION_EXCLUDED_EMAIL_DOMAINS
     value: ''
   - name: VERIFICATION_MESSAGE_TEMPLATE
     value: ''
   - name: TWILIO_FROM_NUMBER
-    value: ''

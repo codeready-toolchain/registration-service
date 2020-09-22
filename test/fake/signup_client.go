@@ -1,8 +1,12 @@
 package fake
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"os"
+
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -13,13 +17,14 @@ import (
 )
 
 type FakeUserSignupClient struct {
-	Tracker    testing.ObjectTracker
-	Scheme     *runtime.Scheme
-	namespace  string
-	MockGet    func(string) (*crtapi.UserSignup, error)
-	MockCreate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockUpdate func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete func(name string, options *v1.DeleteOptions) error
+	Tracker               testing.ObjectTracker
+	Scheme                *runtime.Scheme
+	namespace             string
+	MockGet               func(string) (*crtapi.UserSignup, error)
+	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockDelete            func(name string, options *v1.DeleteOptions) error
+	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
 }
 
 func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -128,4 +133,49 @@ func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) er
 		return err
 	}
 	return c.Tracker.Delete(gvr, c.namespace, name)
+}
+
+func (c *FakeUserSignupClient) ListByPhone(phone string) (*crtapi.UserSignupList, error) {
+	return c.listByHashedLabel(crtapi.UserSignupUserPhoneHashLabelKey, phone)
+}
+
+func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(labelValue))
+	hash := hex.EncodeToString(md5hash.Sum(nil))
+
+	if c.MockListByHashedLabel != nil {
+		return c.MockListByHashedLabel(labelValue, labelKey)
+	}
+
+	obj := &crtapi.UserSignup{}
+	gvr, err := getGVRFromObject(obj, c.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	gvk, err := apiutil.GVKForObject(obj, c.Scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	o, err := c.Tracker.List(gvr, gvk, c.namespace)
+	if err != nil {
+		return nil, err
+	}
+	list := o.(*crtapi.UserSignupList)
+
+	objs := []crtapi.UserSignup{}
+
+	for _, bu := range list.Items {
+		if bu.Labels[labelKey] == hash {
+			objs = append(objs, bu)
+		}
+	}
+
+	return &crtapi.UserSignupList{
+			Items: objs,
+		},
+		nil
 }

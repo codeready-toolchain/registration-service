@@ -70,6 +70,6 @@
   cursor: pointer;
   font-weight: bold;
 }
-#state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #dashboard, #user-loggedin, #state-error {
+#state-waiting-for-provisioning, #state-waiting-for-approval, #state-provisioning, #state-provisioned, #state-getstarted, #state-initiate-phone-verification, #state-complete-phone-verification, #dashboard, #user-loggedin, #state-error, #phone-verificationcode-resend-status {
   display: none;
 }

@@ -183,6 +183,71 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
 }
 
+func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
+	svc, _, _, fakeBannedUserClient := newSignupServiceWithFakeClient()
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	bannedUserID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      bannedUserID.String(),
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				v1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
+				v1alpha1.BannedUserPhoneNumberHashLabelKey: "a97abba6f48335650ea0523aedc059c7",
+			},
+		},
+		Spec: v1alpha1.BannedUserSpec{
+			Email: "jane.doe@gmail.com",
+		},
+	})
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	err = svc.PhoneNumberAlreadyInUse(bannedUserID.String(), "1", "2268213044")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+}
+
+func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
+	svc, fakeuserSignupClient, _, _ := newSignupServiceWithFakeClient()
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = fakeuserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "a97abba6f48335650ea0523aedc059c7",
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+
+	newUserID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	err = svc.PhoneNumberAlreadyInUse(newUserID.String(), "1", "2268213044")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+}
+
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	svc, fakeClient, _, fakeBannedUserClient := newSignupServiceWithFakeClient()
 	userID, err := uuid.NewV4()
@@ -467,7 +532,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		fakeClient.MockGet = nil
 
 		val, err := svc.GetUserSignup("unknown")
-		require.Nil(s.T(), err)
+		require.True(s.T(), errors2.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
 }
@@ -507,9 +572,10 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 }
 
 type FakeSignupServiceConfiguration struct {
-	namespace           string
-	verificationEnabled bool
-	excludedDomains     []string
+	namespace                    string
+	verificationEnabled          bool
+	excludedDomains              []string
+	verificationCodeExpiresInMin int
 }
 
 func (c *FakeSignupServiceConfiguration) GetNamespace() string {
@@ -522,6 +588,10 @@ func (c *FakeSignupServiceConfiguration) GetVerificationEnabled() bool {
 
 func (c *FakeSignupServiceConfiguration) GetVerificationExcludedEmailDomains() []string {
 	return c.excludedDomains
+}
+
+func (c *FakeSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
+	return c.verificationCodeExpiresInMin
 }
 
 func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClient, *fake.FakeMasterUserRecordClient, *fake.FakeBannedUserClient) {

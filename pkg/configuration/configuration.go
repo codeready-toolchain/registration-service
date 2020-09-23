@@ -139,6 +139,10 @@ const (
 	// varVerificationExcludedEmailDomains contains a comma-separated list of domain names for which phone verification
 	// is not required.  For example: "redhat.com,ibm.com"
 	varVerificationExcludedEmailDomains = "verification.excluded_email_domains"
+
+	// varVerificationCodeExpiresInMin is used to set the amount of time (in minutes) that a verification code is active for before expiring
+	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
+	DefaultVerificationCodeExpiresInMin = 5
 )
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -238,6 +242,7 @@ func (c *Config) setConfigDefaults() {
 	c.v.SetDefault(varVerificationDailyLimit, DefaultVerificationDailyLimit)
 	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
 	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
+	c.v.SetDefault(varVerificationCodeExpiresInMin, DefaultVerificationCodeExpiresInMin)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -364,4 +369,10 @@ func (c *Config) GetVerificationExcludedEmailDomains() []string {
 // GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages
 func (c *Config) GetTwilioFromNumber() string {
 	return c.v.GetString(varTwilioFromNumber)
+}
+
+// GetVerificationCodeExpiresInMin returns an int representing the number of minutes before a verification code should
+// be expired
+func (c *Config) GetVerificationCodeExpiresInMin() int {
+	return c.v.GetInt(varVerificationCodeExpiresInMin)
 }

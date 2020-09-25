@@ -23,8 +23,15 @@ type RegistrationServer struct {
 
 // New creates a new RegistrationServer object with reasonable defaults.
 func New(config *configuration.Config) *RegistrationServer {
+
+	ginRouter := gin.New()
+	ginRouter.Use(
+		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
+		gin.Recovery(),
+	)
+
 	srv := &RegistrationServer{
-		router: gin.Default(),
+		router: ginRouter,
 	}
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 

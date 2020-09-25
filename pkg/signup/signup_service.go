@@ -231,9 +231,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
 	signupResponse.Status = Status{
-		Ready:   ready,
-		Reason:  murCondition.Reason,
-		Message: murCondition.Message,
+		Ready:                ready,
+		Reason:               murCondition.Reason,
+		Message:              murCondition.Message,
+		VerificationRequired: userSignup.Spec.VerificationRequired,
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// TODO Set ConsoleURL in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount status from MUR.

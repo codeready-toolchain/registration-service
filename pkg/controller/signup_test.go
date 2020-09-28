@@ -16,6 +16,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -251,7 +252,9 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			}
 			return storedUserSignup, nil
 		},
-
+		MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
+			return userSignup, nil
+		},
 		MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
 			return nil
 		},
@@ -381,7 +384,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 	})
 
-	s.Run("init verification hanlder fails when verification not required", func() {
+	s.Run("init verification handler fails when verification not required", func() {
 		// Create UserSignup
 		ob, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -422,7 +425,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
 
-	s.Run("init verification hanlder fails when invalid phone number provided", func() {
+	s.Run("init verification handler fails when invalid phone number provided", func() {
 		// Create UserSignup
 		ob, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -446,14 +449,16 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 					Status: crtapi.UserSignupStatus{},
 				}, nil
 			},
-
+			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
+				return userSignup, nil
+			},
 			MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
 				return nil
 			},
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		ctrl := controller.NewSignup(s.Config, svc, verifyService)
 		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -656,7 +661,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
 			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-				return nil, errors2.NewTooManyRequestsError("too many requests")
+				return nil, errs.NewTooManyRequestsError("too many verification attempts", "")
 			},
 		}
 
@@ -724,7 +729,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
 		require.Equal(s.T(), "some other error", bodyParams["message"])
-		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
+		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("no code provided", func() {

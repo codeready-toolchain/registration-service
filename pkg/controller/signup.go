@@ -90,8 +90,8 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		"-", "")
 	countryCode := r.Replace(phone.CountryCode)
 	phoneNumber := r.Replace(phone.PhoneNumber)
-	countryValid, err := regexp.MatchString(`\+?[0-9]+`, countryCode)
-	phoneValid, err := regexp.MatchString(`[0-9]+`, phoneNumber)
+	countryValid, _ := regexp.MatchString(`^\+?[0-9]+$`, countryCode)
+	phoneValid, _ := regexp.MatchString(`^[0-9]+$`, phoneNumber)
 
 	// if phone number contains odd characters, return error
 	if !countryValid || !phoneValid {

@@ -450,7 +450,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
 	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
-	assert.True(s.T(), response.Status.VerificationRequired)
+	assert.False(s.T(), response.Status.VerificationRequired)
 	assert.Equal(s.T(), response.ConsoleURL, "https://console.member-123.com")
 	assert.Equal(s.T(), response.CheDashboardURL, "http://che-toolchain-che.member-123.com")
 }

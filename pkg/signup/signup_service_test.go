@@ -347,7 +347,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username: "bill",
+			Username:             "bill",
+			VerificationRequired: true,
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -371,6 +372,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), response.Status.Reason, "test_reason")
 	require.Equal(s.T(), response.Status.Message, "test_message")
+	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
 }
@@ -388,7 +390,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username: "bill",
+			Username:             "bill",
+			VerificationRequired: true,
 		},
 		Status: v1alpha1.UserSignupStatus{},
 	})
@@ -402,6 +405,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.Equal(s.T(), "", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
+	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.Status.Message)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)

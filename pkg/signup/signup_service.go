@@ -61,7 +61,7 @@ type Status struct {
 	// The user should not be provisioned if VerificationRequired is set to true.
 	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
 	// Default value is false.
-	VerificationRequired bool `json:verificationRequired`
+	VerificationRequired bool `json:"verificationRequired"`
 }
 
 // ServiceConfiguration represents the config used for the signup service.
@@ -207,13 +207,15 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if !found {
 		signupResponse.Status = Status{
-			Reason: PendingApprovalReason,
+			Reason:               PendingApprovalReason,
+			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
 	} else if signupCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = Status{
-			Reason:  signupCondition.Reason,
-			Message: signupCondition.Message,
+			Reason:               signupCondition.Reason,
+			Message:              signupCondition.Message,
+			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
 	}
@@ -229,9 +231,10 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
 	signupResponse.Status = Status{
-		Ready:   ready,
-		Reason:  murCondition.Reason,
-		Message: murCondition.Message,
+		Ready:                ready,
+		Reason:               murCondition.Reason,
+		Message:              murCondition.Message,
+		VerificationRequired: userSignup.Spec.VerificationRequired,
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// TODO Set ConsoleURL in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount status from MUR.

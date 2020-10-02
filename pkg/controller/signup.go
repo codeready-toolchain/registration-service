@@ -90,11 +90,11 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		"-", "")
 	countryCode := r.Replace(phone.CountryCode)
 	phoneNumber := r.Replace(phone.PhoneNumber)
-	matchedCode, err := regexp.MatchString("[^0-9]+", countryCode)
-	matchedPhone, err := regexp.MatchString("[^0-9]+", phoneNumber)
+	countryValid, _ := regexp.MatchString(`^\+?[0-9]+$`, countryCode)
+	phoneValid, _ := regexp.MatchString(`^[0-9]+$`, phoneNumber)
 
 	// if phone number contains odd characters, return error
-	if matchedCode || matchedPhone {
+	if !countryValid || !phoneValid {
 		log.Errorf(ctx, errors.NewBadRequest("bad request", "invalid request"), "phone number entered contains invalid characters")
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -115,11 +115,22 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 	}
 
 	signup, err = s.verificationService.InitVerification(ctx, signup, phone.CountryCode, phone.PhoneNumber)
+	_, err2 := s.signupService.UpdateUserSignup(signup)
+	if err2 != nil {
+		log.Error(ctx, err2, "error while updating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
+
+		if err != nil {
+			log.Error(ctx, err, "error initiating user verification")
+		}
+		return
+	}
+
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {
 		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		case *apierrors.StatusError:
 			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
 		}
@@ -191,9 +202,9 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		log.Error(ctx, err, "error validating user verification code")
 		switch t := err.(type) {
 		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while verifying code")
-		case *apierrors.StatusError:
-			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
+		case *errors.Error:
+			errors.AbortWithError(ctx, int(t.Code), err, "error while verifying code")
 		}
 		return
 	}

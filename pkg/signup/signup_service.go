@@ -7,11 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
+	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
+
 	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
@@ -19,50 +22,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
 )
-
-const (
-	PendingApprovalReason = "PendingApproval"
-)
-
-// Signup represents Signup resource which is a wrapper of K8s UserSignup
-// and the corresponding MasterUserRecord resources.
-type Signup struct {
-	// The Web Console URL of the cluster which the user was provisioned to
-	ConsoleURL string `json:"consoleURL,omitempty"`
-	// The Che Dashboard URL of the cluster which the user was provisioned to
-	CheDashboardURL string `json:"cheDashboardURL,omitempty"`
-	// The complaint username.  This may differ from the corresponding Identity Provider username, because of the the
-	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
-	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.
-	// For example, johnsmith@redhat.com -> johnsmith
-	CompliantUsername string `json:"compliantUsername"`
-	// Original username from the Identity Provider
-	Username string `json:"username"`
-	// GivenName from the Identity Provider
-	GivenName string `json:"givenName"`
-	// FamilyName from the Identity Provider
-	FamilyName string `json:"familyName"`
-	// Company from the Identity Provider
-	Company string `json:"company"`
-	Status  Status `json:"status,omitempty"`
-}
-
-// Status represents UserSignup resource status
-type Status struct {
-	// If true then the corresponding user's account is ready to be used
-	Ready bool `json:"ready"`
-	// Brief reason for the status last transition.
-	Reason string `json:"reason"`
-	// Human readable message indicating details about last transition.
-	Message string `json:"message,omitempty"`
-	// VerificationRequired is used to determine if a user requires phone verification.
-	// The user should not be provisioned if VerificationRequired is set to true.
-	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
-	// Default value is false.
-	VerificationRequired bool `json:"verificationRequired"`
-}
 
 // ServiceConfiguration represents the config used for the signup service.
 type ServiceConfiguration interface {
@@ -72,28 +32,16 @@ type ServiceConfiguration interface {
 	GetVerificationCodeExpiresInMin() int
 }
 
-// Service represents the signup service for controllers.
-type Service interface {
-	GetSignup(userID string) (*Signup, error)
-	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
-	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
-	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
-	PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error
-}
-
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct {
-	Namespace         string
-	UserSignups       kubeclient.UserSignupInterface
-	MasterUserRecords kubeclient.MasterUserRecordInterface
-	BannedUsers       kubeclient.BannedUserInterface
-	Config            ServiceConfiguration
+	base.BaseService
+	Config ServiceConfiguration
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(cfg ServiceConfiguration) (Service, error) {
+func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfiguration) service.SignupService {
 
-	k8sConfig, err := rest.InClusterConfig()
+	/*k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +49,13 @@ func NewSignupService(cfg ServiceConfiguration) (Service, error) {
 	client, err := kubeclient.NewCRTV1Alpha1Client(k8sConfig, cfg.GetNamespace())
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	s := &ServiceImpl{
-		Namespace:         cfg.GetNamespace(),
-		UserSignups:       client.UserSignups(),
-		MasterUserRecords: client.MasterUserRecords(),
-		BannedUsers:       client.BannedUsers(),
-		Config:            cfg,
+		BaseService: base.NewBaseService(context),
+		Config:      cfg,
 	}
-	return s, nil
+	return s
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
@@ -122,7 +67,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.BannedUsers.ListByEmail(userEmail)
+	bannedUsers, err := s.CRTV1Alpha1Client().BannedUsers().ListByEmail(userEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +93,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      ctx.GetString(context.SubKey),
-			Namespace: s.Namespace,
+			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				v1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
@@ -169,7 +114,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		},
 	}
 
-	created, err := s.UserSignups.Create(userSignup)
+	created, err := s.CRTV1Alpha1Client().UserSignups().Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +133,7 @@ func extractEmailHost(email string) string {
 func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(userID)
+	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Get(userID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -207,7 +152,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if !found {
 		signupResponse.Status = Status{
-			Reason:               PendingApprovalReason,
+			Reason:               v1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
@@ -221,7 +166,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.MasterUserRecords.Get(userSignup.Status.CompliantUsername)
+	mur, err := s.CRTV1Alpha1Client().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -248,7 +193,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.UserSignups.Get(userID)
+	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Get(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +203,7 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
 func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-	userSignup, err := s.UserSignups.Update(userSignup)
+	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Update(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +215,7 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 // an internal server error. If not, check if a signup with a different userID
 // exists. If so, return an internal server error. Otherwise, return without error.
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error {
-	bannedUserList, err := s.BannedUsers.ListByPhone(countryCode + phoneNumber)
+	bannedUserList, err := s.CRTV1Alpha1Client().BannedUsers().ListByPhone(countryCode + phoneNumber)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing banned users")
 	}
@@ -278,7 +223,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber s
 		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignupList, err := s.UserSignups.ListByPhone(countryCode + phoneNumber)
+	userSignupList, err := s.CRTV1Alpha1Client().UserSignups().ListByPhone(countryCode + phoneNumber)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing userSignups")
 	}

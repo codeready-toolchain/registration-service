@@ -4,13 +4,12 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
+	"github.com/codeready-toolchain/registration-service/pkg/application"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/static"
 
 	"github.com/gin-gonic/gin"
@@ -67,23 +66,26 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.Config())
-		var signupSrv signup.Service
-		var verificationSrv verification.Service
+
+		// Declare the application
+		var app application.Application
 
 		if srv.Config().IsTestingMode() {
 			// testing mode, return default impl instance. This is needed for tests
 			// which require a full server initialization. Such as server and middleware tests.
 			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
-			signupSrv = &signup.ServiceImpl{}
+			//signupSrv = &signup.ServiceImpl{}
+			app, _ = NewMockableApplication(srv.config)
 		} else {
-			signupSrv, err = signup.NewSignupService(srv.Config())
+			// Create the default in-cluster application
+			app, err = NewInClusterApplication(srv.config)
 			if err != nil {
-				err = errs.Wrapf(err, "failed to init signup service")
+				err = errs.Wrapf(err, "failed to initialize the application: %s", err.Error())
 				return
 			}
-			verificationSrv = verification.NewVerificationService(srv.Config())
 		}
-		signupCtrl := controller.NewSignup(srv.Config(), signupSrv, verificationSrv)
+
+		signupCtrl := controller.NewSignup(app, srv.Config())
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
@@ -103,7 +105,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
 		// requires a ctx body containing the country_code and phone_number
-		securedV1.PUT("/signup/verification", signupCtrl.UpdateVerificationHandler)
+		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyCodeHandler)
 

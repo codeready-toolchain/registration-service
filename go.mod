@@ -18,9 +18,11 @@ require (
 	github.com/kevinburke/rest v0.0.0-20200429221318-0d2892b400f8 // indirect
 	github.com/kevinburke/twilio-go v0.0.0-20200810163702-320748330fac
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
+	github.com/nyaruka/phonenumbers v1.0.57
 	github.com/operator-framework/operator-sdk v0.19.2 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/common v0.9.1
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.4.0

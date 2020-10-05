@@ -12,11 +12,11 @@ import (
 )
 
 type serviceContextImpl struct {
-	kubeClient kubeclient.CRTV1Alpha1Client
+	kubeClient kubeclient.CRTClient
 	services   service.Services
 }
 
-func NewServiceContext(kubeClient kubeclient.CRTV1Alpha1Client, config *configuration.Config, options ...Option) servicecontext.ServiceContext {
+func NewServiceContext(kubeClient kubeclient.CRTClient, config *configuration.Config, options ...Option) servicecontext.ServiceContext {
 	ctx := &serviceContextImpl{kubeClient: kubeClient}
 	var sc servicecontext.ServiceContext
 	sc = ctx
@@ -24,7 +24,7 @@ func NewServiceContext(kubeClient kubeclient.CRTV1Alpha1Client, config *configur
 	return sc
 }
 
-func (s *serviceContextImpl) CRTV1Alpha1Client() kubeclient.CRTV1Alpha1Client {
+func (s *serviceContextImpl) CRTV1Alpha1Client() kubeclient.CRTClient {
 	return s.kubeClient
 }
 

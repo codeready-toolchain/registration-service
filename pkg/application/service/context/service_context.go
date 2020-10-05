@@ -8,6 +8,6 @@ import (
 type ServiceContextProducer func() ServiceContext
 
 type ServiceContext interface {
-	CRTV1Alpha1Client() kubeclient.CRTV1Alpha1Client
+	CRTClient() kubeclient.CRTClient
 	Services() service.Services
 }

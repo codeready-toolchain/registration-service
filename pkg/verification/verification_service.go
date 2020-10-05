@@ -84,11 +84,11 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		return
 	}
 
-	err = s.app.SignupService().PhoneNumberAlreadyInUse(userID, phone.CountryCode, phone.PhoneNumber)
+	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber)
-			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber))
+			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
+			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", e164PhoneNumber))
 			return
 		}
 		log.Error(ctx, err, "error while looking up users by phone number")
@@ -165,6 +165,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		if err != nil {
 			log.Error(ctx, err, "error initiating user verification")
 		}
+
 		return
 	}
 

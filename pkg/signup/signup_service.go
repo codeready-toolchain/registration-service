@@ -41,16 +41,6 @@ type ServiceImpl struct {
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfiguration) service.SignupService {
 
-	/*k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	client, err := kubeclient.NewCRTV1Alpha1Client(k8sConfig, cfg.GetNamespace())
-	if err != nil {
-		return nil, err
-	}*/
-
 	s := &ServiceImpl{
 		BaseService: base.NewBaseService(context),
 		Config:      cfg,
@@ -67,7 +57,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.CRTV1Alpha1Client().BannedUsers().ListByEmail(userEmail)
+	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +104,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		},
 	}
 
-	created, err := s.CRTV1Alpha1Client().UserSignups().Create(userSignup)
+	created, err := s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +123,7 @@ func extractEmailHost(email string) string {
 func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -166,7 +156,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	}
 
 	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.CRTV1Alpha1Client().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
+	mur, err := s.CRTClient().V1Alpha1().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -193,7 +183,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +193,7 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
 func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-	userSignup, err := s.CRTV1Alpha1Client().UserSignups().Update(userSignup)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
 	if err != nil {
 		return nil, err
 	}
@@ -214,8 +204,8 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 // PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
 // an internal server error. If not, check if a signup with a different userID
 // exists. If so, return an internal server error. Otherwise, return without error.
-func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error {
-	bannedUserList, err := s.CRTV1Alpha1Client().BannedUsers().ListByPhone(countryCode + phoneNumber)
+func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, e164PhoneNumber string) error {
+	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhone(e164PhoneNumber)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing banned users")
 	}
@@ -223,7 +213,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber s
 		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignupList, err := s.CRTV1Alpha1Client().UserSignups().ListByPhone(countryCode + phoneNumber)
+	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListByPhone(e164PhoneNumber)
 	if err != nil {
 		return errors3.NewInternalError(err, "failed listing userSignups")
 	}

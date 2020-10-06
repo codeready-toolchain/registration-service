@@ -121,7 +121,8 @@ function updateSignupState() {
     } else if (data.status.ready === true) {
       console.log('account is ready..');
       // account is ready to use; stop interval.
-      clearInterval(intervalRef);
+      if (intervalRef)
+        clearInterval(intervalRef);
       consoleURL = data.consoleURL;
       if (consoleURL === undefined) {
         consoleURL = 'n/a'

@@ -225,7 +225,7 @@ function initiatePhoneVerification() {
 
 function completePhoneVerification() {
   let verificationCode = document.getElementById("phone-verificationcode").value;
-  let verificationCodeValid = /^[\+]?[a-z0-9]{1,4}$/im.test(verificationCode);
+  let verificationCodeValid = /^[\+]?[a-z0-9]{6}$/im.test(verificationCode);
   if (!verificationCodeValid) {
     showError('verification code has the wrong format, please check your input.');
     show('state-complete-phone-verification');

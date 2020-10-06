@@ -113,7 +113,7 @@ function getSignupState(cbSuccess, cbError) {
 // updates the signup state.
 function updateSignupState() {
   getSignupState(function(data) {
-    if (data.status.ready === false && data.status.reason == 'VerificationRequired') {
+    if (data.status.ready === false && data.status.verificationRequired) {
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {
@@ -133,7 +133,7 @@ function updateSignupState() {
       show('dashboard')
       document.getElementById('stateConsole').href = consoleURL;
       document.getElementById('cheDashboard').href = cheDashboardURL;
-    } else if (data.status.ready === false && data.status.reason == 'Provisioning') {
+    } else if (data.status.ready === false && data.status.reason === 'Provisioning') {
       // account is provisioning; start polling.
       hideAll();
       show('state-waiting-for-provisioning')

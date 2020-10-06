@@ -284,12 +284,17 @@ getJSON('GET', configURL, null, function(err, data) {
       }).success(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');
-          keycloak.loadUserInfo().success(function(data) {
-            console.log('retrieved user info..');
-            showUser(data.preferred_username)
-            // now check the signup state of the user.
-            updateSignupState();
-          });
+          keycloak.loadUserInfo()
+            .success(function(data) {
+              console.log('retrieved user info..');
+              showUser(data.preferred_username)
+              // now check the signup state of the user.
+              updateSignupState();
+            })
+            .error(function() {
+              console.log('Failed to pull in user data');
+              showError('Failed to pull in user data.');  
+            });
         } else {
           hideUser();
           hideAll();

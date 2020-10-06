@@ -112,11 +112,14 @@ function getSignupState(cbSuccess, cbError) {
 
 // updates the signup state.
 function updateSignupState() {
+  console.log('updating signup state..');
   getSignupState(function(data) {
     if (data.status.ready === false && data.status.verificationRequired) {
+      console.log('verification required..');
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {
+      console.log('account is ready..');
       // account is ready to use; stop interval.
       clearInterval(intervalRef);
       consoleURL = data.consoleURL;
@@ -129,11 +132,13 @@ function updateSignupState() {
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
       }
+      console.log('showing dashboard..');
       hideAll();
       show('dashboard')
       document.getElementById('stateConsole').href = consoleURL;
       document.getElementById('cheDashboard').href = cheDashboardURL;
     } else if (data.status.ready === false && data.status.reason === 'Provisioning') {
+      console.log('account is provisioning..');
       // account is provisioning; start polling.
       hideAll();
       show('state-waiting-for-provisioning')
@@ -142,6 +147,7 @@ function updateSignupState() {
         intervalRef = setInterval(updateSignupState, 1000);
       }
     } else {
+      console.log('account in unknown state, start polling..');
       // account is in an unknown state, display pending approval; start polling.
       hideAll();
       show('state-waiting-for-approval')
@@ -152,18 +158,22 @@ function updateSignupState() {
     }
   }, function(err, data) {
     if (err === 404) {
+      console.log('error 404');
       // signup does not exist, but user is authorized, check if we can start signup process.
       if ('true' === window.sessionStorage.getItem('autoSignup')) {
+        console.log('autoSignup is true..');
         // user has explicitly requested a signup
         window.sessionStorage.removeItem('autoSignup');
         signup();
       } else {
+        console.log('autoSignup is false..');
         // we still need to show GetStarted button even if the user is logged-in to SSO to avoid auto-signup without users clicking on Get Started button
         clearInterval(intervalRef);
         hideAll();
         show('state-getstarted');
       }
     } else if (err === 401) {
+      console.log('error 401');
       // user is unauthorized, show login/signup view; stop interval.
       clearInterval(intervalRef);
       hideUser();
@@ -272,7 +282,9 @@ getJSON('GET', configURL, null, function(err, data) {
         silentCheckSsoRedirectUri: window.location.origin,
       }).success(function(authenticated) {
         if (authenticated == true) {
+          console.log('user is authenticated');
           keycloak.loadUserInfo().success(function(data) {
+            console.log('retrieved user info..');
             showUser(data.preferred_username)
             // now check the signup state of the user.
             updateSignupState();

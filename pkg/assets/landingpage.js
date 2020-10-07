@@ -116,6 +116,8 @@ function updateSignupState() {
   getSignupState(function(data) {
     if (data.status.ready === false && data.status.verificationRequired) {
       console.log('verification required..');
+      if (intervalRef)
+        clearInterval(intervalRef);
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {

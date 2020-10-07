@@ -1,4 +1,4 @@
-package verification_test
+package service_test
 
 import (
 	"bytes"
@@ -73,7 +73,7 @@ func (c *mockVerificationConfig) GetVerificationCodeExpiresInMin() int {
 	return c.codeExpiry
 }
 
-func NewMockVerificationConfig(accountSID, authToken, fromNumber string) verification.ServiceConfiguration {
+func NewMockVerificationConfig(accountSID, authToken, fromNumber string) ServiceConfiguration {
 	return &mockVerificationConfig{
 		accountSID:      accountSID,
 		authToken:       authToken,
@@ -163,7 +163,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 			Namespace: "test",
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(TimestampLayout),
 				v1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
 				v1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
 			},
@@ -248,7 +248,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verification.TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(TimestampLayout),
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -284,7 +284,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "3",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verification.TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(TimestampLayout),
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -318,7 +318,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -345,7 +345,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -374,7 +374,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -401,10 +401,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verification.TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -428,10 +428,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -456,10 +456,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "ABC",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verification.TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -485,7 +485,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verification.TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
 					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
@@ -515,12 +515,12 @@ func (s *TestVerificationServiceSuite) createVerificationService() (verification
 	httpClient := &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(httpClient)
 
-	var mockClientOpt verification.VerificationServiceOption
-	mockClientOpt = func(svc *verification.ServiceImpl) {
+	var mockClientOpt VerificationServiceOption
+	mockClientOpt = func(svc *ServiceImpl) {
 		svc.HttpClient = httpClient
 	}
 
-	svc := verification.NewVerificationService(cfg, mockClientOpt)
+	svc := NewVerificationService(cfg, mockClientOpt)
 
 	return svc, httpClient
 }

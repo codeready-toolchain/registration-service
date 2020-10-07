@@ -1,4 +1,4 @@
-package signup_test
+package service_test
 
 import (
 	"errors"
@@ -603,7 +603,7 @@ func newSignupServiceWithFakeClient() (signup.Service, *fake.FakeUserSignupClien
 	fakeClient := fake.NewFakeUserSignupClient(TestNamespace)
 	fakeMURClient := fake.NewFakeMasterUserRecordClient(TestNamespace)
 	fakeBannedUserClient := fake.NewFakeBannedUserClient(TestNamespace)
-	return &signup.ServiceImpl{
+	return &ServiceImpl{
 		Namespace:         TestNamespace,
 		UserSignups:       fakeClient,
 		MasterUserRecords: fakeMURClient,

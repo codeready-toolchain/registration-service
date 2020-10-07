@@ -1,4 +1,4 @@
-package signup
+package service
 
 import (
 	"crypto/md5"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
@@ -40,12 +42,10 @@ type ServiceImpl struct {
 
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfiguration) service.SignupService {
-
-	s := &ServiceImpl{
+	return &ServiceImpl{
 		BaseService: base.NewBaseService(context),
 		Config:      cfg,
 	}
-	return s
 }
 
 // CreateUserSignup creates a new UserSignup resource with the specified username and userID
@@ -120,7 +120,7 @@ func extractEmailHost(email string) string {
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found.
-func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
+func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
@@ -131,7 +131,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 		return nil, err
 	}
 
-	signupResponse := &Signup{
+	signupResponse := &signup.Signup{
 		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {
@@ -141,13 +141,13 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	// Check UserSignup status to determine whether user signup is complete
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if !found {
-		signupResponse.Status = Status{
+		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
 	} else if signupCondition.Status != apiv1.ConditionTrue {
-		signupResponse.Status = Status{
+		signupResponse.Status = signup.Status{
 			Reason:               signupCondition.Reason,
 			Message:              signupCondition.Message,
 			VerificationRequired: userSignup.Spec.VerificationRequired,
@@ -165,7 +165,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*Signup, error) {
 	if err != nil {
 		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
-	signupResponse.Status = Status{
+	signupResponse.Status = signup.Status{
 		Ready:                ready,
 		Reason:               murCondition.Reason,
 		Message:              murCondition.Message,

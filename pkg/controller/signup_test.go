@@ -12,13 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
+
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
 	"github.com/codeready-toolchain/registration-service/test"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -481,7 +482,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		var storedUserSignup *crtapi.UserSignup
 		var storedVerifySignup *crtapi.UserSignup
 
-		expiryTimestamp := time.Now().Add(10 * time.Second).Format(verification.TimestampLayout)
+		expiryTimestamp := time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
 
 		// Create a mock SignupService
 		svc := &FakeSignupService{
@@ -601,7 +602,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 							crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 							crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 							crtapi.UserSignupVerificationCodeAnnotationKey: "555555",
-							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(verification.TimestampLayout),
+							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
 						},
 					},
 					Spec:   crtapi.UserSignupSpec{},
@@ -646,7 +647,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 							crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 							crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 							crtapi.UserSignupVerificationCodeAnnotationKey: "333333",
-							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(verification.TimestampLayout),
+							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
 						},
 					},
 					Spec:   crtapi.UserSignupSpec{},
@@ -691,7 +692,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 							crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 							crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 							crtapi.UserSignupVerificationCodeAnnotationKey: "222222",
-							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(verification.TimestampLayout),
+							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
 						},
 					},
 					Spec:   crtapi.UserSignupSpec{},

@@ -45,7 +45,7 @@ func NewMockableServiceContext(mockClient kubeclient.CRTClient, config *configur
 	return sc
 }
 
-func (s *mockableServiceContext) CRTV1Alpha1Client() kubeclient.CRTClient {
+func (s *mockableServiceContext) CRTClient() kubeclient.CRTClient {
 	return s.mockClient
 }
 

@@ -3,8 +3,8 @@ package factory
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
+	service2 "github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	service3 "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/prometheus/common/log"
 
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -24,7 +24,7 @@ func NewServiceContext(kubeClient kubeclient.CRTClient, config *configuration.Co
 	return sc
 }
 
-func (s *serviceContextImpl) CRTV1Alpha1Client() kubeclient.CRTClient {
+func (s *serviceContextImpl) CRTClient() kubeclient.CRTClient {
 	return s.kubeClient
 }
 
@@ -38,11 +38,11 @@ type ServiceFactory struct {
 }
 
 func (s ServiceFactory) SignupService() service.SignupService {
-	return signup.NewSignupService(s.getContext(), s.config)
+	return service2.NewSignupService(s.getContext(), s.config)
 }
 
 func (s ServiceFactory) VerificationService() service.VerificationService {
-	return verification.NewVerificationService(s.getContext(), s.config)
+	return service3.NewVerificationService(s.getContext(), s.config)
 }
 
 // Option an option to configure the Service Factory

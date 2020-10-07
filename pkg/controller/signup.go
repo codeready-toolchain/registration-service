@@ -69,6 +69,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	regionCode := phonenumbers.GetRegionCodeForCountryCode(countryCode)
+
 	number, err := phonenumbers.Parse(phone.PhoneNumber, regionCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid phone number")

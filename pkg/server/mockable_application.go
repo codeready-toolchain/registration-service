@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
@@ -9,35 +8,33 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 )
 
-func NewMockableApplication(config *configuration.Config, options ...factory.Option) (application.Application, error) {
-	app := new(MockableApplication)
-
-	app.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
-		return NewMockableServiceContext(nil, config)
-	}, config, options...)
-	return app, nil
+func NewMockableApplication(config configuration.Configuration, crtClient kubeclient.CRTClient, options ...factory.Option) *MockableApplication {
+	return &MockableApplication{
+		serviceFactory: factory.NewServiceFactory(func() servicecontext.ServiceContext {
+			return NewMockableServiceContext(crtClient, config)
+		}, config, options...)}
 }
 
 type MockableApplication struct {
 	serviceFactory *factory.ServiceFactory
 }
 
-func (r MockableApplication) SignupService() service.SignupService {
-	return r.serviceFactory.SignupService()
+func (m *MockableApplication) SignupService() service.SignupService {
+	return m.serviceFactory.SignupService()
 }
 
-func (r MockableApplication) VerificationService() service.VerificationService {
-	return r.serviceFactory.VerificationService()
+func (m *MockableApplication) VerificationService() service.VerificationService {
+	return m.serviceFactory.VerificationService()
 }
 
 type mockableServiceContext struct {
-	services   service.Services
-	mockClient kubeclient.CRTClient
+	services  service.Services
+	crtClient kubeclient.CRTClient
 }
 
-func NewMockableServiceContext(mockClient kubeclient.CRTClient, config *configuration.Config) servicecontext.ServiceContext {
+func NewMockableServiceContext(crtClient kubeclient.CRTClient, config configuration.Configuration) servicecontext.ServiceContext {
 	ctx := &mockableServiceContext{
-		mockClient: mockClient,
+		crtClient: crtClient,
 	}
 	var sc servicecontext.ServiceContext
 	sc = ctx
@@ -46,7 +43,7 @@ func NewMockableServiceContext(mockClient kubeclient.CRTClient, config *configur
 }
 
 func (s *mockableServiceContext) CRTClient() kubeclient.CRTClient {
-	return s.mockClient
+	return s.crtClient
 }
 
 func (s *mockableServiceContext) Services() service.Services {

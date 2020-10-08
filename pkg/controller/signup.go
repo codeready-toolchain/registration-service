@@ -19,7 +19,7 @@ import (
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
 	app    application.Application
-	config *configuration.Config
+	config configuration.Configuration
 }
 
 type Phone struct {
@@ -28,7 +28,7 @@ type Phone struct {
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(app application.Application, config *configuration.Config) *Signup {
+func NewSignup(app application.Application, config configuration.Configuration) *Signup {
 	return &Signup{
 		app:    app,
 		config: config,

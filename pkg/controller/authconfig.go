@@ -17,11 +17,11 @@ type configResponse struct {
 // AuthConfig implements the auth config endpoint, which is invoked to
 // retrieve the auth config for the ui.
 type AuthConfig struct {
-	config *configuration.Config
+	config configuration.Configuration
 }
 
 // NewAuthConfig returns a new AuthConfig instance.
-func NewAuthConfig(config *configuration.Config) *AuthConfig {
+func NewAuthConfig(config configuration.Configuration) *AuthConfig {
 	return &AuthConfig{
 		config: config,
 	}

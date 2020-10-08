@@ -16,12 +16,13 @@ const (
 
 func TestNewClient(t *testing.T) {
 	// Try creating a new client with an empty config
-	client, err := kubeclient.NewCRTV1Alpha1Client(&rest.Config{}, TestNamespace)
+	client, err := kubeclient.NewCRTRESTClient(&rest.Config{}, TestNamespace)
 
 	// Check that there are no errors, and the clients are returned
 	require.NoError(t, err)
 	require.NotNil(t, client)
-	require.NotNil(t, client.UserSignups())
-	require.NotNil(t, client.MasterUserRecords())
-	require.NotNil(t, client.BannedUsers())
+	require.NotNil(t, client.V1Alpha1())
+	require.NotNil(t, client.V1Alpha1().UserSignups())
+	require.NotNil(t, client.V1Alpha1().MasterUserRecords())
+	require.NotNil(t, client.V1Alpha1().BannedUsers())
 }

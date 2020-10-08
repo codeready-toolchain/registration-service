@@ -3,8 +3,8 @@ package factory
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	service2 "github.com/codeready-toolchain/registration-service/pkg/signup/service"
-	service3 "github.com/codeready-toolchain/registration-service/pkg/verification/service"
+	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/prometheus/common/log"
 
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -16,7 +16,7 @@ type serviceContextImpl struct {
 	services   service.Services
 }
 
-func NewServiceContext(kubeClient kubeclient.CRTClient, config *configuration.Config, options ...Option) servicecontext.ServiceContext {
+func NewServiceContext(kubeClient kubeclient.CRTClient, config configuration.Configuration, options ...Option) servicecontext.ServiceContext {
 	ctx := &serviceContextImpl{kubeClient: kubeClient}
 	var sc servicecontext.ServiceContext
 	sc = ctx
@@ -33,25 +33,42 @@ func (s *serviceContextImpl) Services() service.Services {
 }
 
 type ServiceFactory struct {
-	contextProducer servicecontext.ServiceContextProducer
-	config          *configuration.Config
+	contextProducer         servicecontext.ServiceContextProducer
+	config                  configuration.Configuration
+	verificationServiceFunc func() service.VerificationService
 }
 
 func (s ServiceFactory) SignupService() service.SignupService {
-	return service2.NewSignupService(s.getContext(), s.config)
+	return signup_service.NewSignupService(s.getContext(), s.config)
 }
 
 func (s ServiceFactory) VerificationService() service.VerificationService {
-	return service3.NewVerificationService(s.getContext(), s.config)
+	return s.verificationServiceFunc()
+}
+
+// WithVerificationService allows overriding of the default function that creates the
+// verification service
+func WithVerificationService(s service.VerificationService) Option {
+	return func(f *ServiceFactory) {
+		f.verificationServiceFunc = func() service.VerificationService {
+			return s
+		}
+	}
 }
 
 // Option an option to configure the Service Factory
 type Option func(f *ServiceFactory)
 
-func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.Config, options ...Option) *ServiceFactory {
+func NewServiceFactory(producer servicecontext.ServiceContextProducer, config configuration.Configuration, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+
+	// default function to return an instance of Verification service
+	f.verificationServiceFunc = func() service.VerificationService {
+		return verification_service.NewVerificationService(f.getContext(), f.config)
+	}
+
 	// and options
 	for _, opt := range options {
 		opt(f)

@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func NewInClusterApplication(config *configuration.Config, options ...factory.Option) (application.Application, error) {
+func NewInClusterApplication(config configuration.Configuration, options ...factory.Option) (application.Application, error) {
 	app := new(InClusterApplication)
 
 	k8sConfig, err := rest.InClusterConfig()

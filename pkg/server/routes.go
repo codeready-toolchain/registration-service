@@ -75,7 +75,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 			// which require a full server initialization. Such as server and middleware tests.
 			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
 			//signupSrv = &signup.ServiceImpl{}
-			app, _ = NewMockableApplication(srv.config)
+			app = NewMockableApplication(srv.config, nil)
 		} else {
 			// Create the default in-cluster application
 			app, err = NewInClusterApplication(srv.config)

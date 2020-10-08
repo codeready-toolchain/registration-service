@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
+
 	"github.com/gin-gonic/gin"
 
 	"gopkg.in/h2non/gock.v1"
@@ -21,9 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
-
 	"github.com/codeready-toolchain/registration-service/test"
+	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -35,7 +37,23 @@ func TestRunVerificationServiceSuite(t *testing.T) {
 	suite.Run(t, &TestVerificationServiceSuite{test.UnitTestSuite{}})
 }
 
+func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) configuration.Configuration {
+	baseConfig, _ := configuration.CreateEmptyConfig(test2.NewFakeClient(s.T()))
+
+	return &mockVerificationConfig{
+		ViperConfig:     *baseConfig,
+		accountSID:      accountSID,
+		authToken:       authToken,
+		fromNumber:      fromNumber,
+		messageTemplate: configuration.DefaultVerificationMessageTemplate,
+		attemptsAllowed: 3,
+		dailyLimit:      3,
+		codeExpiry:      5,
+	}
+}
+
 type mockVerificationConfig struct {
+	configuration.ViperConfig
 	accountSID      string
 	authToken       string
 	fromNumber      string
@@ -73,16 +91,8 @@ func (c *mockVerificationConfig) GetVerificationCodeExpiresInMin() int {
 	return c.codeExpiry
 }
 
-func NewMockVerificationConfig(accountSID, authToken, fromNumber string) ServiceConfiguration {
-	return &mockVerificationConfig{
-		accountSID:      accountSID,
-		authToken:       authToken,
-		fromNumber:      fromNumber,
-		messageTemplate: configuration.DefaultVerificationMessageTemplate,
-		attemptsAllowed: 3,
-		dailyLimit:      3,
-		codeExpiry:      5,
-	}
+func (s *TestVerificationServiceSuite) DefaultConfig() configuration.Configuration {
+	return s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerification() {
@@ -505,22 +515,17 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	})
 }
 
-func (s *TestVerificationServiceSuite) createVerificationService() (verification.Service, *http.Client) {
-	cfg := NewMockVerificationConfig(
-		"xxx",
-		"yyy",
-		"CodeReady",
-	)
+func (s *TestVerificationServiceSuite) serviceWithMockedClient() (service.VerificationService, *http.Client) {
 
 	httpClient := &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(httpClient)
 
-	var mockClientOpt VerificationServiceOption
-	mockClientOpt = func(svc *ServiceImpl) {
+	var mockClientOpt verificationservice.VerificationServiceOption
+	mockClientOpt = func(svc *verificationservice.ServiceImpl) {
 		svc.HttpClient = httpClient
 	}
 
-	svc := NewVerificationService(cfg, mockClientOpt)
+	svc := verificationservice.NewVerificationService(s.Config, mockClientOpt)
 
 	return svc, httpClient
 }

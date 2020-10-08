@@ -33,27 +33,22 @@ func (s *serviceContextImpl) Services() service.Services {
 }
 
 type ServiceFactory struct {
-	contextProducer         servicecontext.ServiceContextProducer
-	config                  configuration.Configuration
-	verificationServiceFunc func() service.VerificationService
+	contextProducer            servicecontext.ServiceContextProducer
+	config                     configuration.Configuration
+	verificationServiceFunc    func(opts ...verification_service.VerificationServiceOption) service.VerificationService
+	verificationServiceOptions []verification_service.VerificationServiceOption
 }
 
-func (s ServiceFactory) SignupService() service.SignupService {
+func (s *ServiceFactory) SignupService() service.SignupService {
 	return signup_service.NewSignupService(s.getContext(), s.config)
 }
 
-func (s ServiceFactory) VerificationService() service.VerificationService {
-	return s.verificationServiceFunc()
+func (s *ServiceFactory) VerificationService() service.VerificationService {
+	return s.verificationServiceFunc(s.verificationServiceOptions...)
 }
 
-// WithVerificationService allows overriding of the default function that creates the
-// verification service
-func WithVerificationService(s service.VerificationService) Option {
-	return func(f *ServiceFactory) {
-		f.verificationServiceFunc = func() service.VerificationService {
-			return s
-		}
-	}
+func (s *ServiceFactory) WithVerificationServiceOption(opt verification_service.VerificationServiceOption) {
+	s.verificationServiceOptions = append(s.verificationServiceOptions, opt)
 }
 
 // Option an option to configure the Service Factory
@@ -65,8 +60,8 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config co
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 
 	// default function to return an instance of Verification service
-	f.verificationServiceFunc = func() service.VerificationService {
-		return verification_service.NewVerificationService(f.getContext(), f.config)
+	f.verificationServiceFunc = func(opts ...verification_service.VerificationServiceOption) service.VerificationService {
+		return verification_service.NewVerificationService(f.getContext(), f.config, f.verificationServiceOptions...)
 	}
 
 	// and options

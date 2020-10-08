@@ -1,10 +1,12 @@
 package test
 
 import (
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/codeready-toolchain/registration-service/pkg/server/mock"
+
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/stretchr/testify/require"
@@ -16,10 +18,11 @@ import (
 type UnitTestSuite struct {
 	suite.Suite
 	Config                     configuration.Configuration
-	Application                *server.MockableApplication
+	Application                *mock.MockableApplication
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
+	factoryOptions             []factory.Option
 }
 
 // SetupSuite sets the suite up and sets testmode.
@@ -40,6 +43,7 @@ func (s *UnitTestSuite) SetupSuite() {
 }
 
 func (s *UnitTestSuite) SetupTest() {
+	s.factoryOptions = nil
 	s.SetupDefaultApplication()
 }
 
@@ -48,7 +52,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.Config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.Config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.Config.GetNamespace())
-	s.Application = server.NewMockableApplication(s.Config, s)
+	s.Application = mock.NewMockableApplication(s.Config, s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) DefaultConfig() configuration.Configuration {
@@ -61,7 +65,11 @@ func (s *UnitTestSuite) SetupApplication(config configuration.Configuration) {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
-	s.Application = server.NewMockableApplication(config, s)
+	s.Application = mock.NewMockableApplication(config, s, s.factoryOptions...)
+}
+
+func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {
+	s.factoryOptions = append(s.factoryOptions, opt)
 }
 
 // TearDownSuite tears down the test suite.

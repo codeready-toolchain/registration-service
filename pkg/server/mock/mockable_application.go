@@ -1,4 +1,4 @@
-package server
+package mock
 
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -16,15 +16,31 @@ func NewMockableApplication(config configuration.Configuration, crtClient kubecl
 }
 
 type MockableApplication struct {
-	serviceFactory *factory.ServiceFactory
+	serviceFactory          *factory.ServiceFactory
+	mockSignupService       service.SignupService
+	mockVerificationService service.VerificationService
 }
 
 func (m *MockableApplication) SignupService() service.SignupService {
+	if m.mockSignupService != nil {
+		return m.mockSignupService
+	}
 	return m.serviceFactory.SignupService()
 }
 
+func (m *MockableApplication) MockSignupService(svc service.SignupService) {
+	m.mockSignupService = svc
+}
+
 func (m *MockableApplication) VerificationService() service.VerificationService {
+	if m.mockVerificationService != nil {
+		return m.mockVerificationService
+	}
 	return m.serviceFactory.VerificationService()
+}
+
+func (m *MockableApplication) MockVerificationService(svc service.VerificationService) {
+	m.mockVerificationService = svc
 }
 
 type mockableServiceContext struct {

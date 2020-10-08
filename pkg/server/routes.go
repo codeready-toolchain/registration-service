@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/server/mock"
+
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -75,7 +77,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 			// which require a full server initialization. Such as server and middleware tests.
 			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
 			//signupSrv = &signup.ServiceImpl{}
-			app = NewMockableApplication(srv.config, nil)
+			app = mock.NewMockableApplication(srv.config, nil)
 		} else {
 			// Create the default in-cluster application
 			app, err = NewInClusterApplication(srv.config)

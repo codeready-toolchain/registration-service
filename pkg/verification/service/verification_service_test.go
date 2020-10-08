@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
+
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 
 	"github.com/gin-gonic/gin"
@@ -31,10 +32,11 @@ import (
 
 type TestVerificationServiceSuite struct {
 	test.UnitTestSuite
+	httpClient *http.Client
 }
 
 func TestRunVerificationServiceSuite(t *testing.T) {
-	suite.Run(t, &TestVerificationServiceSuite{test.UnitTestSuite{}})
+	suite.Run(t, &TestVerificationServiceSuite{test.UnitTestSuite{}, nil})
 }
 
 func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) configuration.Configuration {
@@ -95,15 +97,28 @@ func (s *TestVerificationServiceSuite) DefaultConfig() configuration.Configurati
 	return s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 }
 
+func (s *TestVerificationServiceSuite) SetHttpClientFactoryOption() {
+
+	s.httpClient = &http.Client{Transport: &http.Transport{}}
+	gock.InterceptClient(s.httpClient)
+
+	serviceOption := func(svc *verificationservice.ServiceImpl) {
+		svc.HttpClient = s.httpClient
+	}
+
+	opt := func(serviceFactory *factory.ServiceFactory) {
+		serviceFactory.WithVerificationServiceOption(serviceOption)
+	}
+
+	s.WithFactoryOption(opt)
+}
+
 func (s *TestVerificationServiceSuite) TestInitVerification() {
+
 	defer gock.Off()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
 		BodyString("")
-
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
 
 	var reqBody io.ReadCloser
 	obs := func(request *http.Request, mock gock.Mock) {
@@ -130,7 +145,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
@@ -153,10 +169,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		Reply(http.StatusNoContent).
 		BodyString("")
 
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
-
 	now := time.Now()
 
 	var reqBody io.ReadCloser
@@ -173,7 +185,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 			Namespace: "test",
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
 				v1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
 				v1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
 			},
@@ -186,7 +198,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
@@ -210,10 +223,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 		Reply(http.StatusInternalServerError).
 		BodyString("")
 
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
-
 	userSignup := &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -231,7 +240,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "invalid response body: ", err.Error())
 
@@ -244,10 +254,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 		Reply(http.StatusInternalServerError).
 		BodyString("")
 
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
-
 	now := time.Now()
 
 	userSignup := &v1alpha1.UserSignup{
@@ -258,7 +264,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -269,7 +275,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "strconv.Atoi: parsing \"abc\": invalid syntax:error when retrieving counter annotation for UserSignup 123, set to daily limit", err.Error())
 }
@@ -279,10 +286,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusInternalServerError).
 		BodyString("")
-
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
 
 	now := time.Now()
 
@@ -294,7 +297,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "3",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(TimestampLayout),
+				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -305,7 +308,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 		},
 	}
 
-	_, err := svc.InitVerification(ctx, userSignup, "+1", "NUMBER")
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 
@@ -314,7 +318,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	// given
-	svc, _ := s.createVerificationService()
 	now := time.Now()
 
 	s.T().Run("verification ok", func(t *testing.T) {
@@ -328,7 +331,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -339,7 +342,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.NoError(s.T(), err)
 		require.False(s.T(), userSignup.Spec.VerificationRequired)
 	})
@@ -355,7 +359,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -366,7 +370,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
@@ -384,7 +389,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -395,7 +400,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
@@ -411,10 +417,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -425,7 +431,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.NoError(s.T(), err)
 	})
 
@@ -438,10 +445,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -452,7 +459,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
@@ -466,10 +474,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "ABC",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(TimestampLayout),
+					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -480,7 +488,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "strconv.Atoi: parsing \"ABC\": invalid syntax", err.Error())
 		require.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
@@ -495,7 +504,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Namespace: "test",
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(TimestampLayout),
+					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
 					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
 					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
 					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
@@ -509,23 +518,9 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		_, err := svc.VerifyCode(userSignup, "123456")
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})
-}
-
-func (s *TestVerificationServiceSuite) serviceWithMockedClient() (service.VerificationService, *http.Client) {
-
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
-
-	var mockClientOpt verificationservice.VerificationServiceOption
-	mockClientOpt = func(svc *verificationservice.ServiceImpl) {
-		svc.HttpClient = httpClient
-	}
-
-	svc := verificationservice.NewVerificationService(s.Config, mockClientOpt)
-
-	return svc, httpClient
 }

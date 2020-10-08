@@ -50,14 +50,8 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create a mock SignupService
-	svc := &FakeSignupService{}
-
-	// Create a mock VerificationService
-	verifySvc := &FakeVerificationService{}
-
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(s.Config, svc, verifySvc)
+	signupCtrl := controller.NewSignup(s.Application, s.Config)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	userID, err := uuid.NewV4()
@@ -138,16 +132,13 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
 
-	// Create a mock VerificationService
-	verifyService := &FakeVerificationService{}
-
 	// Create UserSignup
 	ob, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	userID := ob.String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Config, svc, verifyService)
+	ctrl := controller.NewSignup(s.Application, s.Config)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -416,7 +407,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -459,7 +450,7 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -519,7 +510,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -555,7 +546,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		verifyService := &FakeVerificationService{}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -577,7 +568,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		}
 
 		// Create Signup controller instance and handle the verification request
-		ctrl := controller.NewSignup(s.Config, svc, &FakeVerificationService{})
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -622,7 +613,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -667,7 +658,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -712,7 +703,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		}
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -734,14 +725,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	})
 
 	s.Run("no code provided", func() {
-		// Create a mock SignupService
-		svc := &FakeSignupService{}
-
-		// Create a mock VerificationService
-		verifyService := &FakeVerificationService{}
-
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Config, svc, verifyService)
+		ctrl := controller.NewSignup(s.Application, s.Config)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{

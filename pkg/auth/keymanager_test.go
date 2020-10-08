@@ -21,15 +21,24 @@ import (
 
 type TestKeyManagerSuite struct {
 	test.UnitTestSuite
+	viperConfig *configuration.ViperConfig
 }
 
 func TestRunKeyManagerSuite(t *testing.T) {
-	suite.Run(t, &TestKeyManagerSuite{test.UnitTestSuite{}})
+	cfg, errs := configuration.CreateEmptyConfig(commontest.NewFakeClient(t))
+	if errs != nil {
+		panic(errs.Error())
+	}
+
+	suite.Run(t, &TestKeyManagerSuite{
+		test.UnitTestSuite{},
+		cfg,
+	})
 }
 
 func (s *TestKeyManagerSuite) TestKeyManager() {
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
+	s.viperConfig.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("missing config", func() {
@@ -73,10 +82,10 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// Set the config for testing mode, the handler may use this.
-	s.Config.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
+	s.viperConfig.GetViperInstance().Set("environment", configuration.DefaultEnvironment)
 	assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
 	// set the key service url in the config
-	s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+	s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 	assert.Equal(s.T(), keysEndpointURL, s.Config.GetAuthClientPublicKeysURL(), "key url not set correctly")
 
 	s.Run("parse keys, valid response", func() {
@@ -106,7 +115,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -130,7 +139,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -142,7 +151,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	s.Run("parse keys, invalid url", func() {
 		// Set the config for testing mode, the handler may use this.
 		notAnURL := "not an url"
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -156,7 +165,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	s.Run("parse keys, server not reachable", func() {
 		// Set the config for testing mode, the handler may use this.
 		anURL := "http://www.google.com/"
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", anURL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", anURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -167,7 +176,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("validate with valid keys", func() {
 		// Create KeyManager instance.
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager(s.Config)
 
@@ -194,7 +203,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("validate with invalid keys", func() {
 		// Create KeyManager instance.
-		s.Config.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
+		s.viperConfig.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
 		assert.Equal(s.T(), s.Config.GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager(s.Config)
 
@@ -225,7 +234,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	defer restore()
 
 	s.Run("retrieve key for e2e-tests environment", func() {
-		s.Config.GetViperInstance().Set("environment", "e2e-tests")
+		s.viperConfig.GetViperInstance().Set("environment", "e2e-tests")
 		keyManager, err := auth.NewKeyManager(s.Config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()
@@ -237,7 +246,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		}
 	})
 
-	checkE2EKeysNotFound := func(config *configuration.Config) {
+	checkE2EKeysNotFound := func(config configuration.Configuration) {
 		keyManager, err := auth.NewKeyManager(config)
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()

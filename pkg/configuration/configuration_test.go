@@ -32,7 +32,7 @@ func TestRunConfigurationSuite(t *testing.T) {
 // defaults set. Remember that environment variables can overwrite defaults, so
 // please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config {
+func (s *TestConfigurationSuite) getDefaultConfiguration() configuration.Configuration {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()
 	config, err := configuration.New("", NewFakeClient(s.T()))
@@ -45,7 +45,7 @@ func (s *TestConfigurationSuite) getDefaultConfiguration() *configuration.Config
 // getDefaultConfiguration() remember that environment variables can overwrite
 // defaults, so please ensure to properly unset envionment variables using
 // UnsetEnvVarAndRestore().
-func (s *TestConfigurationSuite) getFileConfiguration(content string) *configuration.Config {
+func (s *TestConfigurationSuite) getFileConfiguration(content string) configuration.Configuration {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "configFile-")

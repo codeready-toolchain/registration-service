@@ -47,6 +47,9 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
+	svc := &FakeSignupService{}
+	s.Application.MockSignupService(svc)
+
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
 
@@ -99,7 +102,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 			assert.Equal(s.T(), expectedUserID+"@test.com", ctx.GetString(context.EmailKey))
 			return signup, nil
 		}
-
 		handler(ctx)
 
 		// Check the status code is what we expect.
@@ -131,6 +133,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
+	s.Application.MockSignupService(svc)
 
 	// Create UserSignup
 	ob, err := uuid.NewV4()
@@ -247,17 +250,21 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 		MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 			return userSignup, nil
 		},
-		MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+		MockPhoneNumberAlreadyInUse: func(userID, e164phoneNumber string) error {
 			return nil
 		},
 	}
+
+	s.Application.MockSignupService(svc)
 
 	// Create a mock VerificationService
 	var storedVerificationCode string
 	var verificationInitTimeStamp string
 	verifyService := &FakeVerificationService{
-		MockInitVerification: func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
+		MockInitVerification: func(ctx *gin.Context, userID, e164phoneNumber string) error {
 			now := time.Now()
+
+			signup := storedUserSignup
 
 			// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
 			ts, err := time.Parse("2006-01-02T15:04:05.000Z07:00", signup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
@@ -272,13 +279,13 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			if annotationCounter != "" {
 				counter, err = strconv.Atoi(annotationCounter)
 				if err != nil {
-					return nil, errors2.NewInternalError(err)
+					return errors2.NewInternalError(err)
 				}
 			}
 
 			// check if counter has exceeded the limit of daily limit - if at limit error out
 			if counter >= s.Config.GetVerificationDailyLimit() {
-				return nil, errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
+				return errors2.NewForbidden(schema.GroupResource{}, "forbidden", errors.New("daily limit has been exceeded"))
 			}
 
 			// generate verification code
@@ -287,15 +294,17 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			storedVerificationCode = strconv.Itoa(randomNum)
 			signup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 			signup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey] = storedVerificationCode
-			signup.Labels[crtapi.UserSignupUserPhoneHashLabelKey] = countryCode + phoneNumber
+			signup.Labels[crtapi.UserSignupUserPhoneHashLabelKey] = e164phoneNumber
 			storedUserSignup = signup
-			return signup, nil
+			return nil
 		},
 	}
 
+	s.Application.MockVerificationService(verifyService)
+
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Config, svc, verifyService)
-	handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
+	ctrl := controller.NewSignup(s.Application, s.Config)
+	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 	s.Run("init verification success", func() {
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -401,14 +410,16 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 				}, nil
 			},
 
-			MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+			MockPhoneNumberAlreadyInUse: func(userID, e164phoneNumber string) error {
 				return nil
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
-		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
+		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
 		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
@@ -444,14 +455,16 @@ func (s *TestSignupSuite) TestUpdateVerificationHandler() {
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 				return userSignup, nil
 			},
-			MockPhoneNumberAlreadyInUse: func(userID, countryCode, phoneNumber string) error {
+			MockPhoneNumberAlreadyInUse: func(userID, e164phoneNumber string) error {
 				return nil
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
-		handler := gin.HandlerFunc(ctrl.UpdateVerificationHandler)
+		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		data := []byte(`{"phone_number": "!226abc8213044", "country_code": "1"}`)
@@ -500,14 +513,17 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-				signup.Annotations["handled"] = "true"
-				storedVerifySignup = signup
-				return storedVerifySignup, nil
+			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
+				storedVerifySignup.Annotations["handled"] = "true"
+				return nil
 			},
 		}
+
+		s.Application.MockVerificationService(verifyService)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -542,8 +558,12 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{}
+
+		s.Application.MockVerificationService(verifyService)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -566,6 +586,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 				return nil, errors2.NewNotFound(schema.GroupResource{}, userID)
 			},
 		}
+
+		s.Application.MockSignupService(svc)
 
 		// Create Signup controller instance and handle the verification request
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -605,12 +627,16 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-				return nil, nil
+			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
+				return nil
 			},
 		}
+
+		s.Application.MockVerificationService(verifyService)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -650,12 +676,16 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-				return nil, errs.NewTooManyRequestsError("too many verification attempts", "")
+			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
+				return errs.NewTooManyRequestsError("too many verification attempts", "")
 			},
 		}
+
+		s.Application.MockVerificationService(verifyService)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -695,12 +725,16 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			},
 		}
 
+		s.Application.MockSignupService(svc)
+
 		// Create a mock VerificationService
 		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-				return nil, errors.New("some other error")
+			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
+				return errors.New("some other error")
 			},
 		}
+
+		s.Application.MockVerificationService(verifyService)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -773,7 +807,7 @@ type FakeSignupService struct {
 	MockCreateUserSignup        func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup           func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse func(userID, countryCode, phoneNumber string) error
+	MockPhoneNumberAlreadyInUse func(userID, e164phoneNumber string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
@@ -792,19 +826,19 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, countryCode, phoneNumber string) error {
-	return m.MockPhoneNumberAlreadyInUse(userID, countryCode, phoneNumber)
+func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, e164phoneNumber string) error {
+	return m.MockPhoneNumberAlreadyInUse(userID, e164phoneNumber)
 }
 
 type FakeVerificationService struct {
-	MockInitVerification func(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error)
-	MockVerifyCode       func(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error)
+	MockInitVerification func(ctx *gin.Context, userID, e164phoneNumber string) error
+	MockVerifyCode       func(ctx *gin.Context, userID, code string) error
 }
 
-func (m *FakeVerificationService) InitVerification(ctx *gin.Context, signup *crtapi.UserSignup, countryCode, phoneNumber string) (*crtapi.UserSignup, error) {
-	return m.MockInitVerification(ctx, signup, countryCode, phoneNumber)
+func (m *FakeVerificationService) InitVerification(ctx *gin.Context, userID, e164phoneNumber string) error {
+	return m.MockInitVerification(ctx, userID, e164phoneNumber)
 }
 
-func (m *FakeVerificationService) VerifyCode(signup *crtapi.UserSignup, code string) (*crtapi.UserSignup, error) {
-	return m.MockVerifyCode(signup, code)
+func (m *FakeVerificationService) VerifyCode(ctx *gin.Context, userID, code string) error {
+	return m.MockVerifyCode(ctx, userID, code)
 }

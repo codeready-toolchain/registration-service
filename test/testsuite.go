@@ -17,7 +17,7 @@ import (
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Config                     configuration.Configuration
+	Config                     *configuration.ViperConfig
 	Application                *mock.MockableApplication
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
@@ -55,7 +55,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.Application = mock.NewMockableApplication(s.Config, s, s.factoryOptions...)
 }
 
-func (s *UnitTestSuite) DefaultConfig() configuration.Configuration {
+func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
 	cfg, err := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	return cfg

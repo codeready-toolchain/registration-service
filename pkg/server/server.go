@@ -7,18 +7,31 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
+type ServerOption = func(server *RegistrationServer)
+
+func WithApplication(app application.Application) ServerOption {
+	return func(server *RegistrationServer) {
+		server.applicationProducerFunc = func() application.Application {
+			return app
+		}
+	}
+}
+
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      configuration.Configuration
-	router      *gin.Engine
-	httpServer  *http.Server
-	routesSetup sync.Once
+	config                  configuration.Configuration
+	router                  *gin.Engine
+	httpServer              *http.Server
+	routesSetup             sync.Once
+	applicationProducerFunc func() application.Application
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.

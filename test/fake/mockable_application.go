@@ -1,4 +1,4 @@
-package mock
+package fake
 
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"

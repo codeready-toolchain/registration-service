@@ -5,7 +5,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/server/mock"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -18,7 +18,7 @@ import (
 type UnitTestSuite struct {
 	suite.Suite
 	Config                     *configuration.ViperConfig
-	Application                *mock.MockableApplication
+	Application                *fake.MockableApplication
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
@@ -29,17 +29,6 @@ type UnitTestSuite struct {
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	log.Init("registration-service-testing")
-	restore := test.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
-	defer restore()
-
-	cfg, errs := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
-	if errs != nil {
-		panic(errs.Error())
-	}
-	// set environment to unit-tests
-	cfg.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
-
-	s.Config = cfg
 }
 
 func (s *UnitTestSuite) SetupTest() {
@@ -52,12 +41,16 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.Config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.Config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.Config.GetNamespace())
-	s.Application = mock.NewMockableApplication(s.Config, s, s.factoryOptions...)
+	s.Application = fake.NewMockableApplication(s.Config, s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
+	restore := test.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
+	defer restore()
+
 	cfg, err := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
+	cfg.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 	return cfg
 }
 
@@ -65,7 +58,7 @@ func (s *UnitTestSuite) SetupApplication(config configuration.Configuration) {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
-	s.Application = mock.NewMockableApplication(config, s, s.factoryOptions...)
+	s.Application = fake.NewMockableApplication(config, s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {

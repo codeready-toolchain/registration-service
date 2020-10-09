@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/pkg/server/mock"
-
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -53,7 +51,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 }
 
 // SetupRoutes registers handlers for various URL paths.
-func (srv *RegistrationServer) SetupRoutes() error {
+func (srv *RegistrationServer) SetupRoutes(opts ...ServerOption) error {
 
 	var err error
 	srv.routesSetup.Do(func() {
@@ -72,12 +70,8 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// Declare the application
 		var app application.Application
 
-		if srv.Config().IsTestingMode() {
-			// testing mode, return default impl instance. This is needed for tests
-			// which require a full server initialization. Such as server and middleware tests.
-			// Otherwise the K8s go client initialization fails during service creation if run in test environment.
-			//signupSrv = &signup.ServiceImpl{}
-			app = mock.NewMockableApplication(srv.config, nil)
+		if srv.applicationProducerFunc != nil {
+			app = srv.applicationProducerFunc()
 		} else {
 			// Create the default in-cluster application
 			app, err = NewInClusterApplication(srv.config)

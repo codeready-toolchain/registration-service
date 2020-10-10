@@ -98,6 +98,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+
+	if signup.Labels == nil {
+		signup.Labels = map[string]string{}
+	}
 	signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
 
 	// read the current time
@@ -134,7 +138,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		initError = errors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	}
 
-	if initError != nil {
+	if initError == nil {
 		// generate verification code
 		verificationCode := generateVerificationCode()
 
@@ -181,10 +185,11 @@ func generateVerificationCode() string {
 // if an error is returned by this function the caller should still process changes to it
 func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
 
-	signup, verificationErr := s.Services().SignupService().GetUserSignup(userID)
-	if verificationErr != nil {
-		log.Error(ctx, verificationErr, "error retrieving usersignup")
-		return
+	// If we can't even find the UserSignup, then die here
+	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
+	if lookupErr != nil {
+		log.Error(ctx, lookupErr, "error retrieving usersignup")
+		return errors.NewNotFoundError(lookupErr, "user not found")
 	}
 
 	now := time.Now()

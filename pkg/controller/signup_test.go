@@ -21,7 +21,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -495,8 +494,6 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	require.NoError(s.T(), err)
 	userID := ob.String()
 
-	expiryTimestamp := time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
-
 	userSignup := &crtapi.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -506,7 +503,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 				crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 				crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 				crtapi.UserSignupVerificationCodeAnnotationKey: "999888",
-				crtapi.UserVerificationExpiryAnnotationKey:     expiryTimestamp,
+				crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
 			},
 		},
 		Spec:   crtapi.UserSignupSpec{},
@@ -629,14 +626,13 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	})
 
 	s.Run("verifycode returns status error", func() {
-		// Create a mock VerificationService
-		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
-				return errs.NewTooManyRequestsError("too many verification attempts", "")
-			},
-		}
 
-		s.Application.MockVerificationService(verifyService)
+		userSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey] = "9999"
+		userSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey] = time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
+		userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(service.TimestampLayout)
+
+		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		s.FakeUserSignupClient.Tracker.Add(userSignup)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -650,63 +646,15 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusTooManyRequests, rr.Code)
-	})
-
-	s.Run("verifycode returns non status error", func() {
-		// Create a mock SignupService
-		svc := &FakeSignupService{
-			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-				return &crtapi.UserSignup{
-					TypeMeta: v1.TypeMeta{},
-					ObjectMeta: v1.ObjectMeta{
-						Name: userID,
-						Annotations: map[string]string{
-							crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
-							crtapi.UserVerificationAttemptsAnnotationKey:   "0",
-							crtapi.UserSignupVerificationCodeAnnotationKey: "222222",
-							crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
-						},
-					},
-					Spec:   crtapi.UserSignupSpec{},
-					Status: crtapi.UserSignupStatus{},
-				}, nil
-			},
-			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
-				return userSignup, nil
-			},
-		}
-
-		s.Application.MockSignupService(svc)
-
-		// Create a mock VerificationService
-		verifyService := &FakeVerificationService{
-			MockVerifyCode: func(ctx *gin.Context, userID, code string) error {
-				return errors.New("some other error")
-			},
-		}
-
-		s.Application.MockVerificationService(verifyService)
-
-		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
-
-		param := gin.Param{
-			Key:   "code",
-			Value: "222222",
-		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/222222")
-
-		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
-		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), "some other error", bodyParams["message"])
-		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
+
+		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
+		require.Equal(s.T(), float64(429), bodyParams["code"])
+		require.Equal(s.T(), "too many verification attempts:", bodyParams["message"])
+		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("no code provided", func() {

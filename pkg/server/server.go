@@ -35,7 +35,7 @@ type RegistrationServer struct {
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config configuration.Configuration) *RegistrationServer {
+func New(config configuration.Configuration, opts ...ServerOption) *RegistrationServer {
 
 	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
 	ginRouter := gin.New()
@@ -47,6 +47,11 @@ func New(config configuration.Configuration) *RegistrationServer {
 	srv := &RegistrationServer{
 		router: ginRouter,
 	}
+
+	for _, opt := range opts {
+		opt(srv)
+	}
+
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
 	srv.config = config

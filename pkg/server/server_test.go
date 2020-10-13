@@ -23,12 +23,10 @@ func TestRunServerSuite(t *testing.T) {
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(s.Config)
-
-	opt := server.WithApplication(fake.NewMockableApplication(srv.Config(), nil))
+	srv := server.New(s.Config, server.WithApplication(fake.NewMockableApplication(s.Config, nil)))
 
 	// Setting up the routes.
-	err := srv.SetupRoutes(opt)
+	err := srv.SetupRoutes()
 	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.

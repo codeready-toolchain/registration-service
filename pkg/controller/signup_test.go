@@ -392,12 +392,6 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
-
-		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		/*require.Equal(s.T(), storedUserID, storedUserSignup.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])*/
 	})
 
 	s.Run("init verification handler fails when verification not required", func() {
@@ -729,17 +723,4 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 
 func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, e164phoneNumber string) error {
 	return m.MockPhoneNumberAlreadyInUse(userID, e164phoneNumber)
-}
-
-type FakeVerificationService struct {
-	MockInitVerification func(ctx *gin.Context, userID, e164phoneNumber string) error
-	MockVerifyCode       func(ctx *gin.Context, userID, code string) error
-}
-
-func (m *FakeVerificationService) InitVerification(ctx *gin.Context, userID, e164phoneNumber string) error {
-	return m.MockInitVerification(ctx, userID, e164phoneNumber)
-}
-
-func (m *FakeVerificationService) VerifyCode(ctx *gin.Context, userID, code string) error {
-	return m.MockVerifyCode(ctx, userID, code)
 }

@@ -326,7 +326,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: "test",
+				Namespace: s.Config.GetNamespace(),
 				Annotations: map[string]string{
 					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
@@ -338,13 +338,20 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				Username:             "sbryzak@redhat.com",
+				VerificationRequired: true,
 			},
 		}
+
+		s.FakeUserSignupClient.Tracker.Add(userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.NoError(s.T(), err)
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
 		require.False(s.T(), userSignup.Spec.VerificationRequired)
 	})
 

@@ -51,7 +51,7 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 }
 
 // SetupRoutes registers handlers for various URL paths.
-func (srv *RegistrationServer) SetupRoutes(opts ...ServerOption) error {
+func (srv *RegistrationServer) SetupRoutes() error {
 
 	var err error
 	srv.routesSetup.Do(func() {

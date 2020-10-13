@@ -345,38 +345,40 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.Equal(s.T(), "4", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 	})
-	s.Run("init verification success country code with parenthesis", func() {
+	s.Run("init verification fails with invalid country code", func() {
 		gock.New("https://api.twilio.com").
 			Reply(http.StatusNoContent).
 			BodyString("")
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
 		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
-		require.Equal(s.T(), http.StatusNoContent, rr.Code)
+		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		bodyParams := make(map[string]interface{})
+		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), "5", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+		require.Equal(s.T(), "Bad Request", bodyParams["status"])
+		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.Equal(s.T(), "strconv.Atoi: parsing \"(1)\": invalid syntax", bodyParams["message"])
+		require.Equal(s.T(), "invalid country_code", bodyParams["details"])
 	})
 	s.Run("init verification request body could not be read", func() {
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
 		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
-		assert.Equal(s.T(), http.StatusBadRequest, rr.Code, "handler returned wrong status code")
+		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
-		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		/*require.Equal(s.T(), storedUserID, storedUserSignup.Name)
-		require.Equal(s.T(), "jsmith@redhat.com", storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "0", storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupUserPhoneHashLabelKey])
-		require.Equal(s.T(), "", storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])*/
+		bodyParams := make(map[string]interface{})
+		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "Bad Request", bodyParams["status"])
+		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.Equal(s.T(), "Key: 'Phone.CountryCode' Error:Field validation for 'CountryCode' failed on the "+
+			"'required' tag\nKey: 'Phone.PhoneNumber' Error:Field validation for 'PhoneNumber' failed on the 'required' tag", bodyParams["message"])
+		require.Equal(s.T(), "error reading request body", bodyParams["details"])
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
@@ -404,31 +406,20 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.NoError(s.T(), err)
 		userID := ob.String()
 
-		// Create a mock SignupService
-		svc := &FakeSignupService{
-			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-				return &crtapi.UserSignup{
-					TypeMeta: v1.TypeMeta{},
-					ObjectMeta: v1.ObjectMeta{
-						Name: userID,
-						Annotations: map[string]string{
-							crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
-						},
-						Labels: map[string]string{},
-					},
-					Spec: crtapi.UserSignupSpec{
-						VerificationRequired: false,
-					},
-					Status: crtapi.UserSignupStatus{},
-				}, nil
+		userSignup := &crtapi.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      userID,
+				Namespace: s.Config.GetNamespace(),
+				Annotations: map[string]string{
+					crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+				},
 			},
-
-			MockPhoneNumberAlreadyInUse: func(userID, e164phoneNumber string) error {
-				return nil
-			},
+			Spec:   crtapi.UserSignupSpec{VerificationRequired: false},
+			Status: crtapi.UserSignupStatus{},
 		}
 
-		s.Application.MockSignupService(svc)
+		s.FakeUserSignupClient.Tracker.Add(userSignup)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config)
@@ -439,6 +430,15 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
+
+		bodyParams := make(map[string]interface{})
+		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "Bad Request", bodyParams["status"])
+		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.Equal(s.T(), "forbidden request:verification code will not be sent", bodyParams["message"])
+		require.Equal(s.T(), "forbidden request", bodyParams["details"])
 	})
 
 	s.Run("init verification handler fails when invalid phone number provided", func() {
@@ -480,7 +480,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		data := []byte(`{"phone_number": "!226abc8213044", "country_code": "1"}`)
+		data := []byte(`{"phone_number": "!226%213044", "country_code": "1"}`)
 		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
@@ -562,8 +562,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), "no user", bodyParams["message"])
-		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
+		require.Equal(s.T(), fmt.Sprintf("no user:error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("getsignup returns nil", func() {

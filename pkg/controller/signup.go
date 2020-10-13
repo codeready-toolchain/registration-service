@@ -12,8 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -66,6 +64,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	if err != nil {
 		log.Errorf(ctx, err, "invalid country_code value")
 		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
+		return
 	}
 
 	regionCode := phonenumbers.GetRegionCodeForCountryCode(countryCode)
@@ -74,6 +73,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	if err != nil {
 		log.Errorf(ctx, err, "invalid phone number")
 		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
+		return
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
@@ -84,8 +84,8 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 		switch t := err.(type) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
-		case *apierrors.StatusError:
-			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
+		case *errors.Error:
+			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
 		}
 		return
 	}

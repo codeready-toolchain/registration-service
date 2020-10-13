@@ -188,8 +188,12 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	// If we can't even find the UserSignup, then die here
 	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
 	if lookupErr != nil {
+		if apierrors.IsNotFound(lookupErr) {
+			log.Error(ctx, lookupErr, "usersignup not found")
+			return errors.NewNotFoundError(lookupErr, "user not found")
+		}
 		log.Error(ctx, lookupErr, "error retrieving usersignup")
-		return errors.NewNotFoundError(lookupErr, "user not found")
+		return errors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 
 	now := time.Now()

@@ -12,7 +12,6 @@ require (
 	github.com/gin-gonic/gin v1.4.0
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.3.0+incompatible
-	github.com/golangci/golangci-lint v1.31.0 // indirect
 	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20200109203555-b30bc20e4fd1 // indirect
 	github.com/kevinburke/go-types v0.0.0-20200309064045-f2d4aea18a7a // indirect

@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
@@ -43,7 +45,11 @@ func TestRunSignupServiceSuite(t *testing.T) {
 func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verificationEnabled bool,
 	excludedDomains []string, verificationCodeExpiresInMin int) configuration.Configuration {
 
-	baseConfig, _ := configuration.CreateEmptyConfig(test2.NewFakeClient(s.T()))
+	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, namespace)
+	defer restore()
+
+	baseConfig, err := configuration.CreateEmptyConfig(test2.NewFakeClient(s.T()))
+	require.NoError(s.T(), err)
 
 	return &mockSignupServiceConfiguration{
 		ViperConfig:                  *baseConfig,
@@ -78,11 +84,9 @@ func (c *mockSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
 	return c.verificationCodeExpiresInMin
 }
 
-func (s *TestSignupServiceSuite) DefaultConfig() configuration.Configuration {
-	return s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5)
-}
-
 func (s *TestSignupServiceSuite) TestCreateUserSignup() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -102,7 +106,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*v1alpha1.UserSignupList)
@@ -110,7 +114,7 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), TestNamespace, val.Namespace)
+	require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
 	require.Equal(s.T(), userID.String(), val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.Equal(s.T(), "jane", val.Spec.GivenName)
@@ -124,6 +128,8 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -156,6 +162,8 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
@@ -184,6 +192,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -222,6 +231,8 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -235,7 +246,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 			Namespace: TestNamespace,
 			Labels: map[string]string{
 				v1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.BannedUserPhoneNumberHashLabelKey: "a97abba6f48335650ea0523aedc059c7",
+				v1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
 		Spec: v1alpha1.BannedUserSpec{
@@ -255,6 +266,8 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -265,7 +278,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 			Namespace: TestNamespace,
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "a97abba6f48335650ea0523aedc059c7",
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
 	})
@@ -285,6 +298,8 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -367,6 +382,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -408,6 +425,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -441,6 +459,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
@@ -487,6 +507,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
@@ -504,6 +526,8 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
@@ -533,6 +557,8 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
 	s.Run("getusersignup ok", func() {
 		us := s.newUserSignupComplete()
 		err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -564,6 +590,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)

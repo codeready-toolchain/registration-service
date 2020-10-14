@@ -32,10 +32,10 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	require.NoError(s.T(), err)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(s.Config, controller.NewHealthChecker(s.Config))
+	healthCheckCtrl := controller.NewHealthCheck(s.Config(), controller.NewHealthChecker(s.Config()))
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {
@@ -45,7 +45,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		ctx.Request = req
 
 		// Setting unit-tests environment
-		s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
+		s.ViperConfig().GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 
 		handler(ctx)
 
@@ -67,8 +67,8 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		ctx.Request = req
 
 		// Setting production mode
-		s.Config.GetViperInstance().Set("environment", "prod")
-		assert.False(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to false")
+		s.ViperConfig().GetViperInstance().Set("environment", "prod")
+		assert.False(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to false")
 
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
@@ -87,9 +87,9 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 	s.Run("service Unavailable", func() {
 		// Setting production mode
-		s.Config.GetViperInstance().Set("environment", "testServiceUnavailable")
+		s.ViperConfig().GetViperInstance().Set("environment", "testServiceUnavailable")
 
-		healthCheckCtrl := controller.NewHealthCheck(s.Config, &mockHealthChecker{})
+		healthCheckCtrl := controller.NewHealthCheck(s.Config(), &mockHealthChecker{})
 		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

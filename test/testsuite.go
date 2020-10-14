@@ -17,12 +17,25 @@ import (
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Config                     *configuration.ViperConfig
+	config                     *configuration.ViperConfig
 	Application                *fake.MockableApplication
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	factoryOptions             []factory.Option
+	configOverride             configuration.Configuration
+}
+
+func (s *UnitTestSuite) Config() configuration.Configuration {
+	if s.configOverride != nil {
+		return s.configOverride
+	}
+	return s.config
+}
+
+// ViperConfig is purely here as a bypass for some tests that require access to the viper configuration directly
+func (s *UnitTestSuite) ViperConfig() *configuration.ViperConfig {
+	return s.config
 }
 
 // SetupSuite sets the suite up and sets testmode.
@@ -33,15 +46,16 @@ func (s *UnitTestSuite) SetupSuite() {
 
 func (s *UnitTestSuite) SetupTest() {
 	s.factoryOptions = nil
+	s.configOverride = nil
 	s.SetupDefaultApplication()
 }
 
 func (s *UnitTestSuite) SetupDefaultApplication() {
-	s.Config = s.DefaultConfig()
-	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.Config.GetNamespace())
-	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.Config.GetNamespace())
-	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.Config.GetNamespace())
-	s.Application = fake.NewMockableApplication(s.Config, s, s.factoryOptions...)
+	s.config = s.DefaultConfig()
+	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.config.GetNamespace())
+	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.config.GetNamespace())
+	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.config.GetNamespace())
+	s.Application = fake.NewMockableApplication(s.config, s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
@@ -54,7 +68,8 @@ func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
 	return cfg
 }
 
-func (s *UnitTestSuite) SetupApplication(config configuration.Configuration) {
+func (s *UnitTestSuite) OverrideConfig(config configuration.Configuration) {
+	s.configOverride = config
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
@@ -68,7 +83,7 @@ func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {
 // TearDownSuite tears down the test suite.
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
-	s.Config = nil
+	s.config = nil
 	s.Application = nil
 	s.FakeUserSignupClient = nil
 	s.FakeMasterUserRecordClient = nil

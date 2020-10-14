@@ -12,7 +12,7 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var log = logf.Log.WithName("configuration")
@@ -199,11 +199,6 @@ func New(configFilePath string, cl client.Client) (*Config, error) {
 		}
 	}
 	return c, nil
-}
-
-func getRegistrationEnvVarKey(key string) string {
-	envKey := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
-	return EnvPrefix + "_" + envKey
 }
 
 func (c *Config) PrintConfig() {

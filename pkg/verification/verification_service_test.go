@@ -93,7 +93,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 
 	var reqBody io.ReadCloser
 	obs := func(request *http.Request, mock gock.Mock) {
@@ -125,7 +125,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reqBody)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
 	reqValue := buf.String()
 
 	params, err := url.ParseQuery(reqValue)
@@ -145,7 +146,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 
 	now := time.Now()
 
@@ -181,7 +182,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reqBody)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
 	reqValue := buf.String()
 
 	params, err := url.ParseQuery(reqValue)
@@ -202,7 +204,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFails() {
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 
 	userSignup := &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
@@ -236,7 +238,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 
 	now := time.Now()
 
@@ -272,7 +274,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 
 	now := time.Now()
 
@@ -304,7 +306,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	// given
-	svc, _ := s.createVerificationService()
+	svc := s.createVerificationService()
 	now := time.Now()
 
 	s.T().Run("verification ok", func(t *testing.T) {
@@ -505,22 +507,12 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	})
 }
 
-func (s *TestVerificationServiceSuite) createVerificationService() (verification.Service, *http.Client) {
-	cfg := NewMockVerificationConfig(
-		"xxx",
-		"yyy",
-		"CodeReady",
-	)
-
+func (s *TestVerificationServiceSuite) createVerificationService() verification.Service {
+	cfg := NewMockVerificationConfig("xxx", "yyy", "CodeReady")
 	httpClient := &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(httpClient)
-
-	var mockClientOpt verification.VerificationServiceOption
-	mockClientOpt = func(svc *verification.ServiceImpl) {
+	mockClientOpt := func(svc *verification.ServiceImpl) {
 		svc.HttpClient = httpClient
 	}
-
-	svc := verification.NewVerificationService(cfg, mockClientOpt)
-
-	return svc, httpClient
+	return verification.NewVerificationService(cfg, mockClientOpt)
 }

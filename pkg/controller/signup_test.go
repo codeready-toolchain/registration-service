@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -272,13 +273,13 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	ctrl := controller.NewSignup(s.Application, s.Config())
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
-	s.Run("init verification success", func() {
+	assertInitVerificationSuccess := func(phone_number string, expectedCounter int) {
 		gock.New("https://api.twilio.com").
 			Reply(http.StatusNoContent).
 			BodyString("")
 
-		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phone_number))
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 
 		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -286,64 +287,24 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		require.Equal(s.T(), "1", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
+		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
+		require.Equal(s.T(), strconv.Itoa(expectedCounter), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
 		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+	}
+
+	s.Run("init verification success", func() {
+		assertInitVerificationSuccess("2268213044", 1)
 	})
 
 	s.Run("init verification success phone number with parenthesis and spaces", func() {
-		gock.New("https://api.twilio.com").
-			Reply(http.StatusNoContent).
-			BodyString("")
-
-		data := []byte(`{"phone_number": "(226) 821 3044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
-		require.Equal(s.T(), http.StatusNoContent, rr.Code)
-
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), "2", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+		assertInitVerificationSuccess("(226) 821 3044", 2)
 	})
 
 	s.Run("init verification success phone number with dashes", func() {
-		gock.New("https://api.twilio.com").
-			Reply(http.StatusNoContent).
-			BodyString("")
-
-		data := []byte(`{"phone_number": "226-821-3044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
-		require.Equal(s.T(), http.StatusNoContent, rr.Code)
-
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), "3", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+		assertInitVerificationSuccess("226-821-3044", 3)
 	})
 	s.Run("init verification success phone number with spaces", func() {
-		gock.New("https://api.twilio.com").
-			Reply(http.StatusNoContent).
-			BodyString("")
-
-		data := []byte(`{"phone_number": "2 2 6 8 2 1 3 0 4 4", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
-		require.Equal(s.T(), http.StatusNoContent, rr.Code)
-
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-		require.Equal(s.T(), "4", updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+		assertInitVerificationSuccess("2 2 6 8 2 1 3 0 4 4", 4)
 	})
 	s.Run("init verification fails with invalid country code", func() {
 		gock.New("https://api.twilio.com").
@@ -351,7 +312,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			BodyString("")
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
 		bodyParams := make(map[string]interface{})
@@ -365,7 +326,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 	s.Run("init verification request body could not be read", func() {
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
@@ -388,7 +349,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		defer os.Unsetenv(key)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
@@ -420,7 +381,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
@@ -475,7 +436,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		data := []byte(`{"phone_number": "!226%213044", "country_code": "1"}`)
-		rr := setup(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
@@ -515,7 +476,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "999888",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
@@ -545,7 +506,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "111233",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -575,7 +536,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "111233",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/111233")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/111233")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusNotFound, rr.Code)
@@ -604,7 +565,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "555555",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/555555")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -636,7 +597,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "333333",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/333333")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/333333")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusTooManyRequests, rr.Code)
@@ -660,14 +621,14 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "",
 		}
-		rr := setup(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/")
+		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
 }
 
-func setup(t *testing.T, handler gin.HandlerFunc, params gin.Param, data []byte, userID, httpMethod, url string) *httptest.ResponseRecorder {
+func initVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, data []byte, userID, httpMethod, url string) *httptest.ResponseRecorder {
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)

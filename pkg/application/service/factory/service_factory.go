@@ -57,7 +57,9 @@ type Option func(f *ServiceFactory)
 func NewServiceFactory(producer servicecontext.ServiceContextProducer, config configuration.Configuration, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 
-	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+	if !config.IsTestingMode() {
+		log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+	}
 
 	// default function to return an instance of Verification service
 	f.verificationServiceFunc = func(opts ...verification_service.VerificationServiceOption) service.VerificationService {

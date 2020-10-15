@@ -47,8 +47,10 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeaderNow()
 }
 
-// InitVerificationHandler starts the verification process and updates a usersignup resource. The
-// ctx should contain a JSON body in the request with a country_code and a phone_number string
+// InitVerificationHandler starts the phone verification process for a user.  It extracts the user's identifying
+// information from their Access Token (presented in the Authorization HTTP header) to determine the user, and then
+// invokes the Verification service with an E.164 formatted phone number value derived from the country code and phone number
+// provided by the user.
 func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
 

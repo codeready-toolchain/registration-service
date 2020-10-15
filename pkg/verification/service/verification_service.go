@@ -63,9 +63,12 @@ func NewVerificationService(context servicecontext.ServiceContext, cfg ServiceCo
 	return s
 }
 
-// InitVerification sends a verification message to the specified user.  If successful,
-// the user will receive a verification SMS.
-func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) (initError error) {
+// InitVerification sends a verification message to the specified user, using the Twilio service.  If successful,
+// the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
+// to manage the phone verification process and protect against system abuse.
+func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) error {
+	var initError error
+
 	signup, err := s.Services().SignupService().GetUserSignup(userID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -78,7 +81,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 
 	// check that verification is required before proceeding
 	if signup.Spec.VerificationRequired == false {
-		log.Errorf(ctx, errors.NewForbiddenError("forbidden request", "verification code will not be sent"), "phone verification not required for usersignup: %s", userID)
+		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: %s", userID))
 		return errors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
 
@@ -127,6 +130,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		if err != nil {
 			// We shouldn't get an error here, but if we do, we should probably set verification counter to the daily
 			// limit so that we at least now have a valid value
+			log.Error(ctx, err, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
+				v1alpha1.UserSignupVerificationCounterAnnotationKey,
+				signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey], signup.Name))
 			signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
 			counter = dailyLimit
 		}
@@ -166,7 +172,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		initError = errors.NewInternalError(updateErr, "error while updating UserSignup resource")
 	}
 
-	return
+	return initError
 }
 
 func generateVerificationCode() string {
@@ -211,6 +217,9 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		// We shouldn't get an error here, but if we do, we will set verification attempts to max allowed
 		// so that we at least now have a valid value, and let the workflow continue to the
 		// subsequent attempts check
+		log.Error(ctx, convErr, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
+			v1alpha1.UserVerificationAttemptsAnnotationKey,
+			signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey], signup.Name))
 		attemptsMade = s.config.GetVerificationAttemptsAllowed()
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}

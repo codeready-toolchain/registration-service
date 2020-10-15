@@ -10,6 +10,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// NewInClusterApplication creates a new in-cluster application with the specified configuration and options.  This
+// application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
+// function to determine which Kubernetes configuration to use to create the REST client that interacts with the
+// Kubernetes service endpoints.
 func NewInClusterApplication(config configuration.Configuration, options ...factory.Option) (application.Application, error) {
 	app := new(InClusterApplication)
 

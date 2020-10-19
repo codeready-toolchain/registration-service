@@ -16,11 +16,11 @@ type serviceContextImpl struct {
 	services   service.Services
 }
 
-func NewServiceContext(kubeClient kubeclient.CRTClient, config configuration.Configuration, options ...Option) servicecontext.ServiceContext {
+func NewServiceContext(kubeClient kubeclient.CRTClient, config configuration.Configuration) servicecontext.ServiceContext {
 	ctx := &serviceContextImpl{kubeClient: kubeClient}
 	var sc servicecontext.ServiceContext
 	sc = ctx
-	ctx.services = NewServiceFactory(func() servicecontext.ServiceContext { return sc }, config, options...)
+	ctx.services = NewServiceFactory(func() servicecontext.ServiceContext { return sc }, config)
 	return sc
 }
 

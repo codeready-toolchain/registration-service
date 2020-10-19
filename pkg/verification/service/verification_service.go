@@ -112,7 +112,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
 	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationInitTimestampAnnotationKey])
-	if parseErr != nil || (parseErr == nil && now.After(ts.Add(24*time.Hour))) {
+	if parseErr != nil || now.After(ts.Add(24*time.Hour)) {
 		// Set a new timestamp
 		signup.Annotations[v1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
 		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
@@ -159,7 +159,11 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
 		msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), e164PhoneNumber, content, nil)
 		if err != nil {
-			log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
+			if msg != nil {
+				log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
+			} else {
+				log.Error(ctx, err, "unknown error while sending")
+			}
 
 			// If we get an error here then just die, don't bother updating the UserSignup
 			return errors.NewInternalError(err, "error while sending verification code")
@@ -206,7 +210,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 
 	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
 	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey])
-	if parseErr != nil || (parseErr == nil && now.After(ts.Add(24*time.Hour))) {
+	if parseErr != nil || (now.After(ts.Add(24 * time.Hour))) {
 		// Set a new timestamp
 		signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = now.Format(TimestampLayout)
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = "0"

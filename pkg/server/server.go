@@ -16,26 +16,19 @@ import (
 
 type ServerOption = func(server *RegistrationServer)
 
-func WithApplication(app application.Application) ServerOption {
-	return func(server *RegistrationServer) {
-		server.applicationProducerFunc = func() application.Application {
-			return app
-		}
-	}
-}
-
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config                  configuration.Configuration
-	router                  *gin.Engine
-	httpServer              *http.Server
-	routesSetup             sync.Once
-	applicationProducerFunc func() application.Application
+	config      configuration.Configuration
+	router      *gin.Engine
+	httpServer  *http.Server
+	routesSetup sync.Once
+	//applicationProducerFunc func() application.Application
+	application application.Application
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config configuration.Configuration, opts ...ServerOption) *RegistrationServer {
+func New(config configuration.Configuration, application application.Application) *RegistrationServer {
 
 	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
 	ginRouter := gin.New()
@@ -45,11 +38,8 @@ func New(config configuration.Configuration, opts ...ServerOption) *Registration
 	)
 
 	srv := &RegistrationServer{
-		router: ginRouter,
-	}
-
-	for _, opt := range opts {
-		opt(srv)
+		router:      ginRouter,
+		application: application,
 	}
 
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)

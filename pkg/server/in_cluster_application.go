@@ -14,7 +14,7 @@ import (
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication(config configuration.Configuration, options ...factory.Option) (application.Application, error) {
+func NewInClusterApplication(config configuration.Configuration) (application.Application, error) {
 	app := new(InClusterApplication)
 
 	k8sConfig, err := rest.InClusterConfig()
@@ -29,7 +29,7 @@ func NewInClusterApplication(config configuration.Configuration, options ...fact
 
 	app.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
 		return factory.NewServiceContext(kubeClient, config)
-	}, config, options...)
+	}, config)
 	return app, nil
 }
 

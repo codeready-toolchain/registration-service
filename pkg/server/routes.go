@@ -70,17 +70,6 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// Declare the application
 		var app application.Application
 
-		if srv.applicationProducerFunc != nil {
-			app = srv.applicationProducerFunc()
-		} else {
-			// Create the default in-cluster application
-			app, err = NewInClusterApplication(srv.config)
-			if err != nil {
-				err = errs.Wrapf(err, "failed to initialize the application: %s", err.Error())
-				return
-			}
-		}
-
 		signupCtrl := controller.NewSignup(app, srv.Config())
 
 		// create the auth middleware

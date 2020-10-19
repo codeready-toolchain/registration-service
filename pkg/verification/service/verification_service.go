@@ -67,8 +67,6 @@ func NewVerificationService(context servicecontext.ServiceContext, cfg ServiceCo
 // the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
 // to manage the phone verification process and protect against system abuse.
 func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) error {
-	var initError error
-
 	signup, err := s.Services().SignupService().GetUserSignup(userID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -138,6 +136,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		}
 	}
 
+	var initError error
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
@@ -173,7 +172,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	_, updateErr := s.Services().SignupService().UpdateUserSignup(signup)
 	if updateErr != nil {
 		log.Error(ctx, err, "error while updating UserSignup resource")
-		initError = errors.NewInternalError(updateErr, "error while updating UserSignup resource")
+		return errors.NewInternalError(updateErr, "error while updating UserSignup resource")
 	}
 
 	return initError

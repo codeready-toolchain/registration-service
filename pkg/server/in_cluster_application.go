@@ -15,8 +15,6 @@ import (
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
 func NewInClusterApplication(config configuration.Configuration) (application.Application, error) {
-	app := new(InClusterApplication)
-
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -27,6 +25,7 @@ func NewInClusterApplication(config configuration.Configuration) (application.Ap
 		return nil, err
 	}
 
+	app := new(InClusterApplication)
 	app.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
 		return factory.NewServiceContext(kubeClient, config)
 	}, config)

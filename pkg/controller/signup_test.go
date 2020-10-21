@@ -769,7 +769,7 @@ func setup(t *testing.T, handler gin.HandlerFunc, params gin.Param, data []byte,
 	return rr
 }
 
-func assertVerification(t *testing.T, storedUserSignup *crtapi.UserSignup, expectedHTTPResponseCode int, actualResponseCode int, userID, expectedPhoneNumber, expectedEmail, expectedVerificationCount, storedVerificationCode, verificationInitTimeStamp string) {
+func assertVerification(t *testing.T, storedUserSignup *crtapi.UserSignup, expectedHTTPResponseCode, actualResponseCode int, userID, expectedPhoneNumber, expectedEmail, expectedVerificationCount, storedVerificationCode, verificationInitTimeStamp string) { //nolint:unparam
 	// Check the status code is what we expect.
 	assert.Equal(t, expectedHTTPResponseCode, actualResponseCode, "handler returned wrong status code")
 

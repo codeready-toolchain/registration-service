@@ -163,7 +163,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reqBody)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
 	reqValue := buf.String()
 
 	params, err := url.ParseQuery(reqValue)
@@ -226,7 +227,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(reqBody)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
 	reqValue := buf.String()
 
 	params, err := url.ParseQuery(reqValue)

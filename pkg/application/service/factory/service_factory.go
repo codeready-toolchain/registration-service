@@ -16,10 +16,10 @@ type serviceContextImpl struct {
 	services   service.Services
 }
 
-type ServiceContextOption = func(ctx serviceContextImpl)
+type ServiceContextOption = func(ctx *serviceContextImpl)
 
 func CRTClientOption(kubeClient kubeclient.CRTClient) ServiceContextOption {
-	return func(ctx serviceContextImpl) {
+	return func(ctx *serviceContextImpl) {
 		ctx.kubeClient = kubeClient
 	}
 }
@@ -109,7 +109,7 @@ func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
 
 	for _, opt := range f.serviceContextOptions {
 		if v, ok := sc.(*serviceContextImpl); ok {
-			opt(*v)
+			opt(v)
 		}
 	}
 

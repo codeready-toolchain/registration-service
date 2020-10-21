@@ -121,9 +121,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	verificationCounter := signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey]
 	var counter int
 	dailyLimit := s.config.GetVerificationDailyLimit()
-	if verificationCounter == "" {
-		counter = 0
-	} else {
+	if verificationCounter != "" {
 		counter, err = strconv.Atoi(verificationCounter)
 		if err != nil {
 			// We shouldn't get an error here, but if we do, we should probably set verification counter to the daily

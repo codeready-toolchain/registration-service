@@ -3,7 +3,6 @@ package server
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -25,11 +24,10 @@ func NewInClusterApplication(config configuration.Configuration) (application.Ap
 		return nil, err
 	}
 
-	app := new(InClusterApplication)
-	app.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
-		return factory.NewServiceContext(kubeClient, config)
-	}, config)
-	return app, nil
+	return &InClusterApplication{
+		serviceFactory: factory.NewServiceFactory(config,
+			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient))),
+	}, nil
 }
 
 type InClusterApplication struct {

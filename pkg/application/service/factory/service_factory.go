@@ -16,12 +16,12 @@ type serviceContextImpl struct {
 	services   service.Services
 }
 
-func NewServiceContext(kubeClient kubeclient.CRTClient, config configuration.Configuration) servicecontext.ServiceContext {
-	ctx := &serviceContextImpl{kubeClient: kubeClient}
-	var sc servicecontext.ServiceContext
-	sc = ctx
-	ctx.services = NewServiceFactory(func() servicecontext.ServiceContext { return sc }, config)
-	return sc
+type ServiceContextOption = func(ctx serviceContextImpl)
+
+func CRTClientOption(kubeClient kubeclient.CRTClient) ServiceContextOption {
+	return func(ctx serviceContextImpl) {
+		ctx.kubeClient = kubeClient
+	}
 }
 
 func (s *serviceContextImpl) CRTClient() kubeclient.CRTClient {
@@ -34,9 +34,18 @@ func (s *serviceContextImpl) Services() service.Services {
 
 type ServiceFactory struct {
 	contextProducer            servicecontext.ServiceContextProducer
+	serviceContextOptions      []ServiceContextOption
 	config                     configuration.Configuration
 	verificationServiceFunc    func(opts ...verification_service.VerificationServiceOption) service.VerificationService
 	verificationServiceOptions []verification_service.VerificationServiceOption
+}
+
+func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceContextProducer {
+	return func() servicecontext.ServiceContext {
+		return &serviceContextImpl{
+			services: s,
+		}
+	}
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
@@ -54,8 +63,29 @@ func (s *ServiceFactory) WithVerificationServiceOption(opt verification_service.
 // Option an option to configure the Service Factory
 type Option func(f *ServiceFactory)
 
-func NewServiceFactory(producer servicecontext.ServiceContextProducer, config configuration.Configuration, options ...Option) *ServiceFactory {
-	f := &ServiceFactory{contextProducer: producer, config: config}
+func WithServiceContextOptions(opts ...ServiceContextOption) func(f *ServiceFactory) {
+	return func(f *ServiceFactory) {
+		for _, opt := range opts {
+			f.serviceContextOptions = append(f.serviceContextOptions, opt)
+		}
+	}
+}
+
+func WithServiceContextProducer(producer servicecontext.ServiceContextProducer) func(f *ServiceFactory) {
+	return func(f *ServiceFactory) {
+		f.contextProducer = producer
+	}
+}
+
+func NewServiceFactory(config configuration.Configuration, options ...Option) *ServiceFactory {
+	f := &ServiceFactory{
+		serviceContextOptions: []ServiceContextOption{},
+		config:                config,
+	}
+
+	for _, opt := range options {
+		opt(f)
+	}
 
 	if !config.IsTestingMode() {
 		log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
@@ -66,13 +96,22 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config co
 		return verification_service.NewVerificationService(f.getContext(), f.config, f.verificationServiceOptions...)
 	}
 
-	// and options
-	for _, opt := range options {
-		opt(f)
-	}
 	return f
 }
 
 func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
-	return f.contextProducer()
+	var sc servicecontext.ServiceContext
+	if f.contextProducer != nil {
+		sc = f.contextProducer()
+	} else {
+		sc = f.defaultServiceContextProducer()()
+	}
+
+	for _, opt := range f.serviceContextOptions {
+		if v, ok := sc.(*serviceContextImpl); ok {
+			opt(*v)
+		}
+	}
+
+	return sc
 }

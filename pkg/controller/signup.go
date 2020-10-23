@@ -1,27 +1,23 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
-	"regexp"
-	"strings"
+	"strconv"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/codeready-toolchain/registration-service/pkg/verification"
 
 	"github.com/gin-gonic/gin"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/nyaruka/phonenumbers"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	config              *configuration.Config
-	signupService       signup.Service
-	verificationService verification.Service
+	app    application.Application
+	config configuration.Configuration
 }
 
 type Phone struct {
@@ -30,17 +26,16 @@ type Phone struct {
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(config *configuration.Config, signupService signup.Service, verificationService verification.Service) *Signup {
+func NewSignup(app application.Application, config configuration.Configuration) *Signup {
 	return &Signup{
-		config:              config,
-		signupService:       signupService,
-		verificationService: verificationService,
+		app:    app,
+		config: config,
 	}
 }
 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
-	userSignup, err := s.signupService.CreateUserSignup(ctx)
+	userSignup, err := s.app.SignupService().CreateUserSignup(ctx)
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
@@ -52,28 +47,12 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	ctx.Writer.WriteHeaderNow()
 }
 
-// UpdateVerificationHandler starts the verification process and updates a usersignup resource. The
-// ctx should contain a JSON body in the request with a country_code and a phone_number string
-func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
+// InitVerificationHandler starts the phone verification process for a user.  It extracts the user's identifying
+// information from their Access Token (presented in the Authorization HTTP header) to determine the user, and then
+// invokes the Verification service with an E.164 formatted phone number value derived from the country code and phone number
+// provided by the user.
+func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
-	signup, err := s.signupService.GetUserSignup(userID)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Error(ctx, err, "usersignup not found")
-			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
-			return
-		}
-		log.Error(ctx, err, "error retrieving usersignup")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retrieving usersignup: %s", userID))
-		return
-	}
-
-	// check that verification is required before proceeding
-	if !signup.Spec.VerificationRequired {
-		log.Errorf(ctx, errors.NewForbiddenError("forbidden request", "verification code will not be sent"), "phone verification not required for usersignup: %s", userID)
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
 
 	// Read the Body content
 	var phone Phone
@@ -83,56 +62,32 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	// normalize phone number
-	r := strings.NewReplacer("(", "",
-		")", "",
-		" ", "",
-		"-", "")
-	countryCode := r.Replace(phone.CountryCode)
-	phoneNumber := r.Replace(phone.PhoneNumber)
-	countryValid, _ := regexp.MatchString(`^\+?[0-9]+$`, countryCode)
-	phoneValid, _ := regexp.MatchString(`^[0-9]+$`, phoneNumber)
-
-	// if phone number contains odd characters, return error
-	if !countryValid || !phoneValid {
-		log.Errorf(ctx, errors.NewBadRequest("bad request", "invalid request"), "phone number entered contains invalid characters")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	phone.PhoneNumber = phoneNumber
-	phone.CountryCode = countryCode
-
-	err = s.signupService.PhoneNumberAlreadyInUse(userID, phone.CountryCode, phone.PhoneNumber)
+	countryCode, err := strconv.Atoi(phone.CountryCode)
 	if err != nil {
-		if apierrors.IsForbidden(err) {
-			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber)
-			errors.AbortWithError(ctx, http.StatusForbidden, err, fmt.Sprintf("phone number already in use, cannot register using phone number: %s", phone.CountryCode+phone.PhoneNumber))
-			return
-		}
-		log.Error(ctx, err, "error while looking up users by phone number")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "could not lookup users by phone number")
+		log.Errorf(ctx, err, "invalid country_code value")
+		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
 		return
 	}
 
-	signup, err = s.verificationService.InitVerification(ctx, signup, phone.CountryCode, phone.PhoneNumber)
-	_, err2 := s.signupService.UpdateUserSignup(signup)
-	if err2 != nil {
-		log.Error(ctx, err2, "error while updating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
+	regionCode := phonenumbers.GetRegionCodeForCountryCode(countryCode)
 
-		if err != nil {
-			log.Error(ctx, err, "error initiating user verification")
-		}
+	number, err := phonenumbers.Parse(phone.PhoneNumber, regionCode)
+	if err != nil {
+		log.Errorf(ctx, err, "invalid phone number")
+		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
 		return
 	}
 
+	e164Number := phonenumbers.Format(number, phonenumbers.E164)
+
+	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
-		case *apierrors.StatusError:
-			errors.AbortWithError(ctx, int(t.ErrStatus.Code), err, t.ErrStatus.Message)
+		case *errors.Error:
+			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
 		}
 		return
 	}
@@ -146,7 +101,7 @@ func (s *Signup) UpdateVerificationHandler(ctx *gin.Context) {
 func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
-	signupResource, err := s.signupService.GetSignup(userID)
+	signupResource, err := s.app.SignupService().GetSignup(userID)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
@@ -170,34 +125,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 
 	userID := ctx.GetString(context.SubKey)
 
-	signup, err := s.signupService.GetUserSignup(userID)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.Error(ctx, err, "usersignup not found")
-			errors.AbortWithError(ctx, http.StatusNotFound, err, "usersignup not found")
-		}
-		log.Error(ctx, err, "error retrieving usersignup")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("error retrieving usersignup: %s", userID))
-		return
-	}
-
-	// The VerifyCode() call here MAY make changes to the specified signupResource
-	signup, err = s.verificationService.VerifyCode(signup, code)
-
-	// Regardless of whether the VerifyCode() call returns an error or not, we need to update the UserSignup instance
-	// as its state can be updated even in the case of an error.  This may result in the slight possibility that any
-	// errors returned by VerifyCode() are suppressed, as error handling for the UserSignup update is given precedence.
-	_, err2 := s.signupService.UpdateUserSignup(signup)
-	if err2 != nil {
-		log.Error(ctx, err2, "error while updating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err2, "error while updating UserSignup resource")
-
-		if err != nil {
-			log.Error(ctx, err, "error validating user verification code")
-		}
-		return
-	}
-
+	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
 		switch t := err.(type) {

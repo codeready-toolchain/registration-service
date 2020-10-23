@@ -29,10 +29,10 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	require.NoError(s.T(), err)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
-	authConfigCtrl := NewAuthConfig(s.Config)
+	authConfigCtrl := NewAuthConfig(s.Config())
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
@@ -48,7 +48,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		// check response content-type.
-		require.Equal(s.T(), s.Config.GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
+		require.Equal(s.T(), s.Config().GetAuthClientConfigAuthContentType(), rr.Header().Get("Content-Type"))
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
@@ -58,11 +58,11 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(s.Config.GetAuthClientConfigAuthRaw()), &config)
+		err = json.Unmarshal([]byte(s.Config().GetAuthClientConfigAuthRaw()), &config)
 		require.NoError(s.T(), err)
 
 		s.Run("envelope client url", func() {
-			assert.Equal(s.T(), s.Config.GetAuthClientLibraryURL(), dataEnvelope.AuthClientLibraryURL, "wrong 'auth-client-library-url' in authconfig response")
+			assert.Equal(s.T(), s.Config().GetAuthClientLibraryURL(), dataEnvelope.AuthClientLibraryURL, "wrong 'auth-client-library-url' in authconfig response")
 		})
 
 		s.Run("envelope client config", func() {

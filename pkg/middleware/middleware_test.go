@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/test/fake"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
@@ -70,7 +72,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// create server
-	srv := server.New(s.Config)
+	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
 
 	// set the key service url in the config
 	err = os.Setenv("REGISTRATION_AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)

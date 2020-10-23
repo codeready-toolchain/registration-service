@@ -25,7 +25,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	defaultTokenParserHolder = nil
 
 	// Set the config for testing mode, the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("get before init", func() {
 		_, err := defaultKeyManager()
@@ -34,12 +34,12 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	})
 
 	s.Run("first creation", func() {
-		_, err := initializeDefaultKeyManager(s.Config)
+		_, err := initializeDefaultKeyManager(s.Config())
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := initializeDefaultKeyManager(s.Config)
+		_, err := initializeDefaultKeyManager(s.Config())
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default KeyManager can be created only once", err.Error())
 	})
@@ -68,7 +68,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				km, err := initializeDefaultKeyManager(s.Config)
+				km, err := initializeDefaultKeyManager(s.Config())
 				thisHolder := &kmErrHolder{
 					KeyMngr: km,
 					KmErr:   err,
@@ -106,7 +106,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	defaultTokenParserHolder = nil
 
 	// Set the config for testing mode, the handler may use this.
-	assert.True(s.T(), s.Config.IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("get before init", func() {
 		_, err := DefaultTokenParser()
@@ -115,12 +115,12 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	})
 
 	s.Run("first creation", func() {
-		_, err := InitializeDefaultTokenParser(s.Config)
+		_, err := InitializeDefaultTokenParser(s.Config())
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := InitializeDefaultTokenParser(s.Config)
+		_, err := InitializeDefaultTokenParser(s.Config())
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default TokenParser can be created only once", err.Error())
 	})
@@ -149,7 +149,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				tp, err := InitializeDefaultTokenParser(s.Config)
+				tp, err := InitializeDefaultTokenParser(s.Config())
 				thisHolder := &tpErrHolder{
 					TokePrsr: tp,
 					TpErr:    err,

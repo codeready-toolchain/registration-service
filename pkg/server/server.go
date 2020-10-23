@@ -7,22 +7,28 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
+type ServerOption = func(server *RegistrationServer)
+
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      *configuration.Config
+	config      configuration.Configuration
 	router      *gin.Engine
 	httpServer  *http.Server
 	routesSetup sync.Once
+	//applicationProducerFunc func() application.Application
+	application application.Application
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config *configuration.Config) *RegistrationServer {
+func New(config configuration.Configuration, application application.Application) *RegistrationServer {
 
 	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
 	ginRouter := gin.New()
@@ -32,8 +38,10 @@ func New(config *configuration.Config) *RegistrationServer {
 	)
 
 	srv := &RegistrationServer{
-		router: ginRouter,
+		router:      ginRouter,
+		application: application,
 	}
+
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
 	srv.config = config
@@ -53,7 +61,7 @@ func New(config *configuration.Config) *RegistrationServer {
 }
 
 // Config returns the app server's config object.
-func (srv *RegistrationServer) Config() *configuration.Config {
+func (srv *RegistrationServer) Config() configuration.Configuration {
 	return srv.config
 }
 

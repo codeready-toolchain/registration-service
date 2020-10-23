@@ -8,8 +8,18 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// NewCRTV1Alpha1Client creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
-func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Client, error) {
+type CRTClient interface {
+	V1Alpha1() V1Alpha1
+}
+
+type V1Alpha1 interface {
+	UserSignups() UserSignupInterface
+	MasterUserRecords() MasterUserRecordInterface
+	BannedUsers() BannedUserInterface
+}
+
+// NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
+func NewCRTRESTClient(cfg *rest.Config, namespace string) (CRTClient, error) {
 	scheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
@@ -29,12 +39,15 @@ func NewCRTV1Alpha1Client(cfg *rest.Config, namespace string) (*CRTV1Alpha1Clien
 		return nil, err
 	}
 
-	return &CRTV1Alpha1Client{
+	crtRESTClient := &CRTRESTClient{
 		RestClient: client,
 		Config:     config,
 		NS:         namespace,
 		Scheme:     scheme,
-	}, nil
+	}
+
+	crtRESTClient.v1Alpha1 = &V1Alpha1REST{client: crtRESTClient}
+	return crtRESTClient, nil
 }
 
 func getRegisterObject() []runtime.Object {
@@ -48,45 +61,54 @@ func getRegisterObject() []runtime.Object {
 	}
 }
 
-type CRTV1Alpha1Client struct {
+type CRTRESTClient struct {
 	RestClient rest.Interface
 	NS         string
 	Config     rest.Config
 	Scheme     *runtime.Scheme
+	v1Alpha1   *V1Alpha1REST
+}
+
+func (c *CRTRESTClient) V1Alpha1() V1Alpha1 {
+	return c.v1Alpha1
+}
+
+type V1Alpha1REST struct {
+	client *CRTRESTClient
 }
 
 // UserSignups returns an interface which may be used to perform CRUD operations for UserSignup resources
-func (c *CRTV1Alpha1Client) UserSignups() UserSignupInterface {
+func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 	return &userSignupClient{
 		crtClient: crtClient{
-			client: c.RestClient,
-			ns:     c.NS,
-			cfg:    c.Config,
-			scheme: c.Scheme,
+			client: c.client.RestClient,
+			ns:     c.client.NS,
+			cfg:    c.client.Config,
+			scheme: c.client.Scheme,
 		},
 	}
 }
 
 // MasterUserRecords returns an interface which may be used to perform CRUD operations for MasterUserRecord resources
-func (c *CRTV1Alpha1Client) MasterUserRecords() MasterUserRecordInterface {
+func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
 		crtClient: crtClient{
-			client: c.RestClient,
-			ns:     c.NS,
-			cfg:    c.Config,
-			scheme: c.Scheme,
+			client: c.client.RestClient,
+			ns:     c.client.NS,
+			cfg:    c.client.Config,
+			scheme: c.client.Scheme,
 		},
 	}
 }
 
 // BannedUsers returns an interface which may be used to perform query operations on BannedUser resources
-func (c *CRTV1Alpha1Client) BannedUsers() BannedUserInterface {
+func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
 		crtClient: crtClient{
-			client: c.RestClient,
-			ns:     c.NS,
-			cfg:    c.Config,
-			scheme: c.Scheme,
+			client: c.client.RestClient,
+			ns:     c.client.NS,
+			cfg:    c.client.Config,
+			scheme: c.client.Scheme,
 		},
 	}
 }

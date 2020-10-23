@@ -1,9 +1,15 @@
 package test
 
 import (
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -11,29 +17,91 @@ import (
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Config *configuration.Config
+	config                     *configuration.ViperConfig
+	Application                *fake.MockableApplication
+	FakeUserSignupClient       *fake.FakeUserSignupClient
+	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
+	FakeBannedUserClient       *fake.FakeBannedUserClient
+	factoryOptions             []factory.Option
+	configOverride             configuration.Configuration
+}
+
+func (s *UnitTestSuite) Config() configuration.Configuration {
+	if s.configOverride != nil {
+		return s.configOverride
+	}
+	return s.config
+}
+
+// ViperConfig is purely here as a bypass for some tests that require access to the viper configuration directly
+func (s *UnitTestSuite) ViperConfig() *configuration.ViperConfig {
+	return s.config
 }
 
 // SetupSuite sets the suite up and sets testmode.
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	log.Init("registration-service-testing")
-	restore := test.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+}
+
+func (s *UnitTestSuite) SetupTest() {
+	s.factoryOptions = nil
+	s.configOverride = nil
+	s.SetupDefaultApplication()
+}
+
+func (s *UnitTestSuite) SetupDefaultApplication() {
+	s.config = s.DefaultConfig()
+	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.config.GetNamespace())
+	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.config.GetNamespace())
+	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.config.GetNamespace())
+	s.Application = fake.NewMockableApplication(s.config, s, s.factoryOptions...)
+}
+
+func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
+	restore := test.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
 	defer restore()
 
-	cfg, errs := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
-	if errs != nil {
-		panic(errs.Error())
-	}
+	cfg, err := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
+	require.NoError(s.T(), err)
+	cfg.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
+	return cfg
+}
 
-	s.Config = cfg
+func (s *UnitTestSuite) OverrideConfig(config configuration.Configuration) {
+	s.configOverride = config
+	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
+	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
+	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
+	s.Application = fake.NewMockableApplication(config, s, s.factoryOptions...)
+}
 
-	// set environment to unit-tests
-	s.Config.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
+func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {
+	s.factoryOptions = append(s.factoryOptions, opt)
 }
 
 // TearDownSuite tears down the test suite.
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
-	s.Config = nil
+	s.config = nil
+	s.Application = nil
+	s.FakeUserSignupClient = nil
+	s.FakeMasterUserRecordClient = nil
+	s.FakeBannedUserClient = nil
+}
+
+func (s *UnitTestSuite) V1Alpha1() kubeclient.V1Alpha1 {
+	return s
+}
+
+func (s *UnitTestSuite) UserSignups() kubeclient.UserSignupInterface {
+	return s.FakeUserSignupClient
+}
+
+func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface {
+	return s.FakeMasterUserRecordClient
+}
+
+func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
+	return s.FakeBannedUserClient
 }

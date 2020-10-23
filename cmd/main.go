@@ -58,7 +58,12 @@ func main() {
 
 	crtConfig.PrintConfig()
 
-	srv := server.New(crtConfig)
+	app, err := server.NewInClusterApplication(crtConfig)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	srv := server.New(crtConfig, app)
 
 	err = srv.SetupRoutes()
 	if err != nil {

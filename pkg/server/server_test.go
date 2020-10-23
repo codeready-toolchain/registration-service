@@ -3,6 +3,8 @@ package server_test
 import (
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/test/fake"
+
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -21,7 +23,7 @@ func TestRunServerSuite(t *testing.T) {
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(s.Config)
+	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
 
 	// Setting up the routes.
 	err := srv.SetupRoutes()

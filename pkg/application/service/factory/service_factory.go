@@ -65,15 +65,7 @@ type Option func(f *ServiceFactory)
 
 func WithServiceContextOptions(opts ...ServiceContextOption) func(f *ServiceFactory) {
 	return func(f *ServiceFactory) {
-		for _, opt := range opts {
-			f.serviceContextOptions = append(f.serviceContextOptions, opt)
-		}
-	}
-}
-
-func WithServiceContextProducer(producer servicecontext.ServiceContextProducer) func(f *ServiceFactory) {
-	return func(f *ServiceFactory) {
-		f.contextProducer = producer
+		f.serviceContextOptions = append(f.serviceContextOptions, opts...)
 	}
 }
 

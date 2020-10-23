@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application"
-
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -66,11 +64,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.Config())
-
-		// Declare the application
-		var app application.Application
-
-		signupCtrl := controller.NewSignup(app, srv.Config())
+		signupCtrl := controller.NewSignup(srv.application, srv.Config())
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

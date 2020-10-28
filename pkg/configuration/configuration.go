@@ -112,7 +112,7 @@ const (
 
 	varVerificationAttemptsAllowed = "verification.attempts_allowed"
 	// DefaultVerificationAttemptsAllowed is the default number of maximum attempts a user may make to
-	// provide a correct verification code
+	// provide a correct verification code, per generated verification code
 	DefaultVerificationAttemptsAllowed = 3
 
 	// varTwilioAccountSID is the constant used to read the configuration parameter for the

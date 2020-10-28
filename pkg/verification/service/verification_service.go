@@ -146,6 +146,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		verificationCode := generateVerificationCode()
 
 		// set the usersignup annotations
+		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
 		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 		signup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
 		signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
@@ -205,14 +206,6 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 
 	now := time.Now()
 
-	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
-	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey])
-	if parseErr != nil || (now.After(ts.Add(24 * time.Hour))) {
-		// Set a new timestamp
-		signup.Annotations[v1alpha1.UserSignupVerificationTimestampAnnotationKey] = now.Format(TimestampLayout)
-		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
-	}
-
 	attemptsMade, convErr := strconv.Atoi(signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
 	if convErr != nil {
 		// We shouldn't get an error here, but if we do, we will set verification attempts to max allowed
@@ -225,7 +218,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}
 
-	// If the user has made more attempts than is allowed per day, return an error
+	// If the user has made more attempts than is allowed per generated verification code, return an error
 	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
 		verificationErr = errors.NewTooManyRequestsError("too many verification attempts", "")
 	}
@@ -257,7 +250,6 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCodeAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)
-		delete(signup.Annotations, v1alpha1.UserSignupVerificationTimestampAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationInitTimestampAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserVerificationExpiryAnnotationKey)
 	} else {

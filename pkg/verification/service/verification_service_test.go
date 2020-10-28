@@ -367,11 +367,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "000000",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -426,37 +425,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
 	})
 
-	s.T().Run("when previous verifications exceeded maximum attempts but timestamp has elapsed", func(t *testing.T) {
-
-		userSignup := &v1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
-				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
-					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: v1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
-			},
-		}
-
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
-
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
-		require.NoError(s.T(), err)
-	})
-
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
 
 		userSignup := &v1alpha1.UserSignup{
@@ -465,11 +433,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
-					v1alpha1.UserVerificationAttemptsAnnotationKey:        "3",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -497,11 +464,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
-					v1alpha1.UserVerificationAttemptsAnnotationKey:        "ABC",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
@@ -534,11 +500,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:             "sbryzak@redhat.com",
-					v1alpha1.UserSignupVerificationTimestampAnnotationKey: now.Add(-1 * time.Minute).Format(verificationservice.TimestampLayout),
-					v1alpha1.UserVerificationAttemptsAnnotationKey:        "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey:      "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:          "ABC",
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     "ABC",
 				},
 				Labels: map[string]string{
 					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",

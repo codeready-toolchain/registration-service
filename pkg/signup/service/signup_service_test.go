@@ -124,7 +124,6 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	require.True(s.T(), val.Spec.VerificationRequired)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
-	require.Equal(s.T(), "false", val.Labels[v1alpha1.UserSignupApprovedLabelKey])
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
@@ -351,7 +350,6 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.False(s.T(), val.Spec.Approved)
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
-	require.Equal(s.T(), "false", val.Labels[v1alpha1.UserSignupApprovedLabelKey])
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {

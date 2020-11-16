@@ -37,7 +37,7 @@ func New(config configuration.Configuration, application application.Application
 		gin.Recovery(),
 		cors.New(cors.Config{
 			AllowAllOrigins:     true,
-			AllowMethods:     []string{"*"},
+			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"*"},
 			ExposeHeaders:    []string{"*"},
 			AllowCredentials: true,

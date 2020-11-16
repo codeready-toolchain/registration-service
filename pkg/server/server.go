@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
-
+	"github.com/gin-contrib/cors"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -35,6 +35,13 @@ func New(config configuration.Configuration, application application.Application
 	ginRouter.Use(
 		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
 		gin.Recovery(),
+		cors.New(cors.Config{
+			AllowOrigins:     []string{"*"},
+			AllowMethods:     []string{"*"},
+			AllowHeaders:     []string{"*"},
+			ExposeHeaders:    []string{"*"},
+			AllowCredentials: true,
+		}),
 	)
 
 	srv := &RegistrationServer{

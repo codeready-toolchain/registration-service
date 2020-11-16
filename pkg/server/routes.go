@@ -64,7 +64,6 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
 		authConfigCtrl := controller.NewAuthConfig(srv.Config())
-		preflightCtrl := controller.NewPreFlight()
 		signupCtrl := controller.NewSignup(srv.application, srv.Config())
 
 		// create the auth middleware
@@ -78,22 +77,17 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// unsecured routes
 		unsecuredV1 := srv.router.Group("/api/v1")
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
-		unsecuredV1.OPTIONS("/health", preflightCtrl.PreflightHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
-		unsecuredV1.OPTIONS("/authconfig", preflightCtrl.PreflightHandler)
 
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
-		securedV1.OPTIONS("/signup", preflightCtrl.PreflightHandler)
 
 		// requires a ctx body containing the country_code and phone_number
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)
-		securedV1.OPTIONS("/signup/verification", preflightCtrl.PreflightHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyCodeHandler)
-		securedV1.OPTIONS("/signup/verification/:code", preflightCtrl.PreflightHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if srv.Config().IsTestingMode() {

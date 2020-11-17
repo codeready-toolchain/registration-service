@@ -36,7 +36,7 @@ func New(config configuration.Configuration, application application.Application
 		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
 		gin.Recovery(),
 		cors.New(cors.Config{
-			AllowAllOrigins:     true,
+			AllowAllOrigins:  true,
 			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept"},
 			ExposeHeaders:    []string{"Content-Length", "Authorization"},

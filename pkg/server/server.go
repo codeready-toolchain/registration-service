@@ -38,8 +38,8 @@ func New(config configuration.Configuration, application application.Application
 		cors.New(cors.Config{
 			AllowAllOrigins:     true,
 			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
-			AllowHeaders:     []string{"*"},
-			ExposeHeaders:    []string{"*"},
+			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept"},
+			ExposeHeaders:    []string{"Content-Length", "Authorization"},
 			AllowCredentials: true,
 		}),
 	)

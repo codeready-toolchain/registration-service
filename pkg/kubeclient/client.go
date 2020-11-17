@@ -59,6 +59,8 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.MasterUserRecordList{},
 		&crtapi.BannedUser{},
 		&crtapi.BannedUserList{},
+		&crtapi.ToolchainStatus{},
+		&crtapi.ToolchainStatusList{},
 	}
 }
 

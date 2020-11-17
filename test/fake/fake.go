@@ -31,6 +31,10 @@ func (c *FakeCRTV1Alpha1Client) MasterUserRecords() kubeclient.MasterUserRecordI
 	return NewFakeMasterUserRecordClient(c.NS)
 }
 
+func (c *FakeCRTV1Alpha1Client) ToolchainStatuses() kubeclient.ToolchainStatusInterface {
+	return NewFakeToolchainStatusClient(c.NS)
+}
+
 // getGVRFromObject returns the GroupVersionResource for the specified object and scheme
 func getGVRFromObject(obj runtime.Object, scheme *runtime.Scheme) (schema.GroupVersionResource, error) {
 	gvk, err := apiutil.GVKForObject(obj, scheme)

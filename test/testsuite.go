@@ -22,6 +22,7 @@ type UnitTestSuite struct {
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
+	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
 	factoryOptions             []factory.Option
 	configOverride             configuration.Configuration
 }
@@ -55,6 +56,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.config.GetNamespace())
+	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.config.GetNamespace())
 	s.Application = fake.NewMockableApplication(s.config, s, s.factoryOptions...)
 }
 
@@ -73,6 +75,7 @@ func (s *UnitTestSuite) OverrideConfig(config configuration.Configuration) {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
+	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(config.GetNamespace())
 	s.Application = fake.NewMockableApplication(config, s, s.factoryOptions...)
 }
 
@@ -88,6 +91,7 @@ func (s *UnitTestSuite) TearDownSuite() {
 	s.FakeUserSignupClient = nil
 	s.FakeMasterUserRecordClient = nil
 	s.FakeBannedUserClient = nil
+	s.FakeToolchainStatusClient = nil
 }
 
 func (s *UnitTestSuite) V1Alpha1() kubeclient.V1Alpha1 {
@@ -104,4 +108,8 @@ func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface
 
 func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 	return s.FakeBannedUserClient
+}
+
+func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface {
+	return s.FakeToolchainStatusClient
 }

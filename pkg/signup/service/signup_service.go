@@ -174,7 +174,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
 		status, err := s.CRTClient().V1Alpha1().ToolchainStatuses().Get()
 		if err != nil {
-			return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName()))
+			return nil, errors2.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
 		for _, member := range status.Status.Members {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {

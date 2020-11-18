@@ -5,12 +5,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
-	"github.com/stretchr/testify/require"
 
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -53,10 +52,10 @@ func (s *UnitTestSuite) SetupTest() {
 
 func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.config = s.DefaultConfig()
-	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.config.GetNamespace())
-	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.config.GetNamespace())
-	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.config.GetNamespace())
-	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.config.GetNamespace())
+	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), s.config.GetNamespace())
+	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), s.config.GetNamespace())
+	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), s.config.GetNamespace())
+	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), s.config.GetNamespace())
 	s.Application = fake.NewMockableApplication(s.config, s, s.factoryOptions...)
 }
 
@@ -72,10 +71,10 @@ func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
 
 func (s *UnitTestSuite) OverrideConfig(config configuration.Configuration) {
 	s.configOverride = config
-	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(config.GetNamespace())
-	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(config.GetNamespace())
-	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(config.GetNamespace())
-	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(config.GetNamespace())
+	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), config.GetNamespace())
+	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), config.GetNamespace())
+	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), config.GetNamespace())
+	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), config.GetNamespace())
 	s.Application = fake.NewMockableApplication(config, s, s.factoryOptions...)
 }
 

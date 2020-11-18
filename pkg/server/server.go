@@ -32,7 +32,7 @@ type RegistrationServer struct {
 func New(config configuration.Configuration, application application.Application) *RegistrationServer {
 
 	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
-	ginRouter := gin.Default()
+	ginRouter := gin.New()
 	ginRouter.Use(
 		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
 		gin.Recovery(),

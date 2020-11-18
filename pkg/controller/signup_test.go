@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -335,10 +336,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
+		messageLines := strings.Split(bodyParams["message"].(string), "\n")
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
 		require.Equal(s.T(), float64(400), bodyParams["code"])
-		require.Equal(s.T(), "Key: 'Phone.CountryCode' Error:Field validation for 'CountryCode' failed on the "+
-			"'required' tag\nKey: 'Phone.PhoneNumber' Error:Field validation for 'PhoneNumber' failed on the 'required' tag", bodyParams["message"])
+		require.Contains(s.T(), messageLines, "Key: 'Phone.CountryCode' Error:Field validation for 'CountryCode' failed on the 'required' tag")
+		require.Contains(s.T(), messageLines, "Key: 'Phone.PhoneNumber' Error:Field validation for 'PhoneNumber' failed on the 'required' tag")
 		require.Equal(s.T(), "error reading request body", bodyParams["details"])
 	})
 

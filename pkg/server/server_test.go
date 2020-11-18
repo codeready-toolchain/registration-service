@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -35,4 +36,39 @@ func (s *TestServerSuite) TestServer() {
 
 	// Check that Engine() returns the router object.
 	require.NotNil(s.T(), srv.Engine())
+}
+
+func (s *TestServerSuite) TestCrossCors() {
+	// We're using the example config for the configuration here as the
+	// specific config params do not matter for testing the routes setup.
+	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
+
+	// Setting up the routes.
+	err := srv.SetupRoutes()
+	require.NoError(s.T(), err)
+
+	// Check that there are routes registered.
+	routes := srv.GetRegisteredRoutes()
+	require.NotEmpty(s.T(), routes)
+
+	// Check that Engine() returns the router object.
+	require.NotNil(s.T(), srv.Engine())
+
+	go srv.Engine().Run()
+
+	req, _ := http.NewRequest("OPTIONS", "http://localhost:8080/api/v1/authconfig", nil)
+	req.Header.Set("Origin", "http://example.com")
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+
+	require.Equal(s.T(), 204, resp.StatusCode)
+	require.Equal(s.T(), "Content-Length,Content-Type,Authorization,Accept", resp.Header.Get("Access-Control-Allow-Headers"))
+	require.Equal(s.T(), "PUT,PATCH,POST,GET,DELETE,OPTIONS", resp.Header.Get("Access-Control-Allow-Methods"))
+	require.Equal(s.T(), "*", resp.Header.Get("Access-Control-Allow-Origin"))
+	require.Equal(s.T(), "true", resp.Header.Get("Access-Control-Allow-Credentials"))
 }

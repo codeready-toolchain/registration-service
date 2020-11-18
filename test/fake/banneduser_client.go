@@ -3,39 +3,34 @@ package fake
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"os"
+	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/testing"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 type FakeBannedUserClient struct {
-	Tracker               testing.ObjectTracker
+	Tracker               kubetesting.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string
 	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.BannedUserList, error)
 }
 
-func NewFakeBannedUserClient(namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
+func NewFakeBannedUserClient(t *testing.T, namespace string, initObjs ...runtime.Object) *FakeBannedUserClient {
 	clientScheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
-	if err != nil {
-		log.Error(err, "Error adding to scheme")
-		os.Exit(1)
-	}
+	require.NoError(t, err, "Error adding to scheme")
 	crtapi.SchemeBuilder.Register(&crtapi.BannedUser{}, &crtapi.BannedUserList{})
 
-	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
+	tracker := kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
 		err := tracker.Add(obj)
-		if err != nil {
-			log.Error(err, "failed to add object to fake banned user client", "object", obj)
-			panic("could not add object to tracker: " + err.Error())
-		}
+		require.NoError(t, err, "failed to add object %v to fake banneduser client", obj)
 	}
 	return &FakeBannedUserClient{
 		Tracker:   tracker,

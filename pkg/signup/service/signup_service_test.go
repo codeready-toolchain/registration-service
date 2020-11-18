@@ -463,29 +463,36 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(&v1alpha1.MasterUserRecord{
+	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	require.NoError(s.T(), err)
+
+	err = s.FakeToolchainStatusClient.Tracker.Add(&v1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted",
+			Name:      "toolchain-status",
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.MasterUserRecordSpec{
-			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
-		},
-		Status: v1alpha1.MasterUserRecordStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: v1alpha1.ToolchainStatusStatus{
+			Members: []v1alpha1.Member{
 				{
-					Type:    v1alpha1.MasterUserRecordReady,
-					Status:  apiv1.ConditionTrue,
-					Reason:  "mur_ready_reason",
-					Message: "mur_ready_message",
+					ClusterName: "member-1",
+					MemberStatus: v1alpha1.MemberStatusStatus{
+						Routes: &v1alpha1.Routes{
+							ConsoleURL:      "https://console.member-1.com",
+							CheDashboardURL: "http://che-toolchain-che.member-1.com",
+						},
+					},
+				},
+				{
+					ClusterName: "member-123",
+					MemberStatus: v1alpha1.MemberStatusStatus{
+						Routes: &v1alpha1.Routes{
+							ConsoleURL:      "https://console.member-123.com",
+							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+						},
+					},
 				},
 			},
-			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
-				Name:            "member-123",
-				ConsoleURL:      "https://console.member-123.com",
-				CheDashboardURL: "http://che-toolchain-che.member-123.com",
-			}}},
 		},
 	})
 	require.NoError(s.T(), err)
@@ -497,11 +504,25 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.Equal(s.T(), "ted@domain.com", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
-	assert.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
-	assert.Equal(s.T(), response.Status.Message, "mur_ready_message")
+	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 	assert.False(s.T(), response.Status.VerificationRequired)
-	assert.Equal(s.T(), response.ConsoleURL, "https://console.member-123.com")
-	assert.Equal(s.T(), response.CheDashboardURL, "http://che-toolchain-che.member-123.com")
+	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	us := s.newUserSignupComplete()
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	require.NoError(s.T(), err)
+
+	_, err = s.Application.SignupService().GetSignup(us.Name)
+	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
@@ -644,6 +665,32 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 				},
 			},
 			CompliantUsername: "ted",
+		},
+	}
+}
+
+func (s *TestSignupServiceSuite) newProvisionedMUR() *v1alpha1.MasterUserRecord {
+	return &v1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "ted",
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.MasterUserRecordSpec{
+			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: v1alpha1.MasterUserRecordStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:    v1alpha1.MasterUserRecordReady,
+					Status:  apiv1.ConditionTrue,
+					Reason:  "mur_ready_reason",
+					Message: "mur_ready_message",
+				},
+			},
+			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
+				Name: "member-123",
+			}}},
 		},
 	}
 }

@@ -4,20 +4,21 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"os"
-
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"testing"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/testing"
+	kubetesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type FakeUserSignupClient struct {
-	Tracker               testing.ObjectTracker
+	Tracker               kubetesting.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string
 	MockGet               func(string) (*crtapi.UserSignup, error)
@@ -27,22 +28,16 @@ type FakeUserSignupClient struct {
 	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
 }
 
-func NewFakeUserSignupClient(namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
+func NewFakeUserSignupClient(t *testing.T, namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
 	clientScheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
-	if err != nil {
-		log.Error(err, "Error adding to scheme")
-		os.Exit(1)
-	}
+	require.NoError(t, err, "Error adding to scheme")
 	crtapi.SchemeBuilder.Register(&crtapi.UserSignup{}, &crtapi.UserSignupList{})
 
-	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
+	tracker := kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
 		err := tracker.Add(obj)
-		if err != nil {
-			log.Error(err, "failed to add object to fake user signup client", "object", obj)
-			panic("could not add object to tracker: " + err.Error())
-		}
+		require.NoError(t, err, "failed to add object %v to fake usersignup client", obj)
 	}
 	return &FakeUserSignupClient{
 		Tracker:   tracker,

@@ -37,8 +37,6 @@ func (s *TestServerSuite) TestServer() {
 	// Check that Engine() returns the router object.
 	require.NotNil(s.T(), srv.Engine())
 
-	go srv.Engine().Run()
-
 	s.T().Run("CORS", func(t *testing.T) {
 		go srv.Engine().Run()
 

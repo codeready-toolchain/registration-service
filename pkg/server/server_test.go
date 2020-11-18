@@ -56,14 +56,17 @@ func (s *TestServerSuite) TestCrossCors() {
 
 	go srv.Engine().Run()
 
-	req, _ := http.NewRequest("OPTIONS", "http://localhost:8080/api/v1/authconfig", nil)
+	req, err := http.NewRequest("OPTIONS", "http://localhost:8080/api/v1/authconfig", nil)
+	require.NoError(s.T(), err)
+
 	req.Header.Set("Origin", "http://example.com")
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	require.NoError(s.T(), err)
 	defer resp.Body.Close()
 
 	require.Equal(s.T(), 204, resp.StatusCode)

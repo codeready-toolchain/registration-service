@@ -38,7 +38,7 @@ func (s *TestServerSuite) TestServer() {
 	require.NotNil(s.T(), srv.Engine())
 }
 
-func (s *TestServerSuite) TestCrossCors() {
+func (s *TestServerSuite) TestCors() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
 	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))

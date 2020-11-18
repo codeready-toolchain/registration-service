@@ -21,7 +21,7 @@ func TestRunServerSuite(t *testing.T) {
 	suite.Run(t, &TestServerSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestServerSuite) TestCors() {
+func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
 	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))

@@ -24,7 +24,7 @@ func TestRunServerSuite(t *testing.T) {
 
 const (
 DefaultRetryInterval             = time.Millisecond * 100 // make it short because a "retry interval" is waited before the first test
-DefaultTimeout                   = time.Second * 60
+DefaultTimeout                   = time.Second * 30
 )
 
 func (s *TestServerSuite) TestServer() {

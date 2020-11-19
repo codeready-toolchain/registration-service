@@ -1,10 +1,11 @@
 package server_test
 
 import (
+	"github.com/codeready-toolchain/registration-service/test/fake"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"testing"
-
-	"github.com/codeready-toolchain/registration-service/test/fake"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -20,6 +21,11 @@ type TestServerSuite struct {
 func TestRunServerSuite(t *testing.T) {
 	suite.Run(t, &TestServerSuite{test.UnitTestSuite{}})
 }
+
+const (
+DefaultRetryInterval             = time.Millisecond * 100 // make it short because a "retry interval" is waited before the first test
+DefaultTimeout                   = time.Second * 60
+)
 
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
@@ -37,20 +43,41 @@ func (s *TestServerSuite) TestServer() {
 	// Check that Engine() returns the router object.
 	require.NotNil(s.T(), srv.Engine())
 
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	s.T().Run("CORS", func(t *testing.T) {
 		go srv.Engine().Run()
+
+		err := wait.Poll(DefaultRetryInterval, DefaultTimeout, func() (done bool, err error) {
+			req, err := http.NewRequest("GET", "http://localhost:8080/api/v1/health", nil)
+			if err != nil {
+				return false, err
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				return false, err
+			}
+
+			if resp.StatusCode != 200 {
+				return false, nil
+			}
+
+			return true, nil
+		})
 
 		req, err := http.NewRequest("OPTIONS", "http://localhost:8080/api/v1/authconfig", nil)
 		require.NoError(s.T(), err)
 
 		req.Header.Set("Origin", "http://example.com")
-		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		}
+
 		resp, err := client.Do(req)
 		require.NoError(s.T(), err)
+
 		defer resp.Body.Close()
 
 		require.Equal(s.T(), 204, resp.StatusCode)

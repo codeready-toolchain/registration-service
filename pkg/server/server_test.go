@@ -60,7 +60,8 @@ func (s *TestServerSuite) TestServer() {
 
 			resp, err := client.Do(req)
 			if err != nil {
-				return false, err
+				// We will ignore and try again until we don't get any error or timeout.
+				return false, nil
 			}
 
 			if resp.StatusCode != 200 {
@@ -69,6 +70,7 @@ func (s *TestServerSuite) TestServer() {
 
 			return true, nil
 		})
+		require.NoError(s.T(), err)
 
 		req, err := http.NewRequest("OPTIONS", "http://localhost:8080/api/v1/authconfig", nil)
 		require.NoError(s.T(), err)

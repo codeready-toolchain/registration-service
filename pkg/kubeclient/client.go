@@ -16,6 +16,7 @@ type V1Alpha1 interface {
 	UserSignups() UserSignupInterface
 	MasterUserRecords() MasterUserRecordInterface
 	BannedUsers() BannedUserInterface
+	ToolchainStatuses() ToolchainStatusInterface
 }
 
 // NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
@@ -58,6 +59,8 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.MasterUserRecordList{},
 		&crtapi.BannedUser{},
 		&crtapi.BannedUserList{},
+		&crtapi.ToolchainStatus{},
+		&crtapi.ToolchainStatusList{},
 	}
 }
 
@@ -104,6 +107,18 @@ func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 // BannedUsers returns an interface which may be used to perform query operations on BannedUser resources
 func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
+		crtClient: crtClient{
+			client: c.client.RestClient,
+			ns:     c.client.NS,
+			cfg:    c.client.Config,
+			scheme: c.client.Scheme,
+		},
+	}
+}
+
+// ToolchainStatuses returns an interface which may be used to perform query operations on ToolchainStatus resources
+func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
+	return &toolchainStatusClient{
 		crtClient: crtClient{
 			client: c.client.RestClient,
 			ns:     c.client.NS,

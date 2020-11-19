@@ -2,18 +2,20 @@ package fake
 
 import (
 	"encoding/json"
-	"os"
+	"testing"
 
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/testing"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 type FakeMasterUserRecordClient struct {
-	Tracker    testing.ObjectTracker
+	Tracker    kubetesting.ObjectTracker
 	Scheme     *runtime.Scheme
 	namespace  string
 	MockGet    func(string) (*crtapi.MasterUserRecord, error)
@@ -22,22 +24,16 @@ type FakeMasterUserRecordClient struct {
 	MockDelete func(name string, options *v1.DeleteOptions) error
 }
 
-func NewFakeMasterUserRecordClient(namespace string, initObjs ...runtime.Object) *FakeMasterUserRecordClient {
+func NewFakeMasterUserRecordClient(t *testing.T, namespace string, initObjs ...runtime.Object) *FakeMasterUserRecordClient {
 	clientScheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(clientScheme)
-	if err != nil {
-		log.Error(err, "Error adding to scheme")
-		os.Exit(1)
-	}
+	require.NoError(t, err, "Error adding to scheme")
 	crtapi.SchemeBuilder.Register(&crtapi.MasterUserRecord{}, &crtapi.MasterUserRecordList{})
 
-	tracker := testing.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
+	tracker := kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
 		err := tracker.Add(obj)
-		if err != nil {
-			log.Error(err, "failed to add object to fake user signup client", "object", obj)
-			panic("could not add object to tracker: " + err.Error())
-		}
+		require.NoError(t, err, "failed to add object %v to fake MUR client", obj)
 	}
 	return &FakeMasterUserRecordClient{
 		Tracker:   tracker,

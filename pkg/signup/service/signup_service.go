@@ -171,9 +171,18 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		VerificationRequired: userSignup.Spec.VerificationRequired,
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
-		// TODO Set ConsoleURL in UserSignup.Status. For now it's OK to get it from the first embedded UserAccount status from MUR.
-		signupResponse.ConsoleURL = mur.Status.UserAccounts[0].Cluster.ConsoleURL
-		signupResponse.CheDashboardURL = mur.Status.UserAccounts[0].Cluster.CheDashboardURL
+		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
+		status, err := s.CRTClient().V1Alpha1().ToolchainStatuses().Get()
+		if err != nil {
+			return nil, errors2.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
+		}
+		for _, member := range status.Status.Members {
+			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
+				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
+				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
+				break
+			}
+		}
 	}
 
 	return signupResponse, nil

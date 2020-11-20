@@ -6,6 +6,8 @@ var intervalRef;
 var countryCode;
 var phoneNumber;
 
+var idToken;
+
 // this is where we load our config from
 configURL = '/api/v1/authconfig'
 
@@ -101,7 +103,7 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
       
 // gets the signup state once.
 function getSignupState(cbSuccess, cbError) {
-  getJSON('GET', signupURL, keycloak.idToken, function(err, data) {
+  getJSON('GET', signupURL, idToken, function(err, data) {
     if (err != null) {
       cbError(err, data);
     } else {
@@ -201,7 +203,7 @@ function login() {
 
 // start signup process.
 function signup() {
-  getJSON('POST', signupURL, keycloak.idToken, function(err, data) {
+  getJSON('POST', signupURL, idToken, function(err, data) {
     if (err != null) {
       showError(JSON.stringify(data, null, 2));
     } else {
@@ -222,7 +224,7 @@ function initiatePhoneVerification() {
     showError('phone or country code invalid, please check your input.');
     show('state-initiate-phone-verification');
   } else {
-    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } else {
@@ -243,7 +245,7 @@ function completePhoneVerification() {
     showError('verification code has the wrong format, please check your input.');
     show('state-complete-phone-verification');
   } else {
-    getJSON('GET', phoneVerificationURL + '/' + verificationCode, keycloak.idToken, function(err, data) {
+    getJSON('GET', phoneVerificationURL + '/' + verificationCode, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } else {
@@ -255,7 +257,7 @@ function completePhoneVerification() {
 }
 
 function resendPhoneVerification() {
-    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } 
@@ -289,6 +291,7 @@ getJSON('GET', configURL, null, function(err, data) {
           keycloak.loadUserInfo()
             .success(function(data) {
               console.log('retrieved user info..');
+              idToken = keycloak.idToken
               showUser(data.preferred_username)
               // now check the signup state of the user.
               updateSignupState();
@@ -300,6 +303,7 @@ getJSON('GET', configURL, null, function(err, data) {
         } else {
           hideUser();
           hideAll();
+          idToken = null
           show('state-getstarted');
         }
       }).error(function() {

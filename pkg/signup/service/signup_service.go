@@ -7,16 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-
+	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
-
-	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
-
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
@@ -48,8 +45,9 @@ func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfigur
 	}
 }
 
-// CreateUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+// newUserSignup generates a new UserSignup resource with the specified username and userID.
+// This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
+func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	userEmail := ctx.GetString(context.EmailKey)
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
@@ -103,6 +101,16 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		},
 	}
 
+	return userSignup, nil
+}
+
+// createUserSignup creates a new UserSignup resource with the specified username and userID
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	userSignup, err := s.newUserSignup(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	created, err := s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
 	if err != nil {
 		return nil, err
@@ -116,9 +124,49 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
+// Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
+// if doesn't exist yet.
+func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	userID := ctx.GetString(context.SubKey)
+	// Retrieve UserSignup resource from the host cluster
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// New Signup
+			return s.createUserSignup(ctx)
+		}
+		return nil, err
+	}
+
+	// Check UserSignup status to determine whether user signup is deactivated
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
+	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+		// Signup is deactivated. We need to reactivate it
+		return s.reactivateUserSignup(ctx)
+	}
+
+	username := ctx.GetString(context.UsernameKey)
+	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", userID, username)
+}
+
+// reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	userSignup, err := s.newUserSignup(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
+	if err != nil {
+		return nil, err
+	}
+
+	return updated, nil
+}
+
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
-// Returns nil, nil if the UserSignup resource is not found.
+// Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
@@ -145,16 +193,23 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
-	} else if signupCondition.Status != apiv1.ConditionTrue {
-		signupResponse.Status = signup.Status{
-			Reason:               signupCondition.Reason,
-			Message:              signupCondition.Message,
-			VerificationRequired: userSignup.Spec.VerificationRequired,
+	} else {
+		if signupCondition.Status != apiv1.ConditionTrue {
+			// UserSignup is not complete
+			signupResponse.Status = signup.Status{
+				Reason:               signupCondition.Reason,
+				Message:              signupCondition.Message,
+				VerificationRequired: userSignup.Spec.VerificationRequired,
+			}
+			return signupResponse, nil
+		} else if signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+			// UserSignup is deactivated. Treat it as non-existent.
+			return nil, nil
 		}
-		return signupResponse, nil
 	}
 
-	// If UserSignup status is complete, retrieve MasterUserRecord resource from the host cluster and use its status
+	// If UserSignup status is complete as active
+	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur, err := s.CRTClient().V1Alpha1().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))

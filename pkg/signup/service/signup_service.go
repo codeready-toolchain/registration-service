@@ -156,12 +156,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context) (*v1alpha1.UserSign
 		return nil, err
 	}
 
-	updated, err := s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
-	if err != nil {
-		return nil, err
-	}
-
-	return updated, nil
+	return s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup

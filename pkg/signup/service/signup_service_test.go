@@ -156,10 +156,10 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
 		// given
-		deactivatedUS := existing
+		deactivatedUS := existing.DeepCopy()
 		deactivatedUS.Spec.Deactivated = true
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, &deactivatedUS, s.Config().GetNamespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
 		s.FakeUserSignupClient.MockUpdate = func(signup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
 			if signup.Name == userID.String() {

@@ -140,10 +140,10 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
-		deactivatedUS := existing
+		deactivatedUS := existing.DeepCopy()
 		deactivatedUS.Spec.Deactivated = true
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, &deactivatedUS, s.Config().GetNamespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
 
 		// when

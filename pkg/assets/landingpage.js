@@ -216,8 +216,8 @@ function initiatePhoneVerification() {
   countryCode = document.getElementById("phone-countrycode").value;
   phoneNumber = document.getElementById("phone-phonenumber").value;
   // check validity
-  let phoneValid = /^[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/im.test(phoneNumber);
-  let countryCodeValid = /^[\+]?[0-9]{1,4}$/.test(countryCode);
+  let phoneValid = /^[(]?[0-9]+[)]?[-\s\.]?[0-9]+[-\s\.\/0-9]*$/im.test(phoneNumber);
+  let countryCodeValid = /^[\+]?[0-9]+$/.test(countryCode);
   if (!phoneValid || !countryCodeValid) {
     showError('phone or country code invalid, please check your input.');
     show('state-initiate-phone-verification');

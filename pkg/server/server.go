@@ -8,8 +8,9 @@ import (
 	"sync"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
@@ -35,6 +36,18 @@ func New(config configuration.Configuration, application application.Application
 	ginRouter.Use(
 		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
 		gin.Recovery(),
+		// When the origin header is specified, cors middleware will expose the cors functionality and the
+		// OPTIONS endpoint may be executed. OPTIONS will return a status code  of 204 no content.
+		// If the origin is the same, the cors functionality is skipped and OPTIONS endpoint cannot be
+		// successfully called. Executing an OPTIONS request when from the same origin will result
+		// in a 403 forbidden response.
+		cors.New(cors.Config{
+			AllowAllOrigins:  true,
+			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
+			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept"},
+			ExposeHeaders:    []string{"Content-Length", "Authorization"},
+			AllowCredentials: true,
+		}),
 	)
 
 	srv := &RegistrationServer{

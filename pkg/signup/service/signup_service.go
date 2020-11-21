@@ -104,21 +104,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 	return userSignup, nil
 }
 
-// createUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
-	userSignup, err := s.newUserSignup(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	created, err := s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
-	if err != nil {
-		return nil, err
-	}
-
-	return created, nil
-}
-
 func extractEmailHost(email string) string {
 	i := strings.LastIndexByte(email, '@')
 	return email[i+1:]
@@ -149,8 +134,21 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", userID, username)
 }
 
+// createUserSignup creates a new UserSignup resource with the specified username and userID
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	userSignup, err := s.newUserSignup(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
+}
+
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
 func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	// Create a new signup and replace the existing one by that new one.
+	// We don't want to deal with merging/patching the usersignup resource and just want to make it look like a freshly
+	// created usersignup resource.
 	userSignup, err := s.newUserSignup(ctx)
 	if err != nil {
 		return nil, err

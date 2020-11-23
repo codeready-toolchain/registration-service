@@ -146,6 +146,9 @@ const (
 
 	// varWoopraDomain contains the woopra domain
 	varWoopraDomain = "woopra.domain"
+
+	// varSegmentWriteKey contains the segment write key
+	varSegmentWriteKey = "segment.write.key"
 )
 
 type Configuration interface {
@@ -175,6 +178,7 @@ type Configuration interface {
 	GetTwilioFromNumber() string
 	GetVerificationCodeExpiresInMin() int
 	GetWoopraDomain() string
+	GetSegmentWriteKey() string
 }
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -407,4 +411,9 @@ func (c *ViperConfig) GetVerificationCodeExpiresInMin() int {
 // GetWoopraDomain returns the woopra domain name
 func (c *ViperConfig) GetWoopraDomain() string {
 	return c.v.GetString(varWoopraDomain)
+}
+
+// GetSegmentWriteKey returns the segment write key
+func (c *ViperConfig) GetSegmentWriteKey() string {
+	return c.v.GetString(varSegmentWriteKey)
 }

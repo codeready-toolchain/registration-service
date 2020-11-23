@@ -19,12 +19,7 @@ type VerificationService interface {
 	VerifyCode(ctx *gin.Context, userID string, code string) error
 }
 
-type WoopraService interface {
-	GetWoopraDomain(ctx *gin.Context) string
-}
-
 type Services interface {
 	SignupService() SignupService
 	VerificationService() VerificationService
-	WoopraService() WoopraService
 }

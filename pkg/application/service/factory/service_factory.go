@@ -5,7 +5,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	woopra_service "github.com/codeready-toolchain/registration-service/pkg/woopra/service"
 	"github.com/prometheus/common/log"
 
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -51,10 +50,6 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 
 func (s *ServiceFactory) SignupService() service.SignupService {
 	return signup_service.NewSignupService(s.getContext(), s.config)
-}
-
-func (s *ServiceFactory) WoopraService() service.WoopraService {
-	return woopra_service.NewWoopraService(s.getContext(), s.config)
 }
 
 func (s *ServiceFactory) VerificationService() service.VerificationService {

@@ -143,6 +143,9 @@ const (
 	// varVerificationCodeExpiresInMin is used to set the amount of time (in minutes) that a verification code is active for before expiring
 	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiresInMin = 5
+
+	// varWoopraDomain contains the woopra domain
+	varWoopraDomain = "woopra.domain"
 )
 
 type Configuration interface {
@@ -171,6 +174,7 @@ type Configuration interface {
 	GetVerificationExcludedEmailDomains() []string
 	GetTwilioFromNumber() string
 	GetVerificationCodeExpiresInMin() int
+	GetWoopraDomain() string
 }
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -398,4 +402,9 @@ func (c *ViperConfig) GetTwilioFromNumber() string {
 // be expired
 func (c *ViperConfig) GetVerificationCodeExpiresInMin() int {
 	return c.v.GetInt(varVerificationCodeExpiresInMin)
+}
+
+// GetWoopraDomain returns the woopra domain name
+func (c *ViperConfig) GetWoopraDomain() string {
+	return c.v.GetString(varWoopraDomain)
 }

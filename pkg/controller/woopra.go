@@ -10,7 +10,6 @@ type woopraResponse struct {
 	WoopraDomain string `json:"woopra-domain"`
 }
 
-
 // Woopra implements the segment endpoint, which is invoked to
 // retrieve the woopra domain for the ui.
 type Woopra struct {

@@ -152,6 +152,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// then
 		require.NoError(s.T(), err)
 		assertUserSignupExists(userSignup, userID.String())
+		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {

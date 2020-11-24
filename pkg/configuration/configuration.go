@@ -145,10 +145,10 @@ const (
 	DefaultVerificationCodeExpiresInMin = 5
 
 	// varWoopraDomain contains the woopra domain
-	varWoopraDomain = "woopra.domain"
+	varWoopraDomain = "woopra_domain"
 
 	// varSegmentWriteKey contains the segment write key
-	varSegmentWriteKey = "segment.write.key"
+	varSegmentWriteKey = "segment_write_key"
 )
 
 type Configuration interface {

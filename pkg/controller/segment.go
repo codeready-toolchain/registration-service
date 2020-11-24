@@ -26,9 +26,5 @@ func NewSegment(config configuration.Configuration) *Segment {
 // GetSegmentWriteKey returns segment-write-key content for UI.
 func (s *Segment) GetSegmentWriteKey(ctx *gin.Context) {
 	segmentWriteKey := s.config.GetSegmentWriteKey()
-	if segmentWriteKey != "" {
-		ctx.JSON(http.StatusOK, segmentResponse{SegmentWriteKey: segmentWriteKey})
-	} else {
-		ctx.Status(http.StatusNotFound)
-	}
+	ctx.JSON(http.StatusOK, segmentResponse{SegmentWriteKey: segmentWriteKey})
 }

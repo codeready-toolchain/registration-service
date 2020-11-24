@@ -26,9 +26,5 @@ func NewWoopra(config configuration.Configuration) *Woopra {
 // GetHandler returns the woopra-domain for UI.
 func (w *Woopra) GetWoopraDomain(ctx *gin.Context) {
 	domain := w.config.GetWoopraDomain()
-	if domain != "" {
-		ctx.JSON(http.StatusOK, woopraResponse{WoopraDomain: domain})
-	} else {
-		ctx.Status(http.StatusNotFound)
-	}
+	ctx.JSON(http.StatusOK, woopraResponse{WoopraDomain: domain})
 }

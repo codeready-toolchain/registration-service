@@ -127,7 +127,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
-		return s.reactivateUserSignup(ctx, userSignup)
+		return s.reactivateUserSignup(ctx, *userSignup)
 	}
 
 	username := ctx.GetString(context.UsernameKey)
@@ -145,17 +145,20 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
-	// Create a new signup and replace the existing one by that new one.
-	// We don't want to deal with merging/patching the usersignup resource and just want to make it look like a freshly
-	// created usersignup resource.
-	userSignup, err := s.newUserSignup(ctx)
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
+	// We don't want to deal with merging/patching the usersignup resource
+	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
+	newUserSignup, err := s.newUserSignup(ctx)
 	if err != nil {
 		return nil, err
 	}
-	userSignup.ResourceVersion = existing.ResourceVersion // ResourceVersion is required for the update, so we need to copy it from the existing resource
 
-	return s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
+	existing.Annotations = newUserSignup.Annotations
+	existing.Labels = newUserSignup.Labels
+	existing.Spec = newUserSignup.Spec
+
+	return s.CRTClient().V1Alpha1().UserSignups().Update(&existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup

@@ -143,6 +143,9 @@ const (
 	// varVerificationCodeExpiresInMin is used to set the amount of time (in minutes) that a verification code is active for before expiring
 	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiresInMin = 5
+
+	varForbiddenUsernamePrefixes     = "forbidden.username.prefixes"
+	DefaultForbiddenUsernamePrefixes = "openshift,kubernetes"
 )
 
 type Configuration interface {
@@ -171,14 +174,16 @@ type Configuration interface {
 	GetVerificationExcludedEmailDomains() []string
 	GetTwilioFromNumber() string
 	GetVerificationCodeExpiresInMin() int
+	GetForbiddenUsernamePrefixes() []string
 }
 
 // Config encapsulates the Viper configuration registry which stores the
 // configuration data in-memory.
 type ViperConfig struct {
-	v               *viper.Viper
-	secretValues    map[string]string
-	excludedDomains []string
+	v                         *viper.Viper
+	secretValues              map[string]string
+	excludedDomains           []string
+	forbiddenUsernamePrefixes []string
 }
 
 // CreateEmptyConfig creates an initial, empty config.
@@ -199,6 +204,9 @@ func CreateEmptyConfig(cl client.Client) (*ViperConfig, error) {
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
 	c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+		return c == ','
+	})
+	c.forbiddenUsernamePrefixes = strings.FieldsFunc(c.v.GetString(varForbiddenUsernamePrefixes), func(c rune) bool {
 		return c == ','
 	})
 	return &c, nil
@@ -222,6 +230,11 @@ func New(configFilePath string, cl client.Client) (Configuration, error) {
 		}
 		if c.v.GetString(varVerificationExcludedEmailDomains) != "" {
 			c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
+				return c == ','
+			})
+		}
+		if c.v.GetString(varForbiddenUsernamePrefixes) != "" {
+			c.forbiddenUsernamePrefixes = strings.FieldsFunc(c.v.GetString(varForbiddenUsernamePrefixes), func(c rune) bool {
 				return c == ','
 			})
 		}
@@ -266,6 +279,7 @@ func (c *ViperConfig) setConfigDefaults() {
 	c.v.SetDefault(varVerificationAttemptsAllowed, DefaultVerificationAttemptsAllowed)
 	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
 	c.v.SetDefault(varVerificationCodeExpiresInMin, DefaultVerificationCodeExpiresInMin)
+	c.v.SetDefault(varForbiddenUsernamePrefixes, DefaultForbiddenUsernamePrefixes)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -398,4 +412,8 @@ func (c *ViperConfig) GetTwilioFromNumber() string {
 // be expired
 func (c *ViperConfig) GetVerificationCodeExpiresInMin() int {
 	return c.v.GetInt(varVerificationCodeExpiresInMin)
+}
+
+func (c *ViperConfig) GetForbiddenUsernamePrefixes() []string {
+	return c.forbiddenUsernamePrefixes
 }

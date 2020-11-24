@@ -32,6 +32,7 @@ type ServiceConfiguration interface {
 	GetVerificationEnabled() bool
 	GetVerificationExcludedEmailDomains() []string
 	GetVerificationCodeExpiresInMin() int
+	GetForbiddenUsernamePrefixes() []string
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -66,6 +67,14 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
 			return nil, errors.NewBadRequest("user has been banned")
+		}
+	}
+
+	// Confirm that the user doesn't have a forbidden username
+	username := ctx.GetString(context.UsernameKey)
+	for _, prefix := range s.Config.GetForbiddenUsernamePrefixes() {
+		if strings.HasPrefix(username, prefix) {
+			return nil, errors.NewBadRequest(fmt.Sprintf("username has forbidden prefix [%s]", prefix))
 		}
 	}
 

@@ -229,6 +229,27 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
 }
 
+func (s *TestSignupServiceSuite) TestFailsIfUserHasForbiddenPrefix() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "openshift-jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	_, err = s.Application.SignupService().CreateUserSignup(ctx)
+
+	require.Error(s.T(), err)
+	require.IsType(s.T(), &errors2.StatusError{}, err)
+	errStatus := err.(*errors2.StatusError).ErrStatus
+	require.Equal(s.T(), "Failure", errStatus.Status)
+	require.Equal(s.T(), "username has forbidden prefix [openshift]", errStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
+}
+
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
 

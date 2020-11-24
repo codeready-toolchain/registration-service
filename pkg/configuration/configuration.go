@@ -144,7 +144,7 @@ const (
 	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiresInMin = 5
 
-	varForbiddenUsernamePrefixes     = "forbidden.username.prefixes"
+	varForbiddenUsernamePrefixes     = "username.forbidden.prefixes"
 	DefaultForbiddenUsernamePrefixes = "openshift,kubernetes"
 )
 

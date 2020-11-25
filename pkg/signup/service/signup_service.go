@@ -33,6 +33,7 @@ type ServiceConfiguration interface {
 	GetVerificationExcludedEmailDomains() []string
 	GetVerificationCodeExpiresInMin() int
 	GetForbiddenUsernamePrefixes() []string
+	GetComplianceUsernamePrefix() string
 }
 
 // ServiceImpl represents the implementation of the signup service.
@@ -74,7 +75,8 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 	username := ctx.GetString(context.UsernameKey)
 	for _, prefix := range s.Config.GetForbiddenUsernamePrefixes() {
 		if strings.HasPrefix(username, prefix) {
-			return nil, errors.NewBadRequest(fmt.Sprintf("username has forbidden prefix [%s]", prefix))
+			username = fmt.Sprintf("%s%s", s.Config.GetComplianceUsernamePrefix(), username)
+			break
 		}
 	}
 
@@ -104,7 +106,7 @@ func (s *ServiceImpl) CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 		Spec: v1alpha1.UserSignupSpec{
 			TargetCluster:        "",
 			Approved:             false,
-			Username:             ctx.GetString(context.UsernameKey),
+			Username:             username,
 			GivenName:            ctx.GetString(context.GivenNameKey),
 			FamilyName:           ctx.GetString(context.FamilyNameKey),
 			Company:              ctx.GetString(context.CompanyKey),

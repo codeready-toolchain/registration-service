@@ -229,7 +229,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
 }
 
-func (s *TestSignupServiceSuite) TestFailsIfUserHasForbiddenPrefix() {
+func (s *TestSignupServiceSuite) TestUsernameModifiedIfUserHasForbiddenPrefix() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
 	userID, err := uuid.NewV4()
@@ -242,12 +242,22 @@ func (s *TestSignupServiceSuite) TestFailsIfUserHasForbiddenPrefix() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	_, err = s.Application.SignupService().CreateUserSignup(ctx)
 
-	require.Error(s.T(), err)
-	require.IsType(s.T(), &errors2.StatusError{}, err)
-	errStatus := err.(*errors2.StatusError).ErrStatus
-	require.Equal(s.T(), "Failure", errStatus.Status)
-	require.Equal(s.T(), "username has forbidden prefix [openshift]", errStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
+	require.NoError(s.T(), err)
+
+	gvk, err := apiutil.GVKForObject(&v1alpha1.UserSignup{}, s.FakeUserSignupClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*v1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+
+	require.Equal(s.T(), "crt-openshift-jsmith", val.Spec.Username)
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {

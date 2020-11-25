@@ -144,8 +144,13 @@ const (
 	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiresInMin = 5
 
+	// varForbiddenUsernamePrefixes defines the prefixes that a username may not have when signing up.  If a
+	// username has a forbidden prefix, then the username compliance prefix is added to the username
 	varForbiddenUsernamePrefixes     = "username.forbidden.prefixes"
 	DefaultForbiddenUsernamePrefixes = "openshift,kubernetes"
+
+	varComplianceUsernamePrefix     = "username.compliance.prefix"
+	DefaultComplianceUsernamePrefix = "crt-"
 )
 
 type Configuration interface {
@@ -175,6 +180,7 @@ type Configuration interface {
 	GetTwilioFromNumber() string
 	GetVerificationCodeExpiresInMin() int
 	GetForbiddenUsernamePrefixes() []string
+	GetComplianceUsernamePrefix() string
 }
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -280,6 +286,7 @@ func (c *ViperConfig) setConfigDefaults() {
 	c.v.SetDefault(varVerificationMessageTemplate, DefaultVerificationMessageTemplate)
 	c.v.SetDefault(varVerificationCodeExpiresInMin, DefaultVerificationCodeExpiresInMin)
 	c.v.SetDefault(varForbiddenUsernamePrefixes, DefaultForbiddenUsernamePrefixes)
+	c.v.SetDefault(varComplianceUsernamePrefix, DefaultComplianceUsernamePrefix)
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or
@@ -416,4 +423,8 @@ func (c *ViperConfig) GetVerificationCodeExpiresInMin() int {
 
 func (c *ViperConfig) GetForbiddenUsernamePrefixes() []string {
 	return c.forbiddenUsernamePrefixes
+}
+
+func (c *ViperConfig) GetComplianceUsernamePrefix() string {
+	return c.v.GetString(varComplianceUsernamePrefix)
 }

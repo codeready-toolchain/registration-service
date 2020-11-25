@@ -118,15 +118,13 @@ function updateSignupState() {
   getSignupState(function(data) {
     if (data.status.ready === false && data.status.verificationRequired) {
       console.log('verification required..');
-      if (intervalRef)
-        clearInterval(intervalRef);
+      stopPolling();
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {
       console.log('account is ready..');
       // account is ready to use; stop interval.
-      if (intervalRef)
-        clearInterval(intervalRef);
+      stopPolling();
       consoleURL = data.consoleURL;
       if (consoleURL === undefined) {
         consoleURL = 'n/a'
@@ -147,19 +145,13 @@ function updateSignupState() {
       // account is provisioning; start polling.
       hideAll();
       show('state-waiting-for-provisioning')
-      if (!intervalRef) {
-        // only start if there is not already a polling running.
-        intervalRef = setInterval(updateSignupState, 1000);
-      }
+      startPolling();
     } else {
       console.log('account in unknown state, start polling..');
       // account is in an unknown state, display pending approval; start polling.
       hideAll();
       show('state-waiting-for-approval')
-      if (!intervalRef) {
-        // only start if there is not already a polling running.
-        intervalRef = setInterval(updateSignupState, 1000);
-      }
+      startPolling();
     }
   }, function(err, data) {
     if (err === 404) {
@@ -173,14 +165,14 @@ function updateSignupState() {
       } else {
         console.log('autoSignup is false..');
         // we still need to show GetStarted button even if the user is logged-in to SSO to avoid auto-signup without users clicking on Get Started button
-        clearInterval(intervalRef);
+        stopPolling();
         hideAll();
         show('state-getstarted');
       }
     } else if (err === 401) {
       console.log('error 401');
       // user is unauthorized, show login/signup view; stop interval.
-      clearInterval(intervalRef);
+      stopPolling();
       hideUser();
       hideAll();
       show('state-getstarted');
@@ -193,6 +185,19 @@ function updateSignupState() {
       showError(err);
     }
   })
+}
+
+function stopPolling() {
+  if (intervalRef) {
+    clearInterval(intervalRef);
+    intervalRef = undefined;
+  }
+}
+
+function startPolling() {
+  if (!intervalRef) {
+    intervalRef = setInterval(updateSignupState, 1000);
+  }
 }
 
 function login() {
@@ -211,7 +216,7 @@ function signup() {
       show('state-waiting-for-approval');
     }
   });
-  intervalRef = setInterval(updateSignupState, 1000);
+  startPolling();
 }
 
 function initiatePhoneVerification() {

@@ -6,6 +6,8 @@ var intervalRef;
 var countryCode;
 var phoneNumber;
 
+var idToken;
+
 // this is where we load our config from
 configURL = '/api/v1/authconfig'
 
@@ -101,7 +103,7 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
       
 // gets the signup state once.
 function getSignupState(cbSuccess, cbError) {
-  getJSON('GET', signupURL, keycloak.idToken, function(err, data) {
+  getJSON('GET', signupURL, idToken, function(err, data) {
     if (err != null) {
       cbError(err, data);
     } else {
@@ -116,15 +118,13 @@ function updateSignupState() {
   getSignupState(function(data) {
     if (data.status.ready === false && data.status.verificationRequired) {
       console.log('verification required..');
-      if (intervalRef)
-        clearInterval(intervalRef);
+      stopPolling();
       hideAll();
       show('state-initiate-phone-verification');
     } else if (data.status.ready === true) {
       console.log('account is ready..');
       // account is ready to use; stop interval.
-      if (intervalRef)
-        clearInterval(intervalRef);
+      stopPolling();
       consoleURL = data.consoleURL;
       if (consoleURL === undefined) {
         consoleURL = 'n/a'
@@ -145,19 +145,13 @@ function updateSignupState() {
       // account is provisioning; start polling.
       hideAll();
       show('state-waiting-for-provisioning')
-      if (!intervalRef) {
-        // only start if there is not already a polling running.
-        intervalRef = setInterval(updateSignupState, 1000);
-      }
+      startPolling();
     } else {
       console.log('account in unknown state, start polling..');
       // account is in an unknown state, display pending approval; start polling.
       hideAll();
       show('state-waiting-for-approval')
-      if (!intervalRef) {
-        // only start if there is not already a polling running.
-        intervalRef = setInterval(updateSignupState, 1000);
-      }
+      startPolling();
     }
   }, function(err, data) {
     if (err === 404) {
@@ -171,14 +165,14 @@ function updateSignupState() {
       } else {
         console.log('autoSignup is false..');
         // we still need to show GetStarted button even if the user is logged-in to SSO to avoid auto-signup without users clicking on Get Started button
-        clearInterval(intervalRef);
+        stopPolling();
         hideAll();
         show('state-getstarted');
       }
     } else if (err === 401) {
       console.log('error 401');
       // user is unauthorized, show login/signup view; stop interval.
-      clearInterval(intervalRef);
+      stopPolling();
       hideUser();
       hideAll();
       show('state-getstarted');
@@ -193,6 +187,19 @@ function updateSignupState() {
   })
 }
 
+function stopPolling() {
+  if (intervalRef) {
+    clearInterval(intervalRef);
+    intervalRef = undefined;
+  }
+}
+
+function startPolling() {
+  if (!intervalRef) {
+    intervalRef = setInterval(updateSignupState, 1000);
+  }
+}
+
 function login() {
   // User clicked on Get Started. We can enable autoSignup after successful login now.
   window.sessionStorage.setItem('autoSignup', 'true');
@@ -201,7 +208,7 @@ function login() {
 
 // start signup process.
 function signup() {
-  getJSON('POST', signupURL, keycloak.idToken, function(err, data) {
+  getJSON('POST', signupURL, idToken, function(err, data) {
     if (err != null) {
       showError(JSON.stringify(data, null, 2));
     } else {
@@ -209,7 +216,7 @@ function signup() {
       show('state-waiting-for-approval');
     }
   });
-  intervalRef = setInterval(updateSignupState, 1000);
+  startPolling();
 }
 
 function initiatePhoneVerification() {
@@ -222,7 +229,7 @@ function initiatePhoneVerification() {
     showError('phone or country code invalid, please check your input.');
     show('state-initiate-phone-verification');
   } else {
-    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } else {
@@ -243,7 +250,7 @@ function completePhoneVerification() {
     showError('verification code has the wrong format, please check your input.');
     show('state-complete-phone-verification');
   } else {
-    getJSON('GET', phoneVerificationURL + '/' + verificationCode, keycloak.idToken, function(err, data) {
+    getJSON('GET', phoneVerificationURL + '/' + verificationCode, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } else {
@@ -255,7 +262,7 @@ function completePhoneVerification() {
 }
 
 function resendPhoneVerification() {
-    getJSON('PUT', phoneVerificationURL, keycloak.idToken, function(err, data) {
+    getJSON('PUT', phoneVerificationURL, idToken, function(err, data) {
       if (err != null) {
         showError('Error while sending verification code. Please try again later.');
       } 
@@ -289,6 +296,7 @@ getJSON('GET', configURL, null, function(err, data) {
           keycloak.loadUserInfo()
             .success(function(data) {
               console.log('retrieved user info..');
+              idToken = keycloak.idToken
               showUser(data.preferred_username)
               // now check the signup state of the user.
               updateSignupState();
@@ -300,6 +308,7 @@ getJSON('GET', configURL, null, function(err, data) {
         } else {
           hideUser();
           hideAll();
+          idToken = null
           show('state-getstarted');
         }
       }).error(function() {

@@ -19,13 +19,13 @@ type TestWoopraSuite struct {
 }
 
 func TestRunWoopraSuite(t *testing.T) {
-	suite.Run(t, &TestAuthConfigSuite{test.UnitTestSuite{}})
+	suite.Run(t, &TestWoopraSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestAuthConfigSuite) TestWoopraHandler() {
+func (s *TestWoopraSuite) TestWoopraHandler() {
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/woopra", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/woopra-domain", nil)
 	require.NoError(s.T(), err)
 
 	// Check if the config is set to testing mode, so the handler may use this.

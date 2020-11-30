@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -84,9 +86,39 @@ func (c *mockSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
 	return c.verificationCodeExpiresInMin
 }
 
-func (s *TestSignupServiceSuite) TestCreateUserSignup() {
+func (s *TestSignupServiceSuite) TestSignup() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
+	assertUserSignupExists := func(userSignup *v1alpha1.UserSignup, userID string) (schema.GroupVersionResource, v1alpha1.UserSignup) {
+		require.NotNil(s.T(), userSignup)
+
+		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+		require.NoError(s.T(), err)
+		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
+		require.NoError(s.T(), err)
+
+		userSignups := values.(*v1alpha1.UserSignupList)
+		require.NotEmpty(s.T(), userSignups.Items)
+		require.Len(s.T(), userSignups.Items, 1)
+
+		val := userSignups.Items[0]
+		require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
+		require.Equal(s.T(), userID, val.Name)
+		require.Equal(s.T(), "jsmith", val.Spec.Username)
+		require.Equal(s.T(), "jane", val.Spec.GivenName)
+		require.Equal(s.T(), "doe", val.Spec.FamilyName)
+		require.Equal(s.T(), "red hat", val.Spec.Company)
+		require.False(s.T(), val.Spec.Approved)
+		require.True(s.T(), val.Spec.VerificationRequired)
+		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+
+		return gvr, val
+	}
+
+	// given
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -98,32 +130,51 @@ func (s *TestSignupServiceSuite) TestCreateUserSignup() {
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "doe")
 	ctx.Set(context.CompanyKey, "red hat")
-	userSignup, err := s.Application.SignupService().CreateUserSignup(ctx)
+
+	// when
+	userSignup, err := s.Application.SignupService().Signup(ctx)
+
+	// then
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), userSignup)
+	gvr, existing := assertUserSignupExists(userSignup, userID.String())
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
-	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+	s.Run("deactivate and reactivate again", func() {
+		// given
+		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Spec.Deactivated = true
+		deactivatedUS.Status.Conditions = deactivated()
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
+		require.NoError(s.T(), err)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
-	require.NoError(s.T(), err)
+		// when
+		userSignup, err := s.Application.SignupService().Signup(ctx)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
-	require.Len(s.T(), userSignups.Items, 1)
+		// then
+		require.NoError(s.T(), err)
+		assertUserSignupExists(userSignup, userID.String())
+		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
+	})
 
-	val := userSignups.Items[0]
-	require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
-	require.Equal(s.T(), userID.String(), val.Name)
-	require.Equal(s.T(), "jsmith", val.Spec.Username)
-	require.Equal(s.T(), "jane", val.Spec.GivenName)
-	require.Equal(s.T(), "doe", val.Spec.FamilyName)
-	require.Equal(s.T(), "red hat", val.Spec.Company)
-	require.False(s.T(), val.Spec.Approved)
-	require.True(s.T(), val.Spec.VerificationRequired)
-	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
-	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+	s.Run("deactivate and try to reactivate but reactivation fails", func() {
+		// given
+		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Spec.Deactivated = true
+		deactivatedUS.Status.Conditions = deactivated()
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
+		require.NoError(s.T(), err)
+		s.FakeUserSignupClient.MockUpdate = func(signup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+			if signup.Name == userID.String() {
+				return nil, errors.New("an error occurred")
+			}
+			return &v1alpha1.UserSignup{}, nil
+		}
+
+		// when
+		_, err = s.Application.SignupService().Signup(ctx)
+
+		// then
+		require.EqualError(s.T(), err, "an error occurred")
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
@@ -141,7 +192,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	ctx.Set(context.FamilyNameKey, "smith")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	userSignup, err := s.Application.SignupService().CreateUserSignup(ctx)
+	userSignup, err := s.Application.SignupService().Signup(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -185,14 +236,15 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	_, err = s.Application.SignupService().CreateUserSignup(ctx)
+	_, err = s.Application.SignupService().Signup(ctx)
 
-	require.EqualError(s.T(), err, fmt.Sprintf("usersignups.toolchain.dev.openshift.com \"%s\" already exists", userID.String()))
+	require.EqualError(s.T(), err, fmt.Sprintf("unable to create UserSignup [id: %s; username: jsmith] because there is already an active UserSignup with such ID", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
+	// given
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
@@ -219,8 +271,11 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	_, err = s.Application.SignupService().CreateUserSignup(ctx)
 
+	// when
+	_, err = s.Application.SignupService().Signup(ctx)
+
+	// then
 	require.Error(s.T(), err)
 	require.IsType(s.T(), &errors2.StatusError{}, err)
 	errStatus := err.(*errors2.StatusError).ErrStatus
@@ -325,7 +380,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	userSignup, err := s.Application.SignupService().CreateUserSignup(ctx)
+	userSignup, err := s.Application.SignupService().Signup(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
@@ -353,21 +408,18 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
-	expectedErr := errors.New("an error occurred")
-
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
 	s.FakeUserSignupClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
 		if name == userID.String() {
-			return nil, expectedErr
+			return nil, errors.New("an error occurred")
 		}
 		return &v1alpha1.UserSignup{}, nil
 	}
 
 	_, err = s.Application.SignupService().GetSignup(userID.String())
-	require.Error(s.T(), err)
-	require.Equal(s.T(), expectedErr, err)
+	require.EqualError(s.T(), err, "an error occurred")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
@@ -454,6 +506,18 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	require.Equal(s.T(), "", response.Status.Message)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	us := s.newUserSignupCompleteWithReason("Deactivated")
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	signup, err := s.Application.SignupService().GetSignup(us.Name)
+	require.Nil(s.T(), signup)
+	require.NoError(s.T(), err)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
@@ -643,6 +707,10 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
+	return s.newUserSignupCompleteWithReason("")
+}
+
+func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *v1alpha1.UserSignup {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	return &v1alpha1.UserSignup{
@@ -662,6 +730,7 @@ func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
 				{
 					Type:   v1alpha1.UserSignupComplete,
 					Status: apiv1.ConditionTrue,
+					Reason: reason,
 				},
 			},
 			CompliantUsername: "ted",
@@ -691,6 +760,16 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *v1alpha1.MasterUserRecord 
 			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
 				Name: "member-123",
 			}}},
+		},
+	}
+}
+
+func deactivated() []v1alpha1.Condition {
+	return []v1alpha1.Condition{
+		{
+			Type:   v1alpha1.UserSignupComplete,
+			Status: apiv1.ConditionTrue,
+			Reason: "Deactivated",
 		},
 	}
 }

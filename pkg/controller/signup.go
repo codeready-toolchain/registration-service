@@ -35,7 +35,7 @@ func NewSignup(app application.Application, config configuration.Configuration) 
 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
-	userSignup, err := s.app.SignupService().CreateUserSignup(ctx)
+	userSignup, err := s.app.SignupService().Signup(ctx)
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")

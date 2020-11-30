@@ -7,7 +7,7 @@ import (
 )
 
 type SignupService interface {
-	CreateUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
+	Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
 	GetSignup(userID string) (*signup.Signup, error)
 	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)

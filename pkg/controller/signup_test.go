@@ -117,7 +117,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 			},
 		}
 
-		svc.MockCreateUserSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
 			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
 			assert.Equal(s.T(), expectedUserID+"@test.com", ctx.GetString(context.EmailKey))
 			return signup, nil
@@ -134,7 +134,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockCreateUserSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 
@@ -662,7 +662,7 @@ func assertVerification(t *testing.T, storedUserSignup *crtapi.UserSignup, expec
 
 type FakeSignupService struct {
 	MockGetSignup               func(userID string) (*signup.Signup, error)
-	MockCreateUserSignup        func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup           func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockPhoneNumberAlreadyInUse func(userID, e164phoneNumber string) error
@@ -672,8 +672,8 @@ func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 	return m.MockGetSignup(userID)
 }
 
-func (m *FakeSignupService) CreateUserSignup(ctx *gin.Context) (*crtapi.UserSignup, error) {
-	return m.MockCreateUserSignup(ctx)
+func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {
+	return m.MockSignup(ctx)
 }
 
 func (m *FakeSignupService) GetUserSignup(userID string) (*crtapi.UserSignup, error) {

@@ -145,10 +145,10 @@ const (
 	DefaultVerificationCodeExpiresInMin = 5
 
 	// varWoopraDomain contains the woopra domain
-	varWoopraDomain = "woopra_domain"
+	varWoopraDomain = "woopra.domain"
 
 	// varSegmentWriteKey contains the segment write key
-	varSegmentWriteKey = "segment_write_key"
+	varSegmentWriteKey = "segment.write.key"
 )
 
 type Configuration interface {
@@ -189,18 +189,29 @@ type ViperConfig struct {
 	excludedDomains []string
 }
 
-// CreateEmptyConfig creates an initial, empty config.
-func CreateEmptyConfig(cl client.Client) (*ViperConfig, error) {
+// LoadConfig loads the initial configuration.
+func LoadConfig(cl client.Client) (*ViperConfig, error) {
 	os.Setenv("HOST_OPERATOR_SECRET_NAME", "host-operator-secret")
 	secret, err := configuration.LoadFromSecret("HOST_OPERATOR_SECRET_NAME", cl)
 	if err != nil {
 		return nil, err
 	}
+	os.Setenv("HOST_OPERATOR_CONFIG_MAP_NAME", "host-operator-config")
+	err = configuration.LoadFromConfigMap(EnvPrefix, "HOST_OPERATOR_CONFIG_MAP_NAME", cl)
+	if err != nil {
+		return nil, err
+	}
 
+	return initConfig(secret), nil
+}
+
+// initConfig creates an initial, empty configuration.
+func initConfig(secret map[string]string) *ViperConfig {
 	c := ViperConfig{
 		v:            viper.New(),
 		secretValues: secret,
 	}
+
 	c.v.SetEnvPrefix(EnvPrefix)
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -209,14 +220,15 @@ func CreateEmptyConfig(cl client.Client) (*ViperConfig, error) {
 	c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
 		return c == ','
 	})
-	return &c, nil
+
+	return &c
 }
 
 // New creates a configuration reader object using a configurable configuration
 // file path. If the provided config file path is empty, a default configuration
 // will be created.
 func New(configFilePath string, cl client.Client) (Configuration, error) {
-	c, err := CreateEmptyConfig(cl)
+	c, err := LoadConfig(cl)
 	if err != nil {
 		return nil, err
 	}

@@ -858,3 +858,66 @@ func (s *TestConfigurationSuite) TestTwilioFromNumber() {
 		assert.Equal(s.T(), u.String(), config.GetTwilioFromNumber())
 	})
 }
+
+
+func (s *TestConfigurationSuite) TestWoopraDomain() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	key := configuration.EnvPrefix + "_" + "WOOPRA_DOMAIN"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetWoopraDomain())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration("woopra.domain: test for woopra domain")
+		assert.Equal(s.T(), "test for woopra domain", config.GetWoopraDomain())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetWoopraDomain())
+	})
+}
+
+func (s *TestConfigurationSuite) TestSegmentWriteKey() {
+	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	defer restore()
+	key := configuration.EnvPrefix + "_" + "SEGMENT_WRITE_KEY"
+	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+	defer resetFunc()
+
+	s.Run("default", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getDefaultConfiguration()
+		require.Equal(s.T(), "", config.GetSegmentWriteKey())
+	})
+
+	s.Run("file", func() {
+		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
+		defer resetFunc()
+		config := s.getFileConfiguration("segment.write.key: test for segment write key")
+		assert.Equal(s.T(), "test for segment write key", config.GetSegmentWriteKey())
+	})
+
+	s.Run("env overwrite", func() {
+		u, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		err = os.Setenv(key, u.String())
+		require.NoError(s.T(), err)
+		config := s.getDefaultConfiguration()
+		assert.Equal(s.T(), u.String(), config.GetSegmentWriteKey())
+	})
+}

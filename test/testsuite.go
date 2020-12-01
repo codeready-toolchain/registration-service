@@ -63,7 +63,7 @@ func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
 	restore := test.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
 	defer restore()
 
-	cfg, err := configuration.CreateEmptyConfig(test.NewFakeClient(s.T()))
+	cfg, err := configuration.LoadConfig(test.NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 	cfg.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
 	return cfg

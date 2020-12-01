@@ -42,7 +42,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		s.ViperConfig().GetViperInstance().Set("WOOPRA_DOMAIN", "testing woopra domain")
+		s.ViperConfig().GetViperInstance().Set("woopra.domain", "testing woopra domain")
 		assert.Equal(s.T(), "testing woopra domain", s.Config().GetWoopraDomain())
 		handler(ctx)
 

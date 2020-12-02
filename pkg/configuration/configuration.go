@@ -148,7 +148,7 @@ const (
 	varWoopraDomain = "woopra.domain"
 
 	// varSegmentWriteKey contains the segment write key
-	varSegmentWriteKey = "segment.write.key"
+	varSegmentWriteKey = "segment.write_key"
 )
 
 type Configuration interface {

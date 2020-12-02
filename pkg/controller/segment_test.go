@@ -42,7 +42,7 @@ func (s *TestSegmentSuite) TestSegmentHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		s.ViperConfig().GetViperInstance().Set("segment.write.key", "testing segment write key")
+		s.ViperConfig().GetViperInstance().Set("segment.write_key", "testing segment write key")
 		assert.Equal(s.T(), "testing segment write key", s.Config().GetSegmentWriteKey())
 
 		handler(ctx)

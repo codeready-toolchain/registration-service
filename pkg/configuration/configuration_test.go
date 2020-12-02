@@ -908,7 +908,7 @@ func (s *TestConfigurationSuite) TestSegmentWriteKey() {
 	s.Run("file", func() {
 		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
 		defer resetFunc()
-		config := s.getFileConfiguration("segment.write.key: test for segment write key")
+		config := s.getFileConfiguration("segment.write_key: test for segment write key")
 		assert.Equal(s.T(), "test for segment write key", config.GetSegmentWriteKey())
 	})
 

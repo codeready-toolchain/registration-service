@@ -859,7 +859,6 @@ func (s *TestConfigurationSuite) TestTwilioFromNumber() {
 	})
 }
 
-
 func (s *TestConfigurationSuite) TestWoopraDomain() {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()

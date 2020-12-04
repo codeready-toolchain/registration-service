@@ -16,100 +16,28 @@
         <img class="pf-c-brand" src="redhat-logo.svg" alt="Red Hat Logo" />
       </a>
     </div>
-    <div class="pf-c-page__header-nav">
-      <nav class="pf-c-nav" id="page-layout-horizontal-nav-horizontal-nav" aria-label="Global">
-        <ul class="pf-c-nav__horizontal-list">
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Customer Portal</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link pf-m-current" aria-current="page">Developer</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Hosted IDE</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">OpenShift</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Partners</a>
-          </li>
-          <li class="pf-c-nav__item">
-              <a href="#" class="pf-c-nav__link">Store</a>
-          </li>
-        </ul>
-      </nav>
-    </div>
     <div class="pf-c-page__header-tools">
       <div class="pf-c-page__header-tools-group">
         <div class="pf-m-user">
           <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
-          <span id="user-notloggedin" onclick="login()">Login/Signup</span>
+          <span id="user-notloggedin"></span>
         </div>
       </div>
     </div>
   </header> 
   <main role="main" class="pf-c-page__main" tabindex="-1">
     <section class="pf-c-page__main-section pf-m-light rhd-header">
-      <img class="pf-c-brand rhd-logo" src="rhdeveloper-logo.svg" alt="Red Hat Developer Logo" />
-      <nav class="pf-c-nav rhd-nav" id="page-layout-horizontal-nav-horizontal-nav">
-        <ul class="pf-c-nav__horizontal-list">
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Build</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Tools</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Events</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Training</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Products</a>
-          </li>
-        </ul>
-      </nav>    
-    </section>
-    <section class="pf-c-page__main-section pf-m-light rhd-header rhd-tertiary">
-      <nav class="pf-c-nav" aria-label="Local">
-        <ul class="pf-c-nav__tertiary-list">
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Istio</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Kubernetes</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Microservices</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">DevOps</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Serverless</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Linux</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Java</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Spring Boot</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link">Containers</a>
-          </li>
-          <li class="pf-c-nav__item">
-            <a href="#" class="pf-c-nav__link pf-m-current" aria-current="page">Toolchain</a>
-          </li>
-        </ul>
-      </nav> 
+      <div style="position: relative">
+        <table>
+          <tr>
+            <td><img class="pf-c-brand rhd-logo" src="rhdeveloper-logo.svg" alt="Red Hat Developer Logo" /></td>
+            <td style="padding-left: 0.8em; padding-bottom: 10px; font-size: 1.5em;">Developer Sandbox</td>
+          </tr>
+        </table>
+      </div>
     </section>
     <section class="pf-c-page__main-section">
-      <div id="state-error">
+      <div id="state-error" style="margin-bottom: 15px">
         <div class="pf-c-alert pf-m-danger pf-m-inline" aria-label="error">
           <div class="pf-c-alert__icon">
             <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
@@ -123,8 +51,12 @@
       </div>
       <div class="pf-c-content">
         <div class="toolchain-state" id="state-getstarted">
-          <button class="getstartedbutton" onclick="login()">Get Started with CodeReady Toolchain</button>
-          <p class="terms"><a href="#">Terms and Conditions</a> &copy; 2020, Red Hat Inc.</p>
+          <button id="loginbutton" class="getstartedbutton-disabled" onclick="login()">Get Started with CodeReady Toolchain</button>
+          <p class="terms">
+            <input onchange="termsAgreed(this)" style="display: table-cell; vertical-align: middle;" type="checkbox">
+            <span>I agree to the <a href="https://www.openshift.com/legal/terms/">Terms and Conditions</a></span>
+          </p>
+          <p class="terms">&copy; 2020, Red Hat Inc.</p>
         </div>
         <div class="toolchain-state" id="state-initiate-phone-verification">
           <p>You need to confirm your account using a mobile phone. Please enter you phone number including country code:</p>
@@ -133,7 +65,7 @@
             - <input type="text" name="phonenumber" id="phone-phonenumber" required minlength="6" maxlength="32" size="15" placeholder="123-4567890">
             <button class="phone-button" onclick="initiatePhoneVerification()">Send Code</button>
           </p>
-          <p>Cost may apply for receiving texts if abroad. Please consult with your service provider for details.</p>
+          <p class="terms">Cost may apply for receiving texts outside of the United States. Please consult with your service provider for details.</p>
         </div>
         <div class="toolchain-state" id="state-complete-phone-verification">
           <p>A text was sent to your mobile phone. Please enter the received code below:</p>
@@ -141,8 +73,9 @@
             Received Code: <input type="text" name="verificationcode" id="phone-verificationcode" required minlength="4" maxlength="10" size="10" placeholder="123456">
             <button class="phone-button" onclick="completePhoneVerification()">Verify Code</button>
           </p>
-          <p>
-            No text received? <button class="phone-button" onclick="resendPhoneVerification()">Resend Code</button> <span id="phone-verificationcode-resend-status"><b>Code was resent..</b></span>
+          <p class="terms">
+            No text received? <button class="link-button" onclick="resendPhoneVerification()">Resend Code</button> <span id="phone-verificationcode-resend-status"><b>Code was resent..</b></span>
+            &nbsp;Use a different phone number? <button class="link-button" onclick="restartPhoneVerification()">Update Phone Number</button> <span id="phone-verificationcode-resend-status"><b>Code was resent..</b></span>
           </p>
         </div>
         <div class="toolchain-state" id="state-waiting-for-approval">
@@ -170,46 +103,13 @@
                 <div class="pf-c-card">
                   <div class="pf-c-card__body">
                     <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />
-                    <h1>CodeReady Workspaces</h1>
+                    <h1>CodeReady&nbsp;Workspaces<br>&nbsp;</h1>
                     <span><a id="cheDashboard" href="#" class="pf-c-nav__link">Start Coding..</a></span>
                   </div>
                 </div>
               </div>
             </div>    
-            <h1>Training for Developers</h1>
             <div class="pf-l-gallery pf-m-gutter">
-              <div class="pf-l-gallery__item">
-                <div class="pf-c-card">
-                  <div class="pf-c-card__body">
-                    <h1>Using<br>CodeReady<br>Workspaces</h1>
-                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>
-                  </div>
-                </div>
-              </div>
-              <div class="pf-l-gallery__item">
-                <div class="pf-c-card">
-                  <div class="pf-c-card__body">
-                    <h1>Using<br>OpenShift<br>Container Platform</h1>
-                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
-                  </div>
-                </div>
-              </div>
-              <div class="pf-l-gallery__item">
-                <div class="pf-c-card">
-                  <div class="pf-c-card__body">
-                    <h1>Using<br>OpenShift<br>Pipelines</h1>
-                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
-                  </div>
-                </div>
-              </div>
-              <div class="pf-l-gallery__item">
-                <div class="pf-c-card">
-                  <div class="pf-c-card__body">
-                    <h1>Using<br>OpenShift<br>Serverless</h1>
-                    <span><a href="#" class="pf-c-nav__link">Start Course</a></span>  
-                  </div>
-                </div>
-              </div>
             </div>
           </div>    
         </div>  
@@ -217,43 +117,6 @@
     </section>
     <section class="pf-c-page__main-section pf-m-light">
       <div class="pf-l-gallery pf-m-gutter">
-        <div class="pf-l-gallery__item">
-          <div class="pf-c-card">
-            <div class="pf-c-card__body">
-              <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />
-              <h1>CodeReady<br>Workspaces</h1>
-              <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>
-            </div>
-          </div>
-        </div>
-        <div class="pf-l-gallery__item">
-          <div class="pf-c-card">
-            <div class="pf-c-card__body">
-              <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Container Platform Logo" />
-              <h1>OpenShift<br>Container Platform</h1>
-              <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
-            </div>
-          </div>
-        </div>
-        <div class="pf-l-gallery__item">
-            <div class="pf-c-card">
-              <div class="pf-c-card__body">
-                <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Pipelines Logo" />
-                <h1>OpenShift<br>Pipelines</h1>
-                <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
-              </div>
-            </div>
-        </div>
-        <div class="pf-l-gallery__item">
-            <div class="pf-c-card">
-              <div class="pf-c-card__body">
-                <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Serverless Logo" />
-                <h1>OpenShift<br>Serverless</h1>
-                <span><a href="#" class="pf-c-nav__link">Learn more..</a></span>  
-              </div>
-            </div>
-          </div>
-        </div>
     </section>
   </main>
 </div>

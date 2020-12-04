@@ -226,7 +226,7 @@ function initiatePhoneVerification() {
   let phoneValid = /^[(]?[0-9]+[)]?[-\s\.]?[0-9]+[-\s\.\/0-9]*$/im.test(phoneNumber);
   let countryCodeValid = /^[\+]?[0-9]+$/.test(countryCode);
   if (!phoneValid || !countryCodeValid) {
-    showError('phone or country code invalid, please check your input.');
+    showError('Phone or country code invalid, please check your input.');
     show('state-initiate-phone-verification');
   } else {
     getJSON('PUT', phoneVerificationURL, idToken, function(err, data) {
@@ -274,6 +274,23 @@ function resendPhoneVerification() {
     setTimeout(function() {
       document.getElementById('phone-verificationcode-resend-status').style.display = 'none';
     }, 2000);
+}
+
+function restartPhoneVerification() {
+  console.log('updating phone number..');
+  stopPolling();
+  hideAll();
+  show('state-initiate-phone-verification');
+}
+
+function termsAgreed(cb) {
+  if (cb.checked) {
+    document.getElementById('loginbutton').classList.remove('getstartedbutton-disabled');
+    document.getElementById('loginbutton').classList.add('getstartedbutton-enabled');  
+  } else {
+    document.getElementById('loginbutton').classList.add('getstartedbutton-disabled');
+    document.getElementById('loginbutton').classList.remove('getstartedbutton-enabled');  
+  }
 }
 
 // main operation, load config, load client, run client

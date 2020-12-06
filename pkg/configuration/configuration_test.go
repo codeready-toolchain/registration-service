@@ -789,6 +789,7 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 		// then
 		assert.Equal(s.T(), "", config.GetTwilioAccountSID())
 		assert.Equal(s.T(), "", config.GetTwilioAuthToken())
+		assert.Equal(s.T(), "", config.GetTwilioFromNumber())
 	})
 	s.T().Run("env overwrite", func(t *testing.T) {
 		// given
@@ -800,6 +801,7 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 			Data: map[string][]byte{
 				"twilio.account.sid": []byte("test-account-sid"),
 				"twilio.auth.token":  []byte("test-auth-token"),
+				"twilio.from_number": []byte("+1234567890"),
 			},
 		}
 
@@ -810,6 +812,7 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 		require.NoError(t, err)
 		assert.Equal(t, "test-account-sid", config.GetTwilioAccountSID())
 		assert.Equal(t, "test-auth-token", config.GetTwilioAuthToken())
+		assert.Equal(t, "+1234567890", config.GetTwilioFromNumber())
 	})
 
 	s.T().Run("secret not found", func(t *testing.T) {
@@ -823,39 +826,6 @@ func (s *TestConfigurationSuite) TestTwilioAccountSID() {
 		// then
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-	})
-}
-
-func (s *TestConfigurationSuite) TestTwilioFromNumber() {
-	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
-	defer restore()
-	key := configuration.EnvPrefix + "_" + "TWILIO_FROM_NUMBER"
-	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-	defer resetFunc()
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		require.Equal(s.T(), "", config.GetTwilioFromNumber())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		config := s.getFileConfiguration(`twilio.from_number: ` + u.String())
-		assert.Equal(s.T(), u.String(), config.GetTwilioFromNumber())
-	})
-
-	s.Run("env overwrite", func() {
-		u, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		err = os.Setenv(key, u.String())
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), u.String(), config.GetTwilioFromNumber())
 	})
 }
 

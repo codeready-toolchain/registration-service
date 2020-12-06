@@ -411,7 +411,7 @@ func (c *ViperConfig) GetVerificationExcludedEmailDomains() []string {
 
 // GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages
 func (c *ViperConfig) GetTwilioFromNumber() string {
-	return c.v.GetString(varTwilioFromNumber)
+	return c.secretValues[varTwilioFromNumber]
 }
 
 // GetVerificationCodeExpiresInMin returns an int representing the number of minutes before a verification code should

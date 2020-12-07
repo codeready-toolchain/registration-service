@@ -316,7 +316,7 @@ getJSON('GET', configURL, null, function(err, data) {
       keycloak = Keycloak(clientConfig);
       keycloak.init({
         onLoad: 'check-sso',
-        silentCheckSsoRedirectUri: window.location.origin,
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       }).success(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');

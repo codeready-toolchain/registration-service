@@ -30,7 +30,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()
 
-	configRegistry, err := configuration.CreateEmptyConfig(NewFakeClient(s.T()))
+	configRegistry, err := configuration.LoadConfig(NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 
 	// create test keys

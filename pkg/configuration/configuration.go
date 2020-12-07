@@ -143,6 +143,12 @@ const (
 	// varVerificationCodeExpiresInMin is used to set the amount of time (in minutes) that a verification code is active for before expiring
 	varVerificationCodeExpiresInMin     = "verification.code_expires_in_min"
 	DefaultVerificationCodeExpiresInMin = 5
+
+	// varWoopraDomain contains the woopra domain
+	varWoopraDomain = "woopra.domain"
+
+	// varSegmentWriteKey contains the segment write key
+	varSegmentWriteKey = "segment.write_key"
 )
 
 type Configuration interface {
@@ -171,6 +177,8 @@ type Configuration interface {
 	GetVerificationExcludedEmailDomains() []string
 	GetTwilioFromNumber() string
 	GetVerificationCodeExpiresInMin() int
+	GetWoopraDomain() string
+	GetSegmentWriteKey() string
 }
 
 // Config encapsulates the Viper configuration registry which stores the
@@ -181,18 +189,29 @@ type ViperConfig struct {
 	excludedDomains []string
 }
 
-// CreateEmptyConfig creates an initial, empty config.
-func CreateEmptyConfig(cl client.Client) (*ViperConfig, error) {
+// LoadConfig loads the initial configuration.
+func LoadConfig(cl client.Client) (*ViperConfig, error) {
 	os.Setenv("HOST_OPERATOR_SECRET_NAME", "host-operator-secret")
 	secret, err := configuration.LoadFromSecret("HOST_OPERATOR_SECRET_NAME", cl)
 	if err != nil {
 		return nil, err
 	}
+	os.Setenv("HOST_OPERATOR_CONFIG_MAP_NAME", "host-operator-config")
+	err = configuration.LoadFromConfigMap(EnvPrefix, "HOST_OPERATOR_CONFIG_MAP_NAME", cl)
+	if err != nil {
+		return nil, err
+	}
 
+	return initConfig(secret), nil
+}
+
+// initConfig creates an initial, empty configuration.
+func initConfig(secret map[string]string) *ViperConfig {
 	c := ViperConfig{
 		v:            viper.New(),
 		secretValues: secret,
 	}
+
 	c.v.SetEnvPrefix(EnvPrefix)
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -201,14 +220,15 @@ func CreateEmptyConfig(cl client.Client) (*ViperConfig, error) {
 	c.excludedDomains = strings.FieldsFunc(c.v.GetString(varVerificationExcludedEmailDomains), func(c rune) bool {
 		return c == ','
 	})
-	return &c, nil
+
+	return &c
 }
 
 // New creates a configuration reader object using a configurable configuration
 // file path. If the provided config file path is empty, a default configuration
 // will be created.
 func New(configFilePath string, cl client.Client) (Configuration, error) {
-	c, err := CreateEmptyConfig(cl)
+	c, err := LoadConfig(cl)
 	if err != nil {
 		return nil, err
 	}
@@ -391,11 +411,21 @@ func (c *ViperConfig) GetVerificationExcludedEmailDomains() []string {
 
 // GetTwilioFromNumber is the phone number or alphanumeric "Sender ID" for sending phone verification messages
 func (c *ViperConfig) GetTwilioFromNumber() string {
-	return c.v.GetString(varTwilioFromNumber)
+	return c.secretValues[varTwilioFromNumber]
 }
 
 // GetVerificationCodeExpiresInMin returns an int representing the number of minutes before a verification code should
 // be expired
 func (c *ViperConfig) GetVerificationCodeExpiresInMin() int {
 	return c.v.GetInt(varVerificationCodeExpiresInMin)
+}
+
+// GetWoopraDomain returns the woopra domain name
+func (c *ViperConfig) GetWoopraDomain() string {
+	return c.v.GetString(varWoopraDomain)
+}
+
+// GetSegmentWriteKey returns the segment write key
+func (c *ViperConfig) GetSegmentWriteKey() string {
+	return c.v.GetString(varSegmentWriteKey)
 }

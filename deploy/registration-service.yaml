@@ -45,6 +45,7 @@ objects:
       - ""
       resources:
       - secrets
+      - configmaps
       verbs:
       - get
       - list
@@ -166,11 +167,6 @@ objects:
                     configMapKeyRef:
                       name: registration-service
                       key: verification.message_template
-                - name: REGISTRATION_TWILIO_FROM_NUMBER
-                  valueFrom:
-                    configMapKeyRef:
-                      name: registration-service
-                      key: twilio.from_number
   - kind: Service
     apiVersion: v1
     metadata:
@@ -227,7 +223,6 @@ objects:
       verification.code_expires_in_min: ${VERIFICATION_CODE_EXPIRES_IN_MIN}
       verification.excluded_email_domains: ${VERIFICATION_EXCLUDED_EMAIL_DOMAINS}
       verification.message_template: ${VERIFICATION_MESSAGE_TEMPLATE}
-      twilio.from_number: ${TWILIO_FROM_NUMBER}
 parameters:
   - name: NAMESPACE
     value: 'toolchain-host-operator'
@@ -254,6 +249,4 @@ parameters:
   - name: VERIFICATION_EXCLUDED_EMAIL_DOMAINS
     value: ''
   - name: VERIFICATION_MESSAGE_TEMPLATE
-    value: ''
-  - name: TWILIO_FROM_NUMBER
     value: ''

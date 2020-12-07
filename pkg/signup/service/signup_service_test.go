@@ -50,7 +50,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, namespace)
 	defer restore()
 
-	baseConfig, err := configuration.CreateEmptyConfig(test2.NewFakeClient(s.T()))
+	baseConfig, err := configuration.LoadConfig(test2.NewFakeClient(s.T()))
 	require.NoError(s.T(), err)
 
 	return &mockSignupServiceConfiguration{

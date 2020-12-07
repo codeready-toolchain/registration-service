@@ -46,7 +46,7 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
 	defer restore()
 
-	baseConfig, _ := configuration.CreateEmptyConfig(test2.NewFakeClient(s.T()))
+	baseConfig, _ := configuration.LoadConfig(test2.NewFakeClient(s.T()))
 
 	return &mockVerificationConfig{
 		ViperConfig:     *baseConfig,

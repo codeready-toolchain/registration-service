@@ -28,8 +28,10 @@ var getJSON = function(method, url, token, callback, body) {
   xhr.onload = function() {
     var status = xhr.status;
     if (status >= 200 && status < 300) {
+      console.log('getJSON success: ' + url);
       callback(null, xhr.response);
     } else {
+      console.log('getJSON error: ' + url);
       callback(status, xhr.response);
     }
   };
@@ -41,6 +43,7 @@ var getJSON = function(method, url, token, callback, body) {
 
 // hides all state content.
 function hideAll() {
+  console.log('hiding all..');
   document.getElementById('state-waiting-for-provisioning').style.display = 'none';
   document.getElementById('state-waiting-for-approval').style.display = 'none';
   document.getElementById('state-provisioned').style.display = 'none';
@@ -55,6 +58,7 @@ function hideAll() {
 // state-waiting-for-provisioning, state-waiting-for-approval,
 // state-provisioned, state-getstarted, dashboard, state-error
 function show(elementId) {
+  console.log('showing element: ' + elementId);
   document.getElementById(elementId).style.display = 'block';
 }
 
@@ -66,6 +70,7 @@ function showError(errorText) {
 
 // shows a logged in user.
 function showUser(username) {
+  console.log('showing user..');
   document.getElementById('username').textContent = username;
   document.getElementById('user-loggedin').style.display = 'inline';
   document.getElementById('user-notloggedin').style.display = 'none';
@@ -73,6 +78,7 @@ function showUser(username) {
 
 // shows login/signup button
 function hideUser() {
+  console.log('hiding user..');
   document.getElementById('username').textContent = '';
   document.getElementById('user-loggedin').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'inline';
@@ -105,8 +111,10 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
 function getSignupState(cbSuccess, cbError) {
   getJSON('GET', signupURL, idToken, function(err, data) {
     if (err != null) {
+      console.log('getSignup error..');
       cbError(err, data);
     } else {
+      console.log('getSignup successful..');
       cbSuccess(data);
     }
   })
@@ -137,7 +145,7 @@ function updateSignupState() {
       }
       console.log('showing dashboard..');
       hideAll();
-      show('dashboard')
+      show('dashboard');
       document.getElementById('stateConsole').href = consoleURL;
       document.getElementById('cheDashboard').href = cheDashboardURL;
     } else if (data.status.ready === false && data.status.reason === 'Provisioning') {
@@ -188,6 +196,7 @@ function updateSignupState() {
 }
 
 function stopPolling() {
+  console.log('start polling..');
   if (intervalRef) {
     clearInterval(intervalRef);
     intervalRef = undefined;
@@ -195,6 +204,7 @@ function stopPolling() {
 }
 
 function startPolling() {
+  console.log('stop polling..');
   if (!intervalRef) {
     intervalRef = setInterval(updateSignupState, 1000);
   }
@@ -323,6 +333,7 @@ getJSON('GET', configURL, null, function(err, data) {
               showError('Failed to pull in user data.');  
             });
         } else {
+          console.log('user not authenticated');
           hideUser();
           hideAll();
           idToken = null

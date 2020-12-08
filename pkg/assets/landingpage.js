@@ -1,6 +1,7 @@
 
 // interval reference
 var intervalRef;
+var intervalRefRefresh;
 
 // given country code and phone number
 var countryCode;
@@ -210,6 +211,17 @@ function startPolling() {
   }
 }
 
+function refreshToken() {
+  // if the token is still valid for the next 30 sec, it is not refreshed.
+  console.log('check refreshing token..');
+  keycloak.updateToken(30)
+    .then(function(refreshed) {
+        alert('token refresh result: ' + refreshed);
+    }).catch(function() {
+        alert('failed to refresh the token, or the session has expired');
+    });
+}
+
 function login() {
   // User clicked on Get Started. We can enable autoSignup after successful login now.
   window.sessionStorage.setItem('autoSignup', 'true');
@@ -320,6 +332,8 @@ getJSON('GET', configURL, null, function(err, data) {
       }).success(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');
+          // start 15s interval token refresh.
+          intervalRefRefresh = setInterval(refreshToken, 15000);
           keycloak.loadUserInfo()
             .success(function(data) {
               console.log('retrieved user info..');

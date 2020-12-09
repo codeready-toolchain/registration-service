@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@4.6.3/patternfly.css" crossorigin="anonymous">
   <link rel="stylesheet" href="landingpage.css">
-  <title>CodeReady Toolchain</title>
+  <title>Developer Sandbox</title>
 </head>
 <body>
   <div class="pf-c-page" id="page-layout-horizontal-nav">
@@ -51,7 +51,7 @@
       </div>
       <div class="pf-c-content">
         <div class="toolchain-state" id="state-getstarted">
-          <button id="loginbutton" class="getstartedbutton-disabled" onclick="login()">Get Started with CodeReady Toolchain</button>
+          <button id="loginbutton" class="getstartedbutton-disabled" onclick="login()">Get Started with Developer Sandbox</button>
           <p class="terms">
             <input onchange="termsAgreed(this)" style="display: table-cell; vertical-align: middle;" type="checkbox">
             <span>I agree to the <a href="https://www.openshift.com/legal/terms/">Terms and Conditions</a></span>
@@ -79,13 +79,13 @@
           </p>
         </div>
         <div class="toolchain-state" id="state-waiting-for-approval">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account is waiting for approval</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account is waiting for approval</h1>
         </div>
         <div class="toolchain-state" id="state-waiting-for-provisioning">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account is waiting for provisioning</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account is waiting for provisioning</h1>
         </div>
         <div class="toolchain-state" id="state-provisioned">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your CodeReady Toolchain account has been provisioned</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account has been provisioned</h1>
         </div>
         <div class="toolchain-dashboard" id="dashboard">
           <div class="pf-c-content">
@@ -93,13 +93,13 @@
               <div class="pf-l-gallery__item">
                 <div class="pf-c-card">
                   <div class="pf-c-card__body">
-                    <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="CodeReady Workspaces Logo" />
+                    <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Logo" />
                     <h1>Red Hat OpenShift Dev Experience</h1>
-                    <span><a id="stateConsole" href="#" class="pf-c-nav__link">Start Developing..</a></span>
+                    <span><a id="stateConsole" href="#" class="pf-c-nav__link">Start using your Sandbox..</a></span>
                   </div>
                 </div>
               </div>
-              <div class="pf-l-gallery__item">
+              <div class="pf-l-gallery__item" style="display:none">
                 <div class="pf-c-card">
                   <div class="pf-c-card__body">
                     <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />

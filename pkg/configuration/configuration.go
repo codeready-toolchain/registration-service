@@ -134,7 +134,7 @@ const (
 
 	// DefaultVerificationMessageTemplate is the default verification message template sent to users
 	// via SMS for phone verification.  The string parameter is replaced with a random verification code
-	DefaultVerificationMessageTemplate = "Your verification code for Red Hat Developer Sandbox is: %s"
+	DefaultVerificationMessageTemplate = "Developer Sandbox for Red Hat OpenShift: Your verification code is %s"
 
 	// varVerificationExcludedEmailDomains contains a comma-separated list of domain names for which phone verification
 	// is not required.  For example: "redhat.com,ibm.com"

@@ -216,9 +216,9 @@ function refreshToken() {
   console.log('check refreshing token..');
   keycloak.updateToken(30)
     .then(function(refreshed) {
-        alert('token refresh result: ' + refreshed);
+      console.log('token refresh result: ' + refreshed);
     }).catch(function() {
-        alert('failed to refresh the token, or the session has expired');
+      console.log('failed to refresh the token, or the session has expired');
     });
 }
 

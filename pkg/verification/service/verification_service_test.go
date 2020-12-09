@@ -169,7 +169,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Your verification code for Red Hat Developer Sandbox is: %s",
+	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
 		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
@@ -233,7 +233,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Your verification code for Red Hat Developer Sandbox is: %s",
+	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
 		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))

@@ -183,8 +183,9 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
-	if !found {
+	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupApproved)
+	signupCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
+	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: userSignup.Spec.VerificationRequired,

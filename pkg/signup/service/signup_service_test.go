@@ -455,6 +455,11 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 					Reason:  "test_reason",
 					Message: "test_message",
 				},
+				{
+					Type:   v1alpha1.UserSignupApproved,
+					Status: apiv1.ConditionTrue,
+					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+				},
 			},
 		},
 	})
@@ -477,35 +482,62 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: TestNamespace,
+	noCondition := v1alpha1.UserSignupStatus{}
+	pendingApproval := v1alpha1.UserSignupStatus{
+		Conditions: []v1alpha1.Condition{
+			{
+				Type:   v1alpha1.UserSignupApproved,
+				Status: apiv1.ConditionFalse,
+				Reason: v1alpha1.UserSignupPendingApprovalReason,
+			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bill",
-			VerificationRequired: true,
+	}
+	noClusterApproval := v1alpha1.UserSignupStatus{
+		Conditions: []v1alpha1.Condition{
+			{
+				Type:   v1alpha1.UserSignupApproved,
+				Status: apiv1.ConditionFalse,
+				Reason: v1alpha1.UserSignupPendingApprovalReason,
+			},
+			{
+				Type:   v1alpha1.UserSignupComplete,
+				Status: apiv1.ConditionFalse,
+				Reason: v1alpha1.UserSignupNoClusterAvailableReason,
+			},
 		},
-		Status: v1alpha1.UserSignupStatus{},
-	})
-	require.NoError(s.T(), err)
+	}
 
-	response, err := s.Application.SignupService().GetSignup(userID.String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), response)
+	for _, status := range []v1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
 
-	require.Equal(s.T(), "bill", response.Username)
-	require.Equal(s.T(), "", response.CompliantUsername)
-	require.False(s.T(), response.Status.Ready)
-	require.Equal(s.T(), "PendingApproval", response.Status.Reason)
-	require.True(s.T(), response.Status.VerificationRequired)
-	require.Equal(s.T(), "", response.Status.Message)
-	require.Equal(s.T(), "", response.ConsoleURL)
-	require.Equal(s.T(), "", response.CheDashboardURL)
+		err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      userID.String(),
+				Namespace: TestNamespace,
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username:             "bill",
+				VerificationRequired: true,
+			},
+			Status: status,
+		})
+		require.NoError(s.T(), err)
+
+		response, err := s.Application.SignupService().GetSignup(userID.String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+
+		require.Equal(s.T(), "bill", response.Username)
+		require.Equal(s.T(), "", response.CompliantUsername)
+		require.False(s.T(), response.Status.Ready)
+		require.Equal(s.T(), "PendingApproval", response.Status.Reason)
+		require.True(s.T(), response.Status.VerificationRequired)
+		require.Equal(s.T(), "", response.Status.Message)
+		require.Equal(s.T(), "", response.ConsoleURL)
+		require.Equal(s.T(), "", response.CheDashboardURL)
+	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
@@ -731,6 +763,11 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 					Type:   v1alpha1.UserSignupComplete,
 					Status: apiv1.ConditionTrue,
 					Reason: reason,
+				},
+				{
+					Type:   v1alpha1.UserSignupApproved,
+					Status: apiv1.ConditionTrue,
+					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
 				},
 			},
 			CompliantUsername: "ted",

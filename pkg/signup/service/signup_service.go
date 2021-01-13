@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 	"strings"
 
@@ -80,7 +81,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 
 	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      ctx.GetString(context.SubKey),
+			Name:      fixSubjectPrefixIfInvalid(ctx.GetString(context.SubKey)),
 			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -107,6 +108,17 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 func extractEmailHost(email string) string {
 	i := strings.LastIndexByte(email, '@')
 	return email[i+1:]
+}
+
+// fixSubjectPrefixIfInvalid examines the first character of the specified subject value, and if invalid (i.e. it
+// doesn't conform to the DNS-1123 specification's requirement of starting with an alphanumeric character)
+// it will prefix the value with a CRC32 checksum of the subject's value, returning the result.
+func fixSubjectPrefixIfInvalid(subject string) string {
+	if strings.HasPrefix(subject, "-") {
+		crc32q := crc32.MakeTable(0xEDB88320)
+		return fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
+	}
+	return subject
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID

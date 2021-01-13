@@ -3,7 +3,9 @@ package service_test
 import (
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -175,6 +177,50 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
 	})
+}
+
+func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	subject := fmt.Sprintf("-%s", userID.String())
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "sjones")
+	ctx.Set(context.SubKey, subject)
+	ctx.Set(context.EmailKey, "sjones@gmail.com")
+	ctx.Set(context.GivenNameKey, "sam")
+	ctx.Set(context.FamilyNameKey, "jones")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	// when
+	userSignup, err := s.Application.SignupService().Signup(ctx)
+
+	// then
+	require.NoError(s.T(), err)
+
+	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*v1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+
+	// Confirm that the UserSignup.Name value has been prefixed correctly
+	crc32q := crc32.MakeTable(0xEDB88320)
+	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
+	require.Equal(s.T(), expected, val.Name)
+	require.False(s.T(), strings.HasPrefix(val.Name, "-"))
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {

@@ -183,23 +183,24 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
-	if !found {
+	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupApproved)
+	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
+	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
 	} else {
-		if signupCondition.Status != apiv1.ConditionTrue {
+		if completeCondition.Status != apiv1.ConditionTrue {
 			// UserSignup is not complete
 			signupResponse.Status = signup.Status{
-				Reason:               signupCondition.Reason,
-				Message:              signupCondition.Message,
+				Reason:               completeCondition.Reason,
+				Message:              completeCondition.Message,
 				VerificationRequired: userSignup.Spec.VerificationRequired,
 			}
 			return signupResponse, nil
-		} else if signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+		} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
 			// UserSignup is deactivated. Treat it as non-existent.
 			return nil, nil
 		}

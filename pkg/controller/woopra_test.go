@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -52,12 +51,11 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
-		var dataEnvelope *woopraResponse
-		err = json.Unmarshal(rr.Body.Bytes(), &dataEnvelope)
+		dataEnvelope := string(rr.Body.Bytes())
 		require.NoError(s.T(), err)
 
 		s.Run("envelope woopra domain name", func() {
-			assert.Equal(s.T(), s.Config().GetWoopraDomain(), dataEnvelope.WoopraDomain, "wrong 'woopra domain name' in woopra response")
+			assert.Equal(s.T(), s.Config().GetWoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
 		})
 	})
 
@@ -84,12 +82,11 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
-		var dataEnvelope *segmentResponse
-		err = json.Unmarshal(rr.Body.Bytes(), &dataEnvelope)
+		dataEnvelope := string(rr.Body.Bytes())
 		require.NoError(s.T(), err)
 
 		s.Run("envelope segment write key", func() {
-			assert.Equal(s.T(), s.Config().GetSegmentWriteKey(), dataEnvelope.SegmentWriteKey, "wrong 'segment write key' in segment response")
+			assert.Equal(s.T(), s.Config().GetSegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")
 		})
 	})
 }

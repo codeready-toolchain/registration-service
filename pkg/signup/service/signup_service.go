@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/crc32"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,12 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	DNS1123NameMaximumLength         = 63
+	DNS1123NotAllowedCharacters      = "[^-a-z0-9]"
+	DNS1123NotAllowedStartCharacters = "^[^a-z0-9]+"
 )
 
 // ServiceConfiguration represents the config used for the signup service.
@@ -81,7 +88,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 
 	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      fixSubjectPrefixIfInvalid(ctx.GetString(context.SubKey)),
+			Name:      encodeUserID(ctx.GetString(context.SubKey)),
 			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -94,6 +101,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		Spec: v1alpha1.UserSignupSpec{
 			TargetCluster:        "",
 			Approved:             false,
+			UserID:               ctx.GetString(context.SubKey),
 			Username:             ctx.GetString(context.UsernameKey),
 			GivenName:            ctx.GetString(context.GivenNameKey),
 			FamilyName:           ctx.GetString(context.FamilyNameKey),
@@ -110,15 +118,32 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// fixSubjectPrefixIfInvalid examines the first character of the specified subject value, and if invalid (i.e. it
+// encodeUserID examines the first character of the specified subject value, and if invalid (i.e. it
 // doesn't conform to the DNS-1123 specification's requirement of starting with an alphanumeric character)
 // it will prefix the value with a CRC32 checksum of the subject's value, returning the result.
-func fixSubjectPrefixIfInvalid(subject string) string {
-	if strings.HasPrefix(subject, "-") {
-		crc32q := crc32.MakeTable(0xEDB88320)
-		return fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
+func encodeUserID(subject string) string {
+	// Convert to lower case
+	encoded := strings.ToLower(subject)
+
+	// Remove all invalid characters
+	nameNotAllowedChars := regexp.MustCompile(DNS1123NotAllowedCharacters)
+	encoded = nameNotAllowedChars.ReplaceAllString(encoded, "")
+
+	// Remove invalid start characters
+	nameNotAllowedStartChars := regexp.MustCompile(DNS1123NotAllowedStartCharacters)
+	encoded = nameNotAllowedStartChars.ReplaceAllString(encoded, "")
+
+	// Add a checksum prefix if the encoded value is different to the original subject value
+	if encoded != subject {
+		encoded = fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32.IEEETable), encoded)
 	}
-	return subject
+
+	// Trim if the length exceeds the maximum
+	if len(encoded) > DNS1123NameMaximumLength {
+		encoded = encoded[0:DNS1123NameMaximumLength]
+	}
+
+	return encoded
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID

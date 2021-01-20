@@ -88,7 +88,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 
 	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      encodeUserID(ctx.GetString(context.SubKey)),
+			//Name:      EncodeUserID(ctx.GetString(context.SubKey)),
+			Name:      ctx.GetString(context.SubKey),
 			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -118,10 +119,10 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// encodeUserID examines the first character of the specified subject value, and if invalid (i.e. it
+// EncodeUserID examines the first character of the specified subject value, and if invalid (i.e. it
 // doesn't conform to the DNS-1123 specification's requirement of starting with an alphanumeric character)
 // it will prefix the value with a CRC32 checksum of the subject's value, returning the result.
-func encodeUserID(subject string) string {
+func EncodeUserID(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
 

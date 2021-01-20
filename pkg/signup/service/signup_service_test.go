@@ -3,10 +3,10 @@ package service_test
 import (
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -179,6 +179,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	})
 }
 
+/*
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
@@ -221,6 +222,17 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
 	require.Equal(s.T(), expected, val.Name)
 	require.False(s.T(), strings.HasPrefix(val.Name, "-"))
+}
+*/
+
+func (s *TestSignupServiceSuite) TestEncodeUserID() {
+	s.Run("test valid user ID unchanged", func() {
+		userID := "abcde-12345"
+
+		encoded := service.EncodeUserID(userID)
+
+		require.Equal(s.T(), userID, encoded)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {

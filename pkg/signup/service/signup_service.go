@@ -119,9 +119,8 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// EncodeUserID examines the first character of the specified subject value, and if invalid (i.e. it
-// doesn't conform to the DNS-1123 specification's requirement of starting with an alphanumeric character)
-// it will prefix the value with a CRC32 checksum of the subject's value, returning the result.
+// EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
+// by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
 func EncodeUserID(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)

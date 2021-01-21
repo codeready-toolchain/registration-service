@@ -106,6 +106,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		val := userSignups.Items[0]
 		require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
 		require.Equal(s.T(), userID, val.Name)
+		require.Equal(s.T(), userID, val.Spec.UserID)
 		require.Equal(s.T(), "jsmith", val.Spec.Username)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
@@ -176,6 +177,63 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.EqualError(s.T(), err, "an error occurred")
 	})
 }
+
+/*
+func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	subject := fmt.Sprintf("-%s", userID.String())
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "sjones")
+	ctx.Set(context.SubKey, subject)
+	ctx.Set(context.EmailKey, "sjones@gmail.com")
+	ctx.Set(context.GivenNameKey, "sam")
+	ctx.Set(context.FamilyNameKey, "jones")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	// when
+	userSignup, err := s.Application.SignupService().Signup(ctx)
+
+	// then
+	require.NoError(s.T(), err)
+
+	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*v1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+
+	// Confirm that the UserSignup.Name value has been prefixed correctly
+	crc32q := crc32.MakeTable(0xEDB88320)
+	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
+	require.Equal(s.T(), expected, val.Name)
+	require.False(s.T(), strings.HasPrefix(val.Name, "-"))
+}
+*/
+
+/*
+func (s *TestSignupServiceSuite) TestEncodeUserID() {
+	s.Run("test valid user ID unchanged", func() {
+		userID := "abcde-12345"
+
+		encoded := service.EncodeUserID(userID)
+
+		require.Equal(s.T(), userID, encoded)
+	})
+}*/
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))

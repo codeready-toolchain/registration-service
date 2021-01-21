@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -226,6 +224,7 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 }
 */
 
+/*
 func (s *TestSignupServiceSuite) TestEncodeUserID() {
 	s.Run("test valid user ID unchanged", func() {
 		userID := "abcde-12345"
@@ -234,7 +233,7 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 
 		require.Equal(s.T(), userID, encoded)
 	})
-}
+}*/
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))

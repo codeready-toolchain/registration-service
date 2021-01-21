@@ -4,8 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"hash/crc32"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -121,7 +119,7 @@ func extractEmailHost(email string) string {
 
 // EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
-func EncodeUserID(subject string) string {
+/*func EncodeUserID(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
 
@@ -144,7 +142,7 @@ func EncodeUserID(subject string) string {
 	}
 
 	return encoded
-}
+}*/
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.

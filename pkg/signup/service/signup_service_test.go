@@ -246,6 +246,11 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 		encoded := service.EncodeUserID(userID)
 		require.Equal(s.T(), "e3632025-0123456789abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", encoded)
 	})
+	s.Run("test user ID with colon separator", func() {
+		userID := "abc:xyz"
+		encoded := service.EncodeUserID(userID)
+		require.Equal(s.T(), "a05a4053-abcxyz", encoded)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {

@@ -148,9 +148,9 @@ func EncodeUserID(subject string) string {
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
-	userID := ctx.GetString(context.SubKey)
+	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// New Signup
@@ -167,7 +167,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	}
 
 	username := ctx.GetString(context.UsernameKey)
-	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", userID, username)
+	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username)
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID

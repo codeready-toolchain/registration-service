@@ -120,6 +120,9 @@ func extractEmailHost(email string) string {
 
 // EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
+// ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
+// resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
+// to the new value
 func EncodeUserID(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
@@ -203,7 +206,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing v1alpha1.U
 func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -280,7 +283,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
 		return nil, err
 	}

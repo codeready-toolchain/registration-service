@@ -3,8 +3,12 @@ package service_test
 import (
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -178,7 +182,6 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	})
 }
 
-/*
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
@@ -217,23 +220,38 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	val := userSignups.Items[0]
 
 	// Confirm that the UserSignup.Name value has been prefixed correctly
-	crc32q := crc32.MakeTable(0xEDB88320)
-	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32q), subject)
+	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32.IEEETable), subject)
 	require.Equal(s.T(), expected, val.Name)
 	require.False(s.T(), strings.HasPrefix(val.Name, "-"))
 }
-*/
 
-/*
 func (s *TestSignupServiceSuite) TestEncodeUserID() {
 	s.Run("test valid user ID unchanged", func() {
 		userID := "abcde-12345"
-
 		encoded := service.EncodeUserID(userID)
-
 		require.Equal(s.T(), userID, encoded)
 	})
-}*/
+	s.Run("test user ID with invalid characters", func() {
+		userID := "abcde\\*-12345"
+		encoded := service.EncodeUserID(userID)
+		require.Equal(s.T(), "c0177ca4-abcde-12345", encoded)
+	})
+	s.Run("test user ID with invalid prefix", func() {
+		userID := "-1234567"
+		encoded := service.EncodeUserID(userID)
+		require.Equal(s.T(), "ca3e1e0f-1234567", encoded)
+	})
+	s.Run("test user ID that exceeds max length", func() {
+		userID := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-01234567890123456789"
+		encoded := service.EncodeUserID(userID)
+		require.Equal(s.T(), "e3632025-0123456789abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", encoded)
+	})
+	s.Run("test user ID with colon separator", func() {
+		userID := "abc:xyz"
+		encoded := service.EncodeUserID(userID)
+		require.Equal(s.T(), "a05a4053-abcxyz", encoded)
+	})
+}
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))

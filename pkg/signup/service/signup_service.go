@@ -4,6 +4,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash/crc32"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -86,8 +88,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 
 	userSignup := &v1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			//Name:      EncodeUserID(ctx.GetString(context.SubKey)),
-			Name:      ctx.GetString(context.SubKey),
+			Name:      EncodeUserID(ctx.GetString(context.SubKey)),
 			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -119,7 +120,10 @@ func extractEmailHost(email string) string {
 
 // EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
-/*func EncodeUserID(subject string) string {
+// ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
+// resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
+// to the new value
+func EncodeUserID(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
 
@@ -133,7 +137,7 @@ func extractEmailHost(email string) string {
 
 	// Add a checksum prefix if the encoded value is different to the original subject value
 	if encoded != subject {
-		encoded = fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32.IEEETable), encoded)
+		encoded = fmt.Sprintf("%x-%s", crc32.Checksum([]byte(subject), crc32.IEEETable), encoded)
 	}
 
 	// Trim if the length exceeds the maximum
@@ -142,14 +146,14 @@ func extractEmailHost(email string) string {
 	}
 
 	return encoded
-}*/
+}
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
-	userID := ctx.GetString(context.SubKey)
+	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// New Signup
@@ -166,7 +170,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	}
 
 	username := ctx.GetString(context.UsernameKey)
-	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", userID, username)
+	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username)
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID
@@ -202,7 +206,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing v1alpha1.U
 func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -279,7 +283,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(userID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
 		return nil, err
 	}

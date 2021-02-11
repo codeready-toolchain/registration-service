@@ -16,6 +16,6 @@ RUN  /usr/local/bin/user_setup
 
 ENTRYPOINT ["/usr/local/bin/registration-service"]
 
-EXPOSE 8080
+EXPOSE 8080 8081
 
 USER ${USER_UID}

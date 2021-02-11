@@ -11,6 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+
 	"github.com/spf13/pflag"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -19,6 +20,9 @@ import (
 func main() {
 	// create logger and registry
 	log.Init("registration-service")
+
+	// Start the proxy server
+	proxySrv := startProxy()
 
 	// Parse flags
 	var configFilePath string
@@ -82,10 +86,10 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(srv.HTTPServer(), srv.Config().GetGracefulTimeout())
+	gracefulShutdown(srv.Config().GetGracefulTimeout(), srv.HTTPServer(), proxySrv)
 }
 
-func gracefulShutdown(hs *http.Server, timeout time.Duration) {
+func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {
 	// For a channel used for notification of just one signal value, a buffer of
 	// size 1 is sufficient.
 	stop := make(chan os.Signal, 1)
@@ -99,9 +103,11 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	log.Infof(nil, "Shutdown with timeout: %s", timeout.String())
-	if err := hs.Shutdown(ctx); err != nil {
-		log.Errorf(nil, err, "Shutdown error")
-	} else {
-		log.Info(nil, "Server stopped.")
+	for _, s := range hs {
+		if err := s.Shutdown(ctx); err != nil {
+			log.Errorf(nil, err, "Shutdown error")
+		} else {
+			log.Info(nil, "Server stopped.")
+		}
 	}
 }

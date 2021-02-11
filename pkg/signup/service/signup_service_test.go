@@ -287,6 +287,27 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	require.False(s.T(), val.Spec.VerificationRequired)
 }
 
+func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith-crtadmin")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.EmailKey, "jsmith@redhat.com")
+	ctx.Set(context.GivenNameKey, "jane")
+	ctx.Set(context.FamilyNameKey, "smith")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	userSignup, err := s.Application.SignupService().Signup(ctx)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "Failed to create usersignup for jsmith-crtadmin:Cannot create usersignup for crtadmin", err.Error())
+	require.Nil(s.T(), userSignup)
+}
+
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 

@@ -84,8 +84,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	}
 
 	// Check if the provided phone number is already being used by another user with a different email address
-	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber,
-		signup.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
+	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
@@ -203,6 +202,13 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		}
 		log.Error(ctx, lookupErr, "error retrieving usersignup")
 		return errors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
+	}
+
+	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey])
+	if err != nil {
+		log.Error(ctx, err, "phone number to verify already in use")
+		return errors.NewBadRequest("phone number already in use",
+			"the phone number provided for this signup is already in use by an active account")
 	}
 
 	now := time.Now()

@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,6 +18,11 @@ const (
 	userSignupResourcePlural = "usersignups"
 )
 
+var (
+	e164Matcher = regexp.MustCompile("^\\+?[1-9]\\d{1,14}$")
+	md5Matcher  = regexp.MustCompile("(?i)[a-f0-9]{32}$")
+)
+
 type userSignupClient struct {
 	crtClient
 }
@@ -26,7 +32,7 @@ type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	ListByPhone(phone string) (*crtapi.UserSignupList, error)
+	ListByPhone(value string) (*crtapi.UserSignupList, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -77,18 +83,33 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	return result, nil
 }
 
-func (c *userSignupClient) ListByPhone(phone string) (*crtapi.UserSignupList, error) {
-	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
+func (c *userSignupClient) ListByPhone(value string) (*crtapi.UserSignupList, error) {
+	if e164Matcher.Match([]byte(value)) {
+		return c.listByHashedLabelValue(crtapi.BannedUserPhoneNumberHashLabelKey, value)
+	}
+
+	if md5Matcher.Match([]byte(value)) {
+		return c.listByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, value)
+	}
+
+	// Default to searching for a hash of the specified value
+	return c.listByHashedLabelValue(crtapi.BannedUserPhoneNumberHashLabelKey, value)
 }
 
-// ListByHashedLabel returns a UserSignupList containing any UserSignup resources that have a label matching the specified label
-func (c *userSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
-
-	// Calculate the md5 hash for the phoneNumber
+// listByHashedLabelValue returns a UserSignupList containing any UserSignup resources that have a label matching the
+// md5 hash of the specified value
+func (c *userSignupClient) listByHashedLabelValue(labelKey, value string) (*crtapi.UserSignupList, error) {
+	// Calculate the md5 hash for the label value
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(labelValue))
+	_, _ = md5hash.Write([]byte(value))
 	hash := hex.EncodeToString(md5hash.Sum(nil))
+
+	return c.listByLabel(labelKey, hash)
+}
+
+// listByLabel returns a UserSignupList containing any UserSignup resources that have a label matching the specified label
+func (c *userSignupClient) listByLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
 
 	intf, err := dynamic.NewForConfig(&c.cfg)
 	if err != nil {
@@ -97,7 +118,7 @@ func (c *userSignupClient) listByHashedLabel(labelKey, labelValue string) (*crta
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
 	listOptions := v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", labelKey, hash),
+		LabelSelector: fmt.Sprintf("%s=%s", labelKey, labelValue),
 	}
 
 	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)

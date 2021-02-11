@@ -290,7 +290,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	ctrl := controller.NewSignup(s.Application, s.Config())
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
-	assertInitVerificationSuccess := func(phone_number string, expectedCounter int) {
+	assertInitVerificationSuccess := func(phone_number, expectedHash string, expectedCounter int) {
 		gock.New("https://api.twilio.com").
 			Reply(http.StatusNoContent).
 			BodyString("")
@@ -306,22 +306,22 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
 		require.Equal(s.T(), strconv.Itoa(expectedCounter), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-		require.Equal(s.T(), "fd276563a8232d16620da8ec85d0575f", updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
+		require.Equal(s.T(), expectedHash, updatedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 	}
 
 	s.Run("init verification success", func() {
-		assertInitVerificationSuccess("2268213044", 1)
+		assertInitVerificationSuccess("2268213044", "fd276563a8232d16620da8ec85d0575f", 1)
 	})
 
 	s.Run("init verification success phone number with parenthesis and spaces", func() {
-		assertInitVerificationSuccess("(226) 821 3044", 2)
+		assertInitVerificationSuccess("(226) 821 3045", "9691252ac0ea2cb55295ac9b98df1c51", 2)
 	})
 
 	s.Run("init verification success phone number with dashes", func() {
-		assertInitVerificationSuccess("226-821-3044", 3)
+		assertInitVerificationSuccess("226-821-3044", "fd276563a8232d16620da8ec85d0575f", 3)
 	})
 	s.Run("init verification success phone number with spaces", func() {
-		assertInitVerificationSuccess("2 2 6 8 2 1 3 0 4 4", 4)
+		assertInitVerificationSuccess("2 2 6 8 2 1 3 0 4 7", "ce3e697125f35efb76357ed8e3b768b7", 4)
 	})
 	s.Run("init verification fails with invalid country code", func() {
 		gock.New("https://api.twilio.com").
@@ -681,7 +681,7 @@ type FakeSignupService struct {
 	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup           func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse func(userID, e164phoneNumber string) error
+	MockPhoneNumberAlreadyInUse func(userID, value string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {

@@ -32,7 +32,7 @@ type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	ListByPhone(value string) (*crtapi.UserSignupList, error)
+	ListByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.UserSignupList, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -83,22 +83,26 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	return result, nil
 }
 
-func (c *userSignupClient) ListByPhone(value string) (*crtapi.UserSignupList, error) {
-	if e164Matcher.Match([]byte(value)) {
-		return c.listByHashedLabelValue(crtapi.BannedUserPhoneNumberHashLabelKey, value)
+// ListByPhoneNumberOrHash will return a list of UserSignups that have a phone number hash label value matching
+// the provided value.  If the value provided is an actual phone number, then the hash will be calculated and then
+// used to query the UserSignups, otherwise if the hash value has been provided, then that value will be used
+// directly for the query.
+func (c *userSignupClient) ListByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.UserSignupList, error) {
+	if e164Matcher.Match([]byte(phoneNumberOrHash)) {
+		return c.listByLabelForHashedValue(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 	}
 
-	if md5Matcher.Match([]byte(value)) {
-		return c.listByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, value)
+	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
+		return c.listByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 	}
 
 	// Default to searching for a hash of the specified value
-	return c.listByHashedLabelValue(crtapi.BannedUserPhoneNumberHashLabelKey, value)
+	return c.listByLabelForHashedValue(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 }
 
-// listByHashedLabelValue returns a UserSignupList containing any UserSignup resources that have a label matching the
+// listByLabelForHashedValue returns a UserSignupList containing any UserSignup resources that have a label matching the
 // md5 hash of the specified value
-func (c *userSignupClient) listByHashedLabelValue(labelKey, value string) (*crtapi.UserSignupList, error) {
+func (c *userSignupClient) listByLabelForHashedValue(labelKey, value string) (*crtapi.UserSignupList, error) {
 	// Calculate the md5 hash for the label value
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one

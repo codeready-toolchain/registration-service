@@ -522,4 +522,5 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})
+
 }

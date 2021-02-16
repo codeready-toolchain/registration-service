@@ -304,7 +304,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 
 	userSignup, err := s.Application.SignupService().Signup(ctx)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "Failed to create usersignup for jsmith-crtadmin:Cannot create usersignup for crtadmin", err.Error())
+	require.Equal(s.T(), "failed to create usersignup for jsmith-crtadmin:cannot create usersignup for crtadmin", err.Error())
 	require.Nil(s.T(), userSignup)
 }
 

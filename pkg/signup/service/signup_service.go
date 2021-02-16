@@ -57,8 +57,8 @@ func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfigur
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
 func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
-	if strings.HasSuffix(username, "crtadmin") {
-		return nil, errors3.NewForbiddenError(fmt.Sprintf("Failed to create usersignup for %s", username), "Cannot create usersignup for crtadmin")
+	if strings.Contains(username, "crtadmin") {
+		return nil, errors3.NewForbiddenError(fmt.Sprintf("failed to create usersignup for %s", username), "cannot create usersignup for crtadmin")
 	}
 
 	userEmail := ctx.GetString(context.EmailKey)

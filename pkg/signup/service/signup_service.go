@@ -60,7 +60,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 	username := ctx.GetString(context.UsernameKey)
 
 	usersignup.TransformUsername(username)
-	if strings.Contains(username, "crtadmin") {
+	if strings.HasSuffix(username, "crtadmin") {
 		return nil, errors3.NewForbiddenError(fmt.Sprintf("failed to create usersignup for %s", username), "cannot create usersignup for crtadmin")
 	}
 

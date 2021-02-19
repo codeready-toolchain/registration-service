@@ -14,9 +14,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	errors3 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
 	"github.com/gin-gonic/gin"
 	errors2 "github.com/pkg/errors"
@@ -56,6 +57,13 @@ func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfigur
 // newUserSignup generates a new UserSignup resource with the specified username and userID.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
 func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+	username := ctx.GetString(context.UsernameKey)
+
+	username = usersignup.TransformUsername(username)
+	if strings.HasSuffix(username, "crtadmin") {
+		return nil, errs.NewForbiddenError(fmt.Sprintf("failed to create usersignup for %s", username), "cannot create usersignup for crtadmin")
+	}
+
 	userEmail := ctx.GetString(context.EmailKey)
 	md5hash := md5.New()
 	// Ignore the error, as this implementation cannot return one
@@ -307,19 +315,19 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, e164PhoneNumber string) error {
 	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhone(e164PhoneNumber)
 	if err != nil {
-		return errors3.NewInternalError(err, "failed listing banned users")
+		return errs.NewInternalError(err, "failed listing banned users")
 	}
 	if len(bannedUserList.Items) > 0 {
-		return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+		return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
 	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListByPhone(e164PhoneNumber)
 	if err != nil {
-		return errors3.NewInternalError(err, "failed listing userSignups")
+		return errs.NewInternalError(err, "failed listing userSignups")
 	}
 	for _, signup := range userSignupList.Items {
 		if signup.Name != userID {
-			return errors3.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+			return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 		}
 	}
 

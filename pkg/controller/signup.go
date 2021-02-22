@@ -40,8 +40,8 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	if err, ok := err.(*errors2.StatusError); ok {
 		errors.AbortWithError(ctx, int(err.Status().Code), err, err.Status().Message)
 	}
-	if err != nil {
 
+	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return

@@ -39,6 +39,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
 	if err, ok := err.(*errors2.StatusError); ok {
 		errors.AbortWithError(ctx, int(err.Status().Code), err, err.Status().Message)
+		return
 	}
 
 	if err != nil {

@@ -304,7 +304,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 
 	userSignup, err := s.Application.SignupService().Signup(ctx)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "failed to create usersignup for jsmith-crtadmin:cannot create usersignup for crtadmin", err.Error())
+	require.Equal(s.T(), "forbidden: failed to create usersignup for jsmith-crtadmin", err.Error())
 	require.Nil(s.T(), userSignup)
 }
 
@@ -335,7 +335,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	_, err = s.Application.SignupService().Signup(ctx)
 
-	require.EqualError(s.T(), err, fmt.Sprintf("unable to create UserSignup [id: %s; username: jsmith] because there is already an active UserSignup with such ID", userID.String()))
+	require.EqualError(s.T(), err, fmt.Sprintf("forbidden: unable to create UserSignup [id: %s; username: jsmith] because there is already an active UserSignup with such ID", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {

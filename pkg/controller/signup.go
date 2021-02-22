@@ -10,9 +10,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.

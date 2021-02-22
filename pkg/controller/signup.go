@@ -1,6 +1,7 @@
 package controller
 
 import (
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"strconv"
 
@@ -36,7 +37,11 @@ func NewSignup(app application.Application, config configuration.Configuration) 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
+	if err, ok := err.(*errors2.StatusError); ok {
+		errors.AbortWithError(ctx, int(err.Status().Code), err, err.Status().Message)
+	}
 	if err != nil {
+
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return
@@ -70,7 +75,6 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	regionCode := phonenumbers.GetRegionCodeForCountryCode(countryCode)
-
 	number, err := phonenumbers.Parse(phone.PhoneNumber, regionCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid phone number")
@@ -79,7 +83,6 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
-
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)

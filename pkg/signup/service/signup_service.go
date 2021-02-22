@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/crc32"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"regexp"
 	"strconv"
 	"strings"
@@ -61,7 +62,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 
 	username = usersignup.TransformUsername(username)
 	if strings.HasSuffix(username, "crtadmin") {
-		return nil, errs.NewForbiddenError(fmt.Sprintf("failed to create usersignup for %s", username), "cannot create usersignup for crtadmin")
+		return nil, errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
 	}
 
 	userEmail := ctx.GetString(context.EmailKey)
@@ -80,6 +81,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
 			return nil, errors.NewBadRequest("user has been banned")
+
 		}
 	}
 
@@ -178,7 +180,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	}
 
 	username := ctx.GetString(context.UsernameKey)
-	return nil, errors2.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username)
+	return nil, errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username))
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID

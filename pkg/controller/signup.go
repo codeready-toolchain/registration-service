@@ -38,7 +38,7 @@ func NewSignup(app application.Application, config configuration.Configuration) 
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
 	if err, ok := err.(*errors2.StatusError); ok {
-		errors.AbortWithError(ctx, int(err.Status().Code), err, err.Status().Message)
+		errors.AbortWithError(ctx, int(err.Status().Code), err, "error creating UserSignup resource")
 		return
 	}
 
@@ -103,6 +103,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
+
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
 	signupResource, err := s.app.SignupService().GetSignup(userID)

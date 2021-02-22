@@ -180,7 +180,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	}
 
 	username := ctx.GetString(context.UsernameKey)
-	return nil, errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username))
+	return nil, errors.NewBadRequest(fmt.Sprintf("unable to create UserSignup [id: %s; username: %s] because there is already an active UserSignup with such ID", encodedUserID, username))
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID

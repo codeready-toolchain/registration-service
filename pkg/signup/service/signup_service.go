@@ -80,7 +80,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, errors.NewBadRequest("user has been banned")
+			return nil, errors.NewForbidden(schema.GroupResource{}, "", errors2.New("user has been banned"))
 
 		}
 	}

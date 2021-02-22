@@ -377,8 +377,8 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.IsType(s.T(), &errors2.StatusError{}, err)
 	errStatus := err.(*errors2.StatusError).ErrStatus
 	require.Equal(s.T(), "Failure", errStatus.Status)
-	require.Equal(s.T(), "user has been banned", errStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
+	require.Equal(s.T(), "forbidden: user has been banned", errStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonForbidden, errStatus.Reason)
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {

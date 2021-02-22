@@ -1,7 +1,6 @@
 package controller
 
 import (
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
 )

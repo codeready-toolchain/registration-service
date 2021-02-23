@@ -143,6 +143,22 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		// Check the error is what we expect.
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "blah", "error creating UserSignup resource")
 	})
+
+	s.Run("signup forbidden error", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+			return nil, errors2.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
+		}
+
+		handler(ctx)
+
+		// Check the error is what we expect.
+		test.AssertError(s.T(), rr, http.StatusForbidden, "forbidden: forbidden test error", "error creating UserSignup resource")
+	})
 }
 
 func (s *TestSignupSuite) TestSignupGetHandler() {

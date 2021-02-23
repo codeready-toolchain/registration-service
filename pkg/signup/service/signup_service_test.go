@@ -304,7 +304,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 
 	userSignup, err := s.Application.SignupService().Signup(ctx)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "failed to create usersignup for jsmith-crtadmin:cannot create usersignup for crtadmin", err.Error())
+	require.Equal(s.T(), "forbidden: failed to create usersignup for jsmith-crtadmin", err.Error())
 	require.Nil(s.T(), userSignup)
 }
 
@@ -335,7 +335,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	_, err = s.Application.SignupService().Signup(ctx)
 
-	require.EqualError(s.T(), err, fmt.Sprintf("unable to create UserSignup [id: %s; username: jsmith] because there is already an active UserSignup with such ID", userID.String()))
+	require.EqualError(s.T(), err, fmt.Sprintf("Operation cannot be fulfilled on  \"\": UserSignup [id: %s; username: jsmith]. Unable to create UserSignup because there is already an active UserSignup with such ID", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
@@ -377,8 +377,8 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.IsType(s.T(), &errors2.StatusError{}, err)
 	errStatus := err.(*errors2.StatusError).ErrStatus
 	require.Equal(s.T(), "Failure", errStatus.Status)
-	require.Equal(s.T(), "user has been banned", errStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonBadRequest, errStatus.Reason)
+	require.Equal(s.T(), "forbidden: user has been banned", errStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonForbidden, errStatus.Reason)
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {

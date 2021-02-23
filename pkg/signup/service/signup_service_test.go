@@ -335,7 +335,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	_, err = s.Application.SignupService().Signup(ctx)
 
-	require.EqualError(s.T(), err, fmt.Sprintf("Operation cannot be fulfilled on  \"\": UserSignup [id: %s; username: jsmith]. Unable to create usersignup because there is already an active UserSignup with such ID", userID.String()))
+	require.EqualError(s.T(), err, fmt.Sprintf("Operation cannot be fulfilled on  \"\": UserSignup [id: %s; username: jsmith]. Unable to create UserSignup because there is already an active UserSignup with such ID", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {

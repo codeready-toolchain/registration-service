@@ -11,26 +11,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
-
-	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-
-	"github.com/gin-gonic/gin"
-
-	"gopkg.in/h2non/gock.v1"
-
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
-
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
-	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
+
+	"github.com/gin-gonic/gin"
+	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestVerificationServiceSuite struct {
@@ -275,7 +269,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
+	require.Equal(s.T(), "forbidden: daily limit exceeded: cannot generate new verification code", err.Error())
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExceeded() {
@@ -315,7 +309,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
+	require.Equal(s.T(), "forbidden: daily limit exceeded: cannot generate new verification code", err.Error())
 
 	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
@@ -387,9 +381,9 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.Error{})
-		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+		require.IsType(s.T(), err, &errors.StatusError{})
+		require.Equal(s.T(), "forbidden: invalid code: the provided code is invalid", err.(*errors.StatusError).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.StatusError).Status().Code))
 	})
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
@@ -420,9 +414,9 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.Error{})
-		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+		require.IsType(s.T(), err, &errors.StatusError{})
+		require.Equal(s.T(), "forbidden: expired: verification code expired", err.(*errors.StatusError).Error())
+		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.StatusError).Status().Code))
 	})
 
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
@@ -453,7 +447,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.Equal(s.T(), "too many verification attempts:", err.Error())
+		require.Equal(s.T(), "Too many requests: too many verification attempts", err.Error())
 	})
 
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
@@ -484,7 +478,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.Equal(s.T(), "too many verification attempts:", err.Error())
+		require.Equal(s.T(), "Too many requests: too many verification attempts", err.Error())
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
@@ -520,6 +514,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
+		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\"", err.Error())
 	})
 }

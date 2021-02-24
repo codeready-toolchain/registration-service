@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,12 +16,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	//"github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/gin-gonic/gin"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -69,29 +70,29 @@ func NewVerificationService(context servicecontext.ServiceContext, cfg ServiceCo
 func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) error {
 	signup, err := s.Services().SignupService().GetUserSignup(userID)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
-			return errors.NewNotFoundError(err, "usersignup not found")
+			return errors.NewNotFound(schema.GroupResource{Group: signup.APIVersion, Resource: signup.Kind}, userID)
 		}
 		log.Error(ctx, err, "error retrieving usersignup")
-		return errors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return err
 	}
 
 	// check that verification is required before proceeding
 	if signup.Spec.VerificationRequired == false {
 		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: %s", userID))
-		return errors.NewBadRequest("forbidden request", "verification code will not be sent")
+		return errors.NewBadRequest("forbidden request:verification code will not be sent")
 	}
 
 	// Check if the provided phone number is already being used by another user
 	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
-		if apierrors.IsForbidden(err) {
+		if errors.IsForbidden(err) {
 			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
-			return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
+			return errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("phone number already in use: cannot register using phone number: %s", e164PhoneNumber))
 		}
 		log.Error(ctx, err, "error while looking up users by phone number")
-		return errors.NewInternalError(err, "could not lookup users by phone number")
+		return err
 	}
 
 	// calculate the phone number hash
@@ -138,7 +139,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
-		initError = errors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
+		initError = errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("daily limit exceeded: cannot generate new verification code"))
 	}
 
 	if initError == nil {
@@ -164,14 +165,14 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 			}
 
 			// If we get an error here then just die, don't bother updating the UserSignup
-			return errors.NewInternalError(err, "error while sending verification code")
+			return err
 		}
 	}
 
 	_, updateErr := s.Services().SignupService().UpdateUserSignup(signup)
 	if updateErr != nil {
 		log.Error(ctx, err, "error while updating UserSignup resource")
-		return errors.NewInternalError(updateErr, "error while updating UserSignup resource")
+		return updateErr
 	}
 
 	return initError
@@ -191,17 +192,18 @@ func generateVerificationCode() string {
 
 // VerifyCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
-func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
+func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) error {
 
 	// If we can't even find the UserSignup, then die here
 	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
 	if lookupErr != nil {
-		if apierrors.IsNotFound(lookupErr) {
+		if errors.IsNotFound(lookupErr) {
 			log.Error(ctx, lookupErr, "usersignup not found")
-			return errors.NewNotFoundError(lookupErr, "user not found")
+			// TODO: fix this
+			return errors.NewNotFound(schema.GroupResource{Group: "toolchain.dev.openshift.com/v1alpha1", Resource: "UserSignup"}, userID)
 		}
 		log.Error(ctx, lookupErr, "error retrieving usersignup")
-		return errors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return lookupErr
 	}
 
 	now := time.Now()
@@ -218,20 +220,22 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}
 
+	var verificationErr error
+
 	// If the user has made more attempts than is allowed per generated verification code, return an error
 	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
-		verificationErr = errors.NewTooManyRequestsError("too many verification attempts", "")
+		verificationErr = errors.NewTooManyRequestsError("too many verification attempts")
 	}
 
+	// Parse the verification expiry timestamp
 	if verificationErr == nil {
-		// Parse the verification expiry timestamp
 		exp, parseErr := time.Parse(TimestampLayout, signup.Annotations[v1alpha1.UserVerificationExpiryAnnotationKey])
 		if parseErr != nil {
 			// If the verification expiry timestamp is corrupt or missing, then return an error
-			verificationErr = errors.NewInternalError(parseErr, "error parsing expiry timestamp")
+			verificationErr = parseErr
 		} else if now.After(exp) {
 			// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
-			verificationErr = errors.NewForbiddenError("expired", "verification code expired")
+			verificationErr = errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("expired: verification code expired"))
 		}
 	}
 
@@ -240,12 +244,11 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 			// The code doesn't match
 			attemptsMade++
 			signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-			verificationErr = errors.NewForbiddenError("invalid code", "the provided code is invalid")
+			verificationErr = errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("invalid code: the provided code is invalid"))
 		}
 	}
-
+	// If the code matches then set VerificationRequired to false, reset other verification annotations
 	if verificationErr == nil {
-		// If the code matches then set VerificationRequired to false, reset other verification annotations
 		signup.Spec.VerificationRequired = false
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCodeAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
@@ -260,8 +263,8 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	_, updateErr := s.Services().SignupService().UpdateUserSignup(signup)
 	if updateErr != nil {
 		log.Error(ctx, updateErr, "error updating UserSignup")
-		verificationErr = errors.NewInternalError(updateErr, "error updating UserSignup")
+		verificationErr = updateErr
 	}
 
-	return
+	return verificationErr
 }

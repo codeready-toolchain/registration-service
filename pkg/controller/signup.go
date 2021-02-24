@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -85,14 +86,14 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
+	if err, ok := err.(*errors2.StatusError); ok {
+		errors.AbortWithError(ctx, int(err.Status().Code), err, fmt.Sprintf("Verification for %s could not be sent", userID))
+		return
+	}
+
 	if err != nil {
-		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
-		switch t := err.(type) {
-		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
-		}
+		log.Error(ctx, err, "error creating UserSignup resource")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("Verification for %s could not be sent", userID))
 		return
 	}
 
@@ -129,17 +130,18 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	}
 
 	userID := ctx.GetString(context.SubKey)
-
 	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
-	if err != nil {
+	if err, ok := err.(*errors2.StatusError); ok {
 		log.Error(ctx, err, "error validating user verification code")
-		switch t := err.(type) {
-		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, "error while verifying code")
-		}
+		errors.AbortWithError(ctx, int(err.Status().Code), err, "error while verifying code")
 		return
 	}
+
+	if err != nil {
+		log.Error(ctx, err, "error validating user verification code")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
+		return
+	}
+
 	ctx.Status(http.StatusOK)
 }

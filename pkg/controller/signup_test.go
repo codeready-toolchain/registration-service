@@ -411,7 +411,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
 		require.Equal(s.T(), float64(400), bodyParams["code"])
 		require.Equal(s.T(), "forbidden request:verification code will not be sent", bodyParams["message"])
-		require.Equal(s.T(), "forbidden request", bodyParams["details"])
+		require.Equal(s.T(), fmt.Sprintf("Verification for %s could not be sent", userID), bodyParams["details"])
 	})
 
 	s.Run("init verification handler fails when invalid phone number provided", func() {
@@ -535,8 +535,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), fmt.Sprintf("no user:error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
-		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
+		require.Equal(s.T(), "no user", bodyParams["message"])
+		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("getsignup returns nil", func() {
@@ -565,7 +565,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.Equal(s.T(), float64(404), bodyParams["code"])
-		require.Equal(s.T(), fmt.Sprintf(" \"%s\" not found:user not found", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), fmt.Sprintf("UserSignup.toolchain.dev.openshift.com/v1alpha1 \"%s\" not found", userSignup.Name), bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -586,15 +586,15 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		rr := initVerification(s.T(), handler, param, nil, userID, http.MethodGet, "/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
+		require.Equal(s.T(), http.StatusServiceUnavailable, rr.Code)
 
 		bodyParams := make(map[string]interface{})
 		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
-		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
-		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), "service unavailable:error updating UserSignup", bodyParams["message"])
+		require.Equal(s.T(), "Service Unavailable", bodyParams["status"])
+		require.Equal(s.T(), float64(503), bodyParams["code"])
+		require.Equal(s.T(), "service unavailable", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -626,7 +626,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
 		require.Equal(s.T(), float64(429), bodyParams["code"])
-		require.Equal(s.T(), "too many verification attempts:", bodyParams["message"])
+		require.Equal(s.T(), "Too many requests: too many verification attempts", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 

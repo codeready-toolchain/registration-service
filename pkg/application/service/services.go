@@ -19,7 +19,12 @@ type VerificationService interface {
 	VerifyCode(ctx *gin.Context, userID string, code string) error
 }
 
+type ToolchainClusterService interface {
+	Get(token string) error // TODO return api, name, username
+}
+
 type Services interface {
 	SignupService() SignupService
 	VerificationService() VerificationService
+	ToolchainClusterService() ToolchainClusterService
 }

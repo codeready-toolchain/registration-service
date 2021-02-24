@@ -38,6 +38,7 @@ objects:
       - toolchain.dev.openshift.com
       resources:
       - bannedusers
+      - toolchainclusters
       verbs:
       - get
       - list

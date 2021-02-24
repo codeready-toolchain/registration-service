@@ -2,13 +2,14 @@ package factory
 
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
-	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	"github.com/prometheus/common/log"
-
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	cluster_service "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
+	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
+
+	"github.com/prometheus/common/log"
 )
 
 type serviceContextImpl struct {
@@ -50,6 +51,10 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 
 func (s *ServiceFactory) SignupService() service.SignupService {
 	return signup_service.NewSignupService(s.getContext(), s.config)
+}
+
+func (s *ServiceFactory) ToolchainClusterService() service.ToolchainClusterService {
+	return cluster_service.NewToolchainClusterService(s.getContext(), s.config)
 }
 
 func (s *ServiceFactory) VerificationService() service.VerificationService {

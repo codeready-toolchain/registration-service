@@ -126,6 +126,5 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 		errors.AbortWithStatusError(ctx, err, "unexpected error while verifying code")
 		return
 	}
-
 	ctx.Status(http.StatusOK)
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestErrorsSuite struct {
@@ -25,10 +27,10 @@ func TestRunErrorsSuite(t *testing.T) {
 }
 
 func (s *TestErrorsSuite) TestErrors() {
-	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	s.Run("test AbortWithError", func() {
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
 
-	s.Run("check json error payload", func() {
 		details := "testing payload"
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
@@ -44,37 +46,44 @@ func (s *TestErrorsSuite) TestErrors() {
 		assert.Equal(s.T(), res.Message, errMsg)
 		assert.Equal(s.T(), res.Status, http.StatusText(code))
 	})
+	s.Run("test AbortWithStatusError", func() {
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
 
-	s.Run("check specific error types", func() {
-		err := errs.NewForbiddenError("foo", "bar")
-		require.Equal(s.T(), "foo", err.Message)
-		require.Equal(s.T(), "bar", err.Details)
-		require.Equal(s.T(), http.StatusForbidden, err.Code)
-		require.Equal(s.T(), http.StatusText(http.StatusForbidden), err.Status)
-		require.Equal(s.T(), "foo:bar", err.Error())
+		details := "testing payload"
+		errMsg := "testing new error"
 
-		err = errs.NewTooManyRequestsError("foo", "bar")
-		require.Equal(s.T(), "foo", err.Message)
-		require.Equal(s.T(), "bar", err.Details)
-		require.Equal(s.T(), http.StatusTooManyRequests, err.Code)
-		require.Equal(s.T(), http.StatusText(http.StatusTooManyRequests), err.Status)
+		errs.AbortWithStatusError(ctx, errors.New(errMsg), details)
 
-		err = errs.NewInternalError(errors.New("some error"), "bar")
-		require.Equal(s.T(), "some error", err.Message)
-		require.Equal(s.T(), "bar", err.Details)
-		require.Equal(s.T(), http.StatusInternalServerError, err.Code)
-		require.Equal(s.T(), http.StatusText(http.StatusInternalServerError), err.Status)
+		res := errs.Error{}
+		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		require.NoError(s.T(), err)
 
-		err = errs.NewNotFoundError(errors.New("some error"), "bar")
-		require.Equal(s.T(), "some error", err.Message)
-		require.Equal(s.T(), "bar", err.Details)
-		require.Equal(s.T(), http.StatusNotFound, err.Code)
-		require.Equal(s.T(), http.StatusText(http.StatusNotFound), err.Status)
+		assert.Equal(s.T(), res.Code, http.StatusInternalServerError)
+		assert.Equal(s.T(), res.Details, details)
+		assert.Equal(s.T(), res.Message, errMsg)
+		assert.Equal(s.T(), res.Status, http.StatusText(http.StatusInternalServerError))
+	})
+	s.Run("test AbortWithStatusError bad request", func() {
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
 
-		err = errs.NewBadRequest("foo", "bar")
-		require.Equal(s.T(), "foo", err.Message)
-		require.Equal(s.T(), "bar", err.Details)
-		require.Equal(s.T(), http.StatusBadRequest, err.Code)
-		require.Equal(s.T(), http.StatusText(http.StatusBadRequest), err.Status)
+		details := "testing payload"
+		errMsg := "testing new error"
+		badReqError := &errors2.StatusError{metav1.Status{
+			Message: errMsg,
+			Reason:  metav1.StatusReason(details),
+			Code:    400,
+		}}
+		errs.AbortWithStatusError(ctx, badReqError, details)
+
+		res := errs.Error{}
+		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		require.NoError(s.T(), err)
+
+		assert.Equal(s.T(), res.Code, http.StatusBadRequest)
+		assert.Equal(s.T(), res.Details, details)
+		assert.Equal(s.T(), res.Message, errMsg)
+		assert.Equal(s.T(), res.Status, http.StatusText(http.StatusBadRequest))
 	})
 }

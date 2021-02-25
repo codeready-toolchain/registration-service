@@ -413,7 +413,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "+12268213044")
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+	require.Equal(s.T(), "forbidden: cannot re-register with phone number:phone number already in use", err.Error())
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
@@ -445,7 +445,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 	require.NoError(s.T(), err)
 	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "+12268213044")
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+	require.Equal(s.T(),  "forbidden: cannot re-register with phone number:phone number already in use", err.Error())
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {

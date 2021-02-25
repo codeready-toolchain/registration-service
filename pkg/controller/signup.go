@@ -13,7 +13,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -37,15 +36,11 @@ func NewSignup(app application.Application, config configuration.Configuration) 
 
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
-	userSignup, err := s.app.SignupService().Signup(ctx)
-	if err, ok := err.(*errors2.StatusError); ok {
-		errors.AbortWithError(ctx, int(err.Status().Code), err, "error creating UserSignup resource")
-		return
-	}
 
+	userSignup, err := s.app.SignupService().Signup(ctx)
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
+		errors.AbortWithStatusError(ctx, err, "error creating UserSignup resource")
 		return
 	}
 
@@ -86,14 +81,9 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
-	if err, ok := err.(*errors2.StatusError); ok {
-		errors.AbortWithError(ctx, int(err.Status().Code), err, fmt.Sprintf("Verification for %s could not be sent", userID))
-		return
-	}
-
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, fmt.Sprintf("Verification for %s could not be sent", userID))
+		errors.AbortWithStatusError(ctx, err, fmt.Sprintf("Verification for %s could not be sent", userID))
 		return
 	}
 
@@ -110,7 +100,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	signupResource, err := s.app.SignupService().GetSignup(userID)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+		errors.AbortWithStatusError(ctx, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
 		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
@@ -131,15 +121,9 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 
 	userID := ctx.GetString(context.SubKey)
 	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
-	if err, ok := err.(*errors2.StatusError); ok {
-		log.Error(ctx, err, "error validating user verification code")
-		errors.AbortWithError(ctx, int(err.Status().Code), err, "error while verifying code")
-		return
-	}
-
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
+		errors.AbortWithStatusError(ctx, err, "unexpected error while verifying code")
 		return
 	}
 

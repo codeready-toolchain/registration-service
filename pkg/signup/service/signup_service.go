@@ -14,7 +14,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
@@ -319,19 +318,19 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, e164PhoneNumber string) error {
 	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhone(e164PhoneNumber)
 	if err != nil {
-		return errs.NewInternalError(err, "failed listing banned users")
+		return err
 	}
 	if len(bannedUserList.Items) > 0 {
-		return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+		return errors.NewForbidden(schema.GroupResource{bannedUserList.APIVersion, bannedUserList.Kind}, "", fmt.Errorf("cannot re-register with phone number:phone number already in use"))
 	}
 
 	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListByPhone(e164PhoneNumber)
 	if err != nil {
-		return errs.NewInternalError(err, "failed listing userSignups")
+		return err
 	}
 	for _, signup := range userSignupList.Items {
 		if signup.Name != userID {
-			return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+			return errors.NewForbidden(schema.GroupResource{bannedUserList.APIVersion, bannedUserList.Kind}, "", fmt.Errorf("cannot re-register with phone number:phone number already in use"))
 		}
 	}
 

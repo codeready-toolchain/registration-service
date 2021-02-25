@@ -534,7 +534,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
 		require.Equal(s.T(), "no user", bodyParams["message"])
-		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
+		require.Equal(s.T(),"unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("getsignup returns nil", func() {
@@ -564,7 +564,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.Equal(s.T(), float64(404), bodyParams["code"])
 		require.Equal(s.T(), fmt.Sprintf("UserSignup.toolchain.dev.openshift.com/v1alpha1 \"%s\" not found", userSignup.Name), bodyParams["message"])
-		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
+		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("update usersignup returns error", func() {
@@ -593,7 +593,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "Service Unavailable", bodyParams["status"])
 		require.Equal(s.T(), float64(503), bodyParams["code"])
 		require.Equal(s.T(), "service unavailable", bodyParams["message"])
-		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
+		require.Equal(s.T(), "unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("verifycode returns status error", func() {
@@ -625,7 +625,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
 		require.Equal(s.T(), float64(429), bodyParams["code"])
 		require.Equal(s.T(), "Too many requests: too many verification attempts", bodyParams["message"])
-		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
+		require.Equal(s.T(),  "unexpected error while verifying code", bodyParams["details"])
 	})
 
 	s.Run("no code provided", func() {

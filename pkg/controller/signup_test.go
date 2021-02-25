@@ -13,17 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
-	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	"gopkg.in/h2non/gock.v1"
-
-	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
-
 	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
+	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -32,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
 	apiv1 "k8s.io/api/core/v1"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

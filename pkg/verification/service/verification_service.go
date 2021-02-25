@@ -5,23 +5,20 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/kevinburke/twilio-go"
-
+	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
-
-	//"github.com/codeready-toolchain/registration-service/pkg/errors"
-
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+
 	"github.com/gin-gonic/gin"
+	"github.com/kevinburke/twilio-go"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (

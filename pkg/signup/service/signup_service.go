@@ -329,15 +329,10 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 		return errs.NewInternalError(err, "failed listing userSignups")
 	}
 	for _, signup := range userSignupList.Items {
-<<<<<<< HEAD
 
-		if signup.Spec.UserID != userID && signup.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey] != email {
-			return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
-=======
 		if signup.Spec.UserID != userID && !signup.Spec.Deactivated {
-			return errors3.NewForbiddenError("cannot re-register with phone number",
+			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
->>>>>>> 8257211 (CRT-883 modify phone number check logic, fix existing tests)
 		}
 	}
 

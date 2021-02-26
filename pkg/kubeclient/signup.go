@@ -88,10 +88,6 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 // used to query the UserSignups, otherwise if the hash value has been provided, then that value will be used
 // directly for the query.
 func (c *userSignupClient) ListByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.UserSignupList, error) {
-	if e164Matcher.Match([]byte(phoneNumberOrHash)) {
-		return c.listByLabelForHashedValue(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
-	}
-
 	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
 		return c.listByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 	}

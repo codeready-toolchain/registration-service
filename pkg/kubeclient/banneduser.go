@@ -34,10 +34,6 @@ func (c *bannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, er
 // used to query the BannedUsers, otherwise if the hash value has been provided, then that value will be used
 // directly for the query.
 func (c *bannedUserClient) ListByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.BannedUserList, error) {
-	if e164Matcher.Match([]byte(phoneNumberOrHash)) {
-		return c.listByLabelForHashedValue(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
-	}
-
 	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
 		return c.listByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 	}

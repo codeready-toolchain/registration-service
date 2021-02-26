@@ -290,12 +290,12 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	ctrl := controller.NewSignup(s.Application, s.Config())
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
-	assertInitVerificationSuccess := func(phone_number, expectedHash string, expectedCounter int) {
+	assertInitVerificationSuccess := func(phoneNumber, expectedHash string, expectedCounter int) {
 		gock.New("https://api.twilio.com").
 			Reply(http.StatusNoContent).
 			BodyString("")
 
-		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phone_number))
+		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phoneNumber))
 		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 

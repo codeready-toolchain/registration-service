@@ -382,7 +382,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
+	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
 
 	require.Empty(s.T(), bravoUserSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }

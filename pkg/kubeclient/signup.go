@@ -118,7 +118,7 @@ func (c *userSignupClient) listByLabel(labelKey, labelValue string) (*crtapi.Use
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
 	listOptions := v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", labelKey, labelValue),
+		LabelSelector: fmt.Sprintf("%s!=%s,%s=%s", crtapi.UserSignupStateLabelKey, crtapi.UserSignupStateLabelValueDeactivated,labelKey, labelValue),
 	}
 
 	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)

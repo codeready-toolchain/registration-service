@@ -86,12 +86,16 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// Check if the provided phone number is already being used by another user with a different email address
 	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
-		if apierrors.IsForbidden(err) {
-			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
-			return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
+		switch t := err.(type) {
+		case *errors.Error:
+			if t.Code == http.StatusForbidden {
+				log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
+				return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
+			}
+		default:
+			log.Error(ctx, err, "error while looking up users by phone number")
+			return errors.NewInternalError(err, "could not lookup users by phone number")
 		}
-		log.Error(ctx, err, "error while looking up users by phone number")
-		return errors.NewInternalError(err, "could not lookup users by phone number")
 	}
 
 	// calculate the phone number hash

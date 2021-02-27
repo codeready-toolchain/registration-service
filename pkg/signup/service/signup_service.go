@@ -314,7 +314,7 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alph
 }
 
 // PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
-// an internal server error. If not, check if a signup with a different userID
+// an internal server error. If not, check if an active (non-deactivated) UserSignup with a different userID
 // and email address exists. If so, return an internal server error. Otherwise, return without error.
 // Either the actual phone number, or the md5 hash of the phone number may be provided here.
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) error {
@@ -326,13 +326,13 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 		return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListByPhoneNumberOrHash(phoneNumberOrHash)
+	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash)
 	if err != nil {
 		return errs.NewInternalError(err, "failed listing userSignups")
 	}
 	for _, signup := range userSignupList.Items {
 
-		if signup.Spec.UserID != userID {
+		if signup.Spec.UserID != userID && !signup.Spec.Deactivated {
 			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

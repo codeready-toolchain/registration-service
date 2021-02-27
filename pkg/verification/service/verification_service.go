@@ -83,7 +83,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		return errors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
 
-	// Check if the provided phone number is already being used by another user with a different email address
+	// Check if the provided phone number is already being used by another user
 	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
 		switch t := err.(type) {

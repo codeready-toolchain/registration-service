@@ -134,7 +134,7 @@ func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) er
 	return c.Tracker.Delete(gvr, c.namespace, name)
 }
 
-func (c *FakeUserSignupClient) ListByPhoneNumberOrHash(phone string) (*crtapi.UserSignupList, error) {
+func (c *FakeUserSignupClient) ListActiveSignupsByPhoneNumberOrHash(phone string) (*crtapi.UserSignupList, error) {
 	return c.listByHashedLabel(crtapi.UserSignupUserPhoneHashLabelKey, phone)
 }
 

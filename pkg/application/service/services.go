@@ -11,7 +11,7 @@ type SignupService interface {
 	GetSignup(userID string) (*signup.Signup, error)
 	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
-	PhoneNumberAlreadyInUse(userID, e164PhoneNumber string) error
+	PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) error
 }
 
 type VerificationService interface {

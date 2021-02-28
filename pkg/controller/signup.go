@@ -88,10 +88,10 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
 		switch t := err.(type) {
-		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		case *errors.Error:
 			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
+		default:
+			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		}
 		return
 	}

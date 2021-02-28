@@ -2,6 +2,8 @@ package service_test
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -320,6 +322,146 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
+func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberInUse() {
+	// Setup gock to intercept calls made to the Twilio API
+	s.SetHttpClientFactoryOption()
+
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+	defer gock.Off()
+	s.OverrideConfig(s.DefaultConfig())
+
+	e164PhoneNumber := "+19875551122"
+
+	// calculate the phone number hash
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(e164PhoneNumber))
+	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+
+	alphaUserSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "alpha",
+			Namespace: s.Config().GetNamespace(),
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username:             "alpha@foxtrot.com",
+			VerificationRequired: false,
+			Approved:             true,
+		},
+	}
+
+	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+
+	bravoUserSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "bravo",
+			Namespace: s.Config().GetNamespace(),
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
+			},
+			Labels: map[string]string{},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username:             "bravo@foxtrot.com",
+			VerificationRequired: true,
+		},
+	}
+
+	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
+
+	// Reload bravoUserSignup
+	bravoUserSignup, err = s.FakeUserSignupClient.Get(bravoUserSignup.Name)
+	require.NoError(s.T(), err)
+
+	require.Empty(s.T(), bravoUserSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
+func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUseByDeactivatedUserSignup() {
+	// Setup gock to intercept calls made to the Twilio API
+	s.SetHttpClientFactoryOption()
+
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+	defer gock.Off()
+	s.OverrideConfig(s.DefaultConfig())
+
+	e164PhoneNumber := "+19875553344"
+
+	// calculate the phone number hash
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(e164PhoneNumber))
+	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+
+	alphaUserSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "alpha",
+			Namespace: s.Config().GetNamespace(),
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
+				v1alpha1.UserSignupStateLabelKey:         v1alpha1.UserSignupStateLabelValueDeactivated,
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username:             "alpha@foxtrot.com",
+			VerificationRequired: false,
+			Deactivated:          true,
+			Approved:             true,
+		},
+	}
+
+	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+
+	bravoUserSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "bravo",
+			Namespace: s.Config().GetNamespace(),
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
+			},
+			Labels: map[string]string{},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username:             "bravo@foxtrot.com",
+			VerificationRequired: true,
+		},
+	}
+
+	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	require.NoError(s.T(), err)
+
+	// Reload bravoUserSignup
+	bravoUserSignup, err = s.FakeUserSignupClient.Get(bravoUserSignup.Name)
+	require.NoError(s.T(), err)
+
+	// Just confirm that verification has been initialized by testing whether a verification code has been set
+	require.NotEmpty(s.T(), bravoUserSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+}
+
 func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	// given
 	now := time.Now()
@@ -522,4 +664,5 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})
+
 }

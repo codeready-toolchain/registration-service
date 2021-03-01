@@ -42,7 +42,7 @@ func NewFakeBannedUserClient(t *testing.T, namespace string, initObjs ...runtime
 func (c *FakeBannedUserClient) ListByEmail(email string) (*crtapi.BannedUserList, error) {
 	return c.listByHashedLabel(crtapi.BannedUserEmailHashLabelKey, email)
 }
-func (c *FakeBannedUserClient) ListByPhone(phone string) (*crtapi.BannedUserList, error) {
+func (c *FakeBannedUserClient) ListByPhoneNumberOrHash(phone string) (*crtapi.BannedUserList, error) {
 	return c.listByHashedLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phone)
 }
 

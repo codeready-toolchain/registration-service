@@ -203,6 +203,13 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) e
 		return lookupErr
 	}
 
+	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, signup.Labels[v1alpha1.UserSignupUserPhoneHashLabelKey])
+	if err != nil {
+		log.Error(ctx, err, "phone number to verify already in use")
+		return errors.NewBadRequest("phone number already in use",
+			"the phone number provided for this signup is already in use by an active account")
+	}
+
 	now := time.Now()
 
 	attemptsMade, convErr := strconv.Atoi(signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])

@@ -330,7 +330,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 		return err
 	}
 	for _, signup := range userSignupList.Items {
-		if signup.Name != userID {
+		if signup.Spec.UserID != userID && !signup.Spec.Deactivated {
 			return errors.NewForbidden(schema.GroupResource{bannedUserList.APIVersion, bannedUserList.Kind}, "", fmt.Errorf("cannot re-register with phone number:phone number already in use"))
 		}
 	}

@@ -376,7 +376,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
+	require.Equal(s.T(), "forbidden: phone number already in use: cannot register using phone number: +19875551122", err.Error())
 
 	// Reload bravoUserSignup
 	bravoUserSignup, err = s.FakeUserSignupClient.Get(bravoUserSignup.Name)

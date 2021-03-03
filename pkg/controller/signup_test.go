@@ -409,7 +409,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
 		require.Equal(s.T(), float64(400), bodyParams["code"])
 		require.Equal(s.T(), "forbidden request:verification code will not be sent", bodyParams["message"])
-		require.Equal(s.T(), fmt.Sprintf("Verification for %s could not be sent", userID), bodyParams["details"])
+		require.Equal(s.T(),"error while initiating verification", bodyParams["details"])
 	})
 
 	s.Run("init verification handler fails when invalid phone number provided", func() {

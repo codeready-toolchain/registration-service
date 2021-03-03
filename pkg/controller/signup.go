@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -82,8 +81,8 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
 	if err != nil {
-		log.Error(ctx, err, "error creating UserSignup resource")
-		errors.AbortWithStatusError(ctx, err, fmt.Sprintf("Verification for %s could not be sent", userID))
+		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
+		errors.AbortWithStatusError(ctx, err, "error while initiating verification")
 		return
 	}
 

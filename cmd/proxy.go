@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	clusterproxy "github.com/codeready-toolchain/registration-service/pkg/proxy"
 )
 
 // These constant is used to define server
@@ -15,10 +17,20 @@ const (
 	ProxyPort = "8081"
 )
 
-func startProxy() *http.Server {
+type proxy struct {
+	clusters *clusterproxy.UserClusters
+}
+
+func newProxy(app application.Application) *proxy {
+	return &proxy{
+		clusters: clusterproxy.NewUserClusters(app),
+	}
+}
+
+func (p *proxy) startProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handleRequestAndRedirect)
+	mux.HandleFunc("/", p.handleRequestAndRedirect)
 
 	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the proxy server...")
@@ -32,33 +44,42 @@ func startProxy() *http.Server {
 	return srv
 }
 
-// Serve a reverse proxy for a given url
-func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
-	// parse the url
+// Serve a reverse proxy
+func (p *proxy) serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
 	u, _ := url.Parse(target)
 
-	// create the reverse proxy
-	proxy := NewReverseProxy(u)
+	proxy := p.newReverseProxy(u)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-// Balance returns one of the servers based using round-robin algorithm
-func getProxyURL() string {
-	//TODO
-	return "https://api.sandbox.x8i5.p1.openshiftapps.com:6443"
+func (p *proxy) getProxyURL(req *http.Request) string {
+	auth := req.Header.Get("Authorization")
+	token := strings.Split(auth, "Bearer ")
+	if len(token) < 2 {
+		// TODO return the first/random cluster URL
+		return ""
+	}
+	bearer := token[1]
+	url, err := p.clusters.Url(bearer)
+	if err != nil {
+		log.Error(nil, err, "unable to get cluster url by token")
+		// TODO return the first/random cluster URL or 401 with the message about expired token
+		return ""
+	}
+	return url
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	u := getProxyURL()
+func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	u := p.getProxyURL(req)
 	log.Info(nil, fmt.Sprintf("proxy url: %s", u))
 
-	serveReverseProxy(u, res, req)
+	p.serveReverseProxy(u, res, req)
 }
 
-func NewReverseProxy(target *url.URL) *httputil.ReverseProxy {
+func (p *proxy) newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 	targetQuery := target.RawQuery
 	director := func(req *http.Request) {
 		req.URL.Scheme = "https" // Always use https

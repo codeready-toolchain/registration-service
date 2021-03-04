@@ -21,9 +21,6 @@ func main() {
 	// create logger and registry
 	log.Init("registration-service")
 
-	// Start the proxy server
-	proxySrv := startProxy()
-
 	// Parse flags
 	var configFilePath string
 	pflag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
@@ -66,6 +63,10 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	// Start the proxy server
+	p := newProxy(app)
+	proxySrv := p.startProxy()
 
 	srv := server.New(crtConfig, app)
 

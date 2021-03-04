@@ -1,22 +1,30 @@
 package proxy
 
-import "sync"
+import (
+	"crypto/md5"
+	"encoding/hex"
+	"errors"
+	"sync"
 
-type UserCluster struct {
-	Username    string
-	ClusterName string
-	ApiURL      string
-	TokenHash   string
-}
+	"github.com/codeready-toolchain/registration-service/pkg/application"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/cluster"
+)
 
 type UserClusters struct {
-	cacheByToken       map[string]*UserCluster // by token hash
-	cacheByUserCluster map[string]*UserCluster // by userCluster hash
+	cacheByToken       map[string]*cluster.UserCluster // by token hash
+	cacheByUserCluster map[string]*cluster.UserCluster // by userCluster hash
 	mu                 sync.RWMutex
+	app                application.Application
+}
+
+func NewUserClusters(app application.Application) *UserClusters {
+	return &UserClusters{
+		app: app,
+	}
 }
 
 func (c *UserClusters) Url(token string) (string, error) {
-	apiUrl := c.url(token)
+	apiUrl := c.getUrlFromCache(token)
 	if apiUrl != nil {
 		return *apiUrl, nil
 	}
@@ -27,7 +35,7 @@ func (c *UserClusters) Url(token string) (string, error) {
 	return userCluster.ApiURL, nil
 }
 
-func (c *UserClusters) url(token string) *string {
+func (c *UserClusters) getUrlFromCache(token string) *string {
 	th := tokenHash(token)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -38,32 +46,29 @@ func (c *UserClusters) url(token string) *string {
 	return nil
 }
 
-func (c *UserClusters) loadCluster(token string) (*UserCluster, error) {
-	//TODO load all member clusters
-
-	//TODO iterate member clusters and check whoami, so we know what cluster API URL and Username
-	username := ""
-	apiUrl := ""
-	clusterName := ""
+func (c *UserClusters) loadCluster(token string) (*cluster.UserCluster, error) {
+	userCluster, err := c.app.ToolchainClusterService().Get(token)
+	if err != nil {
+		return nil, err
+	}
+	if userCluster == nil {
+		// TODO return the first/random cluster URL or 401 with the message about expired token
+		return nil, errors.New("cluster not found; the token might be expired")
+	}
 
 	// Cleanup existing cached tokens user clusters if any
-	ucHash := userClusterHash(username, apiUrl)
+	ucHash := userClusterHash(userCluster.Username, userCluster.ApiURL)
 	th := tokenHash(token)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	userCluster, ok := c.cacheByUserCluster[ucHash]
+	existingUserCluster, ok := c.cacheByUserCluster[ucHash]
 	if ok {
-		c.cacheByToken[userCluster.TokenHash] = nil
+		c.cacheByToken[existingUserCluster.TokenHash] = nil
 		c.cacheByUserCluster[ucHash] = nil
 	}
 
-	// Create UserCluster and put to cache
-	userCluster = &UserCluster{
-		Username:    username,
-		ClusterName: clusterName,
-		ApiURL:      apiUrl,
-		TokenHash:   th,
-	}
+	// Put the new cluster to the cache
+	userCluster.TokenHash = th
 	c.cacheByToken[userCluster.TokenHash] = userCluster
 	c.cacheByUserCluster[ucHash] = userCluster
 
@@ -71,11 +76,17 @@ func (c *UserClusters) loadCluster(token string) (*UserCluster, error) {
 }
 
 func tokenHash(token string) string {
-	//TODO
-	return token
+	return hash(token)
 }
 
 func userClusterHash(username, apiURL string) string {
-	//TODO
-	return username + apiURL
+	return hash(username + apiURL)
+}
+
+// hash calculates the md5 hash for the value
+func hash(value string) string {
+	md5hash := md5.New()
+	// Ignore the error, as this implementation cannot return one
+	_, _ = md5hash.Write([]byte(value))
+	return hex.EncodeToString(md5hash.Sum(nil))
 }

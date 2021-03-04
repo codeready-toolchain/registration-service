@@ -10,7 +10,7 @@ require (
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.5.0
-	github.com/go-logr/logr v0.1.0
+	github.com/go-logr/logr v0.3.0
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/inconshreveable/log15 v0.0.0-20200109203555-b30bc20e4fd1 // indirect
 	github.com/kevinburke/go-types v0.0.0-20200309064045-f2d4aea18a7a // indirect
@@ -19,10 +19,11 @@ require (
 	github.com/kevinburke/twilio-go v0.0.0-20200810163702-320748330fac
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/nyaruka/phonenumbers v1.0.57
+	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/operator-framework/operator-sdk v0.19.2
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.9.1
+	github.com/prometheus/common v0.14.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
@@ -32,10 +33,12 @@ require (
 	gopkg.in/h2non/gock.v1 v1.0.14
 	gopkg.in/square/go-jose.v2 v2.3.1
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.18.3
-	k8s.io/apimachinery v0.18.3
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v12.0.0+incompatible
-	sigs.k8s.io/controller-runtime v0.6.0
+	k8s.io/kubectl v0.19.3
+	sigs.k8s.io/controller-runtime v0.6.3
+	sigs.k8s.io/kubefed v0.6.1 // indirect
 )
 
 replace (

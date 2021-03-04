@@ -2,7 +2,9 @@ package service
 
 import (
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/cluster"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,7 +22,7 @@ type VerificationService interface {
 }
 
 type ToolchainClusterService interface {
-	Get(token string) error // TODO return api, name, username
+	Get(token string) (*cluster.UserCluster, error)
 }
 
 type Services interface {

@@ -43,7 +43,7 @@ func NewToolchainClusterService(context servicecontext.ServiceContext, cfg Servi
 
 // Get returns the corresponding member cluster where the user with the given OpenShift token is provisioned to.
 // Returns nil, nil if no cluster found for that token. Can happen if the token is expired.
-func (s *ServiceImpl) Get(token string) (*cluster.UserCluster, error) {
+func (s *ServiceImpl) Get(token string) (*cluster.TokenCluster, error) {
 	// Call the whoami endpoint in each member cluster using the provided token.
 	// The cluster which will return the user instead of 401 is the cluster the user is provisioned to.
 	members := s.getMembersFunc()
@@ -63,10 +63,11 @@ func (s *ServiceImpl) Get(token string) (*cluster.UserCluster, error) {
 			}
 			// TODO check if the token is actually expired. If so then return a proper error message to the client.
 		} else {
-			return &cluster.UserCluster{
+			return &cluster.TokenCluster{
 				Username:    user.Name,
 				ClusterName: member.Name,
 				ApiURL:      member.APIEndpoint,
+				Created:     time.Now(),
 			}, nil
 		}
 	}

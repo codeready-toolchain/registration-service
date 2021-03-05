@@ -22,7 +22,7 @@ type VerificationService interface {
 }
 
 type ToolchainClusterService interface {
-	Get(token string) (*cluster.UserCluster, error)
+	Get(token string) (*cluster.TokenCluster, error)
 }
 
 type Services interface {

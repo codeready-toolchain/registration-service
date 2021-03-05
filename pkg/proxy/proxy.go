@@ -5,14 +5,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/cluster"
 )
 
 type UserClusters struct {
-	cacheByToken       map[string]*cluster.UserCluster // by token hash
-	cacheByUserCluster map[string]*cluster.UserCluster // by userCluster hash
+	cacheByToken       map[string]*cluster.TokenCluster   // by token hash
+	cacheByUserCluster map[string][]*cluster.TokenCluster // by username+apiURL hash. One user can have multiple tokens stored for one cluster
 	mu                 sync.RWMutex
 	app                application.Application
 }
@@ -28,58 +29,66 @@ func (c *UserClusters) Url(token string) (string, error) {
 	if apiUrl != nil {
 		return *apiUrl, nil
 	}
-	userCluster, err := c.loadCluster(token)
+	tokenCluster, err := c.loadCluster(token)
 	if err != nil {
 		return "", err
 	}
-	return userCluster.ApiURL, nil
+	return tokenCluster.ApiURL, nil
 }
 
 func (c *UserClusters) getUrlFromCache(token string) *string {
 	th := tokenHash(token)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	userCluster, ok := c.cacheByToken[th]
+	tokenCluster, ok := c.cacheByToken[th]
 	if ok {
-		return &userCluster.ApiURL
+		return &tokenCluster.ApiURL
 	}
 	return nil
 }
 
-func (c *UserClusters) loadCluster(token string) (*cluster.UserCluster, error) {
-	userCluster, err := c.app.ToolchainClusterService().Get(token)
+func (c *UserClusters) loadCluster(token string) (*cluster.TokenCluster, error) {
+	tokenCluster, err := c.app.ToolchainClusterService().Get(token)
 	if err != nil {
 		return nil, err
 	}
-	if userCluster == nil {
+	if tokenCluster == nil {
 		// TODO return the first/random cluster URL or 401 with the message about expired token
 		return nil, errors.New("cluster not found; the token might be expired")
 	}
 
-	// Cleanup existing cached tokens user clusters if any
-	ucHash := userClusterHash(userCluster.Username, userCluster.ApiURL)
-	th := tokenHash(token)
+	// Cleanup existing expired token clusters for the same cluster & user if any
+	ucHash := tokenClusterHash(tokenCluster.Username, tokenCluster.ApiURL)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	existingUserCluster, ok := c.cacheByUserCluster[ucHash]
+	existingTokenClusters, ok := c.cacheByUserCluster[ucHash]
+	newTokenClusters := make([]*cluster.TokenCluster, 0)
 	if ok {
-		c.cacheByToken[existingUserCluster.TokenHash] = nil
-		c.cacheByUserCluster[ucHash] = nil
+		dayAgo := time.Now().Add(-time.Hour * 24)
+		for _, cl := range existingTokenClusters {
+			if cl.Created.Before(dayAgo) {
+				// expired
+				c.cacheByToken[cl.TokenHash] = nil
+			} else {
+				newTokenClusters = append(newTokenClusters, cl)
+			}
+		}
 	}
 
 	// Put the new cluster to the cache
-	userCluster.TokenHash = th
-	c.cacheByToken[userCluster.TokenHash] = userCluster
-	c.cacheByUserCluster[ucHash] = userCluster
+	tokenCluster.TokenHash = tokenHash(token)
+	c.cacheByToken[tokenCluster.TokenHash] = tokenCluster
+	newTokenClusters = append(newTokenClusters, tokenCluster)
+	c.cacheByUserCluster[ucHash] = newTokenClusters
 
-	return userCluster, nil
+	return tokenCluster, nil
 }
 
 func tokenHash(token string) string {
 	return hash(token)
 }
 
-func userClusterHash(username, apiURL string) string {
+func tokenClusterHash(username, apiURL string) string {
 	return hash(username + apiURL)
 }
 

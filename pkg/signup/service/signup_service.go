@@ -284,7 +284,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
 				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
-				signupResponse.ApiEndpoint = mur.Status.UserAccounts[0].Cluster.APIEndpoint
+				signupResponse.ApiEndpoint = member.ApiEndpoint
 				break
 			}
 		}

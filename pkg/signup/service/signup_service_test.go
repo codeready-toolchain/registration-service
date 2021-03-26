@@ -681,6 +681,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				},
 				{
 					ClusterName: "member-123",
+					ApiEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: v1alpha1.MemberStatusStatus{
 						Routes: &v1alpha1.Routes{
 							ConsoleURL:      "https://console.member-123.com",
@@ -705,6 +706,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.False(s.T(), response.Status.VerificationRequired)
 	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.ApiEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {

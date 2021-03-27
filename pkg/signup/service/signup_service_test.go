@@ -574,6 +574,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
+	require.Equal(s.T(), "", response.ApiEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -634,6 +635,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.Status.Message)
 		require.Equal(s.T(), "", response.ConsoleURL)
 		require.Equal(s.T(), "", response.CheDashboardURL)
+		require.Equal(s.T(), "", response.ApiEndpoint)
 	}
 }
 
@@ -669,6 +671,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Members: []v1alpha1.Member{
 				{
 					ClusterName: "member-1",
+					ApiEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: v1alpha1.MemberStatusStatus{
 						Routes: &v1alpha1.Routes{
 							ConsoleURL:      "https://console.member-1.com",
@@ -678,6 +681,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				},
 				{
 					ClusterName: "member-123",
+					ApiEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: v1alpha1.MemberStatusStatus{
 						Routes: &v1alpha1.Routes{
 							ConsoleURL:      "https://console.member-123.com",
@@ -702,6 +706,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.False(s.T(), response.Status.VerificationRequired)
 	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.ApiEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {

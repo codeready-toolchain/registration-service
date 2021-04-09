@@ -207,23 +207,11 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.
 	}
 	log.WithValues(map[string]interface{}{"toolchain.dev.openshift.com/activation-counter": existing.Annotations["toolchain.dev.openshift.com/activation-counter"]}).
 		Info(ctx, "reactivating user")
-	// keep the same annotations but preserve (don't override) the `toolchain.dev.openshift.com/activation-counter` one
-	if c, exists := existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
-		if activations, err := strconv.Atoi(c); err == nil {
-			log.WithValues(map[string]interface{}{"value": activations + 1}).
-				Info(ctx, "incrementing the 'toolchain.dev.openshift.com/activation-counter' annotation")
-			newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = strconv.Itoa(activations + 1)
-		} else {
-			log.WithValues(map[string]interface{}{"value": c}).
-				Error(ctx, err, "invalid value for the 'toolchain.dev.openshift.com/activation-counter' annotation")
-			newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // the user is coming back, but we don't know how many times yet, so let's assume it's the second time
-		}
-	} else {
-		log.WithValues(map[string]interface{}{"value": c}).
-			Info(ctx, "missing value for the 'toolchain.dev.openshift.com/activation-counter annotation")
-		newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // "best-effort": assume the user signed-up only once before returning now
+
+	// override annotations from the `newUserSignup`, but preserve others (eg: toolchain.dev.openshift.com/activation-counter)
+	for k, v := range newUserSignup.Annotations {
+		existing.Annotations[k] = v
 	}
-	existing.Annotations = newUserSignup.Annotations
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 

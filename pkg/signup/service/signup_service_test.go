@@ -148,6 +148,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and reactivate again", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Annotations["v1alpha1.UserSignupActivationCounterAnnotationKey"] = "2" // assume the user was activated 2 times already
 		deactivatedUS.Spec.Deactivated = true
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
@@ -160,44 +161,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(deactivatedUS, userID.String())
 		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
-		assert.Equal(s.T(), "2", deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // incremented
-
-		s.Run("deactivate and reactivate once more", func() {
-			// given
-			deactivatedUS.Spec.Deactivated = true
-			deactivatedUS.Status.Conditions = deactivated()
-			err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
-			require.NoError(s.T(), err)
-
-			// when
-			userSignup, err := s.Application.SignupService().Signup(ctx)
-
-			// then
-			require.NoError(s.T(), err)
-			assertUserSignupExists(userSignup, userID.String())
-			assert.NotEmpty(s.T(), userSignup.ResourceVersion)
-			assert.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // incremented
-		})
-	})
-
-	s.Run("deactivate and reactivate with invalid annotation", func() {
-		// given
-		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
-		deactivatedUS.Status.Conditions = deactivated()
-		// also, alter the activation counter annotation
-		userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "invalid"
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
-		require.NoError(s.T(), err)
-
-		// when
-		userSignup, err := s.Application.SignupService().Signup(ctx)
-
-		// then
-		require.NoError(s.T(), err)
-		assertUserSignupExists(userSignup, userID.String())
-		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
-		assert.Equal(s.T(), "2", userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // incremented
+		assert.Equal(s.T(), "2", deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
 	})
 
 	s.Run("deactivate and reactivate with missing annotation", func() {
@@ -217,7 +181,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(userSignup, userID.String())
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
-		assert.Equal(s.T(), "2", userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // incremented
+		assert.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // was missing, and is not set
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {

@@ -83,7 +83,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
 			return nil, errors.NewForbidden(schema.GroupResource{}, "", errors2.New("user has been banned"))
-
 		}
 	}
 
@@ -105,6 +104,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				v1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
+				v1alpha1.UserSignupActivationCounterAnnotationKey:   "1",
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
@@ -169,6 +169,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// New Signup
+			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
 			return s.createUserSignup(ctx)
 		}
 		return nil, err
@@ -178,7 +179,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
-		return s.reactivateUserSignup(ctx, *userSignup)
+		return s.reactivateUserSignup(ctx, userSignup)
 	}
 
 	username := ctx.GetString(context.UsernameKey)
@@ -196,7 +197,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
@@ -204,12 +205,29 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing v1alpha1.U
 	if err != nil {
 		return nil, err
 	}
-
+	log.WithValues(map[string]interface{}{"toolchain.dev.openshift.com/activation-counter": existing.Annotations["toolchain.dev.openshift.com/activation-counter"]}).
+		Info(ctx, "reactivating user")
+	// keep the same annotations but preserve (don't override) the `toolchain.dev.openshift.com/activation-counter` one
+	if c, exists := existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
+		if activations, err := strconv.Atoi(c); err == nil {
+			log.WithValues(map[string]interface{}{"value": activations + 1}).
+				Info(ctx, "incrementing the 'toolchain.dev.openshift.com/activation-counter' annotation")
+			newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = strconv.Itoa(activations + 1)
+		} else {
+			log.WithValues(map[string]interface{}{"value": c}).
+				Error(ctx, err, "invalid value for the 'toolchain.dev.openshift.com/activation-counter' annotation")
+			newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // the user is coming back, but we don't know how many times yet, so let's assume it's the second time
+		}
+	} else {
+		log.WithValues(map[string]interface{}{"value": c}).
+			Info(ctx, "missing value for the 'toolchain.dev.openshift.com/activation-counter annotation")
+		newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // "best-effort": assume the user signed-up only once before returning now
+	}
 	existing.Annotations = newUserSignup.Annotations
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
-	return s.CRTClient().V1Alpha1().UserSignups().Update(&existing)
+	return s.CRTClient().V1Alpha1().UserSignups().Update(existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup

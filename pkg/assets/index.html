@@ -19,7 +19,12 @@
     <div class="pf-c-page__header-tools">
       <div class="pf-c-page__header-tools-group">
         <div class="pf-m-user">
-          <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
+          <div class="pf-l-stack">
+            <div class="pf-l-stack__item">
+                <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
+            </div>
+            <div class="pf-l-stack__item"><span id="userid"></span></div>
+          </div>
           <span id="user-notloggedin"></span>
         </div>
       </div>

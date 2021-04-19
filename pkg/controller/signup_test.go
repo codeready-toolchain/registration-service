@@ -193,6 +193,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		expected := &signup.Signup{
 			ConsoleURL:      "https://console." + targetCluster.String(),
 			CheDashboardURL: "http://che-toolchain-che.member-123.com",
+			ApiEndpoint:     "http://api.devcluster.openshift.com",
 			Username:        "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",

@@ -104,7 +104,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 			Annotations: map[string]string{
 				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				v1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
-				v1alpha1.UserSignupActivationCounterAnnotationKey:   "1",
 			},
 			Labels: map[string]string{
 				v1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
@@ -208,10 +207,11 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.
 	log.WithValues(map[string]interface{}{v1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]}).
 		Info(ctx, "reactivating user")
 
-	// override annotations from the `newUserSignup`, but preserve others (eg: toolchain.dev.openshift.com/activation-counter)
-	for k, v := range newUserSignup.Annotations {
-		existing.Annotations[k] = v
+	// (don't override) the `toolchain.dev.openshift.com/activation-counter` if it is already set in the existing UserSignup
+	if c, exists := existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
+		newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = c
 	}
+	existing.Annotations = newUserSignup.Annotations
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 

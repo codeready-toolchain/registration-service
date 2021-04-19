@@ -205,7 +205,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	log.WithValues(map[string]interface{}{"toolchain.dev.openshift.com/activation-counter": existing.Annotations["toolchain.dev.openshift.com/activation-counter"]}).
+	log.WithValues(map[string]interface{}{v1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]}).
 		Info(ctx, "reactivating user")
 
 	// override annotations from the `newUserSignup`, but preserve others (eg: toolchain.dev.openshift.com/activation-counter)

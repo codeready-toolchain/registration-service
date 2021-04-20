@@ -4,6 +4,7 @@ GO_PACKAGE_REPO_NAME ?= $(shell basename $$PWD)
 GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 
 export LDFLAGS=-ldflags "-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/cmd/configuration.BuildTime=${BUILD_TIME}"
+goarch=$(shell go env GOARCH)
 
 .PHONY: build build-prod build-dev
 
@@ -14,7 +15,7 @@ build: build-prod
 # from the filesystem. Use only for development.
 ## builds development binary
 build-dev:
-	$(Q)CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} ${LDFLAGS} \
 		-tags dev \
 		-o $(OUT_DIR)/bin/registration-service \
@@ -23,7 +24,7 @@ build-dev:
 # builds the production binary with bundled assets
 ## builds production binary
 build-prod: generate check-template-changes
-	$(Q)CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} ${LDFLAGS} \
 		-o $(OUT_DIR)/bin/registration-service \
 		cmd/main.go

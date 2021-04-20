@@ -141,13 +141,36 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	// then
 	require.NoError(s.T(), err)
+	assert.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
+
 	gvr, existing := assertUserSignupExists(userSignup, userID.String())
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
 		deactivatedUS.Spec.Deactivated = true
 		deactivatedUS.Status.Conditions = deactivated()
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
+		require.NoError(s.T(), err)
+
+		// when
+		deactivatedUS, err = s.Application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		assertUserSignupExists(deactivatedUS, userID.String())
+		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
+		assert.Equal(s.T(), "2", deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
+	})
+
+	s.Run("deactivate and reactivate with missing annotation", func() {
+		// given
+		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Spec.Deactivated = true
+		deactivatedUS.Status.Conditions = deactivated()
+		// also, alter the activation counter annotation
+		delete(deactivatedUS.Annotations, v1alpha1.UserSignupActivationCounterAnnotationKey)
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
 
@@ -158,6 +181,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(userSignup, userID.String())
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
+		assert.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {

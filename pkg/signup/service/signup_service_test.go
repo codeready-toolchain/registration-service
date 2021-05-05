@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -116,7 +118,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
 		require.False(s.T(), val.Spec.Approved)
-		require.True(s.T(), val.Spec.VerificationRequired)
+		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
 
@@ -149,7 +151,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// given
 		deactivatedUS := existing.DeepCopy()
 		deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
@@ -167,7 +169,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and reactivate with missing annotation", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, v1alpha1.UserSignupActivationCounterAnnotationKey)
@@ -187,7 +189,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
@@ -308,7 +310,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.False(s.T(), val.Spec.VerificationRequired)
+	require.False(s.T(), states.VerificationRequired(&val))
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
@@ -558,15 +560,14 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	userSignup := v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bill",
-			VerificationRequired: true,
+			Username: "bill",
 		},
 		Status: v1alpha1.UserSignupStatus{
 			Conditions: []v1alpha1.Condition{
@@ -583,7 +584,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 				},
 			},
 		},
-	})
+	}
+	states.SetVerificationRequired(&userSignup, true)
+
+	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
 	response, err := s.Application.SignupService().GetSignup(userID.String())
@@ -633,18 +637,21 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		userID, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 
-		err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+		userSignup := v1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: TestNamespace,
 			},
 			Spec: v1alpha1.UserSignupSpec{
-				Username:             "bill",
-				VerificationRequired: true,
+				Username: "bill",
 			},
 			Status: status,
-		})
+		}
+
+		states.SetVerificationRequired(&userSignup, true)
+
+		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
 		response, err := s.Application.SignupService().GetSignup(userID.String())

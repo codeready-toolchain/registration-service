@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"gopkg.in/h2non/gock.v1"
@@ -278,11 +280,10 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			},
 			Labels: map[string]string{},
 		},
-		Spec: crtapi.UserSignupSpec{
-			VerificationRequired: true,
-		},
+		Spec:   crtapi.UserSignupSpec{},
 		Status: crtapi.UserSignupStatus{},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
@@ -389,9 +390,10 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 					crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
 				},
 			},
-			Spec:   crtapi.UserSignupSpec{VerificationRequired: false},
+			Spec:   crtapi.UserSignupSpec{},
 			Status: crtapi.UserSignupStatus{},
 		}
+		states.SetVerificationRequired(userSignup, false)
 
 		s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -424,7 +426,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-				return &crtapi.UserSignup{
+				us := crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
 						Name: userID,
@@ -433,11 +435,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 						},
 						Labels: map[string]string{},
 					},
-					Spec: crtapi.UserSignupSpec{
-						VerificationRequired: true,
-					},
+					Spec:   crtapi.UserSignupSpec{},
 					Status: crtapi.UserSignupStatus{},
-				}, nil
+				}
+				states.SetVerificationRequired(&us, true)
+				return &us, nil
 			},
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 				return userSignup, nil
@@ -504,7 +506,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.False(s.T(), updatedUserSignup.Spec.VerificationRequired)
+		require.False(s.T(), states.VerificationRequired(updatedUserSignup))
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])

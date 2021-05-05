@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
@@ -148,10 +150,11 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "sbryzak@redhat.com",
-			VerificationRequired: true,
+			Username: "sbryzak@redhat.com",
 		},
 	}
+
+	states.SetVerificationRequired(userSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -212,10 +215,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "sbryzak@redhat.com",
-			VerificationRequired: true,
+			Username: "sbryzak@redhat.com",
 		},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -267,10 +270,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "sbryzak@redhat.com",
-			VerificationRequired: true,
+			Username: "sbryzak@redhat.com",
 		},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -307,10 +310,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "sbryzak@redhat.com",
-			VerificationRequired: true,
+			Username: "sbryzak@redhat.com",
 		},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -353,11 +356,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "alpha@foxtrot.com",
-			VerificationRequired: false,
-			Approved:             true,
+			Username: "alpha@foxtrot.com",
+			Approved: true,
 		},
 	}
+	states.SetVerificationRequired(alphaUserSignup, false)
 
 	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 
@@ -372,10 +375,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 			Labels: map[string]string{},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bravo@foxtrot.com",
-			VerificationRequired: true,
+			Username: "bravo@foxtrot.com",
 		},
 	}
+	states.SetVerificationRequired(bravoUserSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
 
@@ -423,12 +426,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "alpha@foxtrot.com",
-			VerificationRequired: false,
-			Deactivated:          true,
-			Approved:             true,
+			Username: "alpha@foxtrot.com",
+			Approved: true,
 		},
 	}
+	states.SetVerificationRequired(alphaUserSignup, false)
+	states.SetDeactivated(alphaUserSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 
@@ -443,10 +446,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 			Labels: map[string]string{},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bravo@foxtrot.com",
-			VerificationRequired: true,
+			Username: "bravo@foxtrot.com",
 		},
 	}
+	states.SetVerificationRequired(bravoUserSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
 
@@ -484,10 +487,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
-				Username:             "sbryzak@redhat.com",
-				VerificationRequired: true,
+				Username: "sbryzak@redhat.com",
 			},
 		}
+		states.SetVerificationRequired(userSignup, true)
 
 		s.FakeUserSignupClient.Tracker.Add(userSignup)
 
@@ -498,7 +501,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
 
-		require.False(s.T(), userSignup.Spec.VerificationRequired)
+		require.False(s.T(), states.VerificationRequired(userSignup))
 	})
 
 	s.T().Run("when verification code is invalid", func(t *testing.T) {

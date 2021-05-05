@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
@@ -110,16 +112,16 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			TargetCluster:        "",
-			Approved:             false,
-			UserID:               ctx.GetString(context.SubKey),
-			Username:             ctx.GetString(context.UsernameKey),
-			GivenName:            ctx.GetString(context.GivenNameKey),
-			FamilyName:           ctx.GetString(context.FamilyNameKey),
-			Company:              ctx.GetString(context.CompanyKey),
-			VerificationRequired: verificationRequired,
+			TargetCluster: "",
+			Approved:      false,
+			UserID:        ctx.GetString(context.SubKey),
+			Username:      ctx.GetString(context.UsernameKey),
+			GivenName:     ctx.GetString(context.GivenNameKey),
+			FamilyName:    ctx.GetString(context.FamilyNameKey),
+			Company:       ctx.GetString(context.CompanyKey),
 		},
 	}
+	states.SetVerificationRequired(userSignup, verificationRequired)
 
 	return userSignup, nil
 }
@@ -245,7 +247,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
-			VerificationRequired: userSignup.Spec.VerificationRequired,
+			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
 	} else {
@@ -254,7 +256,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			signupResponse.Status = signup.Status{
 				Reason:               completeCondition.Reason,
 				Message:              completeCondition.Message,
-				VerificationRequired: userSignup.Spec.VerificationRequired,
+				VerificationRequired: states.VerificationRequired(userSignup),
 			}
 			return signupResponse, nil
 		} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
@@ -278,7 +280,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		Ready:                ready,
 		Reason:               murCondition.Reason,
 		Message:              murCondition.Message,
-		VerificationRequired: userSignup.Spec.VerificationRequired,
+		VerificationRequired: states.VerificationRequired(userSignup),
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
@@ -339,7 +341,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 	}
 	for _, signup := range userSignupList.Items {
 
-		if signup.Spec.UserID != userID && !signup.Spec.Deactivated {
+		if signup.Spec.UserID != userID && !states.Deactivated(&signup) {
 			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

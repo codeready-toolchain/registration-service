@@ -80,7 +80,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	}
 
 	// check that verification is required before proceeding
-	if !states.VerificationRequired(signup) {
+	if !states.VerificationRequired(signup) && !signup.Spec.VerificationRequired {
 		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: %s", userID))
 		return errors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
@@ -260,6 +260,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	if verificationErr == nil {
 		// If the code matches then set VerificationRequired to false, reset other verification annotations
 		states.SetVerificationRequired(signup, false)
+		signup.Spec.VerificationRequired = false
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCodeAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserVerificationAttemptsAnnotationKey)
 		delete(signup.Annotations, v1alpha1.UserSignupVerificationCounterAnnotationKey)

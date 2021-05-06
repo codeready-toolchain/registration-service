@@ -246,7 +246,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
-			VerificationRequired: states.VerificationRequired(userSignup),
+			VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
 		}
 		return signupResponse, nil
 	} else {
@@ -255,7 +255,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			signupResponse.Status = signup.Status{
 				Reason:               completeCondition.Reason,
 				Message:              completeCondition.Message,
-				VerificationRequired: states.VerificationRequired(userSignup),
+				VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
 			}
 			return signupResponse, nil
 		} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {

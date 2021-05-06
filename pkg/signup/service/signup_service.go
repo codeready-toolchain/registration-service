@@ -111,13 +111,14 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			TargetCluster: "",
-			Approved:      false,
-			UserID:        ctx.GetString(context.SubKey),
-			Username:      ctx.GetString(context.UsernameKey),
-			GivenName:     ctx.GetString(context.GivenNameKey),
-			FamilyName:    ctx.GetString(context.FamilyNameKey),
-			Company:       ctx.GetString(context.CompanyKey),
+			TargetCluster:        "",
+			Approved:             false,
+			VerificationRequired: true,
+			UserID:               ctx.GetString(context.SubKey),
+			Username:             ctx.GetString(context.UsernameKey),
+			GivenName:            ctx.GetString(context.GivenNameKey),
+			FamilyName:           ctx.GetString(context.FamilyNameKey),
+			Company:              ctx.GetString(context.CompanyKey),
 		},
 	}
 	states.SetVerificationRequired(userSignup, verificationRequired)

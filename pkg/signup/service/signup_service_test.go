@@ -11,6 +11,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 

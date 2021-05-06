@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"

@@ -280,7 +280,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		Ready:                ready,
 		Reason:               murCondition.Reason,
 		Message:              murCondition.Message,
-		VerificationRequired: states.VerificationRequired(userSignup),
+		VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster

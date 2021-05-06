@@ -113,7 +113,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		Spec: v1alpha1.UserSignupSpec{
 			TargetCluster:        "",
 			Approved:             false,
-			VerificationRequired: true,
+			VerificationRequired: verificationRequired,
 			UserID:               ctx.GetString(context.SubKey),
 			Username:             ctx.GetString(context.UsernameKey),
 			GivenName:            ctx.GetString(context.GivenNameKey),

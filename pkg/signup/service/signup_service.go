@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-
 	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"

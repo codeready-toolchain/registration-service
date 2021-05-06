@@ -180,6 +180,68 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
+// TODO remove this test after migration complete
+func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
+	// Setup gock to intercept calls made to the Twilio API
+	s.SetHttpClientFactoryOption()
+	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
+
+	defer gock.Off()
+
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+
+	var reqBody io.ReadCloser
+	obs := func(request *http.Request, mock gock.Mock) {
+		reqBody = request.Body
+	}
+
+	gock.Observe(obs)
+
+	userSignup := &v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "123",
+			Namespace: s.Config().GetNamespace(),
+			Annotations: map[string]string{
+				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
+			},
+			Labels: map[string]string{
+				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username:             "sbryzak@redhat.com",
+			VerificationRequired: true,
+		},
+	}
+
+	s.FakeUserSignupClient.Tracker.Add(userSignup)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	require.NoError(s.T(), err)
+
+	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+	require.NoError(s.T(), err)
+
+	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
+	reqValue := buf.String()
+
+	params, err := url.ParseQuery(reqValue)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		params.Get("Body"))
+	require.Equal(s.T(), "CodeReady", params.Get("From"))
+	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+}
+
 func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountReachedAndTimestampElapsed() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHttpClientFactoryOption()
@@ -495,6 +557,42 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		require.NoError(s.T(), err)
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.False(s.T(), states.VerificationRequired(userSignup))
+	})
+
+	// TODO remove this test after migration complete
+	s.T().Run("verification ok for pre-migrated user signup", func(t *testing.T) {
+
+		userSignup := &v1alpha1.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "999",
+				Namespace: s.Config().GetNamespace(),
+				Annotations: map[string]string{
+					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					v1alpha1.UserSignupVerificationCodeAnnotationKey: "999333",
+					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+				},
+				Labels: map[string]string{
+					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: v1alpha1.UserSignupSpec{
+				Username:             "sbryzak@redhat.com",
+				VerificationRequired: true,
+			},
+		}
+
+		s.FakeUserSignupClient.Tracker.Add(userSignup)
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "999333")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)

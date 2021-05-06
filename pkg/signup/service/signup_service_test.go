@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -149,7 +150,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// given
 		deactivatedUS := existing.DeepCopy()
 		deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
@@ -167,7 +168,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and reactivate with missing annotation", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, v1alpha1.UserSignupActivationCounterAnnotationKey)
@@ -187,7 +188,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)

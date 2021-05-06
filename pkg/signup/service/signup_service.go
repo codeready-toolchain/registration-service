@@ -18,6 +18,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
 	"github.com/gin-gonic/gin"
@@ -339,7 +340,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 	}
 	for _, signup := range userSignupList.Items {
 
-		if signup.Spec.UserID != userID && !signup.Spec.Deactivated {
+		if signup.Spec.UserID != userID && !states.Deactivated(&signup) {
 			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
@@ -425,10 +426,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		Spec: v1alpha1.UserSignupSpec{
 			Username:             "alpha@foxtrot.com",
 			VerificationRequired: false,
-			Deactivated:          true,
 			Approved:             true,
 		},
 	}
+	states.SetDeactivated(alphaUserSignup, true)
 
 	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 

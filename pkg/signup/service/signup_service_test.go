@@ -117,7 +117,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
 		require.False(s.T(), val.Spec.Approved)
-		require.True(s.T(), val.Spec.VerificationRequired)
+		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
 
@@ -309,7 +309,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.False(s.T(), val.Spec.VerificationRequired)
+	require.False(s.T(), states.VerificationRequired(&val))
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
@@ -559,7 +559,59 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	userSignup := v1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: TestNamespace,
+		},
+		Spec: v1alpha1.UserSignupSpec{
+			Username: "bill",
+		},
+		Status: v1alpha1.UserSignupStatus{
+			Conditions: []v1alpha1.Condition{
+				{
+					Type:    v1alpha1.UserSignupComplete,
+					Status:  apiv1.ConditionFalse,
+					Reason:  "test_reason",
+					Message: "test_message",
+				},
+				{
+					Type:   v1alpha1.UserSignupApproved,
+					Status: apiv1.ConditionTrue,
+					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+				},
+			},
+		},
+	}
+	states.SetVerificationRequired(&userSignup, true)
+
+	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
+	require.NoError(s.T(), err)
+
+	response, err := s.Application.SignupService().GetSignup(userID.String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "bill", response.Username)
+	require.Equal(s.T(), "", response.CompliantUsername)
+	require.False(s.T(), response.Status.Ready)
+	require.Equal(s.T(), response.Status.Reason, "test_reason")
+	require.Equal(s.T(), response.Status.Message, "test_message")
+	require.True(s.T(), response.Status.VerificationRequired)
+	require.Equal(s.T(), "", response.ConsoleURL)
+	require.Equal(s.T(), "", response.CheDashboardURL)
+	require.Equal(s.T(), "", response.ApiEndpoint)
+}
+
+// TODO delete this test after migration
+func (s *TestSignupServiceSuite) TestGetSignupStatusNotCompletePreMigration() {
+	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	userSignup := v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
@@ -584,7 +636,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 				},
 			},
 		},
-	})
+	}
+
+	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
 	response, err := s.Application.SignupService().GetSignup(userID.String())
@@ -634,18 +688,21 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		userID, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 
-		err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+		userSignup := v1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: TestNamespace,
 			},
 			Spec: v1alpha1.UserSignupSpec{
-				Username:             "bill",
-				VerificationRequired: true,
+				Username: "bill",
 			},
 			Status: status,
-		})
+		}
+
+		states.SetVerificationRequired(&userSignup, true)
+
+		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
 		response, err := s.Application.SignupService().GetSignup(userID.String())

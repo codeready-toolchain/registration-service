@@ -19,8 +19,7 @@ const (
 )
 
 var (
-	e164Matcher = regexp.MustCompile("^\\+?[1-9]\\d{1,14}$")
-	md5Matcher  = regexp.MustCompile("(?i)[a-f0-9]{32}$")
+	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
 )
 
 type userSignupClient struct {

@@ -51,7 +51,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
-		dataEnvelope := string(rr.Body.Bytes())
+		dataEnvelope := rr.Body.String()
 		require.NoError(s.T(), err)
 
 		s.Run("envelope woopra domain name", func() {
@@ -82,7 +82,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
-		dataEnvelope := string(rr.Body.Bytes())
+		dataEnvelope := rr.Body.String()
 		require.NoError(s.T(), err)
 
 		s.Run("envelope segment write key", func() {

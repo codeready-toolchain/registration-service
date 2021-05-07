@@ -601,7 +601,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
-	require.Equal(s.T(), "", response.ApiEndpoint)
+	require.Equal(s.T(), "", response.APIEndpoint)
 }
 
 // TODO delete this test after migration
@@ -653,7 +653,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotCompletePreMigration() {
 	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
-	require.Equal(s.T(), "", response.ApiEndpoint)
+	require.Equal(s.T(), "", response.APIEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -717,7 +717,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.Status.Message)
 		require.Equal(s.T(), "", response.ConsoleURL)
 		require.Equal(s.T(), "", response.CheDashboardURL)
-		require.Equal(s.T(), "", response.ApiEndpoint)
+		require.Equal(s.T(), "", response.APIEndpoint)
 	}
 }
 
@@ -788,7 +788,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.False(s.T(), response.Status.VerificationRequired)
 	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.ApiEndpoint)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {

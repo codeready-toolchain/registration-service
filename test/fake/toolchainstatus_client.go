@@ -12,7 +12,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 )
 
-type FakeToolchainStatusClient struct {
+type FakeToolchainStatusClient struct { // nolint: golint
 	Tracker   kubetesting.ObjectTracker
 	Scheme    *runtime.Scheme
 	namespace string

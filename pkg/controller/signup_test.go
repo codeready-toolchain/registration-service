@@ -48,12 +48,12 @@ func TestRunSignupSuite(t *testing.T) {
 	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}, nil})
 }
 
-func (s *TestSignupSuite) SetHttpClientFactoryOption() {
+func (s *TestSignupSuite) SetHTTPClientFactoryOption() {
 	s.httpClient = &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(s.httpClient)
 
 	serviceOption := func(svc *verification_service.ServiceImpl) {
-		svc.HttpClient = s.httpClient
+		svc.HTTPClient = s.httpClient
 	}
 
 	opt := func(serviceFactory *factory.ServiceFactory) {
@@ -195,7 +195,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		expected := &signup.Signup{
 			ConsoleURL:      "https://console." + targetCluster.String(),
 			CheDashboardURL: "http://che-toolchain-che.member-123.com",
-			ApiEndpoint:     "http://api.devcluster.openshift.com",
+			APIEndpoint:     "http://api.devcluster.openshift.com",
 			Username:        "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",
@@ -258,7 +258,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 func (s *TestSignupSuite) TestInitVerificationHandler() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	defer gock.Off()
 	s.OverrideConfig(s.DefaultConfig())
@@ -395,7 +395,8 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		}
 		states.SetVerificationRequired(userSignup, false)
 
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config())
@@ -486,7 +487,8 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		Status: crtapi.UserSignupStatus{},
 	}
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
@@ -607,8 +609,10 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		userSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey] = time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
 		userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(service.TimestampLayout)
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application, s.Config())
@@ -662,21 +666,6 @@ func initVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, d
 	handler(ctx)
 
 	return rr
-}
-
-func assertVerification(t *testing.T, storedUserSignup *crtapi.UserSignup, expectedHTTPResponseCode int,
-	actualResponseCode int, userID, expectedPhoneNumber, expectedEmail, expectedVerificationCount,
-	storedVerificationCode, verificationInitTimeStamp string) {
-	// Check the status code is what we expect.
-	assert.Equal(t, expectedHTTPResponseCode, actualResponseCode, "handler returned wrong status code")
-
-	// Check that the correct UserSignup is passed into the FakeSignupService for update
-	require.Equal(t, userID, storedUserSignup.Name)
-	require.Equal(t, expectedEmail, storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-	require.Equal(t, expectedVerificationCount, storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-	require.Equal(t, storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-	require.Equal(t, verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-	require.Equal(t, expectedPhoneNumber, storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 }
 
 type FakeSignupService struct {

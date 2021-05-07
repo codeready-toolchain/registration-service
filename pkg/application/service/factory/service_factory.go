@@ -91,15 +91,15 @@ func NewServiceFactory(config configuration.Configuration, options ...Option) *S
 	return f
 }
 
-func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
+func (s *ServiceFactory) getContext() servicecontext.ServiceContext {
 	var sc servicecontext.ServiceContext
-	if f.contextProducer != nil {
-		sc = f.contextProducer()
+	if s.contextProducer != nil {
+		sc = s.contextProducer()
 	} else {
-		sc = f.defaultServiceContextProducer()()
+		sc = s.defaultServiceContextProducer()()
 	}
 
-	for _, opt := range f.serviceContextOptions {
+	for _, opt := range s.serviceContextOptions {
 		if v, ok := sc.(*serviceContextImpl); ok {
 			opt(v)
 		}

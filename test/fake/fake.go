@@ -5,11 +5,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-var (
-	log = logf.Log.WithName("fake-usersignup-client")
 )
 
 // getGVRFromObject returns the GroupVersionResource for the specified object and scheme

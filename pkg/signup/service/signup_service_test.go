@@ -604,58 +604,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "", response.ApiEndpoint)
 }
 
-// TODO delete this test after migration
-func (s *TestSignupServiceSuite) TestGetSignupStatusNotCompletePreMigration() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
-
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	userSignup := v1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: TestNamespace,
-		},
-		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bill",
-			VerificationRequired: true,
-		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
-				{
-					Type:    v1alpha1.UserSignupComplete,
-					Status:  apiv1.ConditionFalse,
-					Reason:  "test_reason",
-					Message: "test_message",
-				},
-				{
-					Type:   v1alpha1.UserSignupApproved,
-					Status: apiv1.ConditionTrue,
-					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
-				},
-			},
-		},
-	}
-
-	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
-	require.NoError(s.T(), err)
-
-	response, err := s.Application.SignupService().GetSignup(userID.String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), response)
-
-	require.Equal(s.T(), "bill", response.Username)
-	require.Equal(s.T(), "", response.CompliantUsername)
-	require.False(s.T(), response.Status.Ready)
-	require.Equal(s.T(), response.Status.Reason, "test_reason")
-	require.Equal(s.T(), response.Status.Message, "test_message")
-	require.True(s.T(), response.Status.VerificationRequired)
-	require.Equal(s.T(), "", response.ConsoleURL)
-	require.Equal(s.T(), "", response.CheDashboardURL)
-	require.Equal(s.T(), "", response.ApiEndpoint)
-}
-
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 

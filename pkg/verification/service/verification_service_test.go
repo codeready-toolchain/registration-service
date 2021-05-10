@@ -102,13 +102,13 @@ func (c *mockVerificationConfig) GetVerificationCodeExpiresInMin() int {
 	return c.codeExpiry
 }
 
-func (s *TestVerificationServiceSuite) SetHttpClientFactoryOption() {
+func (s *TestVerificationServiceSuite) SetHTTPClientFactoryOption() {
 
 	s.httpClient = &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(s.httpClient)
 
 	serviceOption := func(svc *verificationservice.ServiceImpl) {
-		svc.HttpClient = s.httpClient
+		svc.HTTPClient = s.httpClient
 	}
 
 	opt := func(serviceFactory *factory.ServiceFactory) {
@@ -120,7 +120,7 @@ func (s *TestVerificationServiceSuite) SetHttpClientFactoryOption() {
 
 func (s *TestVerificationServiceSuite) TestInitVerification() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
 
 	defer gock.Off()
@@ -155,10 +155,11 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	states.SetVerificationRequired(userSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -183,7 +184,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 // TODO remove this test after migration complete
 func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
 
 	defer gock.Off()
@@ -217,10 +218,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 	}
 	states.SetVerificationRequired(userSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -244,7 +246,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 
 func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountReachedAndTimestampElapsed() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
 		BodyString("")
@@ -281,10 +283,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	}
 	states.SetVerificationRequired(userSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -309,7 +312,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContainsInvalidValue() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	defer gock.Off()
 	s.OverrideConfig(s.DefaultConfig())
@@ -336,17 +339,18 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	}
 	states.SetVerificationRequired(userSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExceeded() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -376,10 +380,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	}
 	states.SetVerificationRequired(userSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 
@@ -388,7 +393,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberInUse() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -423,7 +428,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	}
 	states.SetVerificationRequired(alphaUserSignup, false)
 
-	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+	require.NoError(s.T(), err)
 
 	bravoUserSignup := &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
@@ -441,10 +447,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	}
 	states.SetVerificationRequired(bravoUserSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+	err = s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
 
@@ -457,7 +464,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 
 func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUseByDeactivatedUserSignup() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	gock.New("https://api.twilio.com").
 		Reply(http.StatusNoContent).
@@ -494,7 +501,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	states.SetVerificationRequired(alphaUserSignup, false)
 	states.SetDeactivated(alphaUserSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
+	require.NoError(s.T(), err)
 
 	bravoUserSignup := &v1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
@@ -512,10 +520,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	}
 	states.SetVerificationRequired(bravoUserSignup, true)
 
-	s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+	err = s.FakeUserSignupClient.Tracker.Add(bravoUserSignup)
+	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
 	require.NoError(s.T(), err)
 
 	// Reload bravoUserSignup
@@ -553,10 +562,11 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		}
 		states.SetVerificationRequired(userSignup, true)
 
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -589,10 +599,11 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		}
 		states.SetDeactivated(userSignup, true)
 
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "999333")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "999333")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -623,11 +634,14 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
@@ -656,11 +670,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.IsType(s.T(), err, &errors.Error{})
 		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
@@ -689,11 +705,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
@@ -720,11 +738,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 
@@ -756,11 +776,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			},
 		}
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})

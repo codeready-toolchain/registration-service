@@ -33,7 +33,7 @@ const (
 )
 
 // ServiceConfiguration represents the config used for the verification service.
-type ServiceConfiguration interface {
+type ServiceConfiguration interface { // nolint: golint
 	GetTwilioAccountSID() string
 	GetTwilioAuthToken() string
 	GetTwilioFromNumber() string
@@ -44,10 +44,10 @@ type ServiceConfiguration interface {
 }
 
 // ServiceImpl represents the implementation of the verification service.
-type ServiceImpl struct {
+type ServiceImpl struct { // nolint: golint
 	base.BaseService
 	config     ServiceConfiguration
-	HttpClient *http.Client
+	HTTPClient *http.Client
 }
 
 type VerificationServiceOption func(svc *ServiceImpl)
@@ -149,8 +149,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 
 	if initError == nil {
 		// generate verification code
-		verificationCode := generateVerificationCode()
-
+		verificationCode, err := generateVerificationCode()
+		if err != nil {
+			return errors.NewInternalError(err, "error while generating verification code")
+		}
 		// set the usersignup annotations
 		signup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
 		signup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
@@ -160,7 +162,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 
 		// Generate the verification message with the new verification code
 		content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), verificationCode)
-		client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HttpClient)
+		client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HTTPClient)
 		msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), e164PhoneNumber, content, nil)
 		if err != nil {
 			if msg != nil {
@@ -183,16 +185,18 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	return initError
 }
 
-func generateVerificationCode() string {
+func generateVerificationCode() (string, error) {
 	buf := make([]byte, codeLength)
-	rand.Read(buf)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
 
 	charsetLen := len(codeCharset)
 	for i := 0; i < codeLength; i++ {
 		buf[i] = codeCharset[int(buf[i])%charsetLen]
 	}
 
-	return string(buf)
+	return string(buf), nil
 }
 
 // VerifyCode validates the user's phone verification code.  It updates the specified UserSignup value, so even

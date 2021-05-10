@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-type FakeUserSignupClient struct {
+type FakeUserSignupClient struct { // nolint: golint
 	Tracker               kubetesting.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string

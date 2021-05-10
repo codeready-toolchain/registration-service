@@ -107,15 +107,15 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 	s.Run("parse invalid token", func() {
 		// create invalid test token (wrong set of claims, no email), signed with key1
-		username_invalid := uuid.NewV4().String()
-		identity_invalid := &authsupport.Identity{
+		invalidUsername := uuid.NewV4().String()
+		invalidIdentity := &authsupport.Identity{
 			ID:       uuid.NewV4(),
-			Username: username_invalid,
+			Username: invalidUsername,
 		}
-		jwt_invalid, err := tokengenerator.GenerateSignedToken(*identity_invalid, kid1)
+		invalidJWT, err := tokengenerator.GenerateSignedToken(*invalidIdentity, kid1)
 		require.NoError(s.T(), err)
 
-		_, err = tokenParser.FromString(jwt_invalid)
+		_, err = tokenParser.FromString(invalidJWT)
 		require.Error(s.T(), err)
 		require.EqualError(s.T(), err, "token does not comply to expected claims: email missing")
 	})

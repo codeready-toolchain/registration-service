@@ -1,9 +1,10 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 // Woopra implements the segment endpoint, which is invoked to
@@ -26,7 +27,7 @@ func (w *Woopra) GetWoopraDomain(ctx *gin.Context) {
 }
 
 // GetSegmentWriteKey returns segment-write-key content for UI.
-func (s *Woopra) GetSegmentWriteKey(ctx *gin.Context) {
-	segmentWriteKey := s.config.GetSegmentWriteKey()
+func (w *Woopra) GetSegmentWriteKey(ctx *gin.Context) {
+	segmentWriteKey := w.config.GetSegmentWriteKey()
 	ctx.String(http.StatusOK, segmentWriteKey)
 }

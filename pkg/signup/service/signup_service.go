@@ -36,7 +36,7 @@ const (
 )
 
 // ServiceConfiguration represents the config used for the signup service.
-type ServiceConfiguration interface {
+type ServiceConfiguration interface { // nolint: golint
 	GetNamespace() string
 	GetVerificationEnabled() bool
 	GetVerificationExcludedEmailDomains() []string
@@ -44,7 +44,7 @@ type ServiceConfiguration interface {
 }
 
 // ServiceImpl represents the implementation of the signup service.
-type ServiceImpl struct {
+type ServiceImpl struct { // nolint: golint
 	base.BaseService
 	Config ServiceConfiguration
 }
@@ -249,19 +249,19 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
-	} else {
-		if completeCondition.Status != apiv1.ConditionTrue {
-			// UserSignup is not complete
-			signupResponse.Status = signup.Status{
-				Reason:               completeCondition.Reason,
-				Message:              completeCondition.Message,
-				VerificationRequired: states.VerificationRequired(userSignup),
-			}
-			return signupResponse, nil
-		} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
-			// UserSignup is deactivated. Treat it as non-existent.
-			return nil, nil
+	}
+
+	if completeCondition.Status != apiv1.ConditionTrue {
+		// UserSignup is not complete
+		signupResponse.Status = signup.Status{
+			Reason:               completeCondition.Reason,
+			Message:              completeCondition.Message,
+			VerificationRequired: states.VerificationRequired(userSignup),
 		}
+		return signupResponse, nil
+	} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+		// UserSignup is deactivated. Treat it as non-existent.
+		return nil, nil
 	}
 
 	// If UserSignup status is complete as active

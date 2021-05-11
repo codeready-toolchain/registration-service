@@ -111,14 +111,13 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			TargetCluster:        "",
-			Approved:             false,
-			VerificationRequired: verificationRequired,
-			UserID:               ctx.GetString(context.SubKey),
-			Username:             ctx.GetString(context.UsernameKey),
-			GivenName:            ctx.GetString(context.GivenNameKey),
-			FamilyName:           ctx.GetString(context.FamilyNameKey),
-			Company:              ctx.GetString(context.CompanyKey),
+			TargetCluster: "",
+			Approved:      false,
+			UserID:        ctx.GetString(context.SubKey),
+			Username:      ctx.GetString(context.UsernameKey),
+			GivenName:     ctx.GetString(context.GivenNameKey),
+			FamilyName:    ctx.GetString(context.FamilyNameKey),
+			Company:       ctx.GetString(context.CompanyKey),
 		},
 	}
 	states.SetVerificationRequired(userSignup, verificationRequired)
@@ -247,16 +246,17 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
 			Reason:               v1alpha1.UserSignupPendingApprovalReason,
-			VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
+			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
 	}
+
 	if completeCondition.Status != apiv1.ConditionTrue {
 		// UserSignup is not complete
 		signupResponse.Status = signup.Status{
 			Reason:               completeCondition.Reason,
 			Message:              completeCondition.Message,
-			VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
+			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
 	} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
@@ -279,7 +279,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		Ready:                ready,
 		Reason:               murCondition.Reason,
 		Message:              murCondition.Message,
-		VerificationRequired: states.VerificationRequired(userSignup) || userSignup.Spec.VerificationRequired,
+		VerificationRequired: states.VerificationRequired(userSignup),
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster

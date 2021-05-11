@@ -213,10 +213,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 			},
 		},
 		Spec: v1alpha1.UserSignupSpec{
-			Username:             "sbryzak@redhat.com",
-			VerificationRequired: true,
+			Username: "sbryzak@redhat.com",
 		},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
@@ -594,10 +594,10 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 				},
 			},
 			Spec: v1alpha1.UserSignupSpec{
-				Username:             "sbryzak@redhat.com",
-				VerificationRequired: true,
+				Username: "sbryzak@redhat.com",
 			},
 		}
+		states.SetDeactivated(userSignup, true)
 
 		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
 		require.NoError(s.T(), err)

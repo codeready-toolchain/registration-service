@@ -111,7 +111,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		val := userSignups.Items[0]
 		require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
 		require.Equal(s.T(), userID, val.Name)
-		require.Equal(s.T(), userID, val.Spec.UserID)
+		require.Equal(s.T(), userID, val.Spec.Userid)
 		require.Equal(s.T(), "jsmith", val.Spec.Username)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)

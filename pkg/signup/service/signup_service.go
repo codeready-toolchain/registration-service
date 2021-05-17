@@ -113,7 +113,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		Spec: v1alpha1.UserSignupSpec{
 			TargetCluster: "",
 			Approved:      false,
-			UserID:        ctx.GetString(context.SubKey),
+			Userid:        ctx.GetString(context.SubKey),
 			Username:      ctx.GetString(context.UsernameKey),
 			GivenName:     ctx.GetString(context.GivenNameKey),
 			FamilyName:    ctx.GetString(context.FamilyNameKey),
@@ -340,7 +340,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 	}
 	for _, signup := range userSignupList.Items {
 
-		if signup.Spec.UserID != userID && !states.Deactivated(&signup) {
+		if signup.Spec.Userid != userID && !states.Deactivated(&signup) {
 			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

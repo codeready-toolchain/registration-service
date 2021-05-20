@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"

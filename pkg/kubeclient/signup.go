@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 )
 
 const (

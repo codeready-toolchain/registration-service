@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"

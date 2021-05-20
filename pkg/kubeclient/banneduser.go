@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"

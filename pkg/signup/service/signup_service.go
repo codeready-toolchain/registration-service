@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/codeready-toolchain/api/api/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -59,7 +59,7 @@ func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfigur
 
 // newUserSignup generates a new UserSignup resource with the specified username and userID.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
-func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
 
 	username = usersignup.TransformUsername(username)
@@ -98,19 +98,19 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, err
 		}
 	}
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      EncodeUserID(ctx.GetString(context.SubKey)),
 			Namespace: s.Config.GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
-				v1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
+				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			TargetCluster: "",
 			Approved:      false,
 			Userid:        ctx.GetString(context.SubKey),
@@ -162,7 +162,7 @@ func EncodeUserID(subject string) string {
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
-func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
@@ -176,8 +176,8 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
-	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
-	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
+	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
 		return s.reactivateUserSignup(ctx, userSignup)
 	}
@@ -187,7 +187,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.newUserSignup(ctx)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*v1alpha1.UserSignup, 
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
@@ -205,12 +205,12 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *v1alpha1.
 	if err != nil {
 		return nil, err
 	}
-	log.WithValues(map[string]interface{}{v1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]}).
+	log.WithValues(map[string]interface{}{toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]}).
 		Info(ctx, "reactivating user")
 
 	// (don't override) the `toolchain.dev.openshift.com/activation-counter` if it is already set in the existing UserSignup
-	if c, exists := existing.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
-		newUserSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = c
+	if c, exists := existing.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
+		newUserSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = c
 	}
 	existing.Annotations = newUserSignup.Annotations
 	existing.Labels = newUserSignup.Labels
@@ -241,11 +241,11 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupApproved)
-	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, v1alpha1.UserSignupComplete)
+	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
+	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
 		signupResponse.Status = signup.Status{
-			Reason:               v1alpha1.UserSignupPendingApprovalReason,
+			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
@@ -259,7 +259,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			VerificationRequired: states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
-	} else if completeCondition.Reason == v1alpha1.UserSignupUserDeactivatedReason {
+	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
 		// UserSignup is deactivated. Treat it as non-existent.
 		return nil, nil
 	}
@@ -270,7 +270,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	if err != nil {
 		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, v1alpha1.ConditionReady)
+	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
 	ready, err := strconv.ParseBool(string(murCondition.Status))
 	if err != nil {
 		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
@@ -301,7 +301,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) GetUserSignup(userID string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
@@ -312,7 +312,7 @@ func (s *ServiceImpl) GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
 }
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
-func (s *ServiceImpl) UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+func (s *ServiceImpl) UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
 	if err != nil {
 		return nil, err

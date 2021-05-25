@@ -1,16 +1,16 @@
 package service
 
 import (
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
 )
 
 type SignupService interface {
-	Signup(ctx *gin.Context) (*v1alpha1.UserSignup, error)
+	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
 	GetSignup(userID string) (*signup.Signup, error)
-	GetUserSignup(userID string) (*v1alpha1.UserSignup, error)
-	UpdateUserSignup(userSignup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error)
+	GetUserSignup(userID string) (*toolchainv1alpha1.UserSignup, error)
+	UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error)
 	PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) error
 }
 

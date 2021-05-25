@@ -25,7 +25,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -94,7 +94,7 @@ func (c *mockSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
 func (s *TestSignupServiceSuite) TestSignup() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
-	assertUserSignupExists := func(userSignup *v1alpha1.UserSignup, userID string) (schema.GroupVersionResource, v1alpha1.UserSignup) {
+	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, userID string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
 		require.NotNil(s.T(), userSignup)
 
 		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
@@ -104,7 +104,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
 
-		userSignups := values.(*v1alpha1.UserSignupList)
+		userSignups := values.(*toolchainv1alpha1.UserSignupList)
 		require.NotEmpty(s.T(), userSignups.Items)
 		require.Len(s.T(), userSignups.Items, 1)
 
@@ -118,8 +118,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "red hat", val.Spec.Company)
 		require.False(s.T(), val.Spec.Approved)
 		require.True(s.T(), states.VerificationRequired(&val))
-		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 
 		return gvr, val
 	}
@@ -142,14 +142,14 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	// then
 	require.NoError(s.T(), err)
-	assert.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
+	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
 
 	gvr, existing := assertUserSignupExists(userSignup, userID.String())
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
+		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
@@ -162,7 +162,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(deactivatedUS, userID.String())
 		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
-		assert.Equal(s.T(), "2", deactivatedUS.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
+		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
 	})
 
 	s.Run("deactivate and reactivate with missing annotation", func() {
@@ -171,7 +171,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		// also, alter the activation counter annotation
-		delete(deactivatedUS.Annotations, v1alpha1.UserSignupActivationCounterAnnotationKey)
+		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
 
@@ -182,7 +182,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(userSignup, userID.String())
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
-		assert.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
@@ -192,11 +192,11 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
 		require.NoError(s.T(), err)
-		s.FakeUserSignupClient.MockUpdate = func(signup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if signup.Name == userID.String() {
 				return nil, errors.New("an error occurred")
 			}
-			return &v1alpha1.UserSignup{}, nil
+			return &toolchainv1alpha1.UserSignup{}, nil
 		}
 
 		// when
@@ -238,7 +238,7 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -304,7 +304,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -338,16 +338,16 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "john@gmail.com",
 		},
 	})
@@ -373,16 +373,16 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jsmith@gmail.com",
 		},
 	})
@@ -415,17 +415,17 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
 	})
@@ -447,14 +447,14 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
 	})
@@ -482,16 +482,16 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
 	})
@@ -513,7 +513,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -525,19 +525,19 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Equal(s.T(), "", val.Spec.FamilyName)
 	require.Equal(s.T(), "", val.Spec.Company)
 	require.False(s.T(), val.Spec.Approved)
-	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
-	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
+	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	s.FakeUserSignupClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
+	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 		if name == userID.String() {
 			return nil, errors.New("an error occurred")
 		}
-		return &v1alpha1.UserSignup{}, nil
+		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
 	_, err = s.Application.SignupService().GetSignup(userID.String())
@@ -559,27 +559,27 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	userSignup := v1alpha1.UserSignup{
+	userSignup := toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "bill",
 		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.UserSignupStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:    v1alpha1.UserSignupComplete,
+					Type:    toolchainv1alpha1.UserSignupComplete,
 					Status:  apiv1.ConditionFalse,
 					Reason:  "test_reason",
 					Message: "test_message",
 				},
 				{
-					Type:   v1alpha1.UserSignupApproved,
+					Type:   toolchainv1alpha1.UserSignupApproved,
 					Status: apiv1.ConditionTrue,
-					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
 				},
 			},
 		},
@@ -607,42 +607,42 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
 
-	noCondition := v1alpha1.UserSignupStatus{}
-	pendingApproval := v1alpha1.UserSignupStatus{
-		Conditions: []v1alpha1.Condition{
+	noCondition := toolchainv1alpha1.UserSignupStatus{}
+	pendingApproval := toolchainv1alpha1.UserSignupStatus{
+		Conditions: []toolchainv1alpha1.Condition{
 			{
-				Type:   v1alpha1.UserSignupApproved,
+				Type:   toolchainv1alpha1.UserSignupApproved,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupPendingApprovalReason,
+				Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
 			},
 		},
 	}
-	noClusterApproval := v1alpha1.UserSignupStatus{
-		Conditions: []v1alpha1.Condition{
+	noClusterApproval := toolchainv1alpha1.UserSignupStatus{
+		Conditions: []toolchainv1alpha1.Condition{
 			{
-				Type:   v1alpha1.UserSignupApproved,
+				Type:   toolchainv1alpha1.UserSignupApproved,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupPendingApprovalReason,
+				Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
 			},
 			{
-				Type:   v1alpha1.UserSignupComplete,
+				Type:   toolchainv1alpha1.UserSignupComplete,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupNoClusterAvailableReason,
+				Reason: toolchainv1alpha1.UserSignupNoClusterAvailableReason,
 			},
 		},
 	}
 
-	for _, status := range []v1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
+	for _, status := range []toolchainv1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
 		userID, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 
-		userSignup := v1alpha1.UserSignup{
+		userSignup := toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: TestNamespace,
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "bill",
 			},
 			Status: status,
@@ -691,19 +691,19 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
 	require.NoError(s.T(), err)
 
-	err = s.FakeToolchainStatusClient.Tracker.Add(&v1alpha1.ToolchainStatus{
+	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
 			Namespace: TestNamespace,
 		},
-		Status: v1alpha1.ToolchainStatusStatus{
-			Members: []v1alpha1.Member{
+		Status: toolchainv1alpha1.ToolchainStatusStatus{
+			Members: []toolchainv1alpha1.Member{
 				{
 					ClusterName: "member-1",
 					ApiEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: v1alpha1.MemberStatusStatus{
-						Routes: &v1alpha1.Routes{
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-1.com",
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
@@ -712,8 +712,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				{
 					ClusterName: "member-123",
 					ApiEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: v1alpha1.MemberStatusStatus{
-						Routes: &v1alpha1.Routes{
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-123.com",
 							CheDashboardURL: "http://che-toolchain-che.member-123.com",
 						},
@@ -761,11 +761,11 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	require.NoError(s.T(), err)
 
 	returnedErr := errors.New("an error occurred")
-	s.FakeMasterUserRecordClient.MockGet = func(name string) (*v1alpha1.MasterUserRecord, error) {
+	s.FakeMasterUserRecordClient.MockGet = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
 		}
-		return &v1alpha1.MasterUserRecord{}, nil
+		return &toolchainv1alpha1.MasterUserRecord{}, nil
 	}
 
 	_, err = s.Application.SignupService().GetSignup(us.Name)
@@ -779,19 +779,19 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(&v1alpha1.MasterUserRecord{
+	err = s.FakeMasterUserRecordClient.Tracker.Add(&toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.MasterUserRecordSpec{
-			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
-		Status: v1alpha1.MasterUserRecordStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:   v1alpha1.MasterUserRecordReady,
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
 					Status: "blah-blah-blah",
 				},
 			},
@@ -817,7 +817,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	})
 
 	s.Run("getusersignup returns error", func() {
-		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *v1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("get failed")
 		}
 
@@ -856,7 +856,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 
 	s.Run("updateusersignup returns error", func() {
-		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("update failed")
 		}
 
@@ -870,36 +870,36 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 }
 
-func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
+func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }
 
-func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *v1alpha1.UserSignup {
+func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *toolchainv1alpha1.UserSignup {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	return &v1alpha1.UserSignup{
+	return &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "ted@domain.com",
 		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.UserSignupStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:   v1alpha1.UserSignupComplete,
+					Type:   toolchainv1alpha1.UserSignupComplete,
 					Status: apiv1.ConditionTrue,
 					Reason: reason,
 				},
 				{
-					Type:   v1alpha1.UserSignupApproved,
+					Type:   toolchainv1alpha1.UserSignupApproved,
 					Status: apiv1.ConditionTrue,
-					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
 				},
 			},
 			CompliantUsername: "ted",
@@ -907,36 +907,36 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 	}
 }
 
-func (s *TestSignupServiceSuite) newProvisionedMUR() *v1alpha1.MasterUserRecord {
-	return &v1alpha1.MasterUserRecord{
+func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUserRecord {
+	return &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.MasterUserRecordSpec{
-			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
-		Status: v1alpha1.MasterUserRecordStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:    v1alpha1.MasterUserRecordReady,
+					Type:    toolchainv1alpha1.MasterUserRecordReady,
 					Status:  apiv1.ConditionTrue,
 					Reason:  "mur_ready_reason",
 					Message: "mur_ready_message",
 				},
 			},
-			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
+			UserAccounts: []toolchainv1alpha1.UserAccountStatusEmbedded{{Cluster: toolchainv1alpha1.Cluster{
 				Name: "member-123",
 			}}},
 		},
 	}
 }
 
-func deactivated() []v1alpha1.Condition {
-	return []v1alpha1.Condition{
+func deactivated() []toolchainv1alpha1.Condition {
+	return []toolchainv1alpha1.Condition{
 		{
-			Type:   v1alpha1.UserSignupComplete,
+			Type:   toolchainv1alpha1.UserSignupComplete,
 			Status: apiv1.ConditionTrue,
 			Reason: "Deactivated",
 		},

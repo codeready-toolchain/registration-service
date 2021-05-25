@@ -1,7 +1,7 @@
 package kubeclient
 
 import (
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -29,7 +29,7 @@ func NewCRTRESTClient(cfg *rest.Config, namespace string) (CRTClient, error) {
 	crtapi.SchemeBuilder.Register(getRegisterObject()...)
 
 	config := *cfg
-	config.GroupVersion = &crtapi.SchemeGroupVersion
+	config.GroupVersion = &crtapi.GroupVersion
 	config.APIPath = "/apis"
 	config.ContentType = runtime.ContentTypeJSON
 	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}

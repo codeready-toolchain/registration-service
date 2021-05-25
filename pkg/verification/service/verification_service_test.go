@@ -27,7 +27,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -136,19 +136,19 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	gock.Observe(obs)
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "sbryzak@redhat.com",
 		},
 	}
@@ -165,7 +165,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 	require.NoError(s.T(), err)
 
-	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(reqBody)
@@ -175,7 +175,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
-		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
@@ -200,19 +200,19 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 
 	gock.Observe(obs)
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "sbryzak@redhat.com",
 		},
 	}
@@ -228,7 +228,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 	require.NoError(s.T(), err)
 
-	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(reqBody)
@@ -238,7 +238,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
-		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
@@ -262,22 +262,22 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	gock.Observe(obs)
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
-				v1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
-				v1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
+				toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
+				toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "sbryzak@redhat.com",
 		},
 	}
@@ -293,7 +293,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 	require.NoError(s.T(), err)
 
-	require.NotEmpty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(reqBody)
@@ -303,11 +303,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
-		userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
-	require.Equal(s.T(), "1", userSignup.Annotations[v1alpha1.UserSignupVerificationCounterAnnotationKey])
+	require.Equal(s.T(), "1", userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContainsInvalidValue() {
@@ -319,21 +319,21 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 
 	now := time.Now()
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				v1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
+				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "sbryzak@redhat.com",
 		},
 	}
@@ -360,21 +360,21 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 	now := time.Now()
 
-	userSignup := &v1alpha1.UserSignup{
+	userSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				v1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(s.Config().GetVerificationDailyLimit()),
-				v1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(s.Config().GetVerificationDailyLimit()),
+				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "sbryzak@redhat.com",
 		},
 	}
@@ -388,7 +388,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 
-	require.Empty(s.T(), userSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberInUse() {
@@ -409,19 +409,19 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
 
-	alphaUserSignup := &v1alpha1.UserSignup{
+	alphaUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "alpha@foxtrot.com",
 			Approved: true,
 		},
@@ -431,17 +431,17 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 	require.NoError(s.T(), err)
 
-	bravoUserSignup := &v1alpha1.UserSignup{
+	bravoUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
 			},
 			Labels: map[string]string{},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "bravo@foxtrot.com",
 		},
 	}
@@ -459,7 +459,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	bravoUserSignup, err = s.FakeUserSignupClient.Get(bravoUserSignup.Name)
 	require.NoError(s.T(), err)
 
-	require.Empty(s.T(), bravoUserSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.Empty(s.T(), bravoUserSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUseByDeactivatedUserSignup() {
@@ -480,20 +480,20 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
 
-	alphaUserSignup := &v1alpha1.UserSignup{
+	alphaUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
 			},
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
-				v1alpha1.UserSignupStateLabelKey:         v1alpha1.UserSignupStateLabelValueDeactivated,
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
+				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueDeactivated,
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "alpha@foxtrot.com",
 			Approved: true,
 		},
@@ -504,17 +504,17 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 	require.NoError(s.T(), err)
 
-	bravoUserSignup := &v1alpha1.UserSignup{
+	bravoUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: s.Config().GetNamespace(),
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
 			},
 			Labels: map[string]string{},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "bravo@foxtrot.com",
 		},
 	}
@@ -532,7 +532,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NoError(s.T(), err)
 
 	// Just confirm that verification has been initialized by testing whether a verification code has been set
-	require.NotEmpty(s.T(), bravoUserSignup.Annotations[v1alpha1.UserSignupVerificationCodeAnnotationKey])
+	require.NotEmpty(s.T(), bravoUserSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
 func (s *TestVerificationServiceSuite) TestVerifyCode() {
@@ -541,22 +541,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 	s.T().Run("verification ok", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -578,22 +578,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	// TODO remove this test after migration complete
 	s.T().Run("verification ok for pre-migrated user signup", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "999",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "999333",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "999333",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -614,22 +614,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 	s.T().Run("when verification code is invalid", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -650,22 +650,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -685,22 +685,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -718,22 +718,22 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}
@@ -751,27 +751,27 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
 
-		require.Equal(s.T(), "3", userSignup.Annotations[v1alpha1.UserVerificationAttemptsAnnotationKey])
+		require.Equal(s.T(), "3", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
 	})
 
 	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
 
-		userSignup := &v1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
 				Namespace: s.Config().GetNamespace(),
 				Annotations: map[string]string{
-					v1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					v1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					v1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					v1alpha1.UserVerificationExpiryAnnotationKey:     "ABC",
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     "ABC",
 				},
 				Labels: map[string]string{
-					v1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 				},
 			},
-			Spec: v1alpha1.UserSignupSpec{
+			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "sbryzak@redhat.com",
 			},
 		}

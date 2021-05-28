@@ -116,7 +116,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
-		require.False(s.T(), val.Spec.Approved)
+		require.False(s.T(), states.Approved(&val))
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
@@ -524,7 +524,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Equal(s.T(), "", val.Spec.GivenName)
 	require.Equal(s.T(), "", val.Spec.FamilyName)
 	require.Equal(s.T(), "", val.Spec.Company)
-	require.False(s.T(), val.Spec.Approved)
+	require.False(s.T(), states.Approved(&val))
 	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 }

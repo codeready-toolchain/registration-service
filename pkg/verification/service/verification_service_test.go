@@ -423,9 +423,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "alpha@foxtrot.com",
-			Approved: true,
 		},
 	}
+	states.SetApproved(alphaUserSignup, true)
 	states.SetVerificationRequired(alphaUserSignup, false)
 
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
@@ -495,9 +495,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "alpha@foxtrot.com",
-			Approved: true,
 		},
 	}
+	states.SetApproved(alphaUserSignup, true)
 	states.SetVerificationRequired(alphaUserSignup, false)
 	states.SetDeactivated(alphaUserSignup, true)
 

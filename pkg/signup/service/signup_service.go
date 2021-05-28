@@ -112,7 +112,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			TargetCluster: "",
-			Approved:      false,
 			Userid:        ctx.GetString(context.SubKey),
 			Username:      ctx.GetString(context.UsernameKey),
 			GivenName:     ctx.GetString(context.GivenNameKey),

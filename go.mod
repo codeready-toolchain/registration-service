@@ -4,8 +4,8 @@ go 1.14
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20210528134715-13373a2ab54a
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20210528140854-e36fca9e7edf
+	github.com/codeready-toolchain/api v0.0.0-20210614133722-31dc79a71878
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20210615160410-5fc6a59ad950
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
@@ -23,7 +23,6 @@ require (
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.9.1
-	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1

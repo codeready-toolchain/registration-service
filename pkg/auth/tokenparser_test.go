@@ -12,7 +12,7 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -35,10 +35,10 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
-	kid0 := uuid.NewV4().String()
+	kid0 := uuid.Must(uuid.NewV4()).String()
 	_, err = tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
-	kid1 := uuid.NewV4().String()
+	kid1 := uuid.Must(uuid.NewV4()).String()
 	_, err = tokengenerator.AddPrivateKey(kid1)
 	require.NoError(s.T(), err)
 
@@ -68,17 +68,17 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 	s.Run("parse valid tokens", func() {
 		// create two test tokens, both valid
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
 		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
 		require.NoError(s.T(), err)
-		username1 := uuid.NewV4().String()
+		username1 := uuid.Must(uuid.NewV4()).String()
 		identity1 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username1,
 		}
 		email1 := identity1.Username + "@email.tld"
@@ -107,9 +107,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 	s.Run("parse invalid token", func() {
 		// create invalid test token (wrong set of claims, no email), signed with key1
-		invalidUsername := uuid.NewV4().String()
+		invalidUsername := uuid.Must(uuid.NewV4()).String()
 		invalidIdentity := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: invalidUsername,
 		}
 		invalidJWT, err := tokengenerator.GenerateSignedToken(*invalidIdentity, kid1)
@@ -122,13 +122,13 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 	s.Run("token signed by unknown key", func() {
 		// new key
-		kidX := uuid.NewV4().String()
+		kidX := uuid.Must(uuid.NewV4()).String()
 		_, err := tokengenerator.AddPrivateKey(kidX)
 		require.NoError(s.T(), err)
 		// generate valid token
-		usernameX := uuid.NewV4().String()
+		usernameX := uuid.Must(uuid.NewV4()).String()
 		identityX := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: usernameX,
 		}
 		emailX := identityX.Username + "@email.tld"
@@ -143,9 +143,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("no KID header in token", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -162,9 +162,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("missing claim: preferred_username", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -182,9 +182,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("missing claim: email", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		// generate non-serialized token
@@ -199,9 +199,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("missing claim: sub", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -218,9 +218,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("signature is good but token expired", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -239,9 +239,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("signature is good but token not valid yet", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -260,9 +260,9 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	})
 
 	s.Run("token signed by known key but the signature is invalid", func() {
-		username0 := uuid.NewV4().String()
+		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{
-			ID:       uuid.NewV4(),
+			ID:       uuid.Must(uuid.NewV4()),
 			Username: username0,
 		}
 		email0 := identity0.Username + "@email.tld"
@@ -274,7 +274,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// replace signature with garbage
 		str := strings.Split(jwt0string, ".")
 		require.Len(s.T(), str, 3)
-		str[2] = uuid.NewV4().String()
+		str[2] = uuid.Must(uuid.NewV4()).String()
 		jwt0string = strings.Join(str, ".")
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)

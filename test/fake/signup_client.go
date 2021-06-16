@@ -8,7 +8,7 @@ import (
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,7 +78,7 @@ func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 
 func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	if obj != nil {
-		obj.ResourceVersion = uuid.NewV4().String()
+		obj.ResourceVersion = uuid.Must(uuid.NewV4()).String()
 	}
 	if c.MockCreate != nil {
 		return c.MockCreate(obj)

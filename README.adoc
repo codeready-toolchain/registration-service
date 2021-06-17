@@ -9,7 +9,7 @@ This is the CodeReady Toolchain Registration Service repository. It implements t
 
 == Build
 
-Requires Go version 1.13 - download for your development environment https://golang.org/dl/[here].
+Requires Go version 1.16 - download for your development environment https://golang.org/dl/[here].
 
 This repository uses https://github.com/golang/go/wiki/Modules[Go modules]. You may need to `export GO111MODULE=on` to turn modules support "on".
 
@@ -60,17 +60,3 @@ export GO111MODULE=on
 ```
 
 Before running VSCode from that shell.
-
-=== Deploying all operators and Registration Service
-
-All e2e resources such as Host operator, Member operator, Registration Service, CRDs, etc can be deployed via:
-
-```
-make deploy-e2e
-```
-
-Host and member operators will be downloaded from the `master` branch and the local `registration-service` repo will be used to deploy the Registration Service.
-
-By default this target deploys resources to `toolchain-host-operator` and `toolchain-member-operator` namespaces.
-
-NOTE: If running in CodeReady Containers `eval $(crc oc-env)` is required.

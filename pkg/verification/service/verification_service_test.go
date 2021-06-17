@@ -13,10 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 
@@ -46,7 +45,7 @@ func TestRunVerificationServiceSuite(t *testing.T) {
 }
 
 func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) configuration.Configuration {
-	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
+	restore := test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, "toolchain-host-operator")
 	defer restore()
 
 	baseConfig, _ := configuration.LoadConfig(test2.NewFakeClient(s.T()))

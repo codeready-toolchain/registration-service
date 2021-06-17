@@ -6,9 +6,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -60,7 +60,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 }
 
 func (s *UnitTestSuite) DefaultConfig() *configuration.ViperConfig {
-	restore := test.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, "toolchain-host-operator")
+	restore := test.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, "toolchain-host-operator")
 	defer restore()
 
 	cfg, err := configuration.LoadConfig(test.NewFakeClient(s.T()))

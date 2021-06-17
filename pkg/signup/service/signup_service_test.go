@@ -9,11 +9,10 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -52,7 +51,7 @@ func TestRunSignupServiceSuite(t *testing.T) {
 func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verificationEnabled bool,
 	excludedDomains []string, verificationCodeExpiresInMin int) configuration.Configuration {
 
-	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, namespace)
+	restore := test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, namespace)
 	defer restore()
 
 	baseConfig, err := configuration.LoadConfig(test2.NewFakeClient(s.T()))

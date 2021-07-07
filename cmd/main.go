@@ -14,6 +14,9 @@ import (
 	"github.com/spf13/pflag"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	// this is needed to be able to generate assets
+	_ "github.com/shurcooL/vfsgen"
 )
 
 func main() {

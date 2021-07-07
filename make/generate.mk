@@ -1,7 +1,6 @@
 .PHONY: generate
 ## generates the asset bundle to be packaged with the binary
 generate:
-	go get github.com/shurcooL/vfsgen
 	go run -tags=dev pkg/static/assets_generate.go
 
 .PHONY: copy-reg-service-template

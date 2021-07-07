@@ -333,7 +333,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 
 	return
 }
-git stat
+
 func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
 	// Attempt to execute an update function, retrying a number of times if the update fails
 	attempts := 0

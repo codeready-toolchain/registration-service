@@ -366,7 +366,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		// error to the user here, as we've already logged it
 		if attempts > 4 {
 			return errors.NewInternalError(errs.New("there was an error while updating your account - please wait a moment before trying again."+
-				"If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
+				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
 				"error while verifying code")
 		}
 	}

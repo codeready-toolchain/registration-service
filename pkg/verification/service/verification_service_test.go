@@ -181,8 +181,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
-// TODO remove this test after migration complete
-func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
+func (s *TestVerificationServiceSuite) TestInitVerificationClientUpdateFails() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()
 	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
@@ -216,6 +215,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 			Username: "sbryzak@redhat.com",
 		},
 	}
+
 	states.SetVerificationRequired(userSignup, true)
 
 	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
@@ -567,43 +567,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
-		require.NoError(s.T(), err)
-
-		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.False(s.T(), states.VerificationRequired(userSignup))
-	})
-
-	// TODO remove this test after migration complete
-	s.T().Run("verification ok for pre-migrated user signup", func(t *testing.T) {
-
-		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      "999",
-				Namespace: s.Config().GetNamespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "999333",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
-			},
-		}
-		states.SetDeactivated(userSignup, true)
-
-		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
-
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "999333")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)

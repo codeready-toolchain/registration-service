@@ -200,29 +200,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		return nil
 	}
 
-	// Attempt to update the UserSignup, retrying a number of times if the update fails
-	attempts := 0
-	for {
-		attempts++
-
-		// Attempt the update
-		updateErr := doUpdate()
-
-		// If there was an error, then only log it for now
-		if updateErr != nil {
-			log.Error(ctx, err, fmt.Sprintf("error while updating UserSignup resource, attempt #%d", attempts))
-		} else {
-			// Otherwise if there was no error updating the UserSignup, then break here
-			break
-		}
-
-		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
-		// error to the user here, as we've already logged it
-		if attempts > 4 {
-			return errors.NewInternalError(errs.New("there was an error while updating your account - please wait a moment before trying again."+
-				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
-				"error while initiating verification")
-		}
+	updateErr := pollUpdateSignup(ctx, doUpdate)
+	if updateErr != nil {
+		return updateErr
 	}
 
 	return initError
@@ -346,19 +326,28 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		return nil
 	}
 
-	// Attempt to update the UserSignup, retrying a number of times if the update fails
+	updateErr := pollUpdateSignup(ctx, doUpdate)
+	if updateErr != nil {
+		return updateErr
+	}
+
+	return
+}
+git stat
+func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
+	// Attempt to execute an update function, retrying a number of times if the update fails
 	attempts := 0
 	for {
 		attempts++
 
 		// Attempt the update
-		updateErr := doUpdate()
+		updateErr := updater()
 
 		// If there was an error, then only log it for now
 		if updateErr != nil {
-			log.Error(ctx, err, fmt.Sprintf("error while updating UserSignup resource, attempt #%d", attempts))
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
 		} else {
-			// Otherwise if there was no error updating the UserSignup, then break here
+			// Otherwise if there was no error executing the update, then break here
 			break
 		}
 
@@ -371,5 +360,5 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		}
 	}
 
-	return
+	return nil
 }

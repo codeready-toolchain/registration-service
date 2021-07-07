@@ -257,7 +257,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		failCount := 0
 
-		// Cause the client UPDATE call to fail always
+		// Cause the client UPDATE call to fail just twice
 		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if failCount < 2 {
 				failCount++

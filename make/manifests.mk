@@ -7,7 +7,7 @@ GH_SCRIPTS_URL=https://raw.githubusercontent.com/${OWNER_AND_BRANCH_LOCATION}/sc
 
 TMP_DIR?=/tmp
 IMAGE_BUILDER?=podman
-INDEX_IMAGE?=host-operator-index
+INDEX_IMAGE_NAME?=host-operator-index
 FIRST_RELEASE=false
 CHANNEL=staging
 INDEX_IMAGE_TAG=latest

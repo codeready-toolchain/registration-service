@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	errs "errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -78,6 +79,8 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		log.Error(ctx, err, "error retrieving usersignup")
 		return errors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
+	labelValues := map[string]string{}
+	annotationValues := map[string]string{}
 
 	// check that verification is required before proceeding
 	if !states.VerificationRequired(signup) {
@@ -106,10 +109,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
 
-	if signup.Labels == nil {
-		signup.Labels = map[string]string{}
-	}
-	signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
+	labelValues[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
 
 	// read the current time
 	now := time.Now()
@@ -118,8 +118,8 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey])
 	if parseErr != nil || now.After(ts.Add(24*time.Hour)) {
 		// Set a new timestamp
-		signup.Annotations[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
-		signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
+		annotationValues[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
+		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
 	}
 
 	// get the verification counter (i.e. the number of times the user has initiated phone verification within
@@ -135,7 +135,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 			log.Error(ctx, err, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey,
 				signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey], signup.Name))
-			signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
+			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
 			counter = dailyLimit
 		}
 	}
@@ -154,10 +154,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 			return errors.NewInternalError(err, "error while generating verification code")
 		}
 		// set the usersignup annotations
-		signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
-		signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-		signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
-		signup.Annotations[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
+		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
+		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+		annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
+		annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
 			time.Duration(s.config.GetVerificationCodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
 
 		// Generate the verification message with the new verification code
@@ -176,10 +176,33 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		}
 	}
 
-	_, updateErr := s.Services().SignupService().UpdateUserSignup(signup)
+	doUpdate := func() error {
+		signup, err := s.Services().SignupService().GetUserSignup(userID)
+		if err != nil {
+			return err
+		}
+		if signup.Labels == nil {
+			signup.Labels = map[string]string{}
+		}
+
+		for k, v := range labelValues {
+			signup.Labels[k] = v
+		}
+
+		for k, v := range annotationValues {
+			signup.Annotations[k] = v
+		}
+		_, err = s.Services().SignupService().UpdateUserSignup(signup)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	updateErr := pollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
-		log.Error(ctx, err, "error while updating UserSignup resource")
-		return errors.NewInternalError(updateErr, "error while updating UserSignup resource")
+		return updateErr
 	}
 
 	return initError
@@ -214,6 +237,10 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		return errors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 
+	annotationValues := map[string]string{}
+	annotationsToDelete := []string{}
+	unsetVerificationRequired := false
+
 	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
@@ -232,7 +259,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 			toolchainv1alpha1.UserVerificationAttemptsAnnotationKey,
 			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey], signup.Name))
 		attemptsMade = s.config.GetVerificationAttemptsAllowed()
-		signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}
 
 	// If the user has made more attempts than is allowed per generated verification code, return an error
@@ -256,29 +283,82 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		if code != signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] {
 			// The code doesn't match
 			attemptsMade++
-			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 			verificationErr = errors.NewForbiddenError("invalid code", "the provided code is invalid")
 		}
 	}
 
 	if verificationErr == nil {
 		// If the code matches then set VerificationRequired to false, reset other verification annotations
-		states.SetVerificationRequired(signup, false)
-		delete(signup.Annotations, toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey)
-		delete(signup.Annotations, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
-		delete(signup.Annotations, toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey)
-		delete(signup.Annotations, toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey)
-		delete(signup.Annotations, toolchainv1alpha1.UserVerificationExpiryAnnotationKey)
+		unsetVerificationRequired = true
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey)
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey)
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey)
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationExpiryAnnotationKey)
 	} else {
 		log.Error(ctx, verificationErr, "error validating verification code")
 	}
 
-	// Update changes made to the UserSignup
-	_, updateErr := s.Services().SignupService().UpdateUserSignup(signup)
+	doUpdate := func() error {
+		signup, err := s.Services().SignupService().GetUserSignup(userID)
+		if err != nil {
+			return err
+		}
+
+		if unsetVerificationRequired {
+			states.SetVerificationRequired(signup, false)
+		}
+
+		for k, v := range annotationValues {
+			signup.Annotations[k] = v
+		}
+
+		for _, annotationName := range annotationsToDelete {
+			delete(signup.Annotations, annotationName)
+		}
+
+		_, err = s.Services().SignupService().UpdateUserSignup(signup)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	updateErr := pollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
-		log.Error(ctx, updateErr, "error updating UserSignup")
-		verificationErr = errors.NewInternalError(updateErr, "error updating UserSignup")
+		return updateErr
 	}
 
 	return
+}
+
+func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
+	// Attempt to execute an update function, retrying a number of times if the update fails
+	attempts := 0
+	for {
+		attempts++
+
+		// Attempt the update
+		updateErr := updater()
+
+		// If there was an error, then only log it for now
+		if updateErr != nil {
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
+		} else {
+			// Otherwise if there was no error executing the update, then break here
+			break
+		}
+
+		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
+		// error to the user here, as we've already logged it
+		if attempts > 4 {
+			return errors.NewInternalError(errs.New("there was an error while updating your account - please wait a moment before trying again."+
+				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
+				"error while verifying code")
+		}
+	}
+
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	errs "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -180,8 +181,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 }
 
-// TODO remove this test after migration complete
-func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
+func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()
 	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
@@ -189,6 +189,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 	defer gock.Off()
 
 	gock.New("https://api.twilio.com").
+		Times(2).
 		Reply(http.StatusNoContent).
 		BodyString("")
 
@@ -215,32 +216,79 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPreMigration() {
 			Username: "sbryzak@redhat.com",
 		},
 	}
+
 	states.SetVerificationRequired(userSignup, true)
 
 	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
-	require.NoError(s.T(), err)
+	s.T().Run("when client GET call fails should return error", func(t *testing.T) {
 
-	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-	require.NoError(s.T(), err)
+		// Cause the client GET call to fail
+		s.FakeUserSignupClient.MockGet = func(s string) (*toolchainv1alpha1.UserSignup, error) {
+			return nil, errs.New("get failed")
+		}
+		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
-	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "get failed:error retrieving usersignup: 123", err.Error())
+	})
 
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(reqBody)
-	require.NoError(s.T(), err)
-	reqValue := buf.String()
+	s.T().Run("when client UPDATE call fails indefinitely should return error", func(t *testing.T) {
 
-	params, err := url.ParseQuery(reqValue)
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
-		userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
-		params.Get("Body"))
-	require.Equal(s.T(), "CodeReady", params.Get("From"))
-	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+		// Cause the client UPDATE call to fail always
+		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+			return nil, errs.New("update failed")
+		}
+		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
+			"for assistance:error while verifying code", err.Error())
+	})
+
+	s.T().Run("when client UPDATE call fails twice should return ok", func(t *testing.T) {
+
+		failCount := 0
+
+		// Cause the client UPDATE call to fail just twice
+		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+			if failCount < 2 {
+				failCount++
+				return nil, errs.New("update failed")
+			}
+			s.FakeUserSignupClient.MockUpdate = nil
+			return s.FakeUserSignupClient.Update(userSignup)
+		}
+		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		require.NoError(s.T(), err)
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+		buf := new(bytes.Buffer)
+		_, err = buf.ReadFrom(reqBody)
+		require.NoError(s.T(), err)
+		reqValue := buf.String()
+
+		params, err := url.ParseQuery(reqValue)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+			userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
+			params.Get("Body"))
+		require.Equal(s.T(), "CodeReady", params.Get("From"))
+		require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+	})
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountReachedAndTimestampElapsed() {
@@ -566,43 +614,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
-		require.NoError(s.T(), err)
-
-		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.False(s.T(), states.VerificationRequired(userSignup))
-	})
-
-	// TODO remove this test after migration complete
-	s.T().Run("verification ok for pre-migrated user signup", func(t *testing.T) {
-
-		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      "999",
-				Namespace: s.Config().GetNamespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "999333",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
-			},
-		}
-		states.SetDeactivated(userSignup, true)
-
-		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
-
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "999333")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)

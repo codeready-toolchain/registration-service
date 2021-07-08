@@ -599,7 +599,9 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), "service unavailable:error updating UserSignup", bodyParams["message"])
+		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
+			"assistance:error while verifying code", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 

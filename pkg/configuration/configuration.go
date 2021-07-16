@@ -160,7 +160,6 @@ type Configuration interface {
 	GetHTTPIdleTimeout() time.Duration
 	GetEnvironment() string
 	GetLogLevel() string
-	IsLogJSON() bool
 	GetGracefulTimeout() time.Duration
 	IsTestingMode() bool
 	GetAuthClientLibraryURL() string
@@ -324,12 +323,6 @@ func (c *ViperConfig) GetEnvironment() string {
 // variable).
 func (c *ViperConfig) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
-}
-
-// IsLogJSON returns if we should log json format (as set via config file or
-// environment variable).
-func (c *ViperConfig) IsLogJSON() bool {
-	return c.v.GetBool(varLogJSON)
 }
 
 // GetGracefulTimeout returns the duration for which the server gracefully wait

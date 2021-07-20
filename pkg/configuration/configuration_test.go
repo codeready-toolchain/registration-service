@@ -149,38 +149,6 @@ func (s *TestConfigurationSuite) TestGetLogLevel() {
 	})
 }
 
-func (s *TestConfigurationSuite) TestIsLogJSON() {
-	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
-	defer restore()
-
-	key := configuration.EnvPrefix + "_" + "LOG_JSON"
-	resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-	defer resetFunc()
-
-	s.Run("default", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), configuration.DefaultLogJSON, config.IsLogJSON())
-	})
-
-	s.Run("file", func() {
-		resetFunc := UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		newVal := !configuration.DefaultLogJSON
-		config := s.getFileConfiguration(`log.json: "` + strconv.FormatBool(newVal) + `"`)
-		assert.Equal(s.T(), newVal, config.IsLogJSON())
-	})
-
-	s.Run("env overwrite", func() {
-		newVal := !configuration.DefaultLogJSON
-		err := os.Setenv(key, strconv.FormatBool(newVal))
-		require.NoError(s.T(), err)
-		config := s.getDefaultConfiguration()
-		assert.Equal(s.T(), newVal, config.IsLogJSON())
-	})
-}
-
 func (s *TestConfigurationSuite) TestGetGracefulTimeout() {
 	restore := SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
 	defer restore()

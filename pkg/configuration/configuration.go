@@ -58,10 +58,6 @@ const (
 	// DefaultLogLevel is the default log level used in your service.
 	DefaultLogLevel = "info"
 
-	varLogJSON = "log.json"
-	// DefaultLogJSON is a switch to toggle on and off JSON log output.
-	DefaultLogJSON = false
-
 	varGracefulTimeout = "graceful_timeout"
 	// DefaultGracefulTimeout is the duration for which the server gracefully
 	// wait for existing connections to finish - e.g. 15s or 1m.
@@ -160,7 +156,6 @@ type Configuration interface {
 	GetHTTPIdleTimeout() time.Duration
 	GetEnvironment() string
 	GetLogLevel() string
-	IsLogJSON() bool
 	GetGracefulTimeout() time.Duration
 	IsTestingMode() bool
 	GetAuthClientLibraryURL() string
@@ -274,7 +269,6 @@ func (c *ViperConfig) setConfigDefaults() {
 	c.v.SetDefault(varHTTPIdleTimeout, DefaultHTTPIdleTimeout)
 	c.v.SetDefault(varEnvironment, DefaultEnvironment)
 	c.v.SetDefault(varLogLevel, DefaultLogLevel)
-	c.v.SetDefault(varLogJSON, DefaultLogJSON)
 	c.v.SetDefault(varGracefulTimeout, DefaultGracefulTimeout)
 	c.v.SetDefault(varAuthClientLibraryURL, DefaultAuthClientLibraryURL)
 	c.v.SetDefault(varAuthClientConfigContentType, DefaultAuthClientConfigContentType)
@@ -324,12 +318,6 @@ func (c *ViperConfig) GetEnvironment() string {
 // variable).
 func (c *ViperConfig) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
-}
-
-// IsLogJSON returns if we should log json format (as set via config file or
-// environment variable).
-func (c *ViperConfig) IsLogJSON() bool {
-	return c.v.GetBool(varLogJSON)
 }
 
 // GetGracefulTimeout returns the duration for which the server gracefully wait

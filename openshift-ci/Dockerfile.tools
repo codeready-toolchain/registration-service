@@ -44,7 +44,7 @@ WORKDIR /tmp
 # download, verify and install golang
 ENV PATH=$PATH:/usr/local/go/bin
 RUN curl -Lo ${GOLANG_VERSION}.linux-amd64.tar.gz https://dl.google.com/go/${GOLANG_VERSION}.linux-amd64.tar.gz \
-    && echo "a3a5d4bc401b51db065e4f93b523347a4d343ae0c0b08a65c3423b05a138037d ${GOLANG_VERSION}.linux-amd64.tar.gz" > ${GOLANG_VERSION}.linux-amd64.sha256 \
+    && echo "be333ef18b3016e9d7cb7b1ff1fdb0cac800ca0be4cf2290fe613b3d069dfe0d ${GOLANG_VERSION}.linux-amd64.tar.gz" > ${GOLANG_VERSION}.linux-amd64.sha256 \
     && sha256sum -c ${GOLANG_VERSION}.linux-amd64.sha256 \
     && tar xzf ${GOLANG_VERSION}.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf ${GOLANG_VERSION}.linux-amd64.tar.gz \

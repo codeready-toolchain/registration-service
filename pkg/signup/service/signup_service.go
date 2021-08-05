@@ -13,11 +13,13 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
@@ -46,14 +48,12 @@ type ServiceConfiguration interface { // nolint: golint
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint: golint
 	base.BaseService
-	Config ServiceConfiguration
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(context servicecontext.ServiceContext, cfg ServiceConfiguration) service.SignupService {
+func NewSignupService(context servicecontext.ServiceContext) service.SignupService {
 	return &ServiceImpl{
 		BaseService: base.NewBaseService(context),
-		Config:      cfg,
 	}
 }
 
@@ -87,11 +87,13 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	verificationRequired := s.Config.GetVerificationEnabled()
+	cfg := commonconfig.GetCachedToolchainConfig()
+
+	verificationRequired := cfg.RegistrationService().Verification().Enabled()
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
 	emailHost := extractEmailHost(userEmail)
-	for _, d := range s.Config.GetVerificationExcludedEmailDomains() {
+	for _, d := range cfg.RegistrationService().Verification().ExcludedEmailDomains() {
 		if strings.EqualFold(d, emailHost) {
 			verificationRequired = false
 			break
@@ -101,7 +103,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      EncodeUserID(ctx.GetString(context.SubKey)),
-			Namespace: s.Config.GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",

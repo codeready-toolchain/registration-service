@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -14,8 +13,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -72,14 +73,15 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// create server
-	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
+	srv := server.New(fake.NewMockableApplication(nil))
 
 	// set the key service url in the config
-	err = os.Setenv("REGISTRATION_AUTH_CLIENT_PUBLIC_KEYS_URL", keysEndpointURL)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), keysEndpointURL, srv.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
-	err = os.Setenv("REGISTRATION_ENVIRONMENT", configuration.UnitTestsEnvironment)
-	require.NoError(s.T(), err)
+	s.SetConfig(testconfig.RegistrationService().
+		Environment(configuration.UnitTestsEnvironment).
+		Auth().AuthClientPublicKeysURL(keysEndpointURL))
+
+	cfg := commonconfig.GetCachedToolchainConfig()
+	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.
 	err = srv.SetupRoutes()

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
 	"github.com/gin-gonic/gin"
@@ -15,23 +16,22 @@ type HealthCheckConfig interface {
 
 // HealthCheck implements the health endpoint.
 type HealthCheck struct {
-	config  HealthCheckConfig
 	checker HealthChecker
 }
 
 // HealthCheck returns a new HealthCheck instance.
-func NewHealthCheck(config HealthCheckConfig, checker HealthChecker) *HealthCheck {
+func NewHealthCheck(checker HealthChecker) *HealthCheck {
 	return &HealthCheck{
-		config:  config,
 		checker: checker,
 	}
 }
 
 // getHealthInfo returns the health info.
 func (hc *HealthCheck) getHealthInfo() *status.Health {
+	cfg := commonconfig.GetCachedToolchainConfig()
 	return &status.Health{
 		Alive:       hc.checker.Alive(),
-		Environment: hc.config.GetEnvironment(),
+		Environment: cfg.RegistrationService().Environment(),
 		Revision:    configuration.Commit,
 		BuildTime:   configuration.BuildTime,
 		StartTime:   configuration.StartTime,
@@ -53,12 +53,11 @@ type HealthChecker interface {
 	Alive() bool
 }
 
-func NewHealthChecker(config HealthCheckConfig) HealthChecker {
-	return &healthCheckerImpl{config: config}
+func NewHealthChecker() HealthChecker {
+	return &healthCheckerImpl{}
 }
 
 type healthCheckerImpl struct {
-	config HealthCheckConfig
 }
 
 func (c *healthCheckerImpl) Alive() bool {

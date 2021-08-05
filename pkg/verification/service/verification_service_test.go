@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 
@@ -24,16 +26,23 @@ import (
 
 	"gopkg.in/h2non/gock.v1"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/registration-service/test"
-	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	testSecretName = "host-operator-secret"
+
+	twilioSIDKey        = "twilio.sid"
+	twilioTokenKey      = "twilio.token"
+	twilioFromNumberKey = "twilio.fromnumber"
 )
 
 type TestVerificationServiceSuite struct {
@@ -45,61 +54,36 @@ func TestRunVerificationServiceSuite(t *testing.T) {
 	suite.Run(t, &TestVerificationServiceSuite{test.UnitTestSuite{}, nil})
 }
 
-func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) configuration.Configuration {
-	restore := test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, "toolchain-host-operator")
-	defer restore()
+func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) {
 
-	baseConfig, _ := configuration.LoadConfig(test2.NewFakeClient(s.T()))
+	ns, err := commonconfig.GetWatchNamespace()
+	require.NoError(s.T(), err)
 
-	return &mockVerificationConfig{
-		ViperConfig:     *baseConfig,
-		accountSID:      accountSID,
-		authToken:       authToken,
-		fromNumber:      fromNumber,
-		messageTemplate: configuration.DefaultVerificationMessageTemplate,
-		attemptsAllowed: 3,
-		dailyLimit:      3,
-		codeExpiry:      5,
+	secret := &corev1.Secret{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      testSecretName,
+			Namespace: ns,
+		},
+		Data: map[string][]byte{
+			twilioSIDKey:        []byte(accountSID),
+			twilioTokenKey:      []byte(authToken),
+			twilioFromNumberKey: []byte(fromNumber),
+		},
 	}
-}
 
-type mockVerificationConfig struct {
-	configuration.ViperConfig
-	accountSID      string
-	authToken       string
-	fromNumber      string
-	messageTemplate string
-	attemptsAllowed int
-	dailyLimit      int
-	codeExpiry      int
-}
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Namespace(ns).
+			Verification().AttemptsAllowed(3).
+			Verification().DailyLimit(3).
+			Verification().CodeExpiresInMin(5).
+			Verification().Secret().
+			Ref(testSecretName).
+			TwilioAccountSID(twilioSIDKey).
+			TwilioAuthToken(twilioTokenKey).
+			TwilioFromNumber(twilioFromNumberKey))
 
-func (c *mockVerificationConfig) GetTwilioAccountSID() string {
-	return c.accountSID
-}
-
-func (c *mockVerificationConfig) GetTwilioAuthToken() string {
-	return c.authToken
-}
-
-func (c *mockVerificationConfig) GetTwilioFromNumber() string {
-	return c.fromNumber
-}
-
-func (c *mockVerificationConfig) GetVerificationMessageTemplate() string {
-	return c.messageTemplate
-}
-
-func (c *mockVerificationConfig) GetVerificationAttemptsAllowed() int {
-	return c.attemptsAllowed
-}
-
-func (c *mockVerificationConfig) GetVerificationDailyLimit() int {
-	return c.dailyLimit
-}
-
-func (c *mockVerificationConfig) GetVerificationCodeExpiresInMin() int {
-	return c.codeExpiry
+	s.SetSecret(secret)
 }
 
 func (s *TestVerificationServiceSuite) SetHTTPClientFactoryOption() {
@@ -121,7 +105,7 @@ func (s *TestVerificationServiceSuite) SetHTTPClientFactoryOption() {
 func (s *TestVerificationServiceSuite) TestInitVerification() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()
-	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
+	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 
 	defer gock.Off()
 
@@ -140,7 +124,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
 			},
@@ -184,7 +168,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()
-	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
+	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 
 	defer gock.Off()
 
@@ -204,7 +188,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
 			},
@@ -298,7 +282,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		Reply(http.StatusNoContent).
 		BodyString("")
 	defer gock.Off()
-	s.OverrideConfig(s.ServiceConfiguration("xxx", "yyy", "CodeReady"))
+	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 
 	now := time.Now()
 
@@ -313,7 +297,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
@@ -362,7 +346,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	s.SetHTTPClientFactoryOption()
 
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
 
 	now := time.Now()
 
@@ -370,7 +355,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
@@ -403,7 +388,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 		Reply(http.StatusNoContent).
 		BodyString("")
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
+	cfg := commonconfig.GetCachedToolchainConfig()
 
 	now := time.Now()
 
@@ -411,10 +398,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "123",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(s.Config().GetVerificationDailyLimit()),
+				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(cfg.RegistrationService().Verification().DailyLimit()),
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{
@@ -446,7 +433,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		Reply(http.StatusNoContent).
 		BodyString("")
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
 
 	e164PhoneNumber := "+19875551122"
 
@@ -460,7 +448,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "alpha",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
 			},
@@ -482,7 +470,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "bravo",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
 			},
@@ -517,7 +505,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		Reply(http.StatusNoContent).
 		BodyString("")
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
 
 	e164PhoneNumber := "+19875553344"
 
@@ -531,7 +520,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "alpha",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
 			},
@@ -555,7 +544,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "bravo",
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
 			},
@@ -592,7 +581,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
@@ -628,7 +617,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
@@ -664,7 +653,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
@@ -699,7 +688,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
@@ -732,7 +721,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
@@ -770,7 +759,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "123",
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",

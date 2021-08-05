@@ -9,8 +9,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofrs/uuid"
@@ -29,19 +31,8 @@ func TestRunKeyManagerSuite(t *testing.T) {
 	})
 }
 
-func (s *TestKeyManagerSuite) TestKeyManager() {
-	// Set the config for testing mode, the handler may use this.
-	s.ViperConfig().GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
-	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
-
-	s.Run("missing config", func() {
-		_, err := auth.NewKeyManager(nil)
-		assert.EqualError(s.T(), err, "no config given when creating KeyManager")
-	})
-}
-
 func (s *TestKeyManagerSuite) TestKeyFetching() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
 	defer restore()
 
 	// create test keys
@@ -74,16 +65,19 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	// startup public key service
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
-	// Set the config for testing mode, the handler may use this.
-	s.ViperConfig().GetViperInstance().Set("environment", configuration.DefaultEnvironment)
-	assert.False(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to false")
-	// set the key service url in the config
-	s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-	assert.Equal(s.T(), keysEndpointURL, s.Config().GetAuthClientPublicKeysURL(), "key url not set correctly")
+	// Set the config for testing mode and the key service url in the config, the handler may use this.
+	s.OverrideApplicationDefault(testconfig.RegistrationService().
+		Environment(configuration.DefaultEnvironment).
+		Auth().AuthClientPublicKeysURL(keysEndpointURL))
+	assert.False(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to false")
+	cfg := commonconfig.GetCachedToolchainConfig()
+
+	// cfg.
+	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	s.Run("parse keys, valid response", func() {
 		// Create KeyManager instance.
-		keyManager, err := auth.NewKeyManager(s.Config())
+		keyManager, err := auth.NewKeyManager()
 		require.NoError(s.T(), err)
 
 		// check if the keys are parsed correctly
@@ -108,11 +102,14 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(ts.URL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(s.Config())
+		_, err = auth.NewKeyManager()
 		// this needs to fail with an error
 		assert.EqualError(s.T(), err, "unable to obtain public keys from remote service")
 	})
@@ -132,11 +129,14 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", ts.URL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(ts.URL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err = auth.NewKeyManager(s.Config())
+		_, err = auth.NewKeyManager()
 		// this needs to fail with an error
 		assert.EqualError(s.T(), err, "invalid character 's' looking for beginning of object key string")
 	})
@@ -144,11 +144,14 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	s.Run("parse keys, invalid url", func() {
 		// Set the config for testing mode, the handler may use this.
 		notAnURL := "not an url"
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", notAnURL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(notAnURL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(s.Config())
+		_, err := auth.NewKeyManager()
 		// this needs to fail with an error
 		require.Error(s.T(), err)
 		assert.Contains(s.T(), err.Error(), "not%20an%20url")
@@ -158,20 +161,26 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 	s.Run("parse keys, server not reachable", func() {
 		// Set the config for testing mode, the handler may use this.
 		anURL := "http://www.google.com/"
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", anURL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(anURL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
-		_, err := auth.NewKeyManager(s.Config())
+		_, err := auth.NewKeyManager()
 		// this needs to fail with an error
 		assert.EqualError(s.T(), err, "invalid character '<' looking for beginning of value")
 	})
 
 	s.Run("validate with valid keys", func() {
 		// Create KeyManager instance.
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(s.Config())
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(keysEndpointURL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		keyManager, err := auth.NewKeyManager()
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
@@ -196,9 +205,12 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("validate with invalid keys", func() {
 		// Create KeyManager instance.
-		s.ViperConfig().GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-		assert.Equal(s.T(), s.Config().GetAuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
-		keyManager, err := auth.NewKeyManager(s.Config())
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Auth().AuthClientPublicKeysURL(keysEndpointURL))
+		cfg := commonconfig.GetCachedToolchainConfig()
+
+		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		keyManager, err := auth.NewKeyManager()
 
 		// check if the keys can be used to verify a JWT
 		var statictests = []struct {
@@ -223,12 +235,13 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 }
 
 func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
 	defer restore()
 
 	s.Run("retrieve key for e2e-tests environment", func() {
-		s.ViperConfig().GetViperInstance().Set("environment", "e2e-tests")
-		keyManager, err := auth.NewKeyManager(s.Config())
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Environment("e2e-tests"))
+		keyManager, err := auth.NewKeyManager()
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()
 
@@ -239,8 +252,8 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		}
 	})
 
-	checkE2EKeysNotFound := func(config configuration.Configuration) {
-		keyManager, err := auth.NewKeyManager(config)
+	checkE2EKeysNotFound := func() {
+		keyManager, err := auth.NewKeyManager()
 		require.NoError(s.T(), err)
 		keys := authsupport.GetE2ETestPublicKey()
 
@@ -253,28 +266,24 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 	}
 
 	s.Run("fail to retrieve e2e keys for default environment", func() {
-		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
-		require.NoError(s.T(), err)
+		s.DefaultConfig()
 
-		checkE2EKeysNotFound(config)
+		checkE2EKeysNotFound()
 	})
 
-	key := fmt.Sprintf("%s_ENVIRONMENT", configuration.EnvPrefix)
 	s.Run("fail to retrieve e2e keys for prod environment", func() {
-		resetFunc := commontest.SetEnvVarAndRestore(s.T(), key, "prod")
-		defer resetFunc()
-		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
-		require.NoError(s.T(), err)
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Environment("prod"))
+		defer s.DefaultConfig()
 
-		checkE2EKeysNotFound(config)
+		checkE2EKeysNotFound()
 	})
 
-	s.Run("fail to retrieve e2e keys if environment is not set", func() {
-		resetFunc := commontest.UnsetEnvVarAndRestore(s.T(), key)
-		defer resetFunc()
-		config, err := configuration.New("", commontest.NewFakeClient(s.T()))
-		require.NoError(s.T(), err)
+	s.Run("fail to retrieve e2e keys if environment is unexpected value", func() {
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Environment("unexpected"))
+		defer s.DefaultConfig()
 
-		checkE2EKeysNotFound(config)
+		checkE2EKeysNotFound()
 	})
 }

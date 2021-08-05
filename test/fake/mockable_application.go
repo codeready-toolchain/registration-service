@@ -3,15 +3,14 @@ package fake
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 )
 
-func NewMockableApplication(config configuration.Configuration, crtClient kubeclient.CRTClient,
+func NewMockableApplication(crtClient kubeclient.CRTClient,
 	options ...factory.Option) *MockableApplication {
 	options = append(options, factory.WithServiceContextOptions(factory.CRTClientOption(crtClient)))
 	return &MockableApplication{
-		serviceFactory: factory.NewServiceFactory(config, options...),
+		serviceFactory: factory.NewServiceFactory(options...),
 	}
 }
 

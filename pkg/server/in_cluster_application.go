@@ -13,19 +13,19 @@ import (
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication(config configuration.Configuration) (application.Application, error) {
+func NewInClusterApplication() (application.Application, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, config.GetNamespace())
+	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, configuration.Namespace())
 	if err != nil {
 		return nil, err
 	}
 
 	return &InClusterApplication{
-		serviceFactory: factory.NewServiceFactory(config,
+		serviceFactory: factory.NewServiceFactory(
 			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient))),
 	}, nil
 }

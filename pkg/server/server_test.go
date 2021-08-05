@@ -31,7 +31,7 @@ const (
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
+	srv := server.New(fake.NewMockableApplication(nil))
 
 	// Setting up the routes.
 	err := srv.SetupRoutes()

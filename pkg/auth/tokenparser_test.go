@@ -8,9 +8,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
-	. "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -27,16 +28,13 @@ func TestRunTokenParserSuite(t *testing.T) {
 }
 
 func (s *TestTokenParserSuite) TestTokenParser() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", "toolchain-host-operator")
+	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
 	defer restore()
-
-	configRegistry, err := configuration.LoadConfig(NewFakeClient(s.T()))
-	require.NoError(s.T(), err)
 
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
 	kid0 := uuid.Must(uuid.NewV4()).String()
-	_, err = tokengenerator.AddPrivateKey(kid0)
+	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
 	kid1 := uuid.Must(uuid.NewV4()).String()
 	_, err = tokengenerator.AddPrivateKey(kid1)
@@ -46,14 +44,17 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// set the config for testing mode, the handler may use this.
-	configRegistry.GetViperInstance().Set("environment", configuration.UnitTestsEnvironment)
-	assert.True(s.T(), configRegistry.IsTestingMode(), "testing mode not set correctly to true")
 	// set the key service url in the config
-	configRegistry.GetViperInstance().Set("auth_client.public_keys_url", keysEndpointURL)
-	assert.Equal(s.T(), keysEndpointURL, configRegistry.GetAuthClientPublicKeysURL(), "key url not set correctly")
+	s.OverrideApplicationDefault(testconfig.RegistrationService().
+		Environment(configuration.UnitTestsEnvironment).
+		Auth().AuthClientPublicKeysURL(keysEndpointURL))
+	cfg := commonconfig.GetCachedToolchainConfig()
+
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
+	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// create KeyManager instance.
-	keyManager, err := auth.NewKeyManager(configRegistry)
+	keyManager, err := auth.NewKeyManager()
 	require.NoError(s.T(), err)
 
 	// create TokenParser instance.

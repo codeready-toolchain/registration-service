@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
 	"gopkg.in/square/go-jose.v2"
@@ -40,19 +41,15 @@ type KeyManager struct {
 }
 
 // NewKeyManager creates a new KeyManager and retrieves the public keys from the given URL.
-func NewKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
-
-	if config == nil {
-		return nil, errors.New("no config given when creating KeyManager")
-	}
-	keysEndpointURL := config.GetAuthClientPublicKeysURL()
+func NewKeyManager() (*KeyManager, error) {
+	cfg := commonconfig.GetCachedToolchainConfig()
+	keysEndpointURL := cfg.RegistrationService().Auth().AuthClientPublicKeysURL()
 	km := &KeyManager{
-		config: config,
 		keyMap: make(map[string]*rsa.PublicKey),
 	}
 	// fetch raw keys
 	if keysEndpointURL != "" {
-		if config.GetEnvironment() == "e2e-tests" {
+		if cfg.RegistrationService().Environment() == "e2e-tests" {
 			log.Infof(nil, "fetching e2e public keys")
 			keys := authsupport.GetE2ETestPublicKey()
 

@@ -77,7 +77,7 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 		opt(f)
 	}
 
-	if configuration.IsTestingMode() {
+	if !configuration.IsTestingMode() {
 		log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	}
 

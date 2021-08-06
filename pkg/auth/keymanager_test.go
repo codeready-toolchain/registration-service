@@ -71,8 +71,6 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
 	assert.False(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to false")
 	cfg := commonconfig.GetCachedToolchainConfig()
-
-	// cfg.
 	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	s.Run("parse keys, valid response", func() {
@@ -105,7 +103,6 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
 		cfg := commonconfig.GetCachedToolchainConfig()
-
 		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -132,7 +129,6 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
 		cfg := commonconfig.GetCachedToolchainConfig()
-
 		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -147,7 +143,6 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(notAnURL))
 		cfg := commonconfig.GetCachedToolchainConfig()
-
 		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -164,7 +159,6 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(anURL))
 		cfg := commonconfig.GetCachedToolchainConfig()
-
 		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.

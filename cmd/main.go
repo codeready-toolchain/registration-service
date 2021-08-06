@@ -116,7 +116,10 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 	addToSchemes := append(AddToSchemes,
 		corev1.AddToScheme,
 		toolchainv1alpha1.AddToScheme)
-	addToSchemes.AddToScheme(scheme)
+	err := addToSchemes.AddToScheme(scheme)
+	if err != nil {
+		panic(err.Error())
+	}
 	return client.New(cfg, client.Options{
 		Scheme: scheme,
 	})

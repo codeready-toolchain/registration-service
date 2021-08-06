@@ -7,10 +7,7 @@ import (
 	"time"
 
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-var log = logf.Log.WithName("configuration")
 
 var (
 	// Commit current build commit set by build script.

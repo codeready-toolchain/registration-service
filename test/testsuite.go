@@ -72,10 +72,10 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) comm
 	require.Truef(s.T(), found, "%s env var is not", commonconfig.WatchNamespaceEnvVar)
 
 	current := &toolchainv1alpha1.ToolchainConfig{}
-	err := s.ConfigClient.Get(nil, types.NamespacedName{Name: "config", Namespace: namespace}, current)
+	err := s.ConfigClient.Get(context.TODO(), types.NamespacedName{Name: "config", Namespace: namespace}, current)
 
 	if err == nil {
-		err = s.ConfigClient.Delete(nil, current)
+		err = s.ConfigClient.Delete(context.TODO(), current)
 		require.NoError(s.T(), err)
 	} else {
 		// only proceed to create the toolchainconfig if it was not found
@@ -83,7 +83,7 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) comm
 	}
 
 	newcfg := testconfig.NewToolchainConfigObj(s.T(), opts...)
-	err = s.ConfigClient.Create(nil, newcfg)
+	err = s.ConfigClient.Create(context.TODO(), newcfg)
 	require.NoError(s.T(), err)
 
 	// update config cache

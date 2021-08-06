@@ -36,7 +36,6 @@ type JSONKeys struct {
 
 // KeyManager manages the public keys for token validation.
 type KeyManager struct {
-	config KeyManagerConfiguration
 	keyMap map[string]*rsa.PublicKey
 }
 

@@ -41,5 +41,5 @@ func IsTestingMode() bool {
 }
 
 func Namespace() string {
-	return os.Getenv("WATCH_NAMESPACE")
+	return os.Getenv(commonconfig.WatchNamespaceEnvVar)
 }

@@ -32,7 +32,7 @@ func TestRunKeyManagerSuite(t *testing.T) {
 }
 
 func (s *TestKeyManagerSuite) TestKeyFetching() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
+	restore := commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 	defer restore()
 
 	// create test keys
@@ -229,7 +229,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 }
 
 func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
+	restore := commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 	defer restore()
 
 	s.Run("retrieve key for e2e-tests environment", func() {

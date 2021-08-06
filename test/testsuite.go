@@ -39,7 +39,7 @@ type UnitTestSuite struct {
 func (s *UnitTestSuite) SetupSuite() {
 	// create logger and registry
 	log.Init("registration-service-testing")
-	test.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", test.HostOperatorNs)
+	test.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, test.HostOperatorNs)
 }
 
 func (s *UnitTestSuite) SetupTest() {
@@ -68,8 +68,8 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 
 func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) commonconfig.ToolchainConfig {
 
-	namespace, found := os.LookupEnv("WATCH_NAMESPACE")
-	require.True(s.T(), found, "WATCH_NAMESPACE env var is not")
+	namespace, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
+	require.Truef(s.T(), found, "%s env var is not", commonconfig.WatchNamespaceEnvVar)
 
 	current := &toolchainv1alpha1.ToolchainConfig{}
 	err := s.ConfigClient.Get(nil, types.NamespacedName{Name: "config", Namespace: namespace}, current)

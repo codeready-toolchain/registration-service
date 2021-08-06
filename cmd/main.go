@@ -29,9 +29,9 @@ func main() {
 	// create logger and registry
 	log.Init("registration-service")
 
-	_, found := os.LookupEnv("WATCH_NAMESPACE")
+	_, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
 	if !found {
-		panic(fmt.Errorf("WATCH_NAMESPACE not set"))
+		panic(fmt.Errorf("%s not set", commonconfig.WatchNamespaceEnvVar))
 	}
 
 	// Get a config to talk to the apiserver

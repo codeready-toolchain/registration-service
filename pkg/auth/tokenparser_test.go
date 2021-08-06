@@ -28,7 +28,7 @@ func TestRunTokenParserSuite(t *testing.T) {
 }
 
 func (s *TestTokenParserSuite) TestTokenParser() {
-	restore := commontest.SetEnvVarAndRestore(s.T(), "WATCH_NAMESPACE", commontest.HostOperatorNs)
+	restore := commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 	defer restore()
 
 	// create test keys

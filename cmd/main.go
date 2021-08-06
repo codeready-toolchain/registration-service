@@ -17,6 +17,7 @@ import (
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
@@ -39,10 +40,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create client that will be used for retrieving the registration service configmaps and secrets
-	cl, err := client.New(cfg, client.Options{
-		Scheme: scheme(),
-	})
+	// create client that will be used for retrieving the registration service config
+	cl, err := configClient(cfg)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -111,12 +110,14 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	}
 }
 
-func scheme() *runtime.Scheme {
+func configClient(cfg *rest.Config) (client.Client, error) {
 	scheme := runtime.NewScheme()
 	var AddToSchemes runtime.SchemeBuilder
 	addToSchemes := append(AddToSchemes,
 		corev1.AddToScheme,
 		toolchainv1alpha1.AddToScheme)
 	addToSchemes.AddToScheme(scheme)
-	return scheme
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
 }

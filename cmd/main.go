@@ -81,7 +81,7 @@ func main() {
 	go func() {
 		for {
 			if _, err := commonconfig.ForceLoadToolchainConfig(cl); err != nil {
-				log.Error(nil, err, "failed to load the latest toolchain config")
+				log.Error(nil, err, "failed to update the configuration cache")
 			}
 			time.Sleep(10 * time.Second)
 		}

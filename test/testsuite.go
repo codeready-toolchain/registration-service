@@ -94,15 +94,15 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) comm
 
 func (s *UnitTestSuite) SetSecret(secret *corev1.Secret) {
 	sec := &corev1.Secret{}
-	err := s.ConfigClient.Get(nil, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, sec)
+	err := s.ConfigClient.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, sec)
 
 	if err == nil {
-		err = s.ConfigClient.Delete(nil, sec)
+		err = s.ConfigClient.Delete(context.TODO(), sec)
 		require.NoError(s.T(), err)
 	}
 
 	require.True(s.T(), errors.IsNotFound(err), "unexpected error")
-	err = s.ConfigClient.Create(nil, secret)
+	err = s.ConfigClient.Create(context.TODO(), secret)
 	require.NoError(s.T(), err)
 	// update config cache
 	cfg, err := commonconfig.ForceLoadToolchainConfig(s.ConfigClient)

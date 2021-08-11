@@ -3,7 +3,7 @@ module github.com/codeready-toolchain/registration-service
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20210721211719-002c2be44948
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20210708074916-046e2bc28f85
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20210809234419-4a4ec2ec8202
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.7.2
@@ -33,7 +33,5 @@ require (
 	k8s.io/client-go v0.20.2
 	sigs.k8s.io/controller-runtime v0.8.3
 )
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/rajivnathan/toolchain-common v0.0.0-20210806161817-32064200655e
 
 go 1.16

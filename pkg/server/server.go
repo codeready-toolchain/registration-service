@@ -20,7 +20,6 @@ type ServerOption = func(server *RegistrationServer) // nolint: golint
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      configuration.Configuration
 	router      *gin.Engine
 	httpServer  *http.Server
 	routesSetup sync.Once
@@ -29,7 +28,7 @@ type RegistrationServer struct {
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config configuration.Configuration, application application.Application) *RegistrationServer {
+func New(application application.Application) *RegistrationServer {
 
 	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
 	ginRouter := gin.New()
@@ -57,25 +56,18 @@ func New(config configuration.Configuration, application application.Application
 
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
-	srv.config = config
-
 	srv.httpServer = &http.Server{
-		Addr: srv.config.GetHTTPAddress(),
+		Addr: configuration.HTTPAddress,
 		// Good practice to set timeouts to avoid Slowloris attacks.
-		WriteTimeout: srv.config.GetHTTPWriteTimeout(),
-		ReadTimeout:  srv.config.GetHTTPReadTimeout(),
-		IdleTimeout:  srv.config.GetHTTPIdleTimeout(),
+		WriteTimeout: configuration.HTTPWriteTimeout,
+		ReadTimeout:  configuration.HTTPReadTimeout,
+		IdleTimeout:  configuration.HTTPIdleTimeout,
 		Handler:      srv.router,
 	}
-	if srv.config.GetHTTPCompressResponses() {
+	if configuration.HTTPCompressResponses {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	return srv
-}
-
-// Config returns the app server's config object.
-func (srv *RegistrationServer) Config() configuration.Configuration {
-	return srv.config
 }
 
 // HTTPServer returns the app server's HTTP server.

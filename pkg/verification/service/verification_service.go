@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/kevinburke/twilio-go"
@@ -33,31 +34,18 @@ const (
 	TimestampLayout = "2006-01-02T15:04:05.000Z07:00"
 )
 
-// ServiceConfiguration represents the config used for the verification service.
-type ServiceConfiguration interface { // nolint: golint
-	GetTwilioAccountSID() string
-	GetTwilioAuthToken() string
-	GetTwilioFromNumber() string
-	GetVerificationMessageTemplate() string
-	GetVerificationAttemptsAllowed() int
-	GetVerificationDailyLimit() int
-	GetVerificationCodeExpiresInMin() int
-}
-
 // ServiceImpl represents the implementation of the verification service.
 type ServiceImpl struct { // nolint: golint
 	base.BaseService
-	config     ServiceConfiguration
 	HTTPClient *http.Client
 }
 
 type VerificationServiceOption func(svc *ServiceImpl)
 
 // NewVerificationService creates a service object for performing user verification
-func NewVerificationService(context servicecontext.ServiceContext, cfg ServiceConfiguration, opts ...VerificationServiceOption) service.VerificationService {
+func NewVerificationService(context servicecontext.ServiceContext, opts ...VerificationServiceOption) service.VerificationService {
 	s := &ServiceImpl{
 		BaseService: base.NewBaseService(context),
-		config:      cfg,
 	}
 
 	for _, opt := range opts {
@@ -126,7 +114,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// the last 24 hours)
 	verificationCounter := signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey]
 	var counter int
-	dailyLimit := s.config.GetVerificationDailyLimit()
+	cfg := commonconfig.GetCachedToolchainConfig()
+
+	dailyLimit := cfg.RegistrationService().Verification().DailyLimit()
 	if verificationCounter != "" {
 		counter, err = strconv.Atoi(verificationCounter)
 		if err != nil {
@@ -158,12 +148,13 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 		annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
 		annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
-			time.Duration(s.config.GetVerificationCodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			time.Duration(cfg.RegistrationService().Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
 
 		// Generate the verification message with the new verification code
-		content := fmt.Sprintf(s.config.GetVerificationMessageTemplate(), verificationCode)
-		client := twilio.NewClient(s.config.GetTwilioAccountSID(), s.config.GetTwilioAuthToken(), s.HTTPClient)
-		msg, err := client.Messages.SendMessage(s.config.GetTwilioFromNumber(), e164PhoneNumber, content, nil)
+		content := fmt.Sprintf(cfg.RegistrationService().Verification().MessageTemplate(), verificationCode)
+		client := twilio.NewClient(cfg.RegistrationService().Verification().TwilioAccountSID(), cfg.RegistrationService().Verification().TwilioAuthToken(), s.HTTPClient)
+		fromNumber := cfg.RegistrationService().Verification().TwilioFromNumber()
+		msg, err := client.Messages.SendMessage(fromNumber, e164PhoneNumber, content, nil)
 		if err != nil {
 			if msg != nil {
 				log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
@@ -226,6 +217,7 @@ func generateVerificationCode() (string, error) {
 // if an error is returned by this function the caller should still process changes to it
 func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
 
+	cfg := commonconfig.GetCachedToolchainConfig()
 	// If we can't even find the UserSignup, then die here
 	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
 	if lookupErr != nil {
@@ -258,12 +250,12 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		log.Error(ctx, convErr, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
 			toolchainv1alpha1.UserVerificationAttemptsAnnotationKey,
 			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey], signup.Name))
-		attemptsMade = s.config.GetVerificationAttemptsAllowed()
+		attemptsMade = cfg.RegistrationService().Verification().AttemptsAllowed()
 		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}
 
 	// If the user has made more attempts than is allowed per generated verification code, return an error
-	if attemptsMade >= s.config.GetVerificationAttemptsAllowed() {
+	if attemptsMade >= cfg.RegistrationService().Verification().AttemptsAllowed() {
 		verificationErr = errors.NewTooManyRequestsError("too many verification attempts", "")
 	}
 

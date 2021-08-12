@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +12,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
-	"github.com/spf13/pflag"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
@@ -23,23 +29,9 @@ func main() {
 	// create logger and registry
 	log.Init("registration-service")
 
-	// Parse flags
-	var configFilePath string
-	pflag.StringVar(&configFilePath, "config", "", "path to the config file to read (if none is given, defaults will be used)")
-	pflag.Parse()
-
-	// Override default -config switch with environment variable only if -config
-	// switch was not explicitly given via the command line.
-	configSwitchIsSet := false
-	pflag.Visit(func(f *pflag.Flag) {
-		if f.Name == "config" {
-			configSwitchIsSet = true
-		}
-	})
-	if !configSwitchIsSet {
-		if envConfigPath, ok := os.LookupEnv(configuration.EnvPrefix + "_CONFIG_FILE_PATH"); ok {
-			configFilePath = envConfigPath
-		}
+	_, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
+	if !found {
+		panic(fmt.Errorf("%s not set", commonconfig.WatchNamespaceEnvVar))
 	}
 
 	// Get a config to talk to the apiserver
@@ -48,25 +40,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create client that will be used for retrieving the registration service configmaps and secrets
-	cl, err := client.New(cfg, client.Options{})
+	// create client that will be used for retrieving the registration service config
+	cl, err := configClient(cfg)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	crtConfig, err := configuration.New(configFilePath, cl)
+	crtConfig, err := commonconfig.GetToolchainConfig(cl)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize configuration: %s", err.Error()))
+	}
+	crtConfig.Print()
+
+	app, err := server.NewInClusterApplication()
 	if err != nil {
 		panic(err.Error())
 	}
 
-	crtConfig.PrintConfig()
-
-	app, err := server.NewInClusterApplication(crtConfig)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	srv := server.New(crtConfig, app)
+	srv := server.New(app)
 
 	err = srv.SetupRoutes()
 	if err != nil {
@@ -79,13 +70,23 @@ func main() {
 	// listen concurrently to allow for graceful shutdown
 	go func() {
 		log.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
-		log.Infof(nil, "Listening on %q...", srv.Config().GetHTTPAddress())
+		log.Infof(nil, "Listening on %q...", configuration.HTTPAddress)
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
 		}
 	}()
 
-	gracefulShutdown(srv.HTTPServer(), srv.Config().GetGracefulTimeout())
+	// update cache every 10 seconds
+	go func() {
+		for {
+			if _, err := commonconfig.ForceLoadToolchainConfig(cl); err != nil {
+				log.Error(nil, err, "failed to update the configuration cache")
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	gracefulShutdown(srv.HTTPServer(), configuration.GracefulTimeout)
 }
 
 func gracefulShutdown(hs *http.Server, timeout time.Duration) {
@@ -107,4 +108,19 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	} else {
 		log.Info(nil, "Server stopped.")
 	}
+}
+
+func configClient(cfg *rest.Config) (client.Client, error) {
+	scheme := runtime.NewScheme()
+	var AddToSchemes runtime.SchemeBuilder
+	addToSchemes := append(AddToSchemes,
+		corev1.AddToScheme,
+		toolchainv1alpha1.AddToScheme)
+	err := addToSchemes.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
 }

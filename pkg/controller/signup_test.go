@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
@@ -73,10 +74,10 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	s.Application.MockSignupService(svc)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(s.Application, s.Config())
+	signupCtrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	userID, err := uuid.NewV4()
@@ -179,7 +180,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	userID := ob.String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application, s.Config())
+	ctrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -261,7 +262,9 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	s.SetHTTPClientFactoryOption()
 
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
 
 	// Create UserSignup
 	ob, err := uuid.NewV4()
@@ -272,7 +275,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey:           "jsmith@redhat.com",
 				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
@@ -289,7 +292,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	require.NoError(s.T(), err)
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application, s.Config())
+	ctrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 	assertInitVerificationSuccess := func(phoneNumber, expectedHash string, expectedCounter int) {
@@ -363,10 +366,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
-		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
-		err := os.Setenv(key, "0")
+		cfg := commonconfig.GetCachedToolchainConfig()
+		originalValue := cfg.RegistrationService().Verification().DailyLimit()
+		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
 		require.NoError(s.T(), err)
-		defer os.Unsetenv(key)
+		defer s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(originalValue))
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
 		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
@@ -385,7 +389,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID,
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
 				},
@@ -399,7 +403,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -453,7 +457,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		s.Application.MockSignupService(svc)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -475,7 +479,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 				crtapi.UserVerificationAttemptsAnnotationKey:   "0",
@@ -492,7 +496,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -522,7 +526,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -552,7 +556,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		// Create Signup controller instance and handle the verification request
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -581,7 +585,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -617,7 +621,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -641,7 +645,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 	s.Run("no code provided", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
@@ -55,17 +56,17 @@ func (srv *RegistrationServer) SetupRoutes() error {
 	srv.routesSetup.Do(func() {
 
 		// initialize default managers
-		_, err = auth.InitializeDefaultTokenParser(srv.Config())
+		_, err = auth.InitializeDefaultTokenParser()
 		if err != nil {
 			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
 			return
 		}
 
 		// creating the controllers
-		healthCheckCtrl := controller.NewHealthCheck(srv.Config(), controller.NewHealthChecker(srv.Config()))
-		authConfigCtrl := controller.NewAuthConfig(srv.Config())
-		woopraCtrl := controller.NewWoopra(srv.Config())
-		signupCtrl := controller.NewSignup(srv.application, srv.Config())
+		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
+		authConfigCtrl := controller.NewAuthConfig()
+		woopraCtrl := controller.NewWoopra()
+		signupCtrl := controller.NewSignup(srv.application)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
@@ -92,7 +93,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyCodeHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
-		if srv.Config().IsTestingMode() {
+		if configuration.IsTestingMode() {
 			securedV1.GET("/auth_test", healthCheckCtrl.GetHandler)
 		}
 

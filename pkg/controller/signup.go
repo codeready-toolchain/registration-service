@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -17,8 +16,7 @@ import (
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
 type Signup struct {
-	app    application.Application
-	config configuration.Configuration
+	app application.Application
 }
 
 type Phone struct {
@@ -27,10 +25,9 @@ type Phone struct {
 }
 
 // NewSignup returns a new Signup instance.
-func NewSignup(app application.Application, config configuration.Configuration) *Signup {
+func NewSignup(app application.Application) *Signup {
 	return &Signup{
-		app:    app,
-		config: config,
+		app: app,
 	}
 }
 

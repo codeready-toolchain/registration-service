@@ -21,12 +21,12 @@ var defaultTokenParserHolder *TokenParser
 // InitializeDefaultKeyManager creates the default key manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
 // It will try to create the default manager only once even if called multiple times.
-func initializeDefaultKeyManager(config KeyManagerConfiguration) (*KeyManager, error) {
+func initializeDefaultKeyManager() (*KeyManager, error) {
 	muKM.Lock()
 	defer muKM.Unlock()
 	if defaultKeyManagerHolder == nil {
 		var err error
-		defaultKeyManagerHolder, err = NewKeyManager(config)
+		defaultKeyManagerHolder, err = NewKeyManager()
 		if err != nil {
 			return nil, err
 		}
@@ -46,12 +46,12 @@ func defaultKeyManager() (*KeyManager, error) { //nolint:unparam
 // InitializeDefaultTokenParser creates the default token parser if it has not created yet.
 // This function must be called in main to make sure the default parser is created during service startup.
 // It will try to create the default parser only once even if called multiple times.
-func InitializeDefaultTokenParser(config DefaultTokenParserConfiguration) (*TokenParser, error) {
+func InitializeDefaultTokenParser() (*TokenParser, error) {
 	muTP.Lock()
 	defer muTP.Unlock()
 	if defaultTokenParserHolder == nil {
 		var err error
-		keyManager, err := initializeDefaultKeyManager(config)
+		keyManager, err := initializeDefaultKeyManager()
 		if err != nil {
 			return nil, err
 		}

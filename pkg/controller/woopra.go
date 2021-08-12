@@ -3,31 +3,30 @@ package controller
 import (
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/gin-gonic/gin"
 )
 
 // Woopra implements the segment endpoint, which is invoked to
 // retrieve the woopra domain for the ui.
 type Woopra struct {
-	config configuration.Configuration
 }
 
 // NewWoopra returns a new Woopra instance.
-func NewWoopra(config configuration.Configuration) *Woopra {
-	return &Woopra{
-		config: config,
-	}
+func NewWoopra() *Woopra {
+	return &Woopra{}
 }
 
 // GetHandler returns the woopra-domain for UI.
 func (w *Woopra) GetWoopraDomain(ctx *gin.Context) {
-	domain := w.config.GetWoopraDomain()
+	cfg := commonconfig.GetCachedToolchainConfig()
+	domain := cfg.RegistrationService().Analytics().WoopraDomain()
 	ctx.String(http.StatusOK, domain)
 }
 
 // GetSegmentWriteKey returns segment-write-key content for UI.
 func (w *Woopra) GetSegmentWriteKey(ctx *gin.Context) {
-	segmentWriteKey := w.config.GetSegmentWriteKey()
+	cfg := commonconfig.GetCachedToolchainConfig()
+	segmentWriteKey := cfg.RegistrationService().Analytics().SegmentWriteKey()
 	ctx.String(http.StatusOK, segmentWriteKey)
 }

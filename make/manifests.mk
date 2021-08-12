@@ -26,14 +26,7 @@ generate-cd-release-manifests:
 ifneq (${OTHER_REPO_PATH},"")
 	$(eval OTHER_REPO_PATH_PARAM = -orp ${OTHER_REPO_PATH})
 endif
-	$(eval CD_GENERATE_PARAMS = -pr ../registration-service/ -mr https://github.com/codeready-toolchain/host-operator/ -qn ${QUAY_NAMESPACE} -td ${TMP_DIR} -fr ${FIRST_RELEASE} -ch ${CHANNEL} -il ${IMAGE} -e ${ENV} ${OTHER_REPO_PATH_PARAM})
-ifneq ("$(wildcard ../api/scripts/$(PATH_TO_CD_GENERATE_FILE))","")
-	@echo "generating manifests for CD using script from local api repo..."
-	../api/scripts/${PATH_TO_CD_GENERATE_FILE} ${CD_GENERATE_PARAMS}
-else
-	@echo "generating manifests for CD using script from GH api repo (using latest version in master)..."
-	curl -sSL ${GH_SCRIPTS_URL}/${PATH_TO_CD_GENERATE_FILE} > /tmp/${PATH_TO_CD_GENERATE_FILE} &&	chmod +x /tmp/${PATH_TO_CD_GENERATE_FILE} && OWNER_AND_BRANCH_LOCATION=${OWNER_AND_BRANCH_LOCATION} /tmp/${PATH_TO_CD_GENERATE_FILE} ${CD_GENERATE_PARAMS}
-endif
+	$(MAKE) run-cicd-script SCRIPT_PATH=scripts/cd/generate-cd-release-manifests.sh SCRIPT_PARAMS="-pr ../registration-service/ -mr https://github.com/codeready-toolchain/host-operator/ -qn ${QUAY_NAMESPACE} -td ${TMP_DIR} -fr ${FIRST_RELEASE} -ch ${CHANNEL} -il ${IMAGE} -e ${ENV} ${OTHER_REPO_PATH_PARAM}"
 
 .PHONY: push-bundle-and-index-image
 ## Pushes generated manifests as a bundle image to quay and adds is to the image index
@@ -41,14 +34,7 @@ push-bundle-and-index-image:
 ifneq (${BUNDLE_TAG},"")
 	$(eval BUNDLE_TAG_PARAM = -bt ${BUNDLE_TAG})
 endif
-	$(eval PUSH_BUNDLE_PARAMS = -pr ../registration-service/ -mr https://github.com/codeready-toolchain/host-operator/ -qn ${QUAY_NAMESPACE} -ch ${CHANNEL} -td ${TMP_DIR} -ib ${IMAGE_BUILDER} -iin ${INDEX_IMAGE_NAME} -iit ${INDEX_IMAGE_TAG} ${BUNDLE_TAG_PARAM})
-ifneq ("$(wildcard ../api/scripts/$(PATH_TO_BUNDLE_FILE))","")
-	@echo "pushing to quay in staging channel using script from local api repo..."
-	../api/scripts/${PATH_TO_BUNDLE_FILE} ${PUSH_BUNDLE_PARAMS}
-else
-	@echo "pushing to quay in staging channel using script from GH api repo (using latest version in master)..."
-	curl -sSL ${GH_SCRIPTS_URL}/${PATH_TO_BUNDLE_FILE} > /tmp/${PATH_TO_BUNDLE_FILE} && chmod +x /tmp/${PATH_TO_BUNDLE_FILE} && OWNER_AND_BRANCH_LOCATION=${OWNER_AND_BRANCH_LOCATION} /tmp/${PATH_TO_BUNDLE_FILE} ${PUSH_BUNDLE_PARAMS}
-endif
+	$(MAKE) run-cicd-script SCRIPT_PATH=scripts/cd/push-bundle-and-index-image.sh SCRIPT_PARAMS="-pr ../registration-service/ -mr https://github.com/codeready-toolchain/host-operator/ -qn ${QUAY_NAMESPACE} -ch ${CHANNEL} -td ${TMP_DIR} -ib ${IMAGE_BUILDER} -iin ${INDEX_IMAGE_NAME} -iit ${INDEX_IMAGE_TAG} ${BUNDLE_TAG_PARAM}"
 
 .PHONY: publish-current-bundle
 ## Pushes generated manifests as a bundle image to quay and adds is to the image index as a single release using alpha channel

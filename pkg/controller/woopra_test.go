@@ -8,7 +8,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gin-gonic/gin"
@@ -49,9 +48,9 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().WoopraDomain("testing woopra domain"))
 
-		cfg := commonconfig.GetCachedToolchainConfig()
+		cfg := configuration.GetCachedRegistrationServiceConfig()
 
-		assert.Equal(s.T(), "testing woopra domain", cfg.RegistrationService().Analytics().WoopraDomain())
+		assert.Equal(s.T(), "testing woopra domain", cfg.Analytics().WoopraDomain())
 		handler(ctx)
 
 		// Check the status code is what we expect.
@@ -63,7 +62,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		require.NoError(s.T(), err)
 
 		s.Run("envelope woopra domain name", func() {
-			assert.Equal(s.T(), cfg.RegistrationService().Analytics().WoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
+			assert.Equal(s.T(), cfg.Analytics().WoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
 		})
 	})
 
@@ -84,9 +83,9 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().SegmentWriteKey("testing segment write key"))
 
-		cfg := commonconfig.GetCachedToolchainConfig()
+		cfg := configuration.GetCachedRegistrationServiceConfig()
 
-		assert.Equal(s.T(), "testing segment write key", cfg.RegistrationService().Analytics().SegmentWriteKey())
+		assert.Equal(s.T(), "testing segment write key", cfg.Analytics().SegmentWriteKey())
 
 		handler(ctx)
 
@@ -99,7 +98,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		require.NoError(s.T(), err)
 
 		s.Run("envelope segment write key", func() {
-			assert.Equal(s.T(), cfg.RegistrationService().Analytics().SegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")
+			assert.Equal(s.T(), cfg.Analytics().SegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")
 		})
 	})
 }

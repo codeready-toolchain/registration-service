@@ -13,7 +13,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -80,8 +79,8 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 		Environment(configuration.UnitTestsEnvironment).
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
 
-	cfg := commonconfig.GetCachedToolchainConfig()
-	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
+	cfg := configuration.GetCachedRegistrationServiceConfig()
+	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.
 	err = srv.SetupRoutes()

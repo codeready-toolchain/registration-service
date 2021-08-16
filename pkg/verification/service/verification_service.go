@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/kevinburke/twilio-go"
@@ -18,6 +17,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 
@@ -114,9 +114,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// the last 24 hours)
 	verificationCounter := signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey]
 	var counter int
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetCachedRegistrationServiceConfig()
 
-	dailyLimit := cfg.RegistrationService().Verification().DailyLimit()
+	dailyLimit := cfg.Verification().DailyLimit()
 	if verificationCounter != "" {
 		counter, err = strconv.Atoi(verificationCounter)
 		if err != nil {
@@ -148,12 +148,12 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 		annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
 		annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
-			time.Duration(cfg.RegistrationService().Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
 
 		// Generate the verification message with the new verification code
-		content := fmt.Sprintf(cfg.RegistrationService().Verification().MessageTemplate(), verificationCode)
-		client := twilio.NewClient(cfg.RegistrationService().Verification().TwilioAccountSID(), cfg.RegistrationService().Verification().TwilioAuthToken(), s.HTTPClient)
-		fromNumber := cfg.RegistrationService().Verification().TwilioFromNumber()
+		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
+		client := twilio.NewClient(cfg.Verification().TwilioAccountSID(), cfg.Verification().TwilioAuthToken(), s.HTTPClient)
+		fromNumber := cfg.Verification().TwilioFromNumber()
 		msg, err := client.Messages.SendMessage(fromNumber, e164PhoneNumber, content, nil)
 		if err != nil {
 			if msg != nil {
@@ -217,7 +217,7 @@ func generateVerificationCode() (string, error) {
 // if an error is returned by this function the caller should still process changes to it
 func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
 
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetCachedRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
 	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
 	if lookupErr != nil {
@@ -250,12 +250,12 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		log.Error(ctx, convErr, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
 			toolchainv1alpha1.UserVerificationAttemptsAnnotationKey,
 			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey], signup.Name))
-		attemptsMade = cfg.RegistrationService().Verification().AttemptsAllowed()
+		attemptsMade = cfg.Verification().AttemptsAllowed()
 		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 	}
 
 	// If the user has made more attempts than is allowed per generated verification code, return an error
-	if attemptsMade >= cfg.RegistrationService().Verification().AttemptsAllowed() {
+	if attemptsMade >= cfg.Verification().AttemptsAllowed() {
 		verificationErr = errors.NewTooManyRequestsError("too many verification attempts", "")
 	}
 

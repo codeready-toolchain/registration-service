@@ -66,7 +66,7 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
-func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) commonconfig.ToolchainConfig {
+func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) configuration.RegistrationServiceConfig {
 
 	namespace, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
 	require.Truef(s.T(), found, "%s env var is not", commonconfig.WatchNamespaceEnvVar)
@@ -87,7 +87,7 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) comm
 	require.NoError(s.T(), err)
 
 	// update config cache
-	cfg, err := commonconfig.ForceLoadToolchainConfig(s.ConfigClient)
+	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
 	require.NoError(s.T(), err)
 	return cfg
 }
@@ -105,19 +105,19 @@ func (s *UnitTestSuite) SetSecret(secret *corev1.Secret) {
 	err = s.ConfigClient.Create(context.TODO(), secret)
 	require.NoError(s.T(), err)
 	// update config cache
-	cfg, err := commonconfig.ForceLoadToolchainConfig(s.ConfigClient)
+	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
 	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), cfg)
 }
 
-func (s *UnitTestSuite) DefaultConfig() commonconfig.ToolchainConfig {
+func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig {
 	// use a new configuration client to fully reset configuration
 	s.ConfigClient = test.NewFakeClient(s.T())
-	commonconfig.Reset()
+	commonconfig.ResetCache()
 	obj := testconfig.NewToolchainConfigObj(s.T(), testconfig.RegistrationService().Environment("unit-tests"))
 	err := s.ConfigClient.Create(context.TODO(), obj)
 	require.NoError(s.T(), err)
-	cfg, err := commonconfig.GetToolchainConfig(s.ConfigClient)
+	cfg, err := configuration.GetRegistrationServiceConfig(s.ConfigClient)
 	require.NoError(s.T(), err)
 	return cfg
 }
@@ -129,7 +129,7 @@ func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {
 // TearDownSuite tears down the test suite.
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
-	commonconfig.Reset()
+	commonconfig.ResetCache()
 	s.Application = nil
 	s.FakeUserSignupClient = nil
 	s.FakeMasterUserRecordClient = nil

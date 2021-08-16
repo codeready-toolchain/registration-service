@@ -3,9 +3,8 @@ package controller
 import (
 	"net/http"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/gin-gonic/gin"
-
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 )
 
 type configResponse struct {
@@ -27,10 +26,10 @@ func NewAuthConfig() *AuthConfig {
 
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetCachedRegistrationServiceConfig()
 	configRespData := configResponse{
-		AuthClientLibraryURL: cfg.RegistrationService().Auth().AuthClientLibraryURL(),
-		AuthClientConfigRaw:  cfg.RegistrationService().Auth().AuthClientConfigRaw(),
+		AuthClientLibraryURL: cfg.Auth().AuthClientLibraryURL(),
+		AuthClientConfigRaw:  cfg.Auth().AuthClientConfigRaw(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

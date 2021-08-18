@@ -3,6 +3,7 @@
 package configuration
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -100,7 +101,13 @@ func NewRegistrationServiceConfig(config runtime.Object, secrets map[string]map[
 }
 
 func (r *RegistrationServiceConfig) Print() {
-	logger.Info("Registration Service Configuration variables", "ToolchainConfigSpec", r.cfg.Host.RegistrationService)
+	if r.cfg == nil {
+		logger.Info("ToolchainConfig not found, using default Registration Service configuration")
+		return
+	}
+	logger.Info("Registration Service Configuration")
+	indentedJSON, _ := json.MarshalIndent(r.cfg.Host.RegistrationService, "", "\t")
+	fmt.Printf(string(indentedJSON))
 }
 
 func (r *RegistrationServiceConfig) Environment() string {

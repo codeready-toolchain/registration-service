@@ -107,12 +107,12 @@ func (r *RegistrationServiceConfig) Environment() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.Environment, "prod")
 }
 
-func (r RegistrationServiceConfig) Analytics() RegistrationServiceAnalyticsConfig {
-	return RegistrationServiceAnalyticsConfig{r.cfg.Host.RegistrationService.Analytics}
+func (r RegistrationServiceConfig) Analytics() AnalyticsConfig {
+	return AnalyticsConfig{r.cfg.Host.RegistrationService.Analytics}
 }
 
-func (r RegistrationServiceConfig) Auth() RegistrationServiceAuthConfig {
-	return RegistrationServiceAuthConfig{r.cfg.Host.RegistrationService.Auth}
+func (r RegistrationServiceConfig) Auth() AuthConfig {
+	return AuthConfig{r.cfg.Host.RegistrationService.Auth}
 }
 
 func (r RegistrationServiceConfig) LogLevel() string {
@@ -127,69 +127,69 @@ func (r RegistrationServiceConfig) RegistrationServiceURL() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.RegistrationServiceURL, "https://registration.crt-placeholder.com")
 }
 
-func (r RegistrationServiceConfig) Verification() RegistrationServiceVerificationConfig {
-	return RegistrationServiceVerificationConfig{c: r.cfg.Host.RegistrationService.Verification, secrets: r.secrets}
+func (r RegistrationServiceConfig) Verification() VerificationConfig {
+	return VerificationConfig{c: r.cfg.Host.RegistrationService.Verification, secrets: r.secrets}
 }
 
-type RegistrationServiceAnalyticsConfig struct {
+type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }
 
-func (r RegistrationServiceAnalyticsConfig) WoopraDomain() string {
+func (r AnalyticsConfig) WoopraDomain() string {
 	return commonconfig.GetString(r.c.WoopraDomain, "")
 }
 
-func (r RegistrationServiceAnalyticsConfig) SegmentWriteKey() string {
+func (r AnalyticsConfig) SegmentWriteKey() string {
 	return commonconfig.GetString(r.c.SegmentWriteKey, "")
 }
 
-type RegistrationServiceAuthConfig struct {
+type AuthConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAuthConfig
 }
 
-func (r RegistrationServiceAuthConfig) AuthClientLibraryURL() string {
+func (r AuthConfig) AuthClientLibraryURL() string {
 	return commonconfig.GetString(r.c.AuthClientLibraryURL, "https://sso.prod-preview.openshift.io/auth/js/keycloak.js")
 }
 
-func (r RegistrationServiceAuthConfig) AuthClientConfigContentType() string {
+func (r AuthConfig) AuthClientConfigContentType() string {
 	return commonconfig.GetString(r.c.AuthClientConfigContentType, "application/json; charset=utf-8")
 }
 
-func (r RegistrationServiceAuthConfig) AuthClientConfigRaw() string {
+func (r AuthConfig) AuthClientConfigRaw() string {
 	return commonconfig.GetString(r.c.AuthClientConfigRaw, `{"realm": "toolchain-public","auth-server-url": "https://sso.prod-preview.openshift.io/auth","ssl-required": "none","resource": "crt","clientId": "crt","public-client": true}`)
 }
 
-func (r RegistrationServiceAuthConfig) AuthClientPublicKeysURL() string {
+func (r AuthConfig) AuthClientPublicKeysURL() string {
 	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.prod-preview.openshift.io/auth/realms/toolchain-public/protocol/openid-connect/certs")
 }
 
-type RegistrationServiceVerificationConfig struct {
+type VerificationConfig struct {
 	c       toolchainv1alpha1.RegistrationServiceVerificationConfig
 	secrets map[string]map[string]string
 }
 
-func (r RegistrationServiceVerificationConfig) registrationServiceSecret(secretKey string) string {
+func (r VerificationConfig) registrationServiceSecret(secretKey string) string {
 	secret := commonconfig.GetString(r.c.Secret.Ref, "")
 	return r.secrets[secret][secretKey]
 }
 
-func (r RegistrationServiceVerificationConfig) Enabled() bool {
+func (r VerificationConfig) Enabled() bool {
 	return commonconfig.GetBool(r.c.Enabled, false)
 }
 
-func (r RegistrationServiceVerificationConfig) DailyLimit() int {
+func (r VerificationConfig) DailyLimit() int {
 	return commonconfig.GetInt(r.c.DailyLimit, 5)
 }
 
-func (r RegistrationServiceVerificationConfig) AttemptsAllowed() int {
+func (r VerificationConfig) AttemptsAllowed() int {
 	return commonconfig.GetInt(r.c.AttemptsAllowed, 3)
 }
 
-func (r RegistrationServiceVerificationConfig) MessageTemplate() string {
+func (r VerificationConfig) MessageTemplate() string {
 	return commonconfig.GetString(r.c.MessageTemplate, "Developer Sandbox for Red Hat OpenShift: Your verification code is %s")
 }
 
-func (r RegistrationServiceVerificationConfig) ExcludedEmailDomains() []string {
+func (r VerificationConfig) ExcludedEmailDomains() []string {
 	excluded := commonconfig.GetString(r.c.ExcludedEmailDomains, "")
 	v := strings.FieldsFunc(excluded, func(c rune) bool {
 		return c == ','
@@ -197,21 +197,21 @@ func (r RegistrationServiceVerificationConfig) ExcludedEmailDomains() []string {
 	return v
 }
 
-func (r RegistrationServiceVerificationConfig) CodeExpiresInMin() int {
+func (r VerificationConfig) CodeExpiresInMin() int {
 	return commonconfig.GetInt(r.c.CodeExpiresInMin, 5)
 }
 
-func (r RegistrationServiceVerificationConfig) TwilioAccountSID() string {
+func (r VerificationConfig) TwilioAccountSID() string {
 	key := commonconfig.GetString(r.c.Secret.TwilioAccountSID, "")
 	return r.registrationServiceSecret(key)
 }
 
-func (r RegistrationServiceVerificationConfig) TwilioAuthToken() string {
+func (r VerificationConfig) TwilioAuthToken() string {
 	key := commonconfig.GetString(r.c.Secret.TwilioAuthToken, "")
 	return r.registrationServiceSecret(key)
 }
 
-func (r RegistrationServiceVerificationConfig) TwilioFromNumber() string {
+func (r VerificationConfig) TwilioFromNumber() string {
 	key := commonconfig.GetString(r.c.Secret.TwilioFromNumber, "")
 	return r.registrationServiceSecret(key)
 }

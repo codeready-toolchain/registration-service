@@ -1,10 +1,3 @@
-
-PATH_TO_CD_GENERATE_FILE=generate-cd-release-manifests.sh
-PATH_TO_BUNDLE_FILE=push-bundle-and-index-image.sh
-
-OWNER_AND_BRANCH_LOCATION=codeready-toolchain/api/master
-GH_SCRIPTS_URL=https://raw.githubusercontent.com/${OWNER_AND_BRANCH_LOCATION}/scripts
-
 TMP_DIR?=/tmp
 IMAGE_BUILDER?=podman
 INDEX_IMAGE_NAME?=host-operator-index

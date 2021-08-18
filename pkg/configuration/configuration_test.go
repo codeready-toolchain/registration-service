@@ -33,9 +33,13 @@ func (s *TestConfigurationSuite) TestSegmentWriteKey() {
 
 func TestRegistrationService(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
+		// given
 		cfg := commonconfig.NewToolchainConfigObjWithReset(t)
+
+		// when
 		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, map[string]map[string]string{})
 
+		// then
 		assert.Equal(t, "prod", regServiceCfg.Environment())
 		assert.Equal(t, "info", regServiceCfg.LogLevel())
 		assert.Equal(t, "toolchain-host-operator", regServiceCfg.Namespace())
@@ -58,6 +62,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().TwilioFromNumber())
 	})
 	t.Run("non-default", func(t *testing.T) {
+		// given
 		cfg := commonconfig.NewToolchainConfigObjWithReset(t, testconfig.RegistrationService().
 			Environment("e2e-tests").
 			LogLevel("debug").
@@ -84,8 +89,10 @@ func TestRegistrationService(t *testing.T) {
 		secrets := make(map[string]map[string]string)
 		secrets["verification-secrets"] = verificationSecretValues
 
+		// when
 		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, secrets)
 
+		// then
 		assert.Equal(t, "e2e-tests", regServiceCfg.Environment())
 		assert.Equal(t, "debug", regServiceCfg.LogLevel())
 		assert.Equal(t, "another-namespace", regServiceCfg.Namespace())

@@ -107,7 +107,7 @@ func (r *RegistrationServiceConfig) Print() {
 	}
 	logger.Info("Registration Service Configuration")
 	indentedJSON, _ := json.MarshalIndent(r.cfg.Host.RegistrationService, "", "\t")
-	fmt.Printf(string(indentedJSON))
+	fmt.Println(string(indentedJSON))
 }
 
 func (r *RegistrationServiceConfig) Environment() string {

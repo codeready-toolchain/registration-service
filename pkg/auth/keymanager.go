@@ -41,7 +41,7 @@ type KeyManager struct {
 
 // NewKeyManager creates a new KeyManager and retrieves the public keys from the given URL.
 func NewKeyManager() (*KeyManager, error) {
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	keysEndpointURL := cfg.Auth().AuthClientPublicKeysURL()
 	km := &KeyManager{
 		keyMap: make(map[string]*rsa.PublicKey),

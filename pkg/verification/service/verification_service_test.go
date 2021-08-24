@@ -390,7 +390,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	defer gock.Off()
 	// call override config to ensure the factory option takes effect
 	s.OverrideApplicationDefault()
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	now := time.Now()
 

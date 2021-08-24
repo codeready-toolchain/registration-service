@@ -86,7 +86,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	verificationRequired := cfg.Verification().Enabled()
 

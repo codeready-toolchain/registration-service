@@ -70,7 +70,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		Environment(configuration.DefaultEnvironment).
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
 	assert.False(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to false")
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	s.Run("parse keys, valid response", func() {
@@ -102,7 +102,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Set the config for testing mode, the handler may use this.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -128,7 +128,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Set the config for testing mode, the handler may use this.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -142,7 +142,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		notAnURL := "not an url"
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(notAnURL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -158,7 +158,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		anURL := "http://www.google.com/"
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(anURL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
@@ -171,7 +171,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(keysEndpointURL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager()
@@ -201,7 +201,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(keysEndpointURL))
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
 		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager()

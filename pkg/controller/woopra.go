@@ -19,14 +19,14 @@ func NewWoopra() *Woopra {
 
 // GetHandler returns the woopra-domain for UI.
 func (w *Woopra) GetWoopraDomain(ctx *gin.Context) {
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	domain := cfg.Analytics().WoopraDomain()
 	ctx.String(http.StatusOK, domain)
 }
 
 // GetSegmentWriteKey returns segment-write-key content for UI.
 func (w *Woopra) GetSegmentWriteKey(ctx *gin.Context) {
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	segmentWriteKey := cfg.Analytics().SegmentWriteKey()
 	ctx.String(http.StatusOK, segmentWriteKey)
 }

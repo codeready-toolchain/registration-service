@@ -114,7 +114,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// the last 24 hours)
 	verificationCounter := signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey]
 	var counter int
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	dailyLimit := cfg.Verification().DailyLimit()
 	if verificationCounter != "" {
@@ -217,7 +217,7 @@ func generateVerificationCode() (string, error) {
 // if an error is returned by this function the caller should still process changes to it
 func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
 
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
 	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
 	if lookupErr != nil {

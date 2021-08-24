@@ -42,8 +42,10 @@ const (
 	UnitTestsEnvironment = "unit-tests"
 )
 
+var configurationClient client.Client
+
 func IsTestingMode() bool {
-	cfg := GetCachedRegistrationServiceConfig()
+	cfg := GetRegistrationServiceConfig()
 	return cfg.Environment() == UnitTestsEnvironment
 }
 
@@ -53,24 +55,25 @@ func Namespace() string {
 
 // GetRegistrationServiceConfig returns a RegistrationServiceConfig using the cache, or if the cache was not initialized
 // then retrieves the latest config using the provided client and updates the cache
-func GetRegistrationServiceConfig(cl client.Client) (RegistrationServiceConfig, error) {
-	config, secrets, err := commonconfig.GetConfig(cl, &toolchainv1alpha1.ToolchainConfig{})
+func GetRegistrationServiceConfig() RegistrationServiceConfig {
+	if configurationClient == nil {
+		logger.Error(fmt.Errorf("configuration client is not initialized"), "using default configuration")
+		return RegistrationServiceConfig{cfg: &toolchainv1alpha1.ToolchainConfigSpec{}}
+	}
+	config, secrets, err := commonconfig.GetConfig(configurationClient, &toolchainv1alpha1.ToolchainConfig{})
 	if err != nil {
 		// return default config
-		logger.Error(err, "failed to retrieve RegistrationServiceConfig")
-		return RegistrationServiceConfig{cfg: &toolchainv1alpha1.ToolchainConfigSpec{}}, err
+		logger.Error(err, "failed to retrieve RegistrationServiceConfig, using default configuration")
+		return RegistrationServiceConfig{cfg: &toolchainv1alpha1.ToolchainConfigSpec{}}
 	}
-	return NewRegistrationServiceConfig(config, secrets), nil
-}
-
-// GetCachedRegistrationServiceConfig returns a RegistrationServiceConfig directly from the cache
-func GetCachedRegistrationServiceConfig() RegistrationServiceConfig {
-	config, secrets := commonconfig.GetCachedConfig()
 	return NewRegistrationServiceConfig(config, secrets)
 }
 
 // ForceLoadRegistrationServiceConfig updates the cache using the provided client and returns the latest RegistrationServiceConfig
 func ForceLoadRegistrationServiceConfig(cl client.Client) (RegistrationServiceConfig, error) {
+	if configurationClient == nil {
+		configurationClient = cl
+	}
 	config, secrets, err := commonconfig.LoadLatest(cl, &toolchainv1alpha1.ToolchainConfig{})
 	if err != nil {
 		// return default config

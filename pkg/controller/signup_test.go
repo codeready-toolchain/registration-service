@@ -365,7 +365,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 		originalValue := cfg.Verification().DailyLimit()
 		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
 		require.NoError(s.T(), err)

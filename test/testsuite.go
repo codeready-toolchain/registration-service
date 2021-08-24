@@ -117,7 +117,7 @@ func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig 
 	obj := testconfig.NewToolchainConfigObj(s.T(), testconfig.RegistrationService().Environment("unit-tests"))
 	err := s.ConfigClient.Create(context.TODO(), obj)
 	require.NoError(s.T(), err)
-	cfg, err := configuration.GetRegistrationServiceConfig(s.ConfigClient)
+	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
 	require.NoError(s.T(), err)
 	return cfg
 }

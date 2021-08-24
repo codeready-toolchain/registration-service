@@ -27,7 +27,7 @@ func NewHealthCheck(checker HealthChecker) *HealthCheck {
 
 // getHealthInfo returns the health info.
 func (hc *HealthCheck) getHealthInfo() *status.Health {
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	return &status.Health{
 		Alive:       hc.checker.Alive(),
 		Environment: cfg.Environment(),

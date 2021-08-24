@@ -31,7 +31,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	// Create handler instance.
 	authConfigCtrl := NewAuthConfig()

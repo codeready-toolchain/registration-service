@@ -46,7 +46,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	crtConfig, err := configuration.GetRegistrationServiceConfig(cl)
+	crtConfig, err := configuration.ForceLoadRegistrationServiceConfig(cl)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize configuration: %s", err.Error()))
 	}

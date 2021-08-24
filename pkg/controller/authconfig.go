@@ -26,7 +26,7 @@ func NewAuthConfig() *AuthConfig {
 
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	configRespData := configResponse{
 		AuthClientLibraryURL: cfg.Auth().AuthClientLibraryURL(),
 		AuthClientConfigRaw:  cfg.Auth().AuthClientConfigRaw(),

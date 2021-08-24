@@ -48,7 +48,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().WoopraDomain("testing woopra domain"))
 
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
 		assert.Equal(s.T(), "testing woopra domain", cfg.Analytics().WoopraDomain())
 		handler(ctx)
@@ -83,7 +83,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().SegmentWriteKey("testing segment write key"))
 
-		cfg := configuration.GetCachedRegistrationServiceConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
 		assert.Equal(s.T(), "testing segment write key", cfg.Analytics().SegmentWriteKey())
 

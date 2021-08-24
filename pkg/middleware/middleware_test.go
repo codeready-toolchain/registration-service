@@ -79,7 +79,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 		Environment(configuration.UnitTestsEnvironment).
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
 
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.

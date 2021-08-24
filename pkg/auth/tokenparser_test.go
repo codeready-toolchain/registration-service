@@ -48,7 +48,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 	s.OverrideApplicationDefault(testconfig.RegistrationService().
 		Environment(configuration.UnitTestsEnvironment).
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
-	cfg := configuration.GetCachedRegistrationServiceConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")

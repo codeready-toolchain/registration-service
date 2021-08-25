@@ -19,7 +19,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
@@ -87,13 +86,13 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
-	verificationRequired := cfg.RegistrationService().Verification().Enabled()
+	verificationRequired := cfg.Verification().Enabled()
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
 	emailHost := extractEmailHost(userEmail)
-	for _, d := range cfg.RegistrationService().Verification().ExcludedEmailDomains() {
+	for _, d := range cfg.Verification().ExcludedEmailDomains() {
 		if strings.EqualFold(d, emailHost) {
 			verificationRequired = false
 			break

@@ -46,7 +46,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	crtConfig, err := commonconfig.GetToolchainConfig(cl)
+	crtConfig, err := configuration.ForceLoadRegistrationServiceConfig(cl)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize configuration: %s", err.Error()))
 	}
@@ -79,7 +79,7 @@ func main() {
 	// update cache every 10 seconds
 	go func() {
 		for {
-			if _, err := commonconfig.ForceLoadToolchainConfig(cl); err != nil {
+			if _, err := configuration.ForceLoadRegistrationServiceConfig(cl); err != nil {
 				log.Error(nil, err, "failed to update the configuration cache")
 			}
 			time.Sleep(10 * time.Second)

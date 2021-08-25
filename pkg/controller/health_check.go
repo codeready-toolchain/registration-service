@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
 	"github.com/gin-gonic/gin"
@@ -28,10 +27,10 @@ func NewHealthCheck(checker HealthChecker) *HealthCheck {
 
 // getHealthInfo returns the health info.
 func (hc *HealthCheck) getHealthInfo() *status.Health {
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 	return &status.Health{
 		Alive:       hc.checker.Alive(),
-		Environment: cfg.RegistrationService().Environment(),
+		Environment: cfg.Environment(),
 		Revision:    configuration.Commit,
 		BuildTime:   configuration.BuildTime,
 		StartTime:   configuration.StartTime,

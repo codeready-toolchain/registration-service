@@ -70,8 +70,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		Environment(configuration.DefaultEnvironment).
 		Auth().AuthClientPublicKeysURL(keysEndpointURL))
 	assert.False(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to false")
-	cfg := commonconfig.GetCachedToolchainConfig()
-	assert.Equal(s.T(), keysEndpointURL, cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), "key url not set correctly")
+	cfg := configuration.GetRegistrationServiceConfig()
+	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	s.Run("parse keys, valid response", func() {
 		// Create KeyManager instance.
@@ -102,8 +102,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Set the config for testing mode, the handler may use this.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
-		cfg := commonconfig.GetCachedToolchainConfig()
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		cfg := configuration.GetRegistrationServiceConfig()
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
 		_, err = auth.NewKeyManager()
@@ -128,8 +128,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Set the config for testing mode, the handler may use this.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(ts.URL))
-		cfg := commonconfig.GetCachedToolchainConfig()
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
+		cfg := configuration.GetRegistrationServiceConfig()
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), ts.URL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
 		_, err = auth.NewKeyManager()
@@ -142,8 +142,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		notAnURL := "not an url"
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(notAnURL))
-		cfg := commonconfig.GetCachedToolchainConfig()
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
+		cfg := configuration.GetRegistrationServiceConfig()
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), notAnURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager()
@@ -158,8 +158,8 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		anURL := "http://www.google.com/"
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(anURL))
-		cfg := commonconfig.GetCachedToolchainConfig()
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
+		cfg := configuration.GetRegistrationServiceConfig()
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), anURL, "key url not set correctly for testing")
 
 		// Create KeyManager instance.
 		_, err := auth.NewKeyManager()
@@ -171,9 +171,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(keysEndpointURL))
-		cfg := commonconfig.GetCachedToolchainConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager()
 
 		// check if the keys can be used to verify a JWT
@@ -201,9 +201,9 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		// Create KeyManager instance.
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Auth().AuthClientPublicKeysURL(keysEndpointURL))
-		cfg := commonconfig.GetCachedToolchainConfig()
+		cfg := configuration.GetRegistrationServiceConfig()
 
-		assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
+		assert.Equal(s.T(), cfg.Auth().AuthClientPublicKeysURL(), keysEndpointURL, "key url not set correctly for testing")
 		keyManager, err := auth.NewKeyManager()
 
 		// check if the keys can be used to verify a JWT

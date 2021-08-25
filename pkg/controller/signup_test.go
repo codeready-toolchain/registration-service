@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
@@ -366,8 +365,8 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
-		cfg := commonconfig.GetCachedToolchainConfig()
-		originalValue := cfg.RegistrationService().Verification().DailyLimit()
+		cfg := configuration.GetRegistrationServiceConfig()
+		originalValue := cfg.Verification().DailyLimit()
 		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
 		require.NoError(s.T(), err)
 		defer s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(originalValue))

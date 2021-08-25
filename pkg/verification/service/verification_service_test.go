@@ -390,7 +390,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	defer gock.Off()
 	// call override config to ensure the factory option takes effect
 	s.OverrideApplicationDefault()
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	now := time.Now()
 
@@ -401,7 +401,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(cfg.RegistrationService().Verification().DailyLimit()),
+				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(cfg.Verification().DailyLimit()),
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
 			Labels: map[string]string{

@@ -8,7 +8,6 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
-	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +31,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-	cfg := commonconfig.GetCachedToolchainConfig()
+	cfg := configuration.GetRegistrationServiceConfig()
 
 	// Create handler instance.
 	authConfigCtrl := NewAuthConfig()
@@ -51,7 +50,7 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		// check response content-type.
-		require.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientConfigContentType(), rr.Header().Get("Content-Type"))
+		require.Equal(s.T(), cfg.Auth().AuthClientConfigContentType(), rr.Header().Get("Content-Type"))
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response
@@ -61,11 +60,11 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 		// get the configured values
 		var config map[string]interface{}
-		err = json.Unmarshal([]byte(cfg.RegistrationService().Auth().AuthClientConfigRaw()), &config)
+		err = json.Unmarshal([]byte(cfg.Auth().AuthClientConfigRaw()), &config)
 		require.NoError(s.T(), err)
 
 		s.Run("envelope client url", func() {
-			assert.Equal(s.T(), cfg.RegistrationService().Auth().AuthClientLibraryURL(), dataEnvelope.AuthClientLibraryURL, "wrong 'auth-client-library-url' in authconfig response")
+			assert.Equal(s.T(), cfg.Auth().AuthClientLibraryURL(), dataEnvelope.AuthClientLibraryURL, "wrong 'auth-client-library-url' in authconfig response")
 		})
 
 		s.Run("envelope client config", func() {

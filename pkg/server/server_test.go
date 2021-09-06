@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"gopkg.in/h2non/gock.v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
@@ -33,9 +34,11 @@ func (s *TestServerSuite) TestServer() {
 	// specific config params do not matter for testing the routes setup.
 	srv := server.New(fake.NewMockableApplication(nil))
 
+	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.
 	err := srv.SetupRoutes()
 	require.NoError(s.T(), err)
+	gock.OffAll()
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()

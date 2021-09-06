@@ -6,7 +6,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
-
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -24,6 +24,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
@@ -105,6 +106,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")

@@ -9,11 +9,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
-
 	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
@@ -261,6 +261,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 
 	s.Run("fail to retrieve e2e keys for default environment", func() {
 		s.DefaultConfig()
+		fake.MockKeycloakCertsCall(s.T())
 
 		checkE2EKeysNotFound()
 	})
@@ -269,6 +270,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Environment("prod"))
 		defer s.DefaultConfig()
+		fake.MockKeycloakCertsCall(s.T())
 
 		checkE2EKeysNotFound()
 	})
@@ -277,6 +279,7 @@ func (s *TestKeyManagerSuite) TestE2EKeyFetching() {
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Environment("unexpected"))
 		defer s.DefaultConfig()
+		fake.MockKeycloakCertsCall(s.T())
 
 		checkE2EKeysNotFound()
 	})

@@ -155,7 +155,7 @@ type AuthConfig struct {
 }
 
 func (r AuthConfig) AuthClientLibraryURL() string {
-	return commonconfig.GetString(r.c.AuthClientLibraryURL, "https://sso.prod-preview.openshift.io/auth/js/keycloak.js")
+	return commonconfig.GetString(r.c.AuthClientLibraryURL, "https://sso.devsandbox.dev/auth/js/keycloak.js")
 }
 
 func (r AuthConfig) AuthClientConfigContentType() string {
@@ -163,11 +163,11 @@ func (r AuthConfig) AuthClientConfigContentType() string {
 }
 
 func (r AuthConfig) AuthClientConfigRaw() string {
-	return commonconfig.GetString(r.c.AuthClientConfigRaw, `{"realm": "toolchain-public","auth-server-url": "https://sso.prod-preview.openshift.io/auth","ssl-required": "none","resource": "crt","clientId": "crt","public-client": true}`)
+	return commonconfig.GetString(r.c.AuthClientConfigRaw, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-dev","clientId": "sandbox-dev","public-client": true, "confidential-port": 0}`)
 }
 
 func (r AuthConfig) AuthClientPublicKeysURL() string {
-	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.prod-preview.openshift.io/auth/realms/toolchain-public/protocol/openid-connect/certs")
+	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs")
 }
 
 type VerificationConfig struct {

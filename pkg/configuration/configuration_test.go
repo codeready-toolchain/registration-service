@@ -46,11 +46,11 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "https://registration.crt-placeholder.com", regServiceCfg.RegistrationServiceURL())
 		assert.Empty(t, regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Empty(t, regServiceCfg.Analytics().WoopraDomain())
-		assert.Equal(t, "https://sso.prod-preview.openshift.io/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
+		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/json; charset=utf-8", regServiceCfg.Auth().AuthClientConfigContentType())
-		assert.Equal(t, `{"realm": "toolchain-public","auth-server-url": "https://sso.prod-preview.openshift.io/auth","ssl-required": "none","resource": "crt","clientId": "crt","public-client": true}`,
+		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-dev","clientId": "sandbox-dev","public-client": true, "confidential-port": 0}`,
 			regServiceCfg.Auth().AuthClientConfigRaw())
-		assert.Equal(t, "https://sso.prod-preview.openshift.io/auth/realms/toolchain-public/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
+		assert.Equal(t, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
 		assert.False(t, regServiceCfg.Verification().Enabled())
 		assert.Equal(t, 5, regServiceCfg.Verification().DailyLimit())
 		assert.Equal(t, 3, regServiceCfg.Verification().AttemptsAllowed())

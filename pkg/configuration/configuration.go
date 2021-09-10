@@ -163,7 +163,7 @@ func (r AuthConfig) AuthClientConfigContentType() string {
 }
 
 func (r AuthConfig) AuthClientConfigRaw() string {
-	return commonconfig.GetString(r.c.AuthClientConfigRaw, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-dev","clientId": "sandbox-dev","public-client": true, "confidential-port": 0}`)
+	return commonconfig.GetString(r.c.AuthClientConfigRaw, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`)
 }
 
 func (r AuthConfig) AuthClientPublicKeysURL() string {

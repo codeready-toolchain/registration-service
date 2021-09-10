@@ -48,7 +48,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Analytics().WoopraDomain())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/json; charset=utf-8", regServiceCfg.Auth().AuthClientConfigContentType())
-		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-dev","clientId": "sandbox-dev","public-client": true, "confidential-port": 0}`,
+		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`,
 			regServiceCfg.Auth().AuthClientConfigRaw())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
 		assert.False(t, regServiceCfg.Verification().Enabled())

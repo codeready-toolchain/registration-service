@@ -7,7 +7,7 @@ import (
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -81,12 +81,7 @@ func (c *FakeMasterUserRecordClient) Create(obj *crtapi.MasterUserRecord) (*crta
 		return nil, err
 	}
 
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.Tracker.Create(gvr, obj, accessor.GetNamespace())
+	err = c.Tracker.Create(gvr, obj, obj.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -103,18 +98,14 @@ func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crta
 	if err != nil {
 		return nil, err
 	}
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, err
-	}
-	err = c.Tracker.Update(gvr, obj, accessor.GetNamespace())
+	err = c.Tracker.Update(gvr, obj, obj.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
 	return obj, nil
 }
 
-func (c *FakeMasterUserRecordClient) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeMasterUserRecordClient) Delete(name string, options *metav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

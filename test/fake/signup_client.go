@@ -11,7 +11,6 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubetesting "k8s.io/client-go/testing"
@@ -25,7 +24,7 @@ type FakeUserSignupClient struct { // nolint: golint
 	MockGet               func(string) (*crtapi.UserSignup, error)
 	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete            func(name string, options *v1.DeleteOptions) error
+	MockDelete            func(name string, options *metav1.DeleteOptions) error
 	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
 }
 
@@ -113,7 +112,7 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *FakeUserSignupClient) Delete(name string, options *metametav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

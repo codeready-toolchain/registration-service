@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubetesting "k8s.io/client-go/testing"
@@ -21,7 +20,7 @@ type FakeMasterUserRecordClient struct { // nolint: golint
 	MockGet    func(string) (*crtapi.MasterUserRecord, error)
 	MockCreate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
 	MockUpdate func(*crtapi.MasterUserRecord) (*crtapi.MasterUserRecord, error)
-	MockDelete func(name string, options *v1.DeleteOptions) error
+	MockDelete func(name string, options *metav1.DeleteOptions) error
 }
 
 func NewFakeMasterUserRecordClient(t *testing.T, namespace string, initObjs ...runtime.Object) *FakeMasterUserRecordClient {
@@ -105,7 +104,7 @@ func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crta
 	return obj, nil
 }
 
-func (c *FakeMasterUserRecordClient) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *FakeMasterUserRecordClient) Delete(name string, options *metametav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

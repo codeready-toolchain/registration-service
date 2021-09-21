@@ -104,7 +104,7 @@ func (c *FakeMasterUserRecordClient) Update(obj *crtapi.MasterUserRecord) (*crta
 	return obj, nil
 }
 
-func (c *FakeMasterUserRecordClient) Delete(name string, options *metametav1.DeleteOptions) error {
+func (c *FakeMasterUserRecordClient) Delete(name string, options *metav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

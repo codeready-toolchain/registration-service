@@ -112,7 +112,7 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Delete(name string, options *metametav1.DeleteOptions) error {
+func (c *FakeUserSignupClient) Delete(name string, options *metav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

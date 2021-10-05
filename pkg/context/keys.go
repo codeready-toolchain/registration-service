@@ -13,6 +13,8 @@ const (
 	CompanyKey = "company"
 	// SubKey is the context key for the subject claim
 	SubKey = "subject"
+	// OriginalSubKey is the context key for the original subject claim
+	OriginalSubKey = "originalSub"
 	// JWTClaimsKey is the context key for the claims struct
 	JWTClaimsKey = "jwtClaims"
 )

@@ -118,6 +118,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			GivenName:     ctx.GetString(context.GivenNameKey),
 			FamilyName:    ctx.GetString(context.FamilyNameKey),
 			Company:       ctx.GetString(context.CompanyKey),
+			OriginalSub:   ctx.GetString(context.OriginalSubKey),
 		},
 	}
 	states.SetVerificationRequired(userSignup, verificationRequired)

@@ -71,6 +71,7 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		c.Set(context.UsernameKey, token.Username)
 		c.Set(context.EmailKey, token.Email)
 		c.Set(context.SubKey, token.Subject)
+		c.Set(context.OriginalSubKey, token.OriginalSub)
 		c.Set(context.GivenNameKey, token.GivenName)
 		c.Set(context.FamilyNameKey, token.FamilyName)
 		c.Set(context.CompanyKey, token.Company)

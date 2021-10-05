@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt"
+
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -281,5 +283,28 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
 		require.EqualError(s.T(), err, "crypto/rsa: verification error")
+	})
+
+	s.Run("parse valid token with original_sub claim", func() {
+		// create a test token with an original_sub claim
+		username0 := uuid.Must(uuid.NewV4()).String()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.Must(uuid.NewV4()),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+
+		originalSubClaim := func(token *jwt.Token) {
+			token.Claims.(*authsupport.MyClaims).OriginalSub = "OriginalSubValue:1234-ABCD"
+		}
+
+		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, authsupport.WithEmailClaim(email0), originalSubClaim)
+		require.NoError(s.T(), err)
+
+		claims, err := tokenParser.FromString(jwt0)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identity0.Username, claims.Username)
+		require.Equal(s.T(), email0, claims.Email)
+		require.Equal(s.T(), "OriginalSubValue:1234-ABCD", claims.OriginalSub)
 	})
 }

@@ -102,6 +102,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx, _ := gin.CreateTestContext(rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "doe")
@@ -113,6 +114,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	// then
 	require.NoError(s.T(), err)
 	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
+	require.Equal(s.T(), "original-sub-value", userSignup.Spec.OriginalSub)
 
 	gvr, existing := assertUserSignupExists(userSignup, userID.String())
 

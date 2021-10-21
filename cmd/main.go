@@ -9,17 +9,19 @@ import (
 	"syscall"
 	"time"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+
+	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// this is needed to be able to generate assets
 	_ "github.com/shurcooL/vfsgen"
@@ -27,7 +29,22 @@ import (
 
 func main() {
 	// create logger and registry
-	log.Init("registration-service")
+	log.Init("registration-service",
+		zap.UseDevMode(true),
+		zap.Encoder(zapcore.NewJSONEncoder(zapcore.EncoderConfig{
+			TimeKey:        "ts",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			CallerKey:      "caller",
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.LowercaseLevelEncoder,
+			EncodeTime:     zapcore.ISO8601TimeEncoder,
+			EncodeDuration: zapcore.SecondsDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		})),
+	)
 
 	_, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
 	if !found {

@@ -4,8 +4,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
-
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -23,9 +24,10 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
-	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("get before init", func() {
 		_, err := defaultKeyManager()
@@ -34,12 +36,12 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	})
 
 	s.Run("first creation", func() {
-		_, err := initializeDefaultKeyManager(s.Config())
+		_, err := initializeDefaultKeyManager()
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := initializeDefaultKeyManager(s.Config())
+		_, err := initializeDefaultKeyManager()
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default KeyManager can be created only once", err.Error())
 	})
@@ -68,7 +70,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				km, err := initializeDefaultKeyManager(s.Config())
+				km, err := initializeDefaultKeyManager()
 				thisHolder := &kmErrHolder{
 					KeyMngr: km,
 					KmErr:   err,
@@ -104,9 +106,10 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
-	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	s.Run("get before init", func() {
 		_, err := DefaultTokenParser()
@@ -115,12 +118,12 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	})
 
 	s.Run("first creation", func() {
-		_, err := InitializeDefaultTokenParser(s.Config())
+		_, err := InitializeDefaultTokenParser()
 		require.NoError(s.T(), err)
 	})
 
 	s.Run("second redundant creation", func() {
-		_, err := InitializeDefaultTokenParser(s.Config())
+		_, err := InitializeDefaultTokenParser()
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "default TokenParser can be created only once", err.Error())
 	})
@@ -149,7 +152,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 				defer wg.Done()
 				// now, wait for latch to be released so that all workers start at the same time
 				latch.Wait()
-				tp, err := InitializeDefaultTokenParser(s.Config())
+				tp, err := InitializeDefaultTokenParser()
 				thisHolder := &tpErrHolder{
 					TokePrsr: tp,
 					TpErr:    err,

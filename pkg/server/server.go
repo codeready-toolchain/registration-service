@@ -1,11 +1,13 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -15,12 +17,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ServerOption = func(server *RegistrationServer)
+type ServerOption = func(server *RegistrationServer) // nolint: golint
 
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	config      configuration.Configuration
 	router      *gin.Engine
 	httpServer  *http.Server
 	routesSetup sync.Once
@@ -29,12 +30,29 @@ type RegistrationServer struct {
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
-func New(config configuration.Configuration, application application.Application) *RegistrationServer {
+func New(application application.Application) *RegistrationServer {
 
-	// Disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
+	gin.SetMode(gin.ReleaseMode)
 	ginRouter := gin.New()
 	ginRouter.Use(
-		gin.LoggerWithWriter(gin.DefaultWriter, "/api/v1/health"),
+		gin.LoggerWithConfig(gin.LoggerConfig{
+			Output:    gin.DefaultWriter,
+			SkipPaths: []string{"/api/v1/health"}, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
+			Formatter: func(params gin.LogFormatterParams) string {
+				// custom JSON format
+				return fmt.Sprintf(`{"client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`,
+					params.ClientIP,
+					params.TimeStamp.Format(time.RFC1123),
+					params.Method,
+					params.Path,
+					params.Request.Proto,
+					params.StatusCode,
+					params.Latency,
+					params.Request.UserAgent(),
+					params.ErrorMessage,
+				)
+			},
+		}),
 		gin.Recovery(),
 		// When the origin header is specified, cors middleware will expose the cors functionality and the
 		// OPTIONS endpoint may be executed. OPTIONS will return a status code  of 204 no content.
@@ -57,25 +75,18 @@ func New(config configuration.Configuration, application application.Application
 
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
-	srv.config = config
-
 	srv.httpServer = &http.Server{
-		Addr: srv.config.GetHTTPAddress(),
+		Addr: configuration.HTTPAddress,
 		// Good practice to set timeouts to avoid Slowloris attacks.
-		WriteTimeout: srv.config.GetHTTPWriteTimeout(),
-		ReadTimeout:  srv.config.GetHTTPReadTimeout(),
-		IdleTimeout:  srv.config.GetHTTPIdleTimeout(),
+		WriteTimeout: configuration.HTTPWriteTimeout,
+		ReadTimeout:  configuration.HTTPReadTimeout,
+		IdleTimeout:  configuration.HTTPIdleTimeout,
 		Handler:      srv.router,
 	}
-	if srv.config.GetHTTPCompressResponses() {
+	if configuration.HTTPCompressResponses {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 	return srv
-}
-
-// Config returns the app server's config object.
-func (srv *RegistrationServer) Config() configuration.Configuration {
-	return srv.config
 }
 
 // HTTPServer returns the app server's HTTP server.

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,7 +12,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 )
 
-type FakeToolchainStatusClient struct {
+type FakeToolchainStatusClient struct { // nolint: golint
 	Tracker   kubetesting.ObjectTracker
 	Scheme    *runtime.Scheme
 	namespace string

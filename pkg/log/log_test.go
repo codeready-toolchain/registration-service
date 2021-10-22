@@ -19,7 +19,7 @@ func TestLog(t *testing.T) {
 	var buf bytes.Buffer
 	once.Reset()
 	Init("logger_tests", func(o *zap.Options) {
-		o.DestWritter = &buf
+		o.DestWriter = &buf
 	})
 
 	t.Run("log info", func(t *testing.T) {

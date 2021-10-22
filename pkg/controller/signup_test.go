@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
@@ -19,7 +21,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
@@ -46,12 +48,12 @@ func TestRunSignupSuite(t *testing.T) {
 	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}, nil})
 }
 
-func (s *TestSignupSuite) SetHttpClientFactoryOption() {
+func (s *TestSignupSuite) SetHTTPClientFactoryOption() {
 	s.httpClient = &http.Client{Transport: &http.Transport{}}
 	gock.InterceptClient(s.httpClient)
 
 	serviceOption := func(svc *verification_service.ServiceImpl) {
-		svc.HttpClient = s.httpClient
+		svc.HTTPClient = s.httpClient
 	}
 
 	opt := func(serviceFactory *factory.ServiceFactory) {
@@ -71,10 +73,10 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	s.Application.MockSignupService(svc)
 
 	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), s.Config().IsTestingMode(), "testing mode not set correctly to true")
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(s.Application, s.Config())
+	signupCtrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	userID, err := uuid.NewV4()
@@ -177,7 +179,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	userID := ob.String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application, s.Config())
+	ctrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -193,6 +195,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		expected := &signup.Signup{
 			ConsoleURL:      "https://console." + targetCluster.String(),
 			CheDashboardURL: "http://che-toolchain-che.member-123.com",
+			APIEndpoint:     "http://api.devcluster.openshift.com",
 			Username:        "jsmith",
 			Status: signup.Status{
 				Reason: "Provisioning",
@@ -255,10 +258,12 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 func (s *TestSignupSuite) TestInitVerificationHandler() {
 	// Setup gock to intercept calls made to the Twilio API
-	s.SetHttpClientFactoryOption()
+	s.SetHTTPClientFactoryOption()
 
 	defer gock.Off()
-	s.OverrideConfig(s.DefaultConfig())
+
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
 
 	// Create UserSignup
 	ob, err := uuid.NewV4()
@@ -269,7 +274,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey:           "jsmith@redhat.com",
 				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
@@ -277,17 +282,16 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			},
 			Labels: map[string]string{},
 		},
-		Spec: crtapi.UserSignupSpec{
-			VerificationRequired: true,
-		},
+		Spec:   crtapi.UserSignupSpec{},
 		Status: crtapi.UserSignupStatus{},
 	}
+	states.SetVerificationRequired(userSignup, true)
 
 	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application, s.Config())
+	ctrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 	assertInitVerificationSuccess := func(phoneNumber, expectedHash string, expectedCounter int) {
@@ -361,10 +365,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
-		key := configuration.EnvPrefix + "_" + "VERIFICATION_DAILY_LIMIT"
-		err := os.Setenv(key, "0")
+		cfg := configuration.GetRegistrationServiceConfig()
+		originalValue := cfg.Verification().DailyLimit()
+		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
 		require.NoError(s.T(), err)
-		defer os.Unsetenv(key)
+		defer s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(originalValue))
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
 		rr := initVerification(s.T(), handler, gin.Param{}, data, userID, http.MethodPut, "/api/v1/signup/verification")
@@ -383,19 +388,21 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID,
-				Namespace: s.Config().GetNamespace(),
+				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
 					crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
 				},
 			},
-			Spec:   crtapi.UserSignupSpec{VerificationRequired: false},
+			Spec:   crtapi.UserSignupSpec{},
 			Status: crtapi.UserSignupStatus{},
 		}
+		states.SetVerificationRequired(userSignup, false)
 
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -423,7 +430,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignup: func(userID string) (userSignup *crtapi.UserSignup, e error) {
-				return &crtapi.UserSignup{
+				us := crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
 						Name: userID,
@@ -432,11 +439,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 						},
 						Labels: map[string]string{},
 					},
-					Spec: crtapi.UserSignupSpec{
-						VerificationRequired: true,
-					},
+					Spec:   crtapi.UserSignupSpec{},
 					Status: crtapi.UserSignupStatus{},
-				}, nil
+				}
+				states.SetVerificationRequired(&us, true)
+				return &us, nil
 			},
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 				return userSignup, nil
@@ -449,7 +456,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		s.Application.MockSignupService(svc)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -471,7 +478,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID,
-			Namespace: s.Config().GetNamespace(),
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 				crtapi.UserVerificationAttemptsAnnotationKey:   "0",
@@ -483,11 +490,12 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		Status: crtapi.UserSignupStatus{},
 	}
 
-	s.FakeUserSignupClient.Tracker.Add(userSignup)
+	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -503,7 +511,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
-		require.False(s.T(), updatedUserSignup.Spec.VerificationRequired)
+		require.False(s.T(), states.VerificationRequired(updatedUserSignup))
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
@@ -517,7 +525,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -547,7 +555,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		// Create Signup controller instance and handle the verification request
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -576,7 +584,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -594,7 +602,9 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), "service unavailable:error updating UserSignup", bodyParams["message"])
+		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
+			"assistance:error while verifying code", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -604,11 +614,13 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		userSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey] = time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
 		userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(service.TimestampLayout)
 
-		s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		s.FakeUserSignupClient.Tracker.Add(userSignup)
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -632,7 +644,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 	s.Run("no code provided", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application, s.Config())
+		ctrl := controller.NewSignup(s.Application)
 		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
 
 		param := gin.Param{
@@ -659,21 +671,6 @@ func initVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, d
 	handler(ctx)
 
 	return rr
-}
-
-func assertVerification(t *testing.T, storedUserSignup *crtapi.UserSignup, expectedHTTPResponseCode int,
-	actualResponseCode int, userID, expectedPhoneNumber, expectedEmail, expectedVerificationCount,
-	storedVerificationCode, verificationInitTimeStamp string) {
-	// Check the status code is what we expect.
-	assert.Equal(t, expectedHTTPResponseCode, actualResponseCode, "handler returned wrong status code")
-
-	// Check that the correct UserSignup is passed into the FakeSignupService for update
-	require.Equal(t, userID, storedUserSignup.Name)
-	require.Equal(t, expectedEmail, storedUserSignup.Annotations[crtapi.UserSignupUserEmailAnnotationKey])
-	require.Equal(t, expectedVerificationCount, storedUserSignup.Annotations[crtapi.UserSignupVerificationCounterAnnotationKey])
-	require.Equal(t, storedVerificationCode, storedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
-	require.Equal(t, verificationInitTimeStamp, storedUserSignup.Annotations[crtapi.UserSignupVerificationInitTimestampAnnotationKey])
-	require.Equal(t, expectedPhoneNumber, storedUserSignup.Labels[crtapi.UserSignupUserPhoneHashLabelKey])
 }
 
 type FakeSignupService struct {

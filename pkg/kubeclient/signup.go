@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 )
 
 const (
@@ -19,8 +19,7 @@ const (
 )
 
 var (
-	e164Matcher = regexp.MustCompile("^\\+?[1-9]\\d{1,14}$")
-	md5Matcher  = regexp.MustCompile("(?i)[a-f0-9]{32}$")
+	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
 )
 
 type userSignupClient struct {

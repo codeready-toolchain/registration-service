@@ -1,11 +1,13 @@
 package server_test
 
 import (
-	"github.com/codeready-toolchain/registration-service/test/fake"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/codeready-toolchain/registration-service/test/fake"
+	"gopkg.in/h2non/gock.v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -30,11 +32,13 @@ const (
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(s.Config(), fake.NewMockableApplication(s.Config(), nil))
+	srv := server.New(fake.NewMockableApplication(nil))
 
+	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.
 	err := srv.SetupRoutes()
 	require.NoError(s.T(), err)
+	gock.OffAll()
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()
@@ -50,7 +54,10 @@ func (s *TestServerSuite) TestServer() {
 	}
 
 	s.T().Run("CORS", func(t *testing.T) {
-		go srv.Engine().Run()
+		go func(t *testing.T) {
+			err := srv.Engine().Run()
+			require.NoError(t, err)
+		}(t)
 
 		err := wait.Poll(DefaultRetryInterval, DefaultTimeout, func() (done bool, err error) {
 			req, err := http.NewRequest("GET", "http://localhost:8080/api/v1/health", nil)

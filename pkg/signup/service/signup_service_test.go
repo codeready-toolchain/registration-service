@@ -8,14 +8,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,7 +25,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -49,76 +50,46 @@ func TestRunSignupServiceSuite(t *testing.T) {
 }
 
 func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verificationEnabled bool,
-	excludedDomains []string, verificationCodeExpiresInMin int) configuration.Configuration {
+	excludedDomains string, verificationCodeExpiresInMin int) {
 
-	restore := test2.SetEnvVarAndRestore(s.T(), k8sutil.WatchNamespaceEnvVar, namespace)
-	defer restore()
+	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, namespace)
 
-	baseConfig, err := configuration.LoadConfig(test2.NewFakeClient(s.T()))
-	require.NoError(s.T(), err)
-
-	return &mockSignupServiceConfiguration{
-		ViperConfig:                  *baseConfig,
-		namespace:                    namespace,
-		verificationEnabled:          verificationEnabled,
-		excludedDomains:              excludedDomains,
-		verificationCodeExpiresInMin: verificationCodeExpiresInMin,
-	}
-}
-
-type mockSignupServiceConfiguration struct {
-	configuration.ViperConfig
-	namespace                    string
-	verificationEnabled          bool
-	excludedDomains              []string
-	verificationCodeExpiresInMin int
-}
-
-func (c *mockSignupServiceConfiguration) GetNamespace() string {
-	return c.namespace
-}
-
-func (c *mockSignupServiceConfiguration) GetVerificationEnabled() bool {
-	return c.verificationEnabled
-}
-
-func (c *mockSignupServiceConfiguration) GetVerificationExcludedEmailDomains() []string {
-	return c.excludedDomains
-}
-
-func (c *mockSignupServiceConfiguration) GetVerificationCodeExpiresInMin() int {
-	return c.verificationCodeExpiresInMin
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Verification().Enabled(verificationEnabled).
+			Verification().CodeExpiresInMin(verificationCodeExpiresInMin).
+			Verification().ExcludedEmailDomains(excludedDomains))
 }
 
 func (s *TestSignupServiceSuite) TestSignup() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
-	assertUserSignupExists := func(userSignup *v1alpha1.UserSignup, userID string) (schema.GroupVersionResource, v1alpha1.UserSignup) {
+	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, userID string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
 		require.NotNil(s.T(), userSignup)
 
 		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
 		require.NoError(s.T(), err)
 		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
+		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
 		require.NoError(s.T(), err)
 
-		userSignups := values.(*v1alpha1.UserSignupList)
+		userSignups := values.(*toolchainv1alpha1.UserSignupList)
 		require.NotEmpty(s.T(), userSignups.Items)
 		require.Len(s.T(), userSignups.Items, 1)
 
 		val := userSignups.Items[0]
-		require.Equal(s.T(), s.Config().GetNamespace(), val.Namespace)
+		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
 		require.Equal(s.T(), userID, val.Name)
-		require.Equal(s.T(), userID, val.Spec.UserID)
+		require.Equal(s.T(), userID, val.Spec.Userid)
 		require.Equal(s.T(), "jsmith", val.Spec.Username)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
-		require.False(s.T(), val.Spec.Approved)
-		require.True(s.T(), val.Spec.VerificationRequired)
-		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+		require.False(s.T(), states.Approved(&val))
+		require.True(s.T(), states.VerificationRequired(&val))
+		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
+		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 
 		return gvr, val
 	}
@@ -131,6 +102,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx, _ := gin.CreateTestContext(rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "doe")
@@ -141,14 +113,38 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	// then
 	require.NoError(s.T(), err)
+	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
+	require.Equal(s.T(), "original-sub-value", userSignup.Spec.OriginalSub)
+
 	gvr, existing := assertUserSignupExists(userSignup, userID.String())
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
+		require.NoError(s.T(), err)
+
+		// when
+		deactivatedUS, err = s.Application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		assertUserSignupExists(deactivatedUS, userID.String())
+		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
+		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
+	})
+
+	s.Run("deactivate and reactivate with missing annotation", func() {
+		// given
+		deactivatedUS := existing.DeepCopy()
+		states.SetDeactivated(deactivatedUS, true)
+		deactivatedUS.Status.Conditions = deactivated()
+		// also, alter the activation counter annotation
+		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
 		require.NoError(s.T(), err)
 
 		// when
@@ -158,20 +154,21 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(userSignup, userID.String())
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Spec.Deactivated = true
+		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, s.Config().GetNamespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
 		require.NoError(s.T(), err)
-		s.FakeUserSignupClient.MockUpdate = func(signup *v1alpha1.UserSignup) (*v1alpha1.UserSignup, error) {
+		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if signup.Name == userID.String() {
 				return nil, errors.New("an error occurred")
 			}
-			return &v1alpha1.UserSignup{}, nil
+			return &toolchainv1alpha1.UserSignup{}, nil
 		}
 
 		// when
@@ -183,7 +180,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -210,10 +207,10 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, s.Config().GetNamespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -254,7 +251,7 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -279,16 +276,16 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.False(s.T(), val.Spec.VerificationRequired)
+	require.False(s.T(), states.VerificationRequired(&val))
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -309,20 +306,20 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "john@gmail.com",
 		},
 	})
@@ -339,7 +336,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -348,16 +345,16 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jsmith@gmail.com",
 		},
 	})
@@ -382,7 +379,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, []string{"redhat.com"}, 5))
+	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -390,17 +387,17 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
 	})
@@ -417,19 +414,19 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
-				v1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
 			},
 		},
 	})
@@ -449,7 +446,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -457,16 +454,16 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&v1alpha1.BannedUser{
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
 			Namespace: TestNamespace,
 			Labels: map[string]string{
-				v1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
 			},
 		},
-		Spec: v1alpha1.BannedUserSpec{
+		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
 	})
@@ -488,7 +485,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
 	require.NoError(s.T(), err)
 
-	userSignups := values.(*v1alpha1.UserSignupList)
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
 	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -499,20 +496,20 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Equal(s.T(), "", val.Spec.GivenName)
 	require.Equal(s.T(), "", val.Spec.FamilyName)
 	require.Equal(s.T(), "", val.Spec.Company)
-	require.False(s.T(), val.Spec.Approved)
-	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[v1alpha1.UserSignupUserEmailAnnotationKey])
-	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[v1alpha1.UserSignupUserEmailHashLabelKey])
+	require.False(s.T(), states.Approved(&val))
+	require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
+	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	s.FakeUserSignupClient.MockGet = func(name string) (*v1alpha1.UserSignup, error) {
+	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 		if name == userID.String() {
 			return nil, errors.New("an error occurred")
 		}
-		return &v1alpha1.UserSignup{}, nil
+		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
 	_, err = s.Application.SignupService().GetSignup(userID.String())
@@ -529,37 +526,39 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+	userSignup := toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.UserSignupSpec{
-			Username:             "bill",
-			VerificationRequired: true,
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			Username: "bill",
 		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.UserSignupStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:    v1alpha1.UserSignupComplete,
+					Type:    toolchainv1alpha1.UserSignupComplete,
 					Status:  apiv1.ConditionFalse,
 					Reason:  "test_reason",
 					Message: "test_message",
 				},
 				{
-					Type:   v1alpha1.UserSignupApproved,
+					Type:   toolchainv1alpha1.UserSignupApproved,
 					Status: apiv1.ConditionTrue,
-					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
 				},
 			},
 		},
-	})
+	}
+	states.SetVerificationRequired(&userSignup, true)
+
+	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
 	response, err := s.Application.SignupService().GetSignup(userID.String())
@@ -574,52 +573,56 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.True(s.T(), response.Status.VerificationRequired)
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
+	require.Equal(s.T(), "", response.APIEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
-	noCondition := v1alpha1.UserSignupStatus{}
-	pendingApproval := v1alpha1.UserSignupStatus{
-		Conditions: []v1alpha1.Condition{
+	noCondition := toolchainv1alpha1.UserSignupStatus{}
+	pendingApproval := toolchainv1alpha1.UserSignupStatus{
+		Conditions: []toolchainv1alpha1.Condition{
 			{
-				Type:   v1alpha1.UserSignupApproved,
+				Type:   toolchainv1alpha1.UserSignupApproved,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupPendingApprovalReason,
+				Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
 			},
 		},
 	}
-	noClusterApproval := v1alpha1.UserSignupStatus{
-		Conditions: []v1alpha1.Condition{
+	noClusterApproval := toolchainv1alpha1.UserSignupStatus{
+		Conditions: []toolchainv1alpha1.Condition{
 			{
-				Type:   v1alpha1.UserSignupApproved,
+				Type:   toolchainv1alpha1.UserSignupApproved,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupPendingApprovalReason,
+				Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
 			},
 			{
-				Type:   v1alpha1.UserSignupComplete,
+				Type:   toolchainv1alpha1.UserSignupComplete,
 				Status: apiv1.ConditionFalse,
-				Reason: v1alpha1.UserSignupNoClusterAvailableReason,
+				Reason: toolchainv1alpha1.UserSignupNoClusterAvailableReason,
 			},
 		},
 	}
 
-	for _, status := range []v1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
+	for _, status := range []toolchainv1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
 		userID, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 
-		err = s.FakeUserSignupClient.Tracker.Add(&v1alpha1.UserSignup{
+		userSignup := toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: TestNamespace,
 			},
-			Spec: v1alpha1.UserSignupSpec{
-				Username:             "bill",
-				VerificationRequired: true,
+			Spec: toolchainv1alpha1.UserSignupSpec{
+				Username: "bill",
 			},
 			Status: status,
-		})
+		}
+
+		states.SetVerificationRequired(&userSignup, true)
+
+		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
 		response, err := s.Application.SignupService().GetSignup(userID.String())
@@ -634,11 +637,12 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.Status.Message)
 		require.Equal(s.T(), "", response.ConsoleURL)
 		require.Equal(s.T(), "", response.CheDashboardURL)
+		require.Equal(s.T(), "", response.APIEndpoint)
 	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupCompleteWithReason("Deactivated")
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -650,7 +654,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -659,18 +663,19 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
 	require.NoError(s.T(), err)
 
-	err = s.FakeToolchainStatusClient.Tracker.Add(&v1alpha1.ToolchainStatus{
+	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
 			Namespace: TestNamespace,
 		},
-		Status: v1alpha1.ToolchainStatusStatus{
-			Members: []v1alpha1.Member{
+		Status: toolchainv1alpha1.ToolchainStatusStatus{
+			Members: []toolchainv1alpha1.Member{
 				{
 					ClusterName: "member-1",
-					MemberStatus: v1alpha1.MemberStatusStatus{
-						Routes: &v1alpha1.Routes{
+					ApiEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-1.com",
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
@@ -678,8 +683,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				},
 				{
 					ClusterName: "member-123",
-					MemberStatus: v1alpha1.MemberStatusStatus{
-						Routes: &v1alpha1.Routes{
+					ApiEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-123.com",
 							CheDashboardURL: "http://che-toolchain-che.member-123.com",
 						},
@@ -702,10 +708,11 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.False(s.T(), response.Status.VerificationRequired)
 	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -719,18 +726,18 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
 	returnedErr := errors.New("an error occurred")
-	s.FakeMasterUserRecordClient.MockGet = func(name string) (*v1alpha1.MasterUserRecord, error) {
+	s.FakeMasterUserRecordClient.MockGet = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
 		}
-		return &v1alpha1.MasterUserRecord{}, nil
+		return &toolchainv1alpha1.MasterUserRecord{}, nil
 	}
 
 	_, err = s.Application.SignupService().GetSignup(us.Name)
@@ -738,25 +745,25 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(&v1alpha1.MasterUserRecord{
+	err = s.FakeMasterUserRecordClient.Tracker.Add(&toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.MasterUserRecordSpec{
-			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
-		Status: v1alpha1.MasterUserRecordStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:   v1alpha1.MasterUserRecordReady,
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
 					Status: "blah-blah-blah",
 				},
 			},
@@ -769,7 +776,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	s.Run("getusersignup ok", func() {
 		us := s.newUserSignupComplete()
@@ -782,7 +789,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	})
 
 	s.Run("getusersignup returns error", func() {
-		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *v1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("get failed")
 		}
 
@@ -802,7 +809,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
-	s.OverrideConfig(s.ServiceConfiguration(TestNamespace, true, nil, 5))
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -821,7 +828,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 
 	s.Run("updateusersignup returns error", func() {
-		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *v1alpha1.UserSignup) (userSignup *v1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("update failed")
 		}
 
@@ -835,36 +842,36 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 }
 
-func (s *TestSignupServiceSuite) newUserSignupComplete() *v1alpha1.UserSignup {
+func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }
 
-func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *v1alpha1.UserSignup {
+func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *toolchainv1alpha1.UserSignup {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	return &v1alpha1.UserSignup{
+	return &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: TestNamespace,
 			Annotations: map[string]string{
-				v1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
 			},
 		},
-		Spec: v1alpha1.UserSignupSpec{
+		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "ted@domain.com",
 		},
-		Status: v1alpha1.UserSignupStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.UserSignupStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:   v1alpha1.UserSignupComplete,
+					Type:   toolchainv1alpha1.UserSignupComplete,
 					Status: apiv1.ConditionTrue,
 					Reason: reason,
 				},
 				{
-					Type:   v1alpha1.UserSignupApproved,
+					Type:   toolchainv1alpha1.UserSignupApproved,
 					Status: apiv1.ConditionTrue,
-					Reason: v1alpha1.UserSignupApprovedAutomaticallyReason,
+					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
 				},
 			},
 			CompliantUsername: "ted",
@@ -872,36 +879,36 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 	}
 }
 
-func (s *TestSignupServiceSuite) newProvisionedMUR() *v1alpha1.MasterUserRecord {
-	return &v1alpha1.MasterUserRecord{
+func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUserRecord {
+	return &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
 			Namespace: TestNamespace,
 		},
-		Spec: v1alpha1.MasterUserRecordSpec{
-			UserAccounts: []v1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
-		Status: v1alpha1.MasterUserRecordStatus{
-			Conditions: []v1alpha1.Condition{
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
 				{
-					Type:    v1alpha1.MasterUserRecordReady,
+					Type:    toolchainv1alpha1.MasterUserRecordReady,
 					Status:  apiv1.ConditionTrue,
 					Reason:  "mur_ready_reason",
 					Message: "mur_ready_message",
 				},
 			},
-			UserAccounts: []v1alpha1.UserAccountStatusEmbedded{{Cluster: v1alpha1.Cluster{
+			UserAccounts: []toolchainv1alpha1.UserAccountStatusEmbedded{{Cluster: toolchainv1alpha1.Cluster{
 				Name: "member-123",
 			}}},
 		},
 	}
 }
 
-func deactivated() []v1alpha1.Condition {
-	return []v1alpha1.Condition{
+func deactivated() []toolchainv1alpha1.Condition {
+	return []toolchainv1alpha1.Condition{
 		{
-			Type:   v1alpha1.UserSignupComplete,
+			Type:   toolchainv1alpha1.UserSignupComplete,
 			Status: apiv1.ConditionTrue,
 			Reason: "Deactivated",
 		},

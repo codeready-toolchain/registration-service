@@ -69,11 +69,14 @@ function showError(errorText) {
   document.getElementById('errorStatus').textContent = errorText;
 }
 
-// shows a logged in user.
-function showUser(username) {
+// shows a logged in user and its userId.
+function showUser(username, userid) {
   console.log('showing user..');
   document.getElementById('username').textContent = username;
   document.getElementById('user-loggedin').style.display = 'inline';
+  console.log('showing userId..')
+  document.getElementById('userid').textContent = userid;
+  document.getElementById('userid').style.display = 'inline';
   document.getElementById('user-notloggedin').style.display = 'none';
 }
 
@@ -82,6 +85,7 @@ function hideUser() {
   console.log('hiding user..');
   document.getElementById('username').textContent = '';
   document.getElementById('user-loggedin').style.display = 'none';
+  document.getElementById('userid').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'inline';
 }
 
@@ -338,13 +342,13 @@ getJSON('GET', configURL, null, function(err, data) {
             .success(function(data) {
               console.log('retrieved user info..');
               idToken = keycloak.idToken
-              showUser(data.preferred_username)
+              showUser(data.preferred_username, data.sub)
               // now check the signup state of the user.
               updateSignupState();
             })
             .error(function() {
               console.log('Failed to pull in user data');
-              showError('Failed to pull in user data.');  
+              showError('Failed to pull in user data.');
             });
         } else {
           console.log('user not authenticated');

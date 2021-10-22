@@ -6,26 +6,25 @@ import (
 	"encoding/json"
 	"testing"
 
-	crtapi "github.com/codeready-toolchain/api/pkg/apis/toolchain/v1alpha1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/meta"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-type FakeUserSignupClient struct {
+type FakeUserSignupClient struct { // nolint: golint
 	Tracker               kubetesting.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string
 	MockGet               func(string) (*crtapi.UserSignup, error)
 	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockDelete            func(name string, options *v1.DeleteOptions) error
+	MockDelete            func(name string, options *metav1.DeleteOptions) error
 	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
 }
 
@@ -78,7 +77,7 @@ func (c *FakeUserSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 
 func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	if obj != nil {
-		obj.ResourceVersion = uuid.NewV4().String()
+		obj.ResourceVersion = uuid.Must(uuid.NewV4()).String()
 	}
 	if c.MockCreate != nil {
 		return c.MockCreate(obj)
@@ -89,12 +88,7 @@ func (c *FakeUserSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignu
 		return nil, err
 	}
 
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.Tracker.Create(gvr, obj, accessor.GetNamespace())
+	err = c.Tracker.Create(gvr, obj, obj.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -111,18 +105,14 @@ func (c *FakeUserSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignu
 	if err != nil {
 		return nil, err
 	}
-	accessor, err := meta.Accessor(obj)
-	if err != nil {
-		return nil, err
-	}
-	err = c.Tracker.Update(gvr, obj, accessor.GetNamespace())
+	err = c.Tracker.Update(gvr, obj, obj.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
 	return obj, nil
 }
 
-func (c *FakeUserSignupClient) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeUserSignupClient) Delete(name string, options *metav1.DeleteOptions) error {
 	if c.MockDelete != nil {
 		return c.MockDelete(name, options)
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 /****************************************************
@@ -26,6 +26,7 @@ type TokenClaims struct {
 	Email         string `json:"email"`
 	EmailVerified bool   `json:"email_verified"`
 	Company       string `json:"company"`
+	OriginalSub   string `json:"original_sub"`
 	jwt.StandardClaims
 }
 

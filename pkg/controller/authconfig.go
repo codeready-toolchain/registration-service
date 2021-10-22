@@ -17,21 +17,19 @@ type configResponse struct {
 // AuthConfig implements the auth config endpoint, which is invoked to
 // retrieve the auth config for the ui.
 type AuthConfig struct {
-	config configuration.Configuration
 }
 
 // NewAuthConfig returns a new AuthConfig instance.
-func NewAuthConfig(config configuration.Configuration) *AuthConfig {
-	return &AuthConfig{
-		config: config,
-	}
+func NewAuthConfig() *AuthConfig {
+	return &AuthConfig{}
 }
 
 // GetHandler returns raw auth config content for UI.
 func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
+	cfg := configuration.GetRegistrationServiceConfig()
 	configRespData := configResponse{
-		AuthClientLibraryURL: ac.config.GetAuthClientLibraryURL(),
-		AuthClientConfigRaw:  ac.config.GetAuthClientConfigAuthRaw(),
+		AuthClientLibraryURL: cfg.Auth().AuthClientLibraryURL(),
+		AuthClientConfigRaw:  cfg.Auth().AuthClientConfigRaw(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

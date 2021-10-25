@@ -1,12 +1,14 @@
 package factory
 
 import (
+	"fmt"
+
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	"github.com/prometheus/common/log"
 
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 )
@@ -78,7 +80,7 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 	}
 
 	if !configuration.IsTestingMode() {
-		log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+		log.Info(nil, fmt.Sprintf("configuring a new service factory with %d options", len(options)))
 	}
 
 	// default function to return an instance of Verification service

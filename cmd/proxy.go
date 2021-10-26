@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	clusterproxy "github.com/codeready-toolchain/registration-service/pkg/proxy"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 )
 
 // These constant is used to define server
@@ -18,13 +20,19 @@ const (
 )
 
 type proxy struct {
-	clusters *clusterproxy.UserClusters
+	namespaces  *clusterproxy.UserNamespaces
+	tokenParser *auth.TokenParser
 }
 
-func newProxy(app application.Application) *proxy {
-	return &proxy{
-		clusters: clusterproxy.NewUserClusters(app),
+func newProxy(app application.Application) (*proxy, error) {
+	tokenParserInstance, err := auth.DefaultTokenParser()
+	if err != nil {
+		return nil, err
 	}
+	return &proxy{
+		namespaces:  clusterproxy.NewUserNamespaces(app),
+		tokenParser: tokenParserInstance,
+	}, nil
 }
 
 func (p *proxy) startProxy() *http.Server {
@@ -44,47 +52,62 @@ func (p *proxy) startProxy() *http.Server {
 	return srv
 }
 
-// Serve a reverse proxy
-func (p *proxy) serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
-	u, _ := url.Parse(target)
+// Given a request send it to the appropriate url
+func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	ns, err := p.getTargetNamespace(req)
+	if err != nil {
+		// TODO populate the request with the error
+		panic(err)
+	}
+	log.Info(nil, fmt.Sprintf("proxy url: %s, namespace: %s", ns.ApiURL.String(), ns.Namespace))
 
-	proxy := p.newReverseProxy(u)
+	p.serveReverseProxy(ns, res, req)
+}
+
+func (p *proxy) getTargetNamespace(req *http.Request) (*namespace.Namespace, error) {
+	userToken, err := extractUserToken(req)
+	if err != nil {
+		return nil, err
+	}
+	userID, err := p.extractUserID(userToken)
+	if err != nil {
+		return nil, err
+	}
+	return p.namespaces.GetNamespace(userID)
+}
+
+func extractUserToken(req *http.Request) (string, error) {
+	auth := req.Header.Get("Authorization")
+	token := strings.Split(auth, "Bearer ")
+	if len(token) < 2 {
+		return "", crterrors.NewUnauthorizedError("no token found", "a Bearer token is expected")
+	}
+	return token[1], nil
+}
+
+func (p *proxy) extractUserID(tokenStr string) (string, error) {
+	token, err := p.tokenParser.FromString(tokenStr)
+	if err != nil {
+		return "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
+	}
+	return token.Subject, nil
+}
+
+// Serve a reverse proxy
+func (p *proxy) serveReverseProxy(target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
+	proxy := p.newReverseProxy(target)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-func (p *proxy) getProxyURL(req *http.Request) string {
-	auth := req.Header.Get("Authorization")
-	token := strings.Split(auth, "Bearer ")
-	if len(token) < 2 {
-		// TODO return the first/random cluster URL
-		return ""
-	}
-	bearer := token[1]
-	url, err := p.clusters.Url(bearer)
-	if err != nil {
-		log.Error(nil, err, "unable to get cluster url by token")
-		// TODO return the first/random cluster URL or 401 with the message about expired token
-		return ""
-	}
-	return url
-}
-
-// Given a request send it to the appropriate url
-func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	u := p.getProxyURL(req)
-	log.Info(nil, fmt.Sprintf("proxy url: %s", u))
-
-	p.serveReverseProxy(u, res, req)
-}
-
-func (p *proxy) newReverseProxy(target *url.URL) *httputil.ReverseProxy {
-	targetQuery := target.RawQuery
+func (p *proxy) newReverseProxy(target *namespace.Namespace) *httputil.ReverseProxy {
+	targetQuery := target.ApiURL.RawQuery
 	director := func(req *http.Request) {
 		req.URL.Scheme = "https" // Always use https
-		req.URL.Host = target.Host
-		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+		req.URL.Host = target.ApiURL.Host
+		// TODO Replace/insert namespace path
+		req.URL.Path = singleJoiningSlash(target.ApiURL.Path, req.URL.Path)
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {

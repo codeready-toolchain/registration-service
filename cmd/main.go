@@ -75,7 +75,10 @@ func main() {
 	}
 
 	// Start the proxy server
-	p := newProxy(app)
+	p, err := newProxy(app)
+	if err != nil {
+		panic(err.Error())
+	}
 	proxySrv := p.startProxy()
 
 	srv := server.New(app)
@@ -107,7 +110,7 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(srv.HTTPServer(), configuration.GracefulTimeout)
+	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv)
 }
 
 func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {

@@ -37,6 +37,15 @@ func NewForbiddenError(message, details string) *Error {
 	}
 }
 
+func NewUnauthorizedError(message, details string) *Error {
+	return &Error{
+		Status:  http.StatusText(http.StatusUnauthorized),
+		Code:    http.StatusUnauthorized,
+		Message: message,
+		Details: details,
+	}
+}
+
 func NewTooManyRequestsError(message, details string) *Error {
 	return &Error{
 		Status:  http.StatusText(http.StatusTooManyRequests),

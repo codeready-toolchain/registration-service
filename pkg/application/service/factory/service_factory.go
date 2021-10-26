@@ -1,15 +1,17 @@
 package factory
 
 import (
+	"fmt"
+
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
-	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
-	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+	signup_service "github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/prometheus/common/log"
+
+	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 )
 
 type serviceContextImpl struct {
@@ -36,8 +38,8 @@ func (s *serviceContextImpl) Services() service.Services {
 type ServiceFactory struct {
 	contextProducer            servicecontext.ServiceContextProducer
 	serviceContextOptions      []ServiceContextOption
-	verificationServiceFunc    func(opts ...verificationservice.VerificationServiceOption) service.VerificationService
-	verificationServiceOptions []verificationservice.VerificationServiceOption
+	verificationServiceFunc    func(opts ...verification_service.VerificationServiceOption) service.VerificationService
+	verificationServiceOptions []verification_service.VerificationServiceOption
 }
 
 func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceContextProducer {
@@ -49,18 +51,14 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
-	return signupservice.NewSignupService(s.getContext())
-}
-
-func (s *ServiceFactory) ToolchainClusterService() service.ToolchainClusterService {
-	return clusterservice.NewToolchainClusterService(s.getContext())
+	return signup_service.NewSignupService(s.getContext())
 }
 
 func (s *ServiceFactory) VerificationService() service.VerificationService {
 	return s.verificationServiceFunc(s.verificationServiceOptions...)
 }
 
-func (s *ServiceFactory) WithVerificationServiceOption(opt verificationservice.VerificationServiceOption) {
+func (s *ServiceFactory) WithVerificationServiceOption(opt verification_service.VerificationServiceOption) {
 	s.verificationServiceOptions = append(s.verificationServiceOptions, opt)
 }
 
@@ -83,12 +81,12 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 	}
 
 	if !configuration.IsTestingMode() {
-		log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+		log.Info(nil, fmt.Sprintf("configuring a new service factory with %d options", len(options)))
 	}
 
 	// default function to return an instance of Verification service
-	f.verificationServiceFunc = func(opts ...verificationservice.VerificationServiceOption) service.VerificationService {
-		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
+	f.verificationServiceFunc = func(opts ...verification_service.VerificationServiceOption) service.VerificationService {
+		return verification_service.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
 	}
 
 	return f

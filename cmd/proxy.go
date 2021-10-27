@@ -77,8 +77,8 @@ func (p *proxy) getTargetNamespace(req *http.Request) (*namespace.Namespace, err
 }
 
 func extractUserToken(req *http.Request) (string, error) {
-	auth := req.Header.Get("Authorization")
-	token := strings.Split(auth, "Bearer ")
+	a := req.Header.Get("Authorization")
+	token := strings.Split(a, "Bearer ")
 	if len(token) < 2 {
 		return "", crterrors.NewUnauthorizedError("no token found", "a Bearer token is expected")
 	}
@@ -117,6 +117,8 @@ func (p *proxy) newReverseProxy(target *namespace.Namespace) *httputil.ReversePr
 			// explicitly disable User-Agent so it's not set to default value
 			req.Header.Set("User-Agent", "")
 		}
+		// Replace token
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.TargetClusterToken))
 	}
 	return &httputil.ReverseProxy{Director: director}
 }

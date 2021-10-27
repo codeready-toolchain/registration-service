@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
+	
 	// this is needed to be able to generate assets
 	_ "github.com/shurcooL/vfsgen"
 )

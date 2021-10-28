@@ -7,14 +7,13 @@ import (
 	"net/url"
 
 	v1 "k8s.io/api/core/v1"
-
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
-	common "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	errs "github.com/pkg/errors"
 )
@@ -22,14 +21,14 @@ import (
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct {
 	base.BaseService
-	getMembersFunc common.GetMemberClustersFunc
+	getMembersFunc cluster.GetMemberClustersFunc
 }
 
 // NewToolchainClusterService creates a service object for performing toolchain cluster related activities.
 func NewToolchainClusterService(context servicecontext.ServiceContext) service.ToolchainClusterService {
 	return &ServiceImpl{
 		BaseService:    base.NewBaseService(context),
-		getMembersFunc: common.GetMemberClusters,
+		getMembersFunc: cluster.GetMemberClusters,
 	}
 }
 

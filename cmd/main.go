@@ -75,11 +75,14 @@ func main() {
 	}
 
 	// Start the proxy server
-	p, err := newProxy(app)
+	p, err := newProxy(app, crtConfig)
 	if err != nil {
 		panic(err.Error())
 	}
-	proxySrv := p.startProxy()
+	proxySrv, err := p.startProxy()
+	if err != nil {
+		panic(fmt.Sprintf("failed to start proxy: %s", err.Error()))
+	}
 
 	srv := server.New(app)
 

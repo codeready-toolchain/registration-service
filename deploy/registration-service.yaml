@@ -33,8 +33,10 @@ objects:
       - masteruserrecords
       - toolchainconfigs
       - toolchainstatuses
+      - toolchainclusters
       verbs:
       - get
+      - list
     - apiGroups:
       - toolchain.dev.openshift.com
       resources:

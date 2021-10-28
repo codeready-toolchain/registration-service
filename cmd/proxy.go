@@ -5,13 +5,23 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	clusterproxy "github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+
+	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // These constant is used to define server
@@ -22,9 +32,10 @@ const (
 type proxy struct {
 	namespaces  *clusterproxy.UserNamespaces
 	tokenParser *auth.TokenParser
+	config      configuration.RegistrationServiceConfig
 }
 
-func newProxy(app application.Application) (*proxy, error) {
+func newProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
 	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -32,10 +43,19 @@ func newProxy(app application.Application) (*proxy, error) {
 	return &proxy{
 		namespaces:  clusterproxy.NewUserNamespaces(app),
 		tokenParser: tokenParserInstance,
+		config:      config,
 	}, nil
 }
 
-func (p *proxy) startProxy() *http.Server {
+func (p *proxy) startProxy() (*http.Server, error) {
+	// Initiate toolchain cluster cache service
+	cacheLog := controllerlog.Log.WithName("registration-service")
+	cl, err := newClusterClient()
+	if err != nil {
+		return nil, err
+	}
+	cluster.NewToolchainClusterService(cl, cacheLog, p.config.Namespace(), 5*time.Second)
+
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
@@ -49,7 +69,7 @@ func (p *proxy) startProxy() *http.Server {
 			panic(fmt.Sprintf("Proxy server stoped: %s", err.Error()))
 		}
 	}()
-	return srv
+	return srv, nil
 }
 
 // Given a request send it to the appropriate url
@@ -133,4 +153,32 @@ func singleJoiningSlash(a, b string) string {
 		return a + "/" + b
 	}
 	return a + b
+}
+
+func newClusterClient() (client.Client, error) {
+	scheme := runtime.NewScheme()
+	if err := toolchainv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	toolchainv1alpha1.SchemeBuilder.Register(getRegisterObject()...)
+
+	k8sConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	cl, err := client.New(k8sConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create ToolchainCluster client")
+	}
+	return cl, nil
+}
+
+func getRegisterObject() []runtime.Object {
+	return []runtime.Object{
+		&toolchainv1alpha1.ToolchainCluster{},
+		&toolchainv1alpha1.ToolchainClusterList{},
+	}
 }

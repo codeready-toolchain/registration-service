@@ -32,7 +32,6 @@ type UnitTestSuite struct {
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
-	FakeToolchainClusterClient *fake.FakeToolchainClusterClient
 	factoryOptions             []factory.Option
 }
 
@@ -55,7 +54,6 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
-	s.FakeToolchainClusterClient = fake.NewFakeToolchainClusterClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
@@ -65,7 +63,6 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
-	s.FakeToolchainClusterClient = fake.NewFakeToolchainClusterClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
@@ -158,8 +155,4 @@ func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 
 func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface {
 	return s.FakeToolchainStatusClient
-}
-
-func (s *UnitTestSuite) ToolchainClusters() kubeclient.ToolchainClusterInterface {
-	return s.FakeToolchainClusterClient
 }

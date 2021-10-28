@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"net/url"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -16,6 +13,8 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	errs "github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // ServiceImpl represents the implementation of the signup service.

@@ -9,6 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	errs "github.com/pkg/errors"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -72,6 +75,11 @@ func main() {
 	app, err := server.NewInClusterApplication()
 	if err != nil {
 		panic(err.Error())
+	}
+
+	_, err = auth.InitializeDefaultTokenParser()
+	if err != nil {
+		panic(errs.Wrapf(err, "failed to init default token parser: %s", err.Error()))
 	}
 
 	// Start the proxy server

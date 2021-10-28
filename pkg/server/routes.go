@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -54,14 +53,6 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 	var err error
 	srv.routesSetup.Do(func() {
-
-		// initialize default managers
-		_, err = auth.InitializeDefaultTokenParser()
-		if err != nil {
-			err = errs.Wrapf(err, "failed to init default token parser: %s", err.Error())
-			return
-		}
-
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
 		authConfigCtrl := controller.NewAuthConfig()

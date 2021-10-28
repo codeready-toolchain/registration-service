@@ -32,10 +32,17 @@ const (
 type proxy struct {
 	namespaces  *clusterproxy.UserNamespaces
 	tokenParser *auth.TokenParser
-	config      configuration.RegistrationServiceConfig
 }
 
 func newProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
+	// Initiate toolchain cluster cache service
+	cacheLog := controllerlog.Log.WithName("registration-service")
+	cl, err := newClusterClient()
+	if err != nil {
+		return nil, err
+	}
+	cluster.NewToolchainClusterService(cl, cacheLog, config.Namespace(), 5*time.Second)
+
 	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -43,19 +50,10 @@ func newProxy(app application.Application, config configuration.RegistrationServ
 	return &proxy{
 		namespaces:  clusterproxy.NewUserNamespaces(app),
 		tokenParser: tokenParserInstance,
-		config:      config,
 	}, nil
 }
 
-func (p *proxy) startProxy() (*http.Server, error) {
-	// Initiate toolchain cluster cache service
-	cacheLog := controllerlog.Log.WithName("registration-service")
-	cl, err := newClusterClient()
-	if err != nil {
-		return nil, err
-	}
-	cluster.NewToolchainClusterService(cl, cacheLog, p.config.Namespace(), 5*time.Second)
-
+func (p *proxy) startProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
@@ -69,7 +67,7 @@ func (p *proxy) startProxy() (*http.Server, error) {
 			panic(fmt.Sprintf("Proxy server stoped: %s", err.Error()))
 		}
 	}()
-	return srv, nil
+	return srv
 }
 
 // Given a request send it to the appropriate url

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -75,7 +77,7 @@ func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	ns, err := p.getTargetNamespace(req)
 	if err != nil {
 		// TODO populate the request with the error
-		panic(err)
+		panic(errors.Wrapf(err, "unable to get target namespace"))
 	}
 	log.Info(nil, fmt.Sprintf("proxy url: %s, namespace: %s", ns.ApiURL.String(), ns.Namespace))
 
@@ -178,5 +180,6 @@ func getRegisterObject() []runtime.Object {
 	return []runtime.Object{
 		&toolchainv1alpha1.ToolchainCluster{},
 		&toolchainv1alpha1.ToolchainClusterList{},
+		&v1.Secret{},
 	}
 }

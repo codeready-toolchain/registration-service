@@ -99,5 +99,3 @@ func (s *ServiceImpl) GetNamespace(userID string) (*namespace.Namespace, error) 
 
 	return nil, errs.New("no member cluster found for the user")
 }
-
-// TODO Reg-service SA role + schema for member clients???

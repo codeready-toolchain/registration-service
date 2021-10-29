@@ -1,13 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
@@ -20,6 +19,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,7 +77,7 @@ func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	ns, err := p.getTargetNamespace(req)
 	if err != nil {
 		// TODO populate the request with the error
-		panic(errors.Wrapf(err, "unable to get target namespace"))
+		panic(errors.Wrap(err, "unable to get target namespace"))
 	}
 	log.Info(nil, fmt.Sprintf("proxy url: %s, namespace: %s", ns.ApiURL.String(), ns.Namespace))
 
@@ -124,10 +124,12 @@ func (p *proxy) serveReverseProxy(target *namespace.Namespace, res http.Response
 func (p *proxy) newReverseProxy(target *namespace.Namespace) *httputil.ReverseProxy {
 	targetQuery := target.ApiURL.RawQuery
 	director := func(req *http.Request) {
+		origin := req.URL.String()
 		req.URL.Scheme = "https" // Always use https
 		req.URL.Host = target.ApiURL.Host
 		// TODO Replace/insert namespace path
 		req.URL.Path = singleJoiningSlash(target.ApiURL.Path, req.URL.Path)
+		log.Info(nil, fmt.Sprintf("forwarding %s to %s\n\n", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {
@@ -140,7 +142,16 @@ func (p *proxy) newReverseProxy(target *namespace.Namespace) *httputil.ReversePr
 		// Replace token
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.TargetClusterToken))
 	}
-	return &httputil.ReverseProxy{Director: director}
+	var transport *http.Transport
+	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+	return &httputil.ReverseProxy{
+		Director:  director,
+		Transport: transport,
+	}
 }
 
 func singleJoiningSlash(a, b string) string {
@@ -157,10 +168,16 @@ func singleJoiningSlash(a, b string) string {
 
 func newClusterClient() (client.Client, error) {
 	scheme := runtime.NewScheme()
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	if err := toolchainv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
-	toolchainv1alpha1.SchemeBuilder.Register(getRegisterObject()...)
+	toolchainv1alpha1.SchemeBuilder.Register(
+		&toolchainv1alpha1.ToolchainCluster{},
+		&toolchainv1alpha1.ToolchainClusterList{},
+	)
 
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -174,12 +191,4 @@ func newClusterClient() (client.Client, error) {
 		return nil, errors.Wrap(err, "cannot create ToolchainCluster client")
 	}
 	return cl, nil
-}
-
-func getRegisterObject() []runtime.Object {
-	return []runtime.Object{
-		&toolchainv1alpha1.ToolchainCluster{},
-		&toolchainv1alpha1.ToolchainClusterList{},
-		&v1.Secret{},
-	}
 }

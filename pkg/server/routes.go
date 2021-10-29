@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -50,8 +52,12 @@ func (h StaticHandler) ServeHTTP(ctx *gin.Context) {
 
 // SetupRoutes registers handlers for various URL paths.
 func (srv *RegistrationServer) SetupRoutes() error {
-
 	var err error
+	_, err = auth.InitializeDefaultTokenParser()
+	if err != nil {
+		return err
+	}
+
 	srv.routesSetup.Do(func() {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())

@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/url"
+
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
@@ -60,25 +61,22 @@ func (s *ServiceImpl) GetNamespace(userID string) (*namespace.Namespace, error) 
 			for _, secret := range sa.Secrets {
 				secretNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: secret.Name}
 				s := &v1.Secret{}
+				log.Info(nil, fmt.Sprintf("Getting secret %v", secretNamespacedName))
 				if err := member.Client.Get(context.TODO(), secretNamespacedName, s); err != nil {
 					return nil, err
 				}
 				if s.Annotations["kubernetes.io/created-by"] == "openshift.io/create-dockercfg-secrets" {
 					// There are two secrets/tokens for the SA and both are valid
 					// but let's always use the non-docker one for the sake of consistency
+					log.Info(nil, fmt.Sprintf("Skipping docker secret with the creted-by label: %v", secretNamespacedName))
 					continue
 				}
-				encodedToken, ok := s.Data["token"]
+				decodedToken, ok := s.Data["token"]
 				if !ok {
-					return nil, errs.New("no token found in the SA secret")
+					log.Info(nil, fmt.Sprintf("Skipping secret with no data.token: %v", secretNamespacedName))
+					continue // It still might be the docker configuration token even if it doesn't have the "kubernetes.io/created-by" annotation
 				}
-
-				decodedToken := make([]byte, base64.StdEncoding.DecodedLen(len(encodedToken)))
-				data, err := base64.StdEncoding.Decode(decodedToken, encodedToken)
-				if err != nil {
-					return nil, err
-				}
-				tokenStr := string(decodedToken[:data])
+				tokenStr := string(decodedToken)
 
 				apiURL, err := url.Parse(member.APIEndpoint)
 				if err != nil {

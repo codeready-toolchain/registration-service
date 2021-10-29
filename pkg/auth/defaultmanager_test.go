@@ -24,6 +24,8 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	initDefaultTokenParserOnce = new(sync.Once)
+
 	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
@@ -35,70 +37,18 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
 		require.Equal(s.T(), "no default KeyManager created, call `InitializeDefaultKeyManager()` first", err.Error())
 	})
 
-	s.Run("first creation", func() {
-		_, err := initializeDefaultKeyManager()
+	s.Run("multiple initialization", func() {
+		m1, err := initializeDefaultKeyManager()
 		require.NoError(s.T(), err)
-	})
 
-	s.Run("second redundant creation", func() {
-		_, err := initializeDefaultKeyManager()
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "default KeyManager can be created only once", err.Error())
+		m2, err := initializeDefaultKeyManager()
+		require.NoError(s.T(), err)
+		require.Same(s.T(), m1, m2)
 	})
 
 	s.Run("retrieval", func() {
 		_, err := defaultKeyManager()
 		require.NoError(s.T(), err)
-	})
-
-	s.Run("parallel threads", func() {
-		// reset the singleton
-		defaultKeyManagerHolder = nil
-		defaultTokenParserHolder = nil
-		type kmErrHolder struct {
-			KeyMngr *KeyManager
-			KmErr   error
-		}
-
-		latch := sync.WaitGroup{}
-		latch.Add(1)
-		holder := make([]*kmErrHolder, 3)
-		wg := sync.WaitGroup{}
-		for i := 0; i < 3; i++ {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				// now, wait for latch to be released so that all workers start at the same time
-				latch.Wait()
-				km, err := initializeDefaultKeyManager()
-				thisHolder := &kmErrHolder{
-					KeyMngr: km,
-					KmErr:   err,
-				}
-				holder[i] = thisHolder
-			}(i)
-		}
-		latch.Done()
-		// wait for the worker to complete before checking the results
-		wg.Wait()
-
-		// check if only one entry has a KeyManager and the two others have errs
-		fails := 0
-		success := 0
-		for i := 0; i < 3; i++ {
-			thisEntry := holder[i]
-			if thisEntry.KeyMngr != nil && thisEntry.KmErr == nil {
-				success++
-			}
-			if thisEntry.KeyMngr == nil && thisEntry.KmErr != nil {
-				fails++
-			}
-			if (thisEntry.KeyMngr == nil && thisEntry.KmErr == nil) || (thisEntry.KeyMngr != nil && thisEntry.KmErr != nil) {
-				require.Fail(s.T(), "unexpected return values when calling InitializeDefaultKeyManager")
-			}
-		}
-		require.Equal(s.T(), 1, success)
-		require.Equal(s.T(), 2, fails)
 	})
 }
 
@@ -106,6 +56,8 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
+	initDefaultTokenParserOnce = new(sync.Once)
+
 	fake.MockKeycloakCertsCall(s.T())
 
 	// Set the config for testing mode, the handler may use this.
@@ -117,15 +69,15 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		require.Equal(s.T(), "no default TokenParser created, call `InitializeDefaultTokenParser()` first", err.Error())
 	})
 
-	s.Run("first creation", func() {
-		_, err := InitializeDefaultTokenParser()
+	s.Run("multiple initialization", func() {
+		p1, err := InitializeDefaultTokenParser()
 		require.NoError(s.T(), err)
-	})
 
-	s.Run("second redundant creation", func() {
-		_, err := InitializeDefaultTokenParser()
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "default TokenParser can be created only once", err.Error())
+		p2, err := InitializeDefaultTokenParser()
+		require.NoError(s.T(), err)
+
+		// Second initialization should return the same parser from the first initialization
+		require.Same(s.T(), p1, p2)
 	})
 
 	s.Run("retrieval", func() {
@@ -137,6 +89,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		// reset the singletons
 		defaultKeyManagerHolder = nil
 		defaultTokenParserHolder = nil
+		initDefaultTokenParserOnce = new(sync.Once)
 		type tpErrHolder struct {
 			TokePrsr *TokenParser
 			TpErr    error
@@ -144,9 +97,9 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 
 		latch := sync.WaitGroup{}
 		latch.Add(1)
-		holder := make([]*tpErrHolder, 3)
+		holder := make([]*tpErrHolder, 100)
 		wg := sync.WaitGroup{}
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
@@ -164,22 +117,10 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		// wait for the system to settle before checking the results
 		wg.Wait()
 
-		// check if only one entry has a TokenParser and the two others have errs
-		fails := 0
-		success := 0
-		for i := 0; i < 3; i++ {
-			thisEntry := holder[i]
-			if thisEntry.TokePrsr != nil && thisEntry.TpErr == nil {
-				success++
-			}
-			if thisEntry.TokePrsr == nil && thisEntry.TpErr != nil {
-				fails++
-			}
-			if (thisEntry.TokePrsr == nil && thisEntry.TpErr == nil) || (thisEntry.TokePrsr != nil && thisEntry.TpErr != nil) {
-				require.Fail(s.T(), "unexpected return values when calling InitializeDefaultTokenParser")
-			}
+		// check if only all entries have a TokenParser
+		for _, entry := range holder {
+			require.NoError(s.T(), entry.TpErr)
+			require.NotNil(s.T(), entry.TokePrsr)
 		}
-		require.Equal(s.T(), 1, success)
-		require.Equal(s.T(), 2, fails)
 	})
 }

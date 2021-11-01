@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -32,7 +34,7 @@ func NewToolchainClusterService(context servicecontext.ServiceContext) service.T
 	}
 }
 
-func (s *ServiceImpl) GetNamespace(userID string) (*namespace.Namespace, error) {
+func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
 	// Get Signup
 	signup, err := s.ServiceContext.Services().SignupService().GetSignup(userID)
 	if err != nil {
@@ -61,7 +63,7 @@ func (s *ServiceImpl) GetNamespace(userID string) (*namespace.Namespace, error) 
 			for _, secret := range sa.Secrets {
 				secretNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: secret.Name}
 				s := &v1.Secret{}
-				log.Info(nil, fmt.Sprintf("Getting secret %v", secretNamespacedName))
+				log.Info(ctx, fmt.Sprintf("Getting secret %v", secretNamespacedName))
 				if err := member.Client.Get(context.TODO(), secretNamespacedName, s); err != nil {
 					return nil, err
 				}
@@ -73,7 +75,7 @@ func (s *ServiceImpl) GetNamespace(userID string) (*namespace.Namespace, error) 
 				}
 				decodedToken, ok := s.Data["token"]
 				if !ok {
-					log.Info(nil, fmt.Sprintf("Skipping secret with no data.token: %v", secretNamespacedName))
+					log.Info(ctx, fmt.Sprintf("Skipping secret with no data.token: %v", secretNamespacedName))
 					continue // It still might be the docker configuration token even if it doesn't have the "kubernetes.io/created-by" annotation
 				}
 				tokenStr := string(decodedToken)

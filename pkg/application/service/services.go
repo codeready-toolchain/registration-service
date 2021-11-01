@@ -21,7 +21,7 @@ type VerificationService interface {
 }
 
 type ToolchainClusterService interface {
-	GetNamespace(userID string) (*namespace.Namespace, error)
+	GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error)
 }
 
 type Services interface {

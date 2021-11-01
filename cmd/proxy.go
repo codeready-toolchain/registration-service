@@ -12,12 +12,14 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	clusterproxy "github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
+	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +28,6 @@ import (
 	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// These constant is used to define server
 const (
 	ProxyPort = "8081"
 )
@@ -72,28 +73,57 @@ func (p *proxy) startProxy() *http.Server {
 	return srv
 }
 
-// Given a request send it to the appropriate url
 func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	ns, err := p.getTargetNamespace(req)
+	ctx, err := p.createContext(req)
 	if err != nil {
-		// TODO populate the request with the error
-		panic(errors.Wrap(err, "unable to get target namespace"))
+		log.Error(nil, err, "unable to create a context")
+		responseWithError(res, crterrors.NewUnauthorizedError("unable to create a context", err.Error()))
+		return
 	}
-	log.Info(nil, fmt.Sprintf("proxy url: %s, namespace: %s", ns.ApiURL.String(), ns.Namespace))
+	ns, err := p.getTargetNamespace(ctx, req)
+	if err != nil {
+		log.Error(ctx, err, "unable to get target namespace")
+		responseWithError(res, crterrors.NewInternalError(errors.New("unable to get target namespace"), err.Error()))
+		return
+	}
 
-	p.serveReverseProxy(ns, res, req)
+	p.serveReverseProxy(ctx, ns, res, req)
 }
 
-func (p *proxy) getTargetNamespace(req *http.Request) (*namespace.Namespace, error) {
+func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
+	http.Error(res, err.Error(), err.Code)
+}
+
+// createContext creates a new gin.Context with the User ID extracted from the Bearer token.
+// To be used for storing the user ID and logging only.
+func (p *proxy) createContext(req *http.Request) (*gin.Context, error) {
+	userID, err := p.extractUserID(req)
+	if err != nil {
+		return nil, err
+	}
+	keys := make(map[string]interface{})
+	keys[context.SubKey] = userID
+	return &gin.Context{
+		Keys: keys,
+	}, nil
+}
+
+func (p *proxy) getTargetNamespace(ctx *gin.Context, req *http.Request) (*namespace.Namespace, error) {
+	userID := ctx.GetString(context.SubKey)
+	return p.namespaces.GetNamespace(ctx, userID)
+}
+
+func (p *proxy) extractUserID(req *http.Request) (string, error) {
 	userToken, err := extractUserToken(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	userID, err := p.extractUserID(userToken)
+
+	token, err := p.tokenParser.FromString(userToken)
 	if err != nil {
-		return nil, err
+		return "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
 	}
-	return p.namespaces.GetNamespace(userID)
+	return token.Subject, nil
 }
 
 func extractUserToken(req *http.Request) (string, error) {
@@ -105,31 +135,21 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *proxy) extractUserID(tokenStr string) (string, error) {
-	token, err := p.tokenParser.FromString(tokenStr)
-	if err != nil {
-		return "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
-	}
-	return token.Subject, nil
-}
-
-// Serve a reverse proxy
-func (p *proxy) serveReverseProxy(target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
-	proxy := p.newReverseProxy(target)
+func (p *proxy) serveReverseProxy(ctx *gin.Context, target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
+	proxy := p.newReverseProxy(ctx, target)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-func (p *proxy) newReverseProxy(target *namespace.Namespace) *httputil.ReverseProxy {
+func (p *proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *httputil.ReverseProxy {
 	targetQuery := target.ApiURL.RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
 		req.URL.Scheme = "https" // Always use https
 		req.URL.Host = target.ApiURL.Host
-		// TODO Replace/insert namespace path
 		req.URL.Path = singleJoiningSlash(target.ApiURL.Path, req.URL.Path)
-		log.Info(nil, fmt.Sprintf("forwarding %s to %s\n\n", origin, req.URL.String()))
+		log.Info(ctx, fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {

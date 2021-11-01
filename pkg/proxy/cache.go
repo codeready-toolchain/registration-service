@@ -3,6 +3,7 @@ package proxy
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/gin-gonic/gin"
 )
 
 type UserNamespaces struct {
@@ -15,7 +16,7 @@ func NewUserNamespaces(app application.Application) *UserNamespaces {
 	}
 }
 
-func (c *UserNamespaces) GetNamespace(userID string) (*namespace.Namespace, error) {
+func (c *UserNamespaces) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
 	// TODO implement cache
-	return c.app.ToolchainClusterService().GetNamespace(userID)
+	return c.app.ToolchainClusterService().GetNamespace(ctx, userID)
 }

@@ -40,7 +40,7 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 	if err != nil {
 		return nil, err
 	}
-	if !signup.Status.Ready {
+	if signup == nil || !signup.Status.Ready {
 		return nil, errs.New("user is not (yet) provisioned")
 	}
 

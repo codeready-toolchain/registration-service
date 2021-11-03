@@ -1,4 +1,4 @@
-package main
+package proxy
 
 import (
 	"crypto/tls"
@@ -15,7 +15,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	clusterproxy "github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
@@ -33,11 +32,11 @@ const (
 )
 
 type proxy struct {
-	namespaces  *clusterproxy.UserNamespaces
+	namespaces  *UserNamespaces
 	tokenParser *auth.TokenParser
 }
 
-func newProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
+func NewProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
 	// Initiate toolchain cluster cache service
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cl, err := newClusterClient()
@@ -51,12 +50,12 @@ func newProxy(app application.Application, config configuration.RegistrationServ
 		return nil, err
 	}
 	return &proxy{
-		namespaces:  clusterproxy.NewUserNamespaces(app),
+		namespaces:  NewUserNamespaces(app),
 		tokenParser: tokenParserInstance,
 	}, nil
 }
 
-func (p *proxy) startProxy() *http.Server {
+func (p *proxy) StartProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)

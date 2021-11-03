@@ -27,10 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	TestNamespace = "test-namespace-123"
-)
-
 type TestClusterServiceSuite struct {
 	test.UnitTestSuite
 }

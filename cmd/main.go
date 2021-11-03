@@ -9,15 +9,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	errs "github.com/pkg/errors"
-
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 
+	errs "github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -83,11 +83,11 @@ func main() {
 	}
 
 	// Start the proxy server
-	p, err := newProxy(app, crtConfig)
+	p, err := proxy.NewProxy(app, crtConfig)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create proxy: %s", err.Error()))
 	}
-	proxySrv := p.startProxy()
+	proxySrv := p.StartProxy()
 
 	srv := server.New(app)
 

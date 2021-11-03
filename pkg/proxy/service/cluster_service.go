@@ -20,18 +20,24 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+type Option func(f *ServiceImpl)
+
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct {
 	base.BaseService
-	getMembersFunc cluster.GetMemberClustersFunc
+	GetMembersFunc cluster.GetMemberClustersFunc
 }
 
 // NewToolchainClusterService creates a service object for performing toolchain cluster related activities.
-func NewToolchainClusterService(context servicecontext.ServiceContext) service.ToolchainClusterService {
-	return &ServiceImpl{
+func NewToolchainClusterService(context servicecontext.ServiceContext, options ...Option) service.ToolchainClusterService {
+	si := &ServiceImpl{
 		BaseService:    base.NewBaseService(context),
-		getMembersFunc: cluster.GetMemberClusters,
+		GetMembersFunc: cluster.GetMemberClusters,
 	}
+	for _, o := range options {
+		o(si)
+	}
+	return si
 }
 
 func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
@@ -45,15 +51,15 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 	}
 
 	// Get the target member
-	members := s.getMembersFunc()
+	members := s.GetMembersFunc()
 	if len(members) == 0 {
 		return nil, errs.New("no member clusters found")
 	}
 	for _, member := range members {
 		if member.APIEndpoint == signup.APIEndpoint {
 			// Obtain the SA token
-			targetNamespace := fmt.Sprintf("%s", signup.CompliantUsername)  // TODO construct the workspace namespace
-			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername) // TODO construct the sa namespace
+			targetNamespace := fmt.Sprintf("%s", signup.CompliantUsername)  // TODO change if the workspace namespace pattern is different
+			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername) // TODO change if the sa names pattern is different
 			saNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: saName}
 			sa := &v1.ServiceAccount{}
 			if err := member.Client.Get(context.TODO(), saNamespacedName, sa); err != nil {

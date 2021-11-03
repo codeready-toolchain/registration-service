@@ -168,8 +168,9 @@ func (p *proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *
 		}
 	}
 	return &httputil.ReverseProxy{
-		Director:  director,
-		Transport: transport,
+		Director:      director,
+		Transport:     transport,
+		FlushInterval: -1,
 	}
 }
 

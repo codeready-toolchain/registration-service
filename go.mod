@@ -3,7 +3,7 @@ module github.com/codeready-toolchain/registration-service
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20210930215026-da4da11421c7
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20210930200750-f33908ee98ea
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20211103173921-9d880b6c840f
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.7.2
@@ -18,7 +18,6 @@ require (
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/nyaruka/phonenumbers v1.0.57
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.10.0
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546
 	github.com/spf13/pflag v1.0.5
@@ -37,7 +36,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.8.3
 )
 
-replace (
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20210930200750-f33908ee98ea => ../toolchain-common
-)
 go 1.16

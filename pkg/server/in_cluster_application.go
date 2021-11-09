@@ -42,6 +42,6 @@ func (r InClusterApplication) VerificationService() service.VerificationService 
 	return r.serviceFactory.VerificationService()
 }
 
-func (r InClusterApplication) ToolchainClusterService() service.ToolchainClusterService {
-	return r.serviceFactory.ToolchainClusterService()
+func (r InClusterApplication) MemberClusterService() service.MemberClusterService {
+	return r.serviceFactory.MemberClusterService()
 }

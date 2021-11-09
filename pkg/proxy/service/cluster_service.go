@@ -28,8 +28,8 @@ type ServiceImpl struct { // nolint: golint
 	GetMembersFunc cluster.GetMemberClustersFunc
 }
 
-// NewToolchainClusterService creates a service object for performing toolchain cluster related activities.
-func NewToolchainClusterService(context servicecontext.ServiceContext, options ...Option) service.ToolchainClusterService {
+// NewMemberClusterService creates a service object for performing toolchain cluster related activities.
+func NewMemberClusterService(context servicecontext.ServiceContext, options ...Option) service.MemberClusterService {
 	si := &ServiceImpl{
 		BaseService:    base.NewBaseService(context),
 		GetMembersFunc: cluster.GetMemberClusters,

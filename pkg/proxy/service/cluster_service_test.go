@@ -71,7 +71,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	keys[regservicecontext.SubKey] = "unknown_id"
 	ctx := &gin.Context{Keys: keys}
 
-	svc := service.NewToolchainClusterService(
+	svc := service.NewMemberClusterService(
 		serviceContext{
 			cl:  s,
 			svc: s.Application,
@@ -112,7 +112,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 	s.Run("no member cluster found", func() {
 		s.Run("no member clusters", func() {
-			svc := service.NewToolchainClusterService(
+			svc := service.NewMemberClusterService(
 				serviceContext{
 					cl:  s,
 					svc: s.Application,
@@ -132,7 +132,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		})
 
 		s.Run("no member cluster with the given URL", func() {
-			svc := service.NewToolchainClusterService(
+			svc := service.NewMemberClusterService(
 				serviceContext{
 					cl:  s,
 					svc: s.Application,
@@ -155,7 +155,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	s.Run("member found", func() {
 		memberClient := commontest.NewFakeClient(s.T())
 
-		svc := service.NewToolchainClusterService(
+		svc := service.NewMemberClusterService(
 			serviceContext{
 				cl:  s,
 				svc: s.Application,

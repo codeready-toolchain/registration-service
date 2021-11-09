@@ -227,7 +227,7 @@ func (a *fakeApp) VerificationService() service.VerificationService {
 	panic("implement me")
 }
 
-func (a *fakeApp) ToolchainClusterService() service.ToolchainClusterService {
+func (a *fakeApp) MemberClusterService() service.MemberClusterService {
 	return &fakeClusterService{a}
 }
 

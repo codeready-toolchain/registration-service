@@ -49,8 +49,8 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 	}
 }
 
-func (s *ServiceFactory) ToolchainClusterService() service.ToolchainClusterService {
-	return clusterservice.NewToolchainClusterService(s.getContext())
+func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
+	return clusterservice.NewMemberClusterService(s.getContext())
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {

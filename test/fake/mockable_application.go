@@ -15,10 +15,10 @@ func NewMockableApplication(crtClient kubeclient.CRTClient,
 }
 
 type MockableApplication struct {
-	serviceFactory              *factory.ServiceFactory
-	mockSignupService           service.SignupService
-	mockVerificationService     service.VerificationService
-	mockToolchainClusterService service.ToolchainClusterService
+	serviceFactory           *factory.ServiceFactory
+	mockSignupService        service.SignupService
+	mockVerificationService  service.VerificationService
+	mockMemberClusterService service.MemberClusterService
 }
 
 func (m *MockableApplication) SignupService() service.SignupService {
@@ -43,13 +43,13 @@ func (m *MockableApplication) MockVerificationService(svc service.VerificationSe
 	m.mockVerificationService = svc
 }
 
-func (m *MockableApplication) ToolchainClusterService() service.ToolchainClusterService {
-	if m.mockToolchainClusterService != nil {
-		return m.mockToolchainClusterService
+func (m *MockableApplication) MemberClusterService() service.MemberClusterService {
+	if m.mockMemberClusterService != nil {
+		return m.mockMemberClusterService
 	}
-	return m.serviceFactory.ToolchainClusterService()
+	return m.serviceFactory.MemberClusterService()
 }
 
-func (m *MockableApplication) MockToolchainClusterService(svc service.ToolchainClusterService) {
-	m.mockToolchainClusterService = svc
+func (m *MockableApplication) MockMemberClusterService(svc service.MemberClusterService) {
+	m.mockMemberClusterService = svc
 }

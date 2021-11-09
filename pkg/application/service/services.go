@@ -20,12 +20,12 @@ type VerificationService interface {
 	VerifyCode(ctx *gin.Context, userID string, code string) error
 }
 
-type ToolchainClusterService interface {
+type MemberClusterService interface {
 	GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error)
 }
 
 type Services interface {
 	SignupService() SignupService
 	VerificationService() VerificationService
-	ToolchainClusterService() ToolchainClusterService
+	MemberClusterService() MemberClusterService
 }

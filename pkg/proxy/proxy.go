@@ -49,13 +49,13 @@ func newProxyWithClusterClient(app application.Application, config configuration
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cln, cacheLog, config.Namespace(), 5*time.Second)
 
-	tokenParserInstance, err := auth.DefaultTokenParser()
+	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
 	}
 	return &Proxy{
 		namespaces:  NewUserNamespaces(app),
-		tokenParser: tokenParserInstance,
+		tokenParser: tokenParser,
 	}, nil
 }
 
@@ -90,7 +90,8 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	p.serveReverseProxy(ctx, ns, res, req)
+	// Note that ServeHttp is non blocking and uses a go routine under the hood
+	p.newReverseProxy(ctx, ns).ServeHTTP(res, req)
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
@@ -136,13 +137,6 @@ func extractUserToken(req *http.Request) (string, error) {
 		return "", crterrors.NewUnauthorizedError("no token found", "a Bearer token is expected")
 	}
 	return token[1], nil
-}
-
-func (p *Proxy) serveReverseProxy(ctx *gin.Context, target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
-	proxy := p.newReverseProxy(ctx, target)
-
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ServeHTTP(res, req)
 }
 
 func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *httputil.ReverseProxy {

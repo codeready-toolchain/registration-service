@@ -37,13 +37,17 @@ type proxy struct {
 }
 
 func NewProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
-	// Initiate toolchain cluster cache service
-	cacheLog := controllerlog.Log.WithName("registration-service")
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
 	}
-	cluster.NewToolchainClusterService(cl, cacheLog, config.Namespace(), 5*time.Second)
+	return newProxyWithClusterClient(app, config, cl)
+}
+
+func newProxyWithClusterClient(app application.Application, config configuration.RegistrationServiceConfig, cln client.Client) (*proxy, error) {
+	// Initiate toolchain cluster cache service
+	cacheLog := controllerlog.Log.WithName("registration-service")
+	cluster.NewToolchainClusterService(cln, cacheLog, config.Namespace(), 5*time.Second)
 
 	tokenParserInstance, err := auth.DefaultTokenParser()
 	if err != nil {
@@ -66,7 +70,7 @@ func (p *proxy) StartProxy() *http.Server {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
-			panic(fmt.Sprintf("Proxy server stoped: %s", err.Error()))
+			// TODO: Add a health check and readiness prob for the proxy
 		}
 	}()
 	return srv
@@ -145,7 +149,7 @@ func (p *proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *
 	targetQuery := target.ApiURL.RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
-		req.URL.Scheme = "https" // Always use https
+		req.URL.Scheme = target.ApiURL.Scheme
 		req.URL.Host = target.ApiURL.Host
 		req.URL.Path = singleJoiningSlash(target.ApiURL.Path, req.URL.Path)
 		log.Info(ctx, fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))

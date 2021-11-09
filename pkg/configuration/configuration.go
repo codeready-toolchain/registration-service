@@ -25,8 +25,6 @@ var (
 	BuildTime = "0"
 	// StartTime in ISO 8601 (UTC) format.
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
-
-	prodEnvironment = "prod"
 )
 
 var logger = logf.Log.WithName("configuration")
@@ -39,7 +37,8 @@ const (
 	HTTPReadTimeout       = time.Second * 15
 	HTTPWriteTimeout      = time.Second * 15
 
-	DefaultEnvironment   = "prod"
+	prodEnvironment      = "prod"
+	DefaultEnvironment   = prodEnvironment
 	UnitTestsEnvironment = "unit-tests"
 )
 

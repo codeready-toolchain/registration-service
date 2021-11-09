@@ -154,19 +154,11 @@ func (s *TestProxySuite) TestProxy() {
 
 		fakeApp.namespaces = map[string]*namespace.Namespace{
 			"someUserID": { // noise
-				Username:           "",
-				ClusterName:        "member-1",
 				APIURL:             *member1,
-				Namespace:          "",
-				Workspace:          "",
 				TargetClusterToken: "",
 			},
 			userID: {
-				Username:           "",
-				ClusterName:        "member-2",
 				APIURL:             *member2,
-				Namespace:          "",
-				Workspace:          "",
 				TargetClusterToken: "clusterSAToken",
 			},
 		}

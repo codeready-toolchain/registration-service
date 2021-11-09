@@ -91,11 +91,7 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 					return nil, err
 				}
 				return &namespace.Namespace{
-					Username:           signup.CompliantUsername,
-					ClusterName:        member.Name,
 					APIURL:             *apiURL,
-					Namespace:          targetNamespace,
-					Workspace:          targetNamespace, // TODO
 					TargetClusterToken: tokenStr,
 				}, nil
 			}

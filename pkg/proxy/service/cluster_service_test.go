@@ -291,11 +291,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), namespace.Namespace{
-				Username:           "smith",
-				ClusterName:        "member-2",
 				APIURL:             *expectedURL,
-				Namespace:          "smith",
-				Workspace:          "smith",
 				TargetClusterToken: "some-token",
 			}, *ns)
 		})

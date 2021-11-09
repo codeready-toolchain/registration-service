@@ -31,12 +31,12 @@ const (
 	ProxyPort = "8081"
 )
 
-type proxy struct {
+type Proxy struct {
 	namespaces  *UserNamespaces
 	tokenParser *auth.TokenParser
 }
 
-func NewProxy(app application.Application, config configuration.RegistrationServiceConfig) (*proxy, error) {
+func NewProxy(app application.Application, config configuration.RegistrationServiceConfig) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func NewProxy(app application.Application, config configuration.RegistrationServ
 	return newProxyWithClusterClient(app, config, cl)
 }
 
-func newProxyWithClusterClient(app application.Application, config configuration.RegistrationServiceConfig, cln client.Client) (*proxy, error) {
+func newProxyWithClusterClient(app application.Application, config configuration.RegistrationServiceConfig, cln client.Client) (*Proxy, error) {
 	// Initiate toolchain cluster cache service
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cln, cacheLog, config.Namespace(), 5*time.Second)
@@ -53,37 +53,37 @@ func newProxyWithClusterClient(app application.Application, config configuration
 	if err != nil {
 		return nil, err
 	}
-	return &proxy{
+	return &Proxy{
 		namespaces:  NewUserNamespaces(app),
 		tokenParser: tokenParserInstance,
 	}, nil
 }
 
-func (p *proxy) StartProxy() *http.Server {
+func (p *Proxy) StartProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
 
 	// listen concurrently to allow for graceful shutdown
-	log.Info(nil, "Starting the proxy server...")
+	log.Info(nil, "Starting the Proxy server...")
 	srv := &http.Server{Addr: ":" + ProxyPort, Handler: mux}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
-			// TODO: Add a health check and readiness prob for the proxy
+			// TODO: Add a health check and readiness prob for the Proxy
 		}
 	}()
 	return srv
 }
 
-func (p *proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	ctx, err := p.createContext(req)
 	if err != nil {
 		log.Error(nil, err, "unable to create a context")
 		responseWithError(res, crterrors.NewUnauthorizedError("unable to create a context", err.Error()))
 		return
 	}
-	ns, err := p.getTargetNamespace(ctx, req)
+	ns, err := p.getTargetNamespace(ctx)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target namespace")
 		responseWithError(res, crterrors.NewInternalError(errors.New("unable to get target namespace"), err.Error()))
@@ -99,7 +99,7 @@ func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
 
 // createContext creates a new gin.Context with the User ID extracted from the Bearer token.
 // To be used for storing the user ID and logging only.
-func (p *proxy) createContext(req *http.Request) (*gin.Context, error) {
+func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	userID, err := p.extractUserID(req)
 	if err != nil {
 		return nil, err
@@ -111,12 +111,12 @@ func (p *proxy) createContext(req *http.Request) (*gin.Context, error) {
 	}, nil
 }
 
-func (p *proxy) getTargetNamespace(ctx *gin.Context, req *http.Request) (*namespace.Namespace, error) {
+func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.Namespace, error) {
 	userID := ctx.GetString(context.SubKey)
 	return p.namespaces.GetNamespace(ctx, userID)
 }
 
-func (p *proxy) extractUserID(req *http.Request) (string, error) {
+func (p *Proxy) extractUserID(req *http.Request) (string, error) {
 	userToken, err := extractUserToken(req)
 	if err != nil {
 		return "", err
@@ -138,20 +138,20 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *proxy) serveReverseProxy(ctx *gin.Context, target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
+func (p *Proxy) serveReverseProxy(ctx *gin.Context, target *namespace.Namespace, res http.ResponseWriter, req *http.Request) {
 	proxy := p.newReverseProxy(ctx, target)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-func (p *proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *httputil.ReverseProxy {
-	targetQuery := target.ApiURL.RawQuery
+func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *httputil.ReverseProxy {
+	targetQuery := target.APIURL.RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
-		req.URL.Scheme = target.ApiURL.Scheme
-		req.URL.Host = target.ApiURL.Host
-		req.URL.Path = singleJoiningSlash(target.ApiURL.Path, req.URL.Path)
+		req.URL.Scheme = target.APIURL.Scheme
+		req.URL.Host = target.APIURL.Host
+		req.URL.Path = singleJoiningSlash(target.APIURL.Path, req.URL.Path)
 		log.Info(ctx, fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery

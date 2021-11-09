@@ -254,7 +254,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 					{Name: "scr3"},
 				},
 			}
-			require.NoError(s.T(), memberClient.Create(nil, sa))
+			require.NoError(s.T(), memberClient.Create(context.TODO(), sa))
 
 			scr := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -264,7 +264,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				},
 				Data: map[string][]byte{"token": []byte("some-token")},
 			}
-			require.NoError(s.T(), memberClient.Create(nil, scr))
+			require.NoError(s.T(), memberClient.Create(context.TODO(), scr))
 			scr2 := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "scr2-docker2",
@@ -272,7 +272,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				},
 				Data: map[string][]byte{},
 			}
-			require.NoError(s.T(), memberClient.Create(nil, scr2))
+			require.NoError(s.T(), memberClient.Create(context.TODO(), scr2))
 			scr3 := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "scr3",
@@ -280,7 +280,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				},
 				Data: map[string][]byte{"token": []byte("some-token")},
 			}
-			require.NoError(s.T(), memberClient.Create(nil, scr3))
+			require.NoError(s.T(), memberClient.Create(context.TODO(), scr3))
 
 			// when
 			ns, err := svc.GetNamespace(ctx, "789-ready")
@@ -293,7 +293,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			assert.Equal(s.T(), namespace.Namespace{
 				Username:           "smith",
 				ClusterName:        "member-2",
-				ApiURL:             *expectedURL,
+				APIURL:             *expectedURL,
 				Namespace:          "smith",
 				Workspace:          "smith",
 				TargetClusterToken: "some-token",

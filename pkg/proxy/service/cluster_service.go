@@ -23,7 +23,7 @@ import (
 type Option func(f *ServiceImpl)
 
 // ServiceImpl represents the implementation of the signup service.
-type ServiceImpl struct {
+type ServiceImpl struct { // nolint: golint
 	base.BaseService
 	GetMembersFunc cluster.GetMemberClustersFunc
 }
@@ -58,8 +58,8 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 	for _, member := range members {
 		if member.APIEndpoint == signup.APIEndpoint {
 			// Obtain the SA token
-			targetNamespace := fmt.Sprintf("%s", signup.CompliantUsername)  // TODO change if the workspace namespace pattern is different
-			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername) // TODO change if the sa names pattern is different
+			targetNamespace := signup.CompliantUsername
+			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername)
 			saNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: saName}
 			sa := &v1.ServiceAccount{}
 			if err := member.Client.Get(context.TODO(), saNamespacedName, sa); err != nil {
@@ -93,7 +93,7 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 				return &namespace.Namespace{
 					Username:           signup.CompliantUsername,
 					ClusterName:        member.Name,
-					ApiURL:             *apiURL,
+					APIURL:             *apiURL,
 					Namespace:          targetNamespace,
 					Workspace:          targetNamespace, // TODO
 					TargetClusterToken: tokenStr,

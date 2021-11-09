@@ -54,10 +54,10 @@ func (s *TestProxySuite) TestProxy() {
 		_ = server.Close()
 	}()
 
-	s.Run("wait for the proxy to start and return unauthorized if no token present", func() {
-		// Wait up to 5 seconds for the proxy server to start
+	s.Run("wait for the Proxy to start and return unauthorized if no token present", func() {
+		// Wait up to 5 seconds for the Proxy server to start
 		for i := 0; i < 5; i++ {
-			log.Println("Checking if proxy is started...")
+			log.Println("Checking if Proxy is started...")
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
@@ -132,7 +132,7 @@ func (s *TestProxySuite) TestProxy() {
 		s.assertResponseBody(resp, "unable to get target namespace:some-error\n")
 	})
 
-	s.Run("successfully proxy", func() {
+	s.Run("successfully Proxy", func() {
 		// given
 		req, userID := s.request()
 		fakeApp.err = nil
@@ -153,18 +153,18 @@ func (s *TestProxySuite) TestProxy() {
 		require.NoError(s.T(), err)
 
 		fakeApp.namespaces = map[string]*namespace.Namespace{
-			"someUserID": &namespace.Namespace{ // noise
+			"someUserID": { // noise
 				Username:           "",
 				ClusterName:        "member-1",
-				ApiURL:             *member1,
+				APIURL:             *member1,
 				Namespace:          "",
 				Workspace:          "",
 				TargetClusterToken: "",
 			},
-			userID: &namespace.Namespace{
+			userID: {
 				Username:           "",
 				ClusterName:        "member-2",
-				ApiURL:             *member2,
+				APIURL:             *member2,
 				Namespace:          "",
 				Workspace:          "",
 				TargetClusterToken: "clusterSAToken",
@@ -200,8 +200,7 @@ func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.Extr
 		Username: "username-" + userID.String(),
 	}
 
-	extra := make([]authsupport.ExtraClaim, 0, len(extraClaims))
-	extra = append(extraClaims, authsupport.WithEmailClaim("someemail@comp.com"))
+	extra := append(extraClaims, authsupport.WithEmailClaim("someemail@comp.com"))
 	token, err := authsupport.GenerateSignedE2ETestToken(*userIdentity, extra...)
 	require.NoError(s.T(), err)
 

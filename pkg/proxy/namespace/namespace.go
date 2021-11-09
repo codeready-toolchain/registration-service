@@ -6,7 +6,7 @@ import "net/url"
 type Namespace struct {
 	Username    string
 	ClusterName string
-	ApiURL      url.URL
+	APIURL      url.URL
 	Namespace   string
 	Workspace   string
 	// Target cluster token

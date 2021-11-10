@@ -117,10 +117,11 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		// wait for the system to settle before checking the results
 		wg.Wait()
 
+		require.NotNil(s.T(), holder[0].TokePrsr)
 		// check that all entries have a TokenParser
 		for _, entry := range holder {
 			require.NoError(s.T(), entry.TpErr)
-			require.NotNil(s.T(), entry.TokePrsr)
+			require.Same(s.T(), holder[0].TokePrsr, entry.TokePrsr)
 		}
 	})
 }

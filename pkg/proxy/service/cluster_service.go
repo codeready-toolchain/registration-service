@@ -22,7 +22,7 @@ import (
 
 type Option func(f *ServiceImpl)
 
-// ServiceImpl represents the implementation of the signup service.
+// ServiceImpl represents the implementation of the member cluster service.
 type ServiceImpl struct { // nolint: golint
 	base.BaseService
 	GetMembersFunc cluster.GetMemberClustersFunc

@@ -117,7 +117,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 		// wait for the system to settle before checking the results
 		wg.Wait()
 
-		// check if only all entries have a TokenParser
+		// check that all entries have a TokenParser
 		for _, entry := range holder {
 			require.NoError(s.T(), entry.TpErr)
 			require.NotNil(s.T(), entry.TokePrsr)

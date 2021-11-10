@@ -79,7 +79,7 @@ func main() {
 
 	_, err = auth.InitializeDefaultTokenParser()
 	if err != nil {
-		panic(errs.Wrapf(err, "failed to init default token parser: %s", err.Error()))
+		panic(errs.Wrap(err, "failed to init default token parser"))
 	}
 
 	// Start the proxy server

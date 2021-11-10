@@ -40,7 +40,8 @@ func New(application application.Application) *RegistrationServer {
 			SkipPaths: []string{"/api/v1/health"}, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
 			Formatter: func(params gin.LogFormatterParams) string {
 				// custom JSON format
-				return fmt.Sprintf(`{"client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`,
+				return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
+					"info",
 					params.ClientIP,
 					params.TimeStamp.Format(time.RFC1123),
 					params.Method,

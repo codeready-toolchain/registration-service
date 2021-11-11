@@ -175,6 +175,17 @@ func (s *TestProxySuite) TestProxy() {
 	})
 }
 
+func (s *TestProxySuite) TestSingleJoiningSlash() {
+	assert.Equal(s.T(), "/", singleJoiningSlash("", ""))
+	assert.Equal(s.T(), "/", singleJoiningSlash("/", "/"))
+	assert.Equal(s.T(), "/api/namespace/pods", singleJoiningSlash("", "api/namespace/pods"))
+	assert.Equal(s.T(), "proxy/", singleJoiningSlash("proxy", ""))
+	assert.Equal(s.T(), "proxy/", singleJoiningSlash("proxy", "/"))
+	assert.Equal(s.T(), "proxy/api/namespace/pods", singleJoiningSlash("proxy", "api/namespace/pods"))
+	assert.Equal(s.T(), "proxy/subpath/api/namespace/pods", singleJoiningSlash("proxy/subpath", "api/namespace/pods"))
+	assert.Equal(s.T(), "/proxy/subpath/api/namespace/pods/", singleJoiningSlash("/proxy/subpath/", "/api/namespace/pods/"))
+}
+
 func (s *TestProxySuite) request() (*http.Request, string) {
 	req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 	require.NoError(s.T(), err)

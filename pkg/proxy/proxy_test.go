@@ -223,11 +223,11 @@ type fakeApp struct {
 }
 
 func (a *fakeApp) SignupService() service.SignupService {
-	panic("implement me")
+	panic("SignupService shouldn't be called")
 }
 
 func (a *fakeApp) VerificationService() service.VerificationService {
-	panic("implement me")
+	panic("VerificationService shouldn't be called")
 }
 
 func (a *fakeApp) MemberClusterService() service.MemberClusterService {

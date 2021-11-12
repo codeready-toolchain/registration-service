@@ -56,7 +56,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
 	defaultKeyManagerHolder = nil
 	defaultTokenParserHolder = nil
-	initDefaultTokenParserOnce = new(sync.Once)
+	initDefaultTokenParserOnce = &sync.Once{}
 
 	fake.MockKeycloakCertsCall(s.T())
 

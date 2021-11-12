@@ -13,7 +13,7 @@ type DefaultTokenParserConfiguration interface {
 }
 
 var (
-	initDefaultTokenParserOnce *sync.Once = &sync.Once{}
+	initDefaultTokenParserOnce = &sync.Once{}
 
 	defaultKeyManagerHolder  *KeyManager
 	defaultTokenParserHolder *TokenParser

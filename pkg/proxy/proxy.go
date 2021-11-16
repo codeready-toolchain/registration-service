@@ -192,10 +192,6 @@ func newClusterClient() (client.Client, error) {
 	if err := toolchainv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
-	toolchainv1alpha1.SchemeBuilder.Register(
-		&toolchainv1alpha1.ToolchainCluster{},
-		&toolchainv1alpha1.ToolchainClusterList{},
-	)
 
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {

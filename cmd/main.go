@@ -10,11 +10,14 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 
+	errs "github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,6 +77,18 @@ func main() {
 		panic(err.Error())
 	}
 
+	_, err = auth.InitializeDefaultTokenParser()
+	if err != nil {
+		panic(errs.Wrap(err, "failed to init default token parser"))
+	}
+
+	// Start the proxy server
+	p, err := proxy.NewProxy(app, crtConfig)
+	if err != nil {
+		panic(errs.Wrap(err, "failed to create proxy"))
+	}
+	proxySrv := p.StartProxy()
+
 	srv := server.New(app)
 
 	err = srv.SetupRoutes()
@@ -103,10 +118,10 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(srv.HTTPServer(), configuration.GracefulTimeout)
+	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv)
 }
 
-func gracefulShutdown(hs *http.Server, timeout time.Duration) {
+func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {
 	// For a channel used for notification of just one signal value, a buffer of
 	// size 1 is sufficient.
 	stop := make(chan os.Signal, 1)
@@ -120,10 +135,12 @@ func gracefulShutdown(hs *http.Server, timeout time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	log.Infof(nil, "Shutdown with timeout: %s", timeout.String())
-	if err := hs.Shutdown(ctx); err != nil {
-		log.Errorf(nil, err, "Shutdown error")
-	} else {
-		log.Info(nil, "Server stopped.")
+	for _, s := range hs {
+		if err := s.Shutdown(ctx); err != nil {
+			log.Errorf(nil, err, "Shutdown error")
+		} else {
+			log.Info(nil, "Server stopped.")
+		}
 	}
 }
 

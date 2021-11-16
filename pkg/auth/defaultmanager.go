@@ -12,62 +12,34 @@ type DefaultTokenParserConfiguration interface {
 	GetEnvironment() string
 }
 
-var muKM sync.Mutex
-var muTP sync.Mutex
-
-var defaultKeyManagerHolder *KeyManager
-var defaultTokenParserHolder *TokenParser
-
-// InitializeDefaultKeyManager creates the default key manager if it has not created yet.
-// This function must be called in main to make sure the default manager is created during service startup.
-// It will try to create the default manager only once even if called multiple times.
-func initializeDefaultKeyManager() (*KeyManager, error) {
-	muKM.Lock()
-	defer muKM.Unlock()
-	if defaultKeyManagerHolder == nil {
-		var err error
-		defaultKeyManagerHolder, err = NewKeyManager()
-		if err != nil {
-			return nil, err
-		}
-		return defaultKeyManagerHolder, nil
-	}
-	return nil, errors.New("default KeyManager can be created only once")
-}
-
-// defaultKeyManager returns the existing KeyManager instance.
-func defaultKeyManager() (*KeyManager, error) { //nolint:unparam
-	if defaultKeyManagerHolder == nil {
-		return nil, errors.New("no default KeyManager created, call `InitializeDefaultKeyManager()` first")
-	}
-	return defaultKeyManagerHolder, nil
-}
+var (
+	initDefaultTokenParserOnce = &sync.Once{}
+	defaultTokenParser         *TokenParser
+)
 
 // InitializeDefaultTokenParser creates the default token parser if it has not created yet.
 // This function must be called in main to make sure the default parser is created during service startup.
 // It will try to create the default parser only once even if called multiple times.
 func InitializeDefaultTokenParser() (*TokenParser, error) {
-	muTP.Lock()
-	defer muTP.Unlock()
-	if defaultTokenParserHolder == nil {
-		var err error
-		keyManager, err := initializeDefaultKeyManager()
+	var returnErr error
+	initDefaultTokenParserOnce.Do(func() {
+		keyManager, err := NewKeyManager()
 		if err != nil {
-			return nil, err
+			returnErr = err
+			return
 		}
-		defaultTokenParserHolder, err = NewTokenParser(keyManager)
-		if err != nil {
-			return nil, err
-		}
-		return defaultTokenParserHolder, nil
+		defaultTokenParser, returnErr = NewTokenParser(keyManager)
+	})
+	if returnErr != nil {
+		return nil, returnErr
 	}
-	return nil, errors.New("default TokenParser can be created only once")
+	return defaultTokenParser, nil
 }
 
 // DefaultTokenParser returns the existing TokenManager instance.
 func DefaultTokenParser() (*TokenParser, error) { //nolint:unparam
-	if defaultTokenParserHolder == nil {
+	if defaultTokenParser == nil {
 		return nil, errors.New("no default TokenParser created, call `InitializeDefaultTokenParser()` first")
 	}
-	return defaultTokenParserHolder, nil
+	return defaultTokenParser, nil
 }

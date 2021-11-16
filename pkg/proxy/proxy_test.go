@@ -54,22 +54,22 @@ func (s *TestProxySuite) TestProxy() {
 		_ = server.Close()
 	}()
 
-	s.Run("wait for the Proxy to start and return unauthorized if no token present", func() {
-		// Wait up to 5 seconds for the Proxy server to start
-		for i := 0; i < 5; i++ {
-			log.Println("Checking if Proxy is started...")
-			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-			require.NoError(s.T(), err)
-			require.NotNil(s.T(), req)
-			_, err = http.DefaultClient.Do(req)
-			if err != nil {
-				time.Sleep(time.Second)
-				continue
-			}
-			// Server is up and running!
-			break
+	// Wait up to 5 seconds for the Proxy server to start
+	for i := 0; i < 5; i++ {
+		log.Println("Checking if Proxy is started...")
+		req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), req)
+		_, err = http.DefaultClient.Do(req)
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
 		}
+		// Server is up and running!
+		break
+	}
 
+	s.Run("return unauthorized if no token present", func() {
 		req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), req)

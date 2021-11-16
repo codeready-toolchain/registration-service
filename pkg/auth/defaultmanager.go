@@ -14,30 +14,8 @@ type DefaultTokenParserConfiguration interface {
 
 var (
 	initDefaultTokenParserOnce = &sync.Once{}
-
-	defaultKeyManagerHolder  *KeyManager
-	defaultTokenParserHolder *TokenParser
+	defaultTokenParser         *TokenParser
 )
-
-// InitializeDefaultKeyManager creates the default key manager if it has not created yet.
-func initializeDefaultKeyManager() (*KeyManager, error) {
-	if defaultKeyManagerHolder == nil {
-		var err error
-		defaultKeyManagerHolder, err = NewKeyManager()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return defaultKeyManagerHolder, nil
-}
-
-// defaultKeyManager returns the existing KeyManager instance.
-func defaultKeyManager() (*KeyManager, error) { //nolint:unparam
-	if defaultKeyManagerHolder == nil {
-		return nil, errors.New("no default KeyManager created, call `InitializeDefaultKeyManager()` first")
-	}
-	return defaultKeyManagerHolder, nil
-}
 
 // InitializeDefaultTokenParser creates the default token parser if it has not created yet.
 // This function must be called in main to make sure the default parser is created during service startup.
@@ -45,23 +23,23 @@ func defaultKeyManager() (*KeyManager, error) { //nolint:unparam
 func InitializeDefaultTokenParser() (*TokenParser, error) {
 	var returnErr error
 	initDefaultTokenParserOnce.Do(func() {
-		keyManager, err := initializeDefaultKeyManager()
+		keyManager, err := NewKeyManager()
 		if err != nil {
 			returnErr = err
 			return
 		}
-		defaultTokenParserHolder, returnErr = NewTokenParser(keyManager)
+		defaultTokenParser, returnErr = NewTokenParser(keyManager)
 	})
 	if returnErr != nil {
 		return nil, returnErr
 	}
-	return defaultTokenParserHolder, nil
+	return defaultTokenParser, nil
 }
 
 // DefaultTokenParser returns the existing TokenManager instance.
 func DefaultTokenParser() (*TokenParser, error) { //nolint:unparam
-	if defaultTokenParserHolder == nil {
+	if defaultTokenParser == nil {
 		return nil, errors.New("no default TokenParser created, call `InitializeDefaultTokenParser()` first")
 	}
-	return defaultTokenParserHolder, nil
+	return defaultTokenParser, nil
 }

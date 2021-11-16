@@ -7,6 +7,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -20,42 +21,9 @@ func TestRunDefaultManagerSuite(t *testing.T) {
 	suite.Run(t, &TestDefaultManagerSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestDefaultManagerSuite) TestKeyManagerDefaultKeyManager() {
-	// reset the singletons
-	defaultKeyManagerHolder = nil
-	defaultTokenParserHolder = nil
-	initDefaultTokenParserOnce = new(sync.Once)
-
-	fake.MockKeycloakCertsCall(s.T())
-
-	// Set the config for testing mode, the handler may use this.
-	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-
-	s.Run("get before init", func() {
-		_, err := defaultKeyManager()
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "no default KeyManager created, call `InitializeDefaultKeyManager()` first", err.Error())
-	})
-
-	s.Run("multiple initialization", func() {
-		m1, err := initializeDefaultKeyManager()
-		require.NoError(s.T(), err)
-
-		m2, err := initializeDefaultKeyManager()
-		require.NoError(s.T(), err)
-		require.Same(s.T(), m1, m2)
-	})
-
-	s.Run("retrieval", func() {
-		_, err := defaultKeyManager()
-		require.NoError(s.T(), err)
-	})
-}
-
 func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 	// reset the singletons
-	defaultKeyManagerHolder = nil
-	defaultTokenParserHolder = nil
+	defaultTokenParser = nil
 	initDefaultTokenParserOnce = &sync.Once{}
 
 	fake.MockKeycloakCertsCall(s.T())
@@ -87,8 +55,7 @@ func (s *TestDefaultManagerSuite) TestKeyManagerDefaultTokenParser() {
 
 	s.Run("parallel threads", func() {
 		// reset the singletons
-		defaultKeyManagerHolder = nil
-		defaultTokenParserHolder = nil
+		defaultTokenParser = nil
 		initDefaultTokenParserOnce = new(sync.Once)
 		type tpErrHolder struct {
 			TokePrsr *TokenParser

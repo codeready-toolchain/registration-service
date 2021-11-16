@@ -119,7 +119,7 @@ func (s *TestProxySuite) TestProxy() {
 	s.Run("internal error if get namespace returns an error", func() {
 		// given
 		req, _ := s.request()
-		fakeApp.namespaces = map[string]*namespace.Namespace{}
+		fakeApp.namespaces = map[string]*namespace.NamespaceAccess{}
 		fakeApp.err = errors.New("some-error")
 
 		// when
@@ -152,14 +152,14 @@ func (s *TestProxySuite) TestProxy() {
 		member2, err := url.Parse(ts.URL)
 		require.NoError(s.T(), err)
 
-		fakeApp.namespaces = map[string]*namespace.Namespace{
+		fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
 			"someUserID": { // noise
-				APIURL:             *member1,
-				TargetClusterToken: "",
+				APIURL:  *member1,
+				SAToken: "",
 			},
 			userID: {
-				APIURL:             *member2,
-				TargetClusterToken: "clusterSAToken",
+				APIURL:  *member2,
+				SAToken: "clusterSAToken",
 			},
 		}
 
@@ -218,7 +218,7 @@ func (s *TestProxySuite) assertResponseBody(resp *http.Response, expectedBody st
 }
 
 type fakeApp struct {
-	namespaces map[string]*namespace.Namespace
+	namespaces map[string]*namespace.NamespaceAccess
 	err        error
 }
 
@@ -238,6 +238,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
+func (f *fakeClusterService) GetNamespace(ctx *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
 	return f.fakeApp.namespaces[userID], f.fakeApp.err
 }

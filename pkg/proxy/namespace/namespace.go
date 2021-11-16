@@ -2,9 +2,10 @@ package namespace
 
 import "net/url"
 
-// Namespace represents a namespace in a member cluster for the specific sso user-workspace
-type Namespace struct {
+// NamespaceAccess holds an information needed to access the namespace in a member cluster for the specific user
+type NamespaceAccess struct {
+	// APIURL is the Cluster API Endpoint for the namespace
 	APIURL url.URL
-	// TargetClusterToken is a token of the Service Account which represents the user in the target member cluster namespace
-	TargetClusterToken string
+	// SAToken is a token of the Service Account which represents the user in the namespace
+	SAToken string
 }

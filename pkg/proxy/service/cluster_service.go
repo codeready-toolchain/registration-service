@@ -40,7 +40,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
+func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
 	// Get Signup
 	signup, err := s.ServiceContext.Services().SignupService().GetSignup(userID)
 	if err != nil {
@@ -90,9 +90,9 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 				if err != nil {
 					return nil, err
 				}
-				return &namespace.Namespace{
-					APIURL:             *apiURL,
-					TargetClusterToken: tokenStr,
+				return &namespace.NamespaceAccess{
+					APIURL:  *apiURL,
+					SAToken: tokenStr,
 				}, nil
 			}
 			return nil, errs.New("no SA found for the user")

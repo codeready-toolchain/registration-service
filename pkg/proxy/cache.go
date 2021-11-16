@@ -16,7 +16,7 @@ func NewUserNamespaces(app application.Application) *UserNamespaces {
 	}
 }
 
-func (c *UserNamespaces) GetNamespace(ctx *gin.Context, userID string) (*namespace.Namespace, error) {
+func (c *UserNamespaces) GetNamespace(ctx *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
 	// TODO implement cache
 	return c.app.MemberClusterService().GetNamespace(ctx, userID)
 }

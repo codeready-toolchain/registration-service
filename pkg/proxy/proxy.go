@@ -112,7 +112,7 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	}, nil
 }
 
-func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.Namespace, error) {
+func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.NamespaceAccess, error) {
 	userID := ctx.GetString(context.SubKey)
 	return p.namespaces.GetNamespace(ctx, userID)
 }
@@ -139,7 +139,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAccess) *httputil.ReverseProxy {
 	targetQuery := target.APIURL.RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
@@ -157,7 +157,7 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.Namespace) *
 			req.Header.Set("User-Agent", "")
 		}
 		// Replace token
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.TargetClusterToken))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken))
 	}
 	var transport *http.Transport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {

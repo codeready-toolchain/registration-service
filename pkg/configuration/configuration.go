@@ -37,7 +37,8 @@ const (
 	HTTPReadTimeout       = time.Second * 15
 	HTTPWriteTimeout      = time.Second * 15
 
-	DefaultEnvironment   = "prod"
+	prodEnvironment      = "prod"
+	DefaultEnvironment   = prodEnvironment
 	UnitTestsEnvironment = "unit-tests"
 )
 
@@ -102,7 +103,7 @@ func NewRegistrationServiceConfig(config runtime.Object, secrets map[string]map[
 	return RegistrationServiceConfig{cfg: &toolchaincfg.Spec, secrets: secrets}
 }
 
-func (r *RegistrationServiceConfig) Print() {
+func (r RegistrationServiceConfig) Print() {
 	if r.cfg == nil {
 		logger.Info("ToolchainConfig not found, using default Registration Service configuration")
 		return
@@ -110,8 +111,12 @@ func (r *RegistrationServiceConfig) Print() {
 	logger.Info("Registration Service Configuration", "config", r.cfg.Host.RegistrationService)
 }
 
-func (r *RegistrationServiceConfig) Environment() string {
-	return commonconfig.GetString(r.cfg.Host.RegistrationService.Environment, "prod")
+func (r RegistrationServiceConfig) Environment() string {
+	return commonconfig.GetString(r.cfg.Host.RegistrationService.Environment, prodEnvironment)
+}
+
+func (r RegistrationServiceConfig) IsProdEnvironment() bool {
+	return r.Environment() == prodEnvironment
 }
 
 func (r RegistrationServiceConfig) Analytics() AnalyticsConfig {

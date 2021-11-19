@@ -44,6 +44,7 @@ func (c *toolchainEventClient) Update(obj *crtapi.ToolchainEvent) (*crtapi.Toolc
 // ListByActivationCode returns all ToolchainEvent resources with the specified activation code, or an error if something went
 // wrong while attempting to retrieve them.
 func (c *toolchainEventClient) ListByActivationCode(activationCode string) (*crtapi.ToolchainEventList, error) {
+
 	intf, err := dynamic.NewForConfig(&c.cfg)
 	if err != nil {
 		return nil, err

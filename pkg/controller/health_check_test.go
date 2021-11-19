@@ -9,7 +9,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gin-gonic/gin"
@@ -55,11 +54,11 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &status.Health{}
+		data := &controller.HealthStatus{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), true, "unit-tests", data)
+		assertHealth(s.T(), true, false, "unit-tests", data)
 	})
 
 	s.Run("health in production mode", func() {
@@ -81,11 +80,11 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &status.Health{}
+		data := &controller.HealthStatus{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), true, "prod", data)
+		assertHealth(s.T(), true, false, "prod", data)
 	})
 
 	s.Run("service Unavailable", func() {
@@ -107,16 +106,17 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
-		data := &status.Health{}
+		data := &controller.HealthStatus{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), false, "testServiceUnavailable", data)
+		assertHealth(s.T(), false, false, "testServiceUnavailable", data)
 	})
 }
 
-func assertHealth(t *testing.T, expectedAlive bool, expectedEnvironment string, actual *status.Health) {
+func assertHealth(t *testing.T, expectedAlive, expectedAPIProxyAlive bool, expectedEnvironment string, actual *controller.HealthStatus) {
 	assert.Equal(t, expectedAlive, actual.Alive, "wrong alive in health response")
+	assert.Equal(t, expectedAPIProxyAlive, actual.ProxyAlive, "wrong API proxy alive in health response")
 	assert.Equal(t, configuration.Commit, actual.Revision, "wrong revision in health response")
 	assert.Equal(t, configuration.BuildTime, actual.BuildTime, "wrong build_time in health response")
 	assert.Equal(t, configuration.StartTime, actual.StartTime, "wrong start_time in health response")
@@ -124,9 +124,14 @@ func assertHealth(t *testing.T, expectedAlive bool, expectedEnvironment string, 
 }
 
 type mockHealthChecker struct {
-	alive bool
+	alive      bool
+	proxyAlive bool
 }
 
-func (c *mockHealthChecker) Alive() bool {
+func (c *mockHealthChecker) Alive(ctx *gin.Context) bool {
 	return c.alive
+}
+
+func (c *mockHealthChecker) APIProxyAlive(ctx *gin.Context) bool {
+	return c.proxyAlive
 }

@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -63,6 +64,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
+	mux.HandleFunc("/health", p.health)
 
 	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the Proxy server...")
@@ -70,10 +72,15 @@ func (p *Proxy) StartProxy() *http.Server {
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
-			// TODO: Add a health check and readiness prob for the Proxy
 		}
 	}()
 	return srv
+}
+
+func (p *Proxy) health(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, `{"alive": true}`)
 }
 
 func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {

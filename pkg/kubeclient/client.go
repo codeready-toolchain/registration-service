@@ -17,6 +17,7 @@ type V1Alpha1 interface {
 	MasterUserRecords() MasterUserRecordInterface
 	BannedUsers() BannedUserInterface
 	ToolchainStatuses() ToolchainStatusInterface
+	ToolchainEvents() ToolchainEventInterface
 }
 
 // NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API

@@ -32,6 +32,32 @@ func NewSignup(app application.Application) *Signup {
 }
 
 // PostHandler creates a Signup resource
+func (s *Signup) ActivateHandler(ctx *gin.Context) {
+	code := ctx.Param("code")
+	if code == "" {
+		log.Error(ctx, nil, "no code provided in request")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	userSignup, err := s.app.SignupService().Activate(ctx, code)
+	if err, ok := err.(*errors2.StatusError); ok {
+		errors.AbortWithError(ctx, int(err.Status().Code), err, "error activating user")
+		return
+	}
+
+	if err != nil {
+		log.Error(ctx, err, "error activating user")
+		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error activating user")
+		return
+	}
+
+	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
+	ctx.Status(http.StatusAccepted)
+	ctx.Writer.WriteHeaderNow()
+}
+
+// PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
 	if err, ok := err.(*errors2.StatusError); ok {

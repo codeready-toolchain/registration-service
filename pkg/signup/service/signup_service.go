@@ -161,6 +161,21 @@ func EncodeUserID(subject string) string {
 	return encoded
 }
 
+// Activate allows a user to register via the use of an activation code
+func (s *ServiceImpl) Activate(ctx *gin.Context, code string) (*toolchainv1alpha1.UserSignup, error) {
+
+	// Lookup the ToolchainEvent resource based on the provided activation code
+	toolchainEvent, err := s.CRTClient().V1Alpha1().ToolchainEvents().GetByActivationCode(code)
+
+	// Check if the activation code is currently active, i.e. the current
+
+	// First check if the user already exists, if they do and are currently active, return an error
+
+	// If the user does exist but they are not active, they may proceed with the activation
+
+	return nil, nil
+}
+
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {

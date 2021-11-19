@@ -83,6 +83,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())
+		securedV1.PUT("/signup/activate/:code", signupCtrl.ActivateHandler)
 		securedV1.POST("/signup", signupCtrl.PostHandler)
 		// requires a ctx body containing the country_code and phone_number
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)

@@ -8,6 +8,7 @@ import (
 )
 
 type SignupService interface {
+	Activate(ctx *gin.Context, code string) (*toolchainv1alpha1.UserSignup, error)
 	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
 	GetSignup(userID string) (*signup.Signup, error)
 	GetUserSignup(userID string) (*toolchainv1alpha1.UserSignup, error)

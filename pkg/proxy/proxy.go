@@ -47,7 +47,7 @@ func NewProxy(app application.Application, config configuration.RegistrationServ
 func newProxyWithClusterClient(app application.Application, config configuration.RegistrationServiceConfig, cln client.Client) (*Proxy, error) {
 	// Initiate toolchain cluster cache service
 	cacheLog := controllerlog.Log.WithName("registration-service")
-	cluster.NewToolchainClusterService(cln, cacheLog, config.Namespace(), 5*time.Second)
+	cluster.NewToolchainClusterService(cln, cacheLog, configuration.Namespace(), 5*time.Second)
 
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {

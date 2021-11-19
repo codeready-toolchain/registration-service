@@ -56,7 +56,7 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 		return nil, errs.New("no member clusters found")
 	}
 	for _, member := range members {
-		if member.APIEndpoint == signup.APIEndpoint {
+		if member.APIEndpoint == signup.APIEndpoint && member.Name == signup.ClusterName {
 			// Obtain the SA token
 			targetNamespace := signup.CompliantUsername
 			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername)

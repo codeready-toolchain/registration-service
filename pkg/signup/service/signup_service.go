@@ -293,6 +293,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
 				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
 				signupResponse.APIEndpoint = member.ApiEndpoint
+				signupResponse.ClusterName = member.ClusterName
 				break
 			}
 		}

@@ -42,7 +42,6 @@ func TestRegistrationService(t *testing.T) {
 		// then
 		assert.Equal(t, "prod", regServiceCfg.Environment())
 		assert.Equal(t, "info", regServiceCfg.LogLevel())
-		assert.Equal(t, "toolchain-host-operator", regServiceCfg.Namespace())
 		assert.Equal(t, "https://registration.crt-placeholder.com", regServiceCfg.RegistrationServiceURL())
 		assert.Empty(t, regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Empty(t, regServiceCfg.Analytics().WoopraDomain())
@@ -66,7 +65,6 @@ func TestRegistrationService(t *testing.T) {
 		cfg := commonconfig.NewToolchainConfigObjWithReset(t, testconfig.RegistrationService().
 			Environment("e2e-tests").
 			LogLevel("debug").
-			Namespace("another-namespace").
 			RegistrationServiceURL("www.crtregservice.com").
 			Analytics().SegmentWriteKey("keyabc").
 			Analytics().WoopraDomain("woopra.com").
@@ -95,7 +93,6 @@ func TestRegistrationService(t *testing.T) {
 		// then
 		assert.Equal(t, "e2e-tests", regServiceCfg.Environment())
 		assert.Equal(t, "debug", regServiceCfg.LogLevel())
-		assert.Equal(t, "another-namespace", regServiceCfg.Namespace())
 		assert.Equal(t, "www.crtregservice.com", regServiceCfg.RegistrationServiceURL())
 		assert.Equal(t, "keyabc", regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Equal(t, "woopra.com", regServiceCfg.Analytics().WoopraDomain())

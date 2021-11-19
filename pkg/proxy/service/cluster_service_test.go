@@ -52,6 +52,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		},
 	}).addSignup("789-ready", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.member-2.com:6443",
+		ClusterName:       "member-2",
 		CompliantUsername: "smith",
 		Username:          "smith",
 		Status: signup.Status{
@@ -59,6 +60,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		},
 	}).addSignup("012-ready-unknown-cluster", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
+		ClusterName:       "unknown",
 		CompliantUsername: "smith",
 		Username:          "smith",
 		Status: signup.Status{

@@ -48,7 +48,6 @@ objects:
         resources:
           - secrets
           - configmaps
-          - serviceaccounts
         verbs:
           - get
           - list

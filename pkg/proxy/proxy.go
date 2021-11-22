@@ -36,15 +36,15 @@ type Proxy struct {
 	tokenParser *auth.TokenParser
 }
 
-func NewProxy(app application.Application, config configuration.RegistrationServiceConfig) (*Proxy, error) {
+func NewProxy(app application.Application) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
 	}
-	return newProxyWithClusterClient(app, config, cl)
+	return newProxyWithClusterClient(app, cl)
 }
 
-func newProxyWithClusterClient(app application.Application, config configuration.RegistrationServiceConfig, cln client.Client) (*Proxy, error) {
+func newProxyWithClusterClient(app application.Application, cln client.Client) (*Proxy, error) {
 	// Initiate toolchain cluster cache service
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cln, cacheLog, configuration.Namespace(), 5*time.Second)

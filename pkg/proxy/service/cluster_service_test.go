@@ -164,21 +164,27 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 					return []*commoncluster.CachedToolchainCluster{
 						{
-							Name:        "member-1",
-							APIEndpoint: "https://api.endpoint.member-1.com:6443",
-							Type:        commoncluster.Member,
+							Config: &commoncluster.Config{
+								Name:        "member-1",
+								Type:        commoncluster.Member,
+								APIEndpoint: "https://api.endpoint.member-1.com:6443",
+							},
 						},
 						{
-							Client:            memberClient,
-							Name:              "member-2",
-							APIEndpoint:       "https://api.endpoint.member-2.com:6443",
-							Type:              commoncluster.Member,
-							OperatorNamespace: "member-operator",
+							Config: &commoncluster.Config{
+								Name:              "member-2",
+								APIEndpoint:       "https://api.endpoint.member-2.com:6443",
+								Type:              commoncluster.Member,
+								OperatorNamespace: "member-operator",
+							},
+							Client: memberClient,
 						},
 						{
-							Name:        "member-3",
-							APIEndpoint: "https://api.endpoint.member-3.com:6443",
-							Type:        commoncluster.Member,
+							Config: &commoncluster.Config{
+								Name:        "member-3",
+								APIEndpoint: "https://api.endpoint.member-3.com:6443",
+								Type:        commoncluster.Member,
+							},
 						},
 					}
 				}
@@ -304,11 +310,13 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 		clusterName := fmt.Sprintf("member-%d", i)
 
 		cls = append(cls, &commoncluster.CachedToolchainCluster{
-			Client:            nil,
-			Name:              clusterName,
-			APIEndpoint:       fmt.Sprintf("https://api.endpoint.%s.com:6443", clusterName),
-			Type:              commoncluster.Member,
-			OperatorNamespace: "member-operator",
+			Config: &commoncluster.Config{
+				Name:              clusterName,
+				APIEndpoint:       fmt.Sprintf("https://api.endpoint.%s.com:6443", clusterName),
+				Type:              commoncluster.Member,
+				OperatorNamespace: "member-operator",
+			},
+			Client: nil,
 		})
 	}
 	return cls

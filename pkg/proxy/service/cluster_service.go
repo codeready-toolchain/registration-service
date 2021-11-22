@@ -56,6 +56,8 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID string) (*namespace.
 		return nil, errs.New("no member clusters found")
 	}
 	for _, member := range members {
+		// also check that the member cluster name matches because the api endpoint is the same for both members
+		// in the e2e tests because a single cluster is used for testing multi-member scenarios
 		if member.APIEndpoint == signup.APIEndpoint && member.Name == signup.ClusterName {
 			// Obtain the SA token
 			targetNamespace := signup.CompliantUsername

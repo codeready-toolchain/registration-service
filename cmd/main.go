@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// Start the proxy server
-	p, err := proxy.NewProxy(app, crtConfig)
+	p, err := proxy.NewProxy(app)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}

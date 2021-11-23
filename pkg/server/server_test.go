@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"gopkg.in/h2non/gock.v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -39,6 +41,8 @@ func (s *TestServerSuite) TestServer() {
 	err := srv.SetupRoutes()
 	require.NoError(s.T(), err)
 	gock.OffAll()
+
+	startFakeProxy()
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()
@@ -95,4 +99,22 @@ func (s *TestServerSuite) TestServer() {
 		require.Equal(s.T(), "*", resp.Header.Get("Access-Control-Allow-Origin"))
 		require.Equal(s.T(), "true", resp.Header.Get("Access-Control-Allow-Credentials"))
 	})
+}
+
+func startFakeProxy() *http.Server {
+	// start server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", fakehealth)
+
+	srv := &http.Server{Addr: ":" + proxy.ProxyPort, Handler: mux}
+	go func() {
+		srv.ListenAndServe()
+	}()
+	return srv
+}
+
+func fakehealth(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	io.WriteString(res, `{"alive": true}`)
 }

@@ -42,7 +42,7 @@ func (s *TestServerSuite) TestServer() {
 	require.NoError(s.T(), err)
 	gock.OffAll()
 
-	startFakeProxy()
+	startFakeProxy(s.T())
 
 	// Check that there are routes registered.
 	routes := srv.GetRegisteredRoutes()
@@ -101,14 +101,15 @@ func (s *TestServerSuite) TestServer() {
 	})
 }
 
-func startFakeProxy() *http.Server {
+func startFakeProxy(t *testing.T) *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", fakehealth)
 
 	srv := &http.Server{Addr: ":" + proxy.ProxyPort, Handler: mux}
 	go func() {
-		srv.ListenAndServe()
+		err := srv.ListenAndServe()
+		require.NoError(t, err)
 	}()
 	return srv
 }
@@ -116,5 +117,5 @@ func startFakeProxy() *http.Server {
 func fakehealth(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, `{"alive": true}`)
+	io.WriteString(res, `{"alive": true}`) //nolint:golint,errcheck
 }

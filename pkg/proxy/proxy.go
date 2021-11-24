@@ -80,7 +80,10 @@ func (p *Proxy) StartProxy() *http.Server {
 func (p *Proxy) health(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, `{"alive": true}`)
+	_, err := io.WriteString(res, `{"alive": true}`)
+	if err != nil {
+		log.Error(nil, err, "failed to write health response")
+	}
 }
 
 func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {

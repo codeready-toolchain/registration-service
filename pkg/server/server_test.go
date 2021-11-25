@@ -104,7 +104,7 @@ func (s *TestServerSuite) TestServer() {
 func startFakeProxy(t *testing.T) *http.Server {
 	// start server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", fakehealth)
+	mux.HandleFunc("/proxyhealth", fakehealth)
 
 	srv := &http.Server{Addr: ":" + proxy.ProxyPort, Handler: mux}
 	go func() {

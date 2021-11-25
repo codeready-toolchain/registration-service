@@ -105,7 +105,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 
 		// mock proxy
 		defer gock.Off()
-		gock.New(fmt.Sprintf("http://localhost:%s/health", proxy.ProxyPort)).
+		gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort)).
 			Reply(http.StatusOK).
 			BodyString("")
 
@@ -166,7 +166,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 
 				// mock proxy
 				defer gock.Off()
-				gock.New(fmt.Sprintf("http://localhost:%s/health", proxy.ProxyPort)).
+				gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort)).
 					Reply(http.StatusOK).
 					BodyString("")
 

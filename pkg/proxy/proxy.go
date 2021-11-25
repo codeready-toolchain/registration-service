@@ -64,7 +64,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
-	mux.HandleFunc("/health", p.health)
+	mux.HandleFunc("/proxyhealth", p.health)
 
 	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the Proxy server...")

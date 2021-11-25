@@ -77,7 +77,7 @@ func (c *healthCheckerImpl) Alive(ctx *gin.Context) bool {
 }
 
 func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/health", proxy.ProxyPort))
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort))
 	if err != nil {
 		log.Error(ctx, err, "API Proxy health check failed")
 		return false

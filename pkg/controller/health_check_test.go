@@ -55,7 +55,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// mock proxy
 		defer gock.Off()
 		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
-			Get("/health").
+			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).
 			BodyString("")
@@ -90,7 +90,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// mock proxy
 		defer gock.Off()
 		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
-			Get("/health").
+			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).
 			BodyString("")
@@ -131,7 +131,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// mock proxy
 		defer gock.Off()
 		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
-			Get("/health").
+			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).
 			BodyString("")

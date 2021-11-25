@@ -150,32 +150,32 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	})
 
 	s.Run("only proxy not available", func() {
-		// Setting production mode
-		s.OverrideApplicationDefault(testconfig.RegistrationService().
-			Environment("testServiceUnavailable"))
-
-		healthCheckCtrl := controller.NewHealthCheck(&mockHealthChecker{
-			alive:      true,
-			proxyAlive: false,
-		})
-		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
-
+		// given
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
+		// Setting production mode
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			Environment("prod"))
+		assert.False(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to false")
+
+		// when
+		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
+		// directly and pass in our Request and ResponseRecorder.
 		handler(ctx)
 
-		// Check the status code is what we expect. OK is returned as long as status.Alive is true
-		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
+		// then
+		// Check the status code is what we expect.
+		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
 		err := json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assertHealth(s.T(), true, false, "testServiceUnavailable", data)
+		assertHealth(s.T(), false, false, "prod", data)
 	})
 
 	s.Run("service Unavailable due to both reg service and proxy down", func() {

@@ -2,15 +2,18 @@ package middleware_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"gopkg.in/h2non/gock.v1"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
@@ -94,12 +97,22 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	require.NotNil(s.T(), srv.Engine())
 
 	s.Run("health check requests", func() {
+		// given
 		health := &status.Health{}
 		resp := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/health", nil)
 		require.NoError(s.T(), err)
 
+		// mock proxy
+		defer gock.Off()
+		gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort)).
+			Reply(http.StatusOK).
+			BodyString("")
+
+		// when
 		srv.Engine().ServeHTTP(resp, req)
+
+		// then
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusOK, resp.Code, "request returned wrong status code")
 
@@ -143,13 +156,24 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 		}
 		for _, tt := range authtests {
 			s.Run(tt.name, func() {
+				// given
 				resp := httptest.NewRecorder()
 				req, err := http.NewRequest(tt.method, tt.urlPath, nil)
 				require.NoError(s.T(), err)
 				if tt.tokenHeader != "" {
 					req.Header.Set("Authorization", tt.tokenHeader)
 				}
+
+				// mock proxy
+				defer gock.Off()
+				gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort)).
+					Reply(http.StatusOK).
+					BodyString("")
+
+				// when
 				srv.Engine().ServeHTTP(resp, req)
+
+				// then
 				// Check the status code is what we expect.
 				assert.Equal(s.T(), tt.status, resp.Code, "request returned wrong status code")
 			})

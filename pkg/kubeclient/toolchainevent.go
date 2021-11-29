@@ -3,6 +3,7 @@ package kubeclient
 import (
 	"context"
 	"fmt"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -21,7 +22,7 @@ type toolchainEventClient struct {
 // ToolchainEventInterface is the interface for toolchain events.
 type ToolchainEventInterface interface {
 	Update(obj *crtapi.ToolchainEvent) (*crtapi.ToolchainEvent, error)
-	ListActiveEvents() (*crtapi.ToolchainEventList, error)
+	ListByActivationCode(activationCode string) (*crtapi.ToolchainEventList, error)
 }
 
 // Update will update an existing ToolchainEvent resource in the cluster, returning an error if something went wrong
@@ -40,9 +41,9 @@ func (c *toolchainEventClient) Update(obj *crtapi.ToolchainEvent) (*crtapi.Toolc
 	return result, nil
 }
 
-// ListActiveEvents returns the ToolchainEvent with the specified activation code, or an error if something went
-// wrong while attempting to retrieve it. If not found then NotFound error returned
-func (c *toolchainEventClient) ListActiveEvents() (*crtapi.ToolchainEventList, error) {
+// ListByActivationCode returns all ToolchainEvent resources with the specified activation code, or an error if something went
+// wrong while attempting to retrieve them.
+func (c *toolchainEventClient) ListByActivationCode(activationCode string) (*crtapi.ToolchainEventList, error) {
 	intf, err := dynamic.NewForConfig(&c.cfg)
 	if err != nil {
 		return nil, err
@@ -50,7 +51,7 @@ func (c *toolchainEventClient) ListActiveEvents() (*crtapi.ToolchainEventList, e
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: toolchainEventResourcePlural}
 	listOptions := v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s!=%s,%s=%s", crtapi.ToolchainEvent StateLabelKey, crtapi.ToolchainEventStateLabelValueDeactivated, labelKey, labelValue),
+		LabelSelector: fmt.Sprintf("%s=%s", crtapi.ToolchainEventActivationCodeLabelKey, activationCode),
 	}
 
 	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
@@ -58,7 +59,7 @@ func (c *toolchainEventClient) ListActiveEvents() (*crtapi.ToolchainEventList, e
 		return nil, err
 	}
 
-	result := &crtapi.UserSignupList{}
+	result := &crtapi.ToolchainEventList{}
 
 	err = c.crtClient.scheme.Convert(list, result, nil)
 	return result, err

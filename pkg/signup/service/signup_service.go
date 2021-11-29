@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -165,15 +166,87 @@ func EncodeUserID(subject string) string {
 func (s *ServiceImpl) Activate(ctx *gin.Context, code string) (*toolchainv1alpha1.UserSignup, error) {
 
 	// Lookup the ToolchainEvent resource based on the provided activation code
-	toolchainEvent, err := s.CRTClient().V1Alpha1().ToolchainEvents().GetByActivationCode(code)
+	toolchainEvents, err := s.CRTClient().V1Alpha1().ToolchainEvents().ListByActivationCode(code)
+	if err != nil {
+		log.Error(ctx, err, "error looking up toolchain event")
+		return nil, err
+	}
 
-	// Check if the activation code is currently active, i.e. the current
+	var event *toolchainv1alpha1.ToolchainEvent
+	now := time.Now()
+
+	for _, e := range toolchainEvents.Items {
+		readyCondition, found := condition.FindConditionByType(e.Status.Conditions, toolchainv1alpha1.ToolchainEventReady)
+		// If the event is found and it is currently ready and active
+		if found && readyCondition.Status == apiv1.ConditionTrue && e.Spec.StartTime.Time.Before(now) && e.Spec.EndTime.Time.After(now) {
+			if event != nil {
+				// If an event has already been found, then it means there are multiple ToolchainEvent resources with the
+				// same activation code.  Return an error here
+				err := errors.NewInternalError(errors2.New("multiple matching ToolchainEvent resources found with duplicate activation code"))
+				log.Error(ctx, err, "multiple ToolchainEvent resources found")
+				return nil, err
+			}
+			evt := e
+			event = &evt
+		}
+	}
+
+	// If no event was found, return an error
+	if event == nil {
+		err := errors.NewBadRequest("invalid activation code")
+		log.Error(ctx, err, "invalid activation code")
+		return nil, err
+	}
+
+	// If the event has no more activations available, return an error
+	if event.Status.ActivationCount >= event.Spec.MaxAttendees {
+		err := errors.NewBadRequest("limit reached for activation code")
+		log.Error(ctx, err, "limit reached for activation code")
+		return nil, err
+	}
 
 	// First check if the user already exists, if they do and are currently active, return an error
 
-	// If the user does exist but they are not active, they may proceed with the activation
+	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
+
+	// Try to retrieve UserSignup resource from the host cluster
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Increment the activation count for this event
+			err = s.incrementEventActivationCount(ctx, event)
+			if err != nil {
+				return nil, err
+			}
+			// New Signup
+			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
+			return s.createUserSignup(ctx, event)
+		}
+		return nil, err
+	}
+
+	// If the user does exist but they are deactivated, they may proceed with the activation
+	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
+	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
+		// Increment the activation count for this event
+		err = s.incrementEventActivationCount(ctx, event)
+		if err != nil {
+			return nil, err
+		}
+		// Signup is deactivated. We need to reactivate it
+		return s.reactivateUserSignup(ctx, userSignup, event)
+	}
 
 	return nil, nil
+}
+
+func (s *ServiceImpl) incrementEventActivationCount(ctx *gin.Context, event *toolchainv1alpha1.ToolchainEvent) error {
+	event.Status.ActivationCount++
+	_, err := s.CRTClient().V1Alpha1().ToolchainEvents().Update(event)
+	if err != nil {
+		log.WithValues(map[string]interface{}{"event": event.Name}).Error(ctx, err, "failed to increment activation count")
+	}
+	return err
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
@@ -186,7 +259,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 		if errors.IsNotFound(err) {
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
-			return s.createUserSignup(ctx)
+			return s.createUserSignup(ctx, nil)
 		}
 		return nil, err
 	}
@@ -195,7 +268,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
-		return s.reactivateUserSignup(ctx, userSignup)
+		return s.reactivateUserSignup(ctx, userSignup, nil)
 	}
 
 	username := ctx.GetString(context.UsernameKey)
@@ -203,17 +276,19 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context, event *toolchainv1alpha1.ToolchainEvent) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.newUserSignup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	applyEventToUserSignup(userSignup, event)
+
 	return s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup, event *toolchainv1alpha1.ToolchainEvent) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
@@ -232,7 +307,23 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
+	applyEventToUserSignup(existing, event)
+
 	return s.CRTClient().V1Alpha1().UserSignups().Update(existing)
+}
+
+func applyEventToUserSignup(userSignup *toolchainv1alpha1.UserSignup, event *toolchainv1alpha1.ToolchainEvent) {
+	if event != nil {
+		// If the event is not set to require verification, then remove the verification-required state from the UserSignup
+		if !event.Spec.VerificationRequired {
+			states.SetVerificationRequired(userSignup, false)
+		}
+
+		// Set the ToolchainEvent Label value to the name of the ToolchainEvent resource
+		userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey] = event.Name
+	} else {
+		delete(userSignup.Labels, toolchainv1alpha1.UserSignupToolchainEventLabelKey)
+	}
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup

@@ -131,10 +131,6 @@ func (r RegistrationServiceConfig) LogLevel() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.LogLevel, "info")
 }
 
-func (r RegistrationServiceConfig) Namespace() string {
-	return commonconfig.GetString(r.cfg.Host.RegistrationService.Namespace, "toolchain-host-operator")
-}
-
 func (r RegistrationServiceConfig) RegistrationServiceURL() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.RegistrationServiceURL, "https://registration.crt-placeholder.com")
 }

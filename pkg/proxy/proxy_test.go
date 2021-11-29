@@ -12,7 +12,6 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/registration-service/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
@@ -45,7 +44,7 @@ func (s *TestProxySuite) TestProxy() {
 	_, err := auth.InitializeDefaultTokenParser()
 	require.NoError(s.T(), err)
 	fakeApp := &fakeApp{}
-	p, err := newProxyWithClusterClient(fakeApp, configuration.GetRegistrationServiceConfig(), nil)
+	p, err := newProxyWithClusterClient(fakeApp, nil)
 	require.NoError(s.T(), err)
 
 	server := p.StartProxy()

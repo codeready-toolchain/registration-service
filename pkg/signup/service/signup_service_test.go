@@ -845,6 +845,10 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 }
 
+func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
+
+}
+
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }

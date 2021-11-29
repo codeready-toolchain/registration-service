@@ -31,6 +31,7 @@ type UnitTestSuite struct {
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
+	FakeToolchainEventClient   *fake.FakeToolchainEventClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
 	factoryOptions             []factory.Option
 }
@@ -134,6 +135,7 @@ func (s *UnitTestSuite) TearDownSuite() {
 	s.FakeUserSignupClient = nil
 	s.FakeMasterUserRecordClient = nil
 	s.FakeBannedUserClient = nil
+	s.FakeToolchainEventClient = nil
 	s.FakeToolchainStatusClient = nil
 }
 
@@ -151,6 +153,10 @@ func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface
 
 func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 	return s.FakeBannedUserClient
+}
+
+func (s *UnitTestSuite) ToolchainEvents() kubeclient.ToolchainEventInterface {
+	return s.FakeToolchainEventClient
 }
 
 func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface {

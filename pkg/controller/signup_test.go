@@ -674,11 +674,16 @@ func initVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, d
 }
 
 type FakeSignupService struct {
+	MockActivate                func(ctx *gin.Context, code string) (*crtapi.UserSignup, error)
 	MockGetSignup               func(userID string) (*signup.Signup, error)
 	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup           func(userID string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockPhoneNumberAlreadyInUse func(userID, value string) error
+}
+
+func (m *FakeSignupService) Activate(ctx *gin.Context, code string) (*crtapi.UserSignup, error) {
+	return m.MockActivate(ctx, code)
 }
 
 func (m *FakeSignupService) GetSignup(userID string) (*signup.Signup, error) {

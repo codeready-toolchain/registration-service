@@ -366,6 +366,10 @@ func (m *fakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
 	return m.mockGetSignup(userID)
 }
 
+func (m *fakeSignupService) Activate(ctx *gin.Context, code string) (*toolchainv1alpha1.UserSignup, error) {
+	return nil, nil
+}
+
 func (m *fakeSignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }

@@ -60,6 +60,8 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.MasterUserRecordList{},
 		&crtapi.BannedUser{},
 		&crtapi.BannedUserList{},
+		&crtapi.ToolchainEvent{},
+		&crtapi.ToolchainEventList{},
 		&crtapi.ToolchainStatus{},
 		&crtapi.ToolchainStatusList{},
 	}
@@ -108,6 +110,18 @@ func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 // BannedUsers returns an interface which may be used to perform query operations on BannedUser resources
 func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
+		crtClient: crtClient{
+			client: c.client.RestClient,
+			ns:     c.client.NS,
+			cfg:    c.client.Config,
+			scheme: c.client.Scheme,
+		},
+	}
+}
+
+// ToolchainEvents returns an interface which may be used to perform query operations on ToolchainEvent resources
+func (c *V1Alpha1REST) ToolchainEvents() ToolchainEventInterface {
+	return &toolchainEventClient{
 		crtClient: crtClient{
 			client: c.client.RestClient,
 			ns:     c.client.NS,

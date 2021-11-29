@@ -9,6 +9,8 @@ type Signup struct {
 	CheDashboardURL string `json:"cheDashboardURL,omitempty"`
 	// The server api URL of the cluster which the user was provisioned to
 	APIEndpoint string `json:"apiEndpoint,omitempty"`
+	// The name of the cluster which the user was provisioned to
+	ClusterName string `json:"clusterName,omitempty"`
 	// The complaint username.  This may differ from the corresponding Identity Provider username, because of the the
 	// limited character set available for naming (see RFC1123) in K8s. If the username contains characters which are
 	// disqualified from the resource name, the username is transformed into an acceptable resource name instead.

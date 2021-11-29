@@ -574,6 +574,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "", response.ConsoleURL)
 	require.Equal(s.T(), "", response.CheDashboardURL)
 	require.Equal(s.T(), "", response.APIEndpoint)
+	require.Equal(s.T(), "", response.ClusterName)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -638,6 +639,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.ConsoleURL)
 		require.Equal(s.T(), "", response.CheDashboardURL)
 		require.Equal(s.T(), "", response.APIEndpoint)
+		require.Equal(s.T(), "", response.ClusterName)
 	}
 }
 
@@ -709,6 +711,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+	assert.Equal(s.T(), "member-123", response.ClusterName)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {

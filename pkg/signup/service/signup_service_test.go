@@ -678,7 +678,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					ApiEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-1.com",
+							ConsoleURL:      "https://console.member-1.com/",
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
 					},
@@ -688,8 +688,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					ApiEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-123.com",
-							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+							ConsoleURL:      "https://console.member-123.com//",
+							CheDashboardURL: "http://che-toolchain-che.member-123.com//",
 						},
 					},
 				},
@@ -708,8 +708,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 	assert.False(s.T(), response.Status.VerificationRequired)
-	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
-	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "https://console.member-123.com/", response.ConsoleURL)               // make sure that double slashes are removed
+	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com/", response.CheDashboardURL) // make sure that double slashes are removed
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 }

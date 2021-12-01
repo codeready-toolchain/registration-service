@@ -290,9 +290,9 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		}
 		for _, member := range status.Status.Members {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
-				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
-				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
-				signupResponse.APIEndpoint = member.ApiEndpoint
+				signupResponse.ConsoleURL = sanitizeURL(member.MemberStatus.Routes.ConsoleURL)
+				signupResponse.CheDashboardURL = sanitizeURL(member.MemberStatus.Routes.CheDashboardURL)
+				signupResponse.APIEndpoint = sanitizeURL(member.ApiEndpoint)
 				signupResponse.ClusterName = member.ClusterName
 				break
 			}
@@ -300,6 +300,13 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	}
 
 	return signupResponse, nil
+}
+
+func sanitizeURL(url string) string {
+	if strings.HasSuffix(url, "//") {
+		return sanitizeURL(strings.TrimSuffix(url, "/")) // remove the extra `/`
+	}
+	return url
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO

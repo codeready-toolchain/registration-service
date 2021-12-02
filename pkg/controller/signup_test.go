@@ -658,6 +658,106 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	})
 }
 
+func (s *TestSignupSuite) TestActivateHandler() {
+	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
+	// pass 'nil' as the third parameter.
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/activate", nil)
+	require.NoError(s.T(), err)
+
+	svc := &FakeSignupService{}
+	s.Application.MockSignupService(svc)
+
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
+
+	// Create signup instance.
+	signupCtrl := controller.NewSignup(s.Application)
+	handler := gin.HandlerFunc(signupCtrl.ActivateHandler)
+
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	s.Run("signup created with activation code", func() {
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		expectedUserID := ob.String()
+		ctx.Set(context.SubKey, expectedUserID)
+		ctx.Set(context.EmailKey, expectedUserID+"@acme.com")
+		param := gin.Param{
+			Key:   "code",
+			Value: "AAA-BBB-CCC",
+		}
+		ctx.Params = append(ctx.Params, param)
+		email := ctx.GetString(context.EmailKey)
+		signup := &crtapi.UserSignup{
+			TypeMeta: v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      userID.String(),
+				Namespace: "namespace-abcde",
+				Annotations: map[string]string{
+					crtapi.UserSignupUserEmailAnnotationKey: email,
+				},
+			},
+			Spec: crtapi.UserSignupSpec{
+				Username: "bill",
+			},
+			Status: crtapi.UserSignupStatus{
+				Conditions: []crtapi.Condition{
+					{
+						Type:    crtapi.UserSignupComplete,
+						Status:  apiv1.ConditionFalse,
+						Reason:  "test_reason",
+						Message: "test_message",
+					},
+				},
+			},
+		}
+
+		svc.MockActivate = func(ctx *gin.Context, code string) (*crtapi.UserSignup, error) {
+			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
+			assert.Equal(s.T(), expectedUserID+"@acme.com", ctx.GetString(context.EmailKey))
+			return signup, nil
+		}
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusAccepted, rr.Code)
+	})
+
+	s.Run("no activation code provided", func() {
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		userID := ob.String()
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(s.Application)
+		handler := gin.HandlerFunc(ctrl.ActivateHandler)
+
+		param := gin.Param{
+			Key:   "code",
+			Value: "",
+		}
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/activate/", bytes.NewBuffer(nil))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
+
+		ctx.Params = append(ctx.Params, param)
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
+	})
+}
+
 func initVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, data []byte, userID, httpMethod, url string) *httptest.ResponseRecorder {
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()

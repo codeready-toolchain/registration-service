@@ -853,8 +853,8 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 
 func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 
-	s.Run("Test register user by activation code", func() {
-		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionIsActive)
+	s.Run("Test register user by active activation code ok", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionActive)
 		require.NoError(s.T(), err)
 
 		err = s.FakeToolchainEventClient.Tracker.Add(event)
@@ -882,6 +882,163 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		require.NoError(s.T(), err)
 		require.False(s.T(), states.VerificationRequired(userSignup))
 		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+	})
+
+	s.Run("Test register user by inactive activation code fails", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionNotActive)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "jilljones")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "jilljones1992@gmail.com")
+		ctx.Set(context.GivenNameKey, "jill")
+		ctx.Set(context.FamilyNameKey, "jones")
+		ctx.Set(context.CompanyKey, "red hat")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// then
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "invalid activation code", err.Error())
+		require.Nil(s.T(), userSignup)
+	})
+
+	s.Run("Test register user with expired activation code fails", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionExpired)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "hankjohnson")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "hankjohnson@gmail.com")
+		ctx.Set(context.GivenNameKey, "hank")
+		ctx.Set(context.FamilyNameKey, "johnson")
+		ctx.Set(context.CompanyKey, "red hat")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// then
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "invalid activation code", err.Error())
+		require.Nil(s.T(), userSignup)
+	})
+
+	s.Run("Test register user with multiple events with same code fails", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionActive)
+		require.NoError(s.T(), err)
+		event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey] = "AAA-BBB-CCC"
+
+		event2, err := s.newToolchainEvent(10, false, ToolchainEventOptionActive)
+		require.NoError(s.T(), err)
+		event2.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey] = "AAA-BBB-CCC"
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event2)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "hankjohnson")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "hankjohnson@gmail.com")
+		ctx.Set(context.GivenNameKey, "hank")
+		ctx.Set(context.FamilyNameKey, "johnson")
+		ctx.Set(context.CompanyKey, "red hat")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, "AAA-BBB-CCC")
+
+		// then
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "Internal error occurred: multiple matching ToolchainEvent resources found with duplicate activation code", err.Error())
+		require.Nil(s.T(), userSignup)
+	})
+
+	s.Run("Test user cannot register after code exhausted", func() {
+		event, err := s.newToolchainEvent(2, false, ToolchainEventOptionActive)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		// given
+		userID1, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx1, _ := gin.CreateTestContext(rr)
+		ctx1.Set(context.UsernameKey, "user1")
+		ctx1.Set(context.SubKey, userID1.String())
+		ctx1.Set(context.EmailKey, "user1@gmail.com")
+		ctx1.Set(context.GivenNameKey, "user")
+		ctx1.Set(context.FamilyNameKey, "one")
+		ctx1.Set(context.CompanyKey, "red hat")
+
+		userID2, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		ctx2, _ := gin.CreateTestContext(rr)
+		ctx2.Set(context.UsernameKey, "user2")
+		ctx2.Set(context.SubKey, userID2.String())
+		ctx2.Set(context.EmailKey, "user2@gmail.com")
+		ctx2.Set(context.GivenNameKey, "user")
+		ctx2.Set(context.FamilyNameKey, "two")
+		ctx2.Set(context.CompanyKey, "red hat")
+
+		userID3, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		ctx3, _ := gin.CreateTestContext(rr)
+		ctx3.Set(context.UsernameKey, "user3")
+		ctx3.Set(context.SubKey, userID3.String())
+		ctx3.Set(context.EmailKey, "user3@gmail.com")
+		ctx3.Set(context.GivenNameKey, "user")
+		ctx3.Set(context.FamilyNameKey, "three")
+		ctx3.Set(context.CompanyKey, "red hat")
+
+		userSignup1, err := s.Application.SignupService().Activate(ctx1, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), event.Name, userSignup1.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+
+		userSignup2, err := s.Application.SignupService().Activate(ctx2, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), event.Name, userSignup2.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+
+		userSignup3, err := s.Application.SignupService().Activate(ctx3, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "limit reached for activation code", err.Error())
+		require.Nil(s.T(), userSignup3)
 	})
 }
 
@@ -950,7 +1107,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 
 // ToolchainEventOptionIsActive sets the start time of the specified event to 24 hours in the past, the end time to
 // 24 hours in the future, and sets the "Ready" condition to true
-func ToolchainEventOptionIsActive(event *toolchainv1alpha1.ToolchainEvent) {
+func ToolchainEventOptionActive(event *toolchainv1alpha1.ToolchainEvent) {
 	now := time.Now()
 
 	event.Spec.StartTime = v1.Time{
@@ -965,6 +1122,32 @@ func ToolchainEventOptionIsActive(event *toolchainv1alpha1.ToolchainEvent) {
 			Type:   toolchainv1alpha1.ToolchainEventReady,
 			Status: apiv1.ConditionTrue,
 		})
+}
+
+// ToolchainEventOptionNotActive sets the start time of the specified event to 24 hours in the future, and the
+// end time to 48 hours in the future
+func ToolchainEventOptionNotActive(event *toolchainv1alpha1.ToolchainEvent) {
+	now := time.Now()
+
+	event.Spec.StartTime = v1.Time{
+		Time: now.Add(24 * time.Hour),
+	}
+	event.Spec.EndTime = v1.Time{
+		Time: now.Add(48 * time.Hour),
+	}
+}
+
+// ToolchainEventOptionExpired sets the start time of the specified event to 48 hours in the past, and the
+// end time to 24 hours in the past
+func ToolchainEventOptionExpired(event *toolchainv1alpha1.ToolchainEvent) {
+	now := time.Now()
+
+	event.Spec.StartTime = v1.Time{
+		Time: now.Add(-48 * time.Hour),
+	}
+	event.Spec.EndTime = v1.Time{
+		Time: now.Add(-24 * time.Hour),
+	}
 }
 
 type ToolchainEventOption = func(event *toolchainv1alpha1.ToolchainEvent)

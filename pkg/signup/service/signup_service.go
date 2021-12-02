@@ -314,10 +314,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 
 func applyEventToUserSignup(userSignup *toolchainv1alpha1.UserSignup, event *toolchainv1alpha1.ToolchainEvent) {
 	if event != nil {
-		// If the event is not set to require verification, then remove the verification-required state from the UserSignup
-		if !event.Spec.VerificationRequired {
-			states.SetVerificationRequired(userSignup, false)
-		}
+		states.SetVerificationRequired(userSignup, event.Spec.VerificationRequired)
 
 		// Set the ToolchainEvent Label value to the name of the ToolchainEvent resource
 		userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey] = event.Name

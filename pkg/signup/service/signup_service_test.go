@@ -884,6 +884,37 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
 	})
 
+	s.Run("Test register user by active activation code but verification still required ok", func() {
+		event, err := s.newToolchainEvent(10, true, ToolchainEventOptionActive)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "bobjones")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "bobjones1980@gmail.com")
+		ctx.Set(context.GivenNameKey, "bob")
+		ctx.Set(context.FamilyNameKey, "jones")
+		ctx.Set(context.CompanyKey, "red hat")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// then
+		require.NoError(s.T(), err)
+		require.True(s.T(), states.VerificationRequired(userSignup))
+		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+	})
+
 	s.Run("Test register user by inactive activation code fails", func() {
 		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionNotActive)
 		require.NoError(s.T(), err)

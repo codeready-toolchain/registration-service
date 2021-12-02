@@ -54,6 +54,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), configuration.Namespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
+	s.FakeToolchainEventClient = fake.NewFakeToolchainEventClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
@@ -63,6 +64,7 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), configuration.Namespace())
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
+	s.FakeToolchainEventClient = fake.NewFakeToolchainEventClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }

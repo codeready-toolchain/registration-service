@@ -1,12 +1,16 @@
 package service_test
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
@@ -39,6 +43,8 @@ import (
 
 const (
 	TestNamespace = "test-namespace-123"
+
+	activationCodeCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 )
 
 type TestSignupServiceSuite struct {
@@ -847,6 +853,36 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 
 func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 
+	s.Run("Test register user by activation code", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionIsActive)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "jackjones")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "jjones1999@gmail.com")
+		ctx.Set(context.GivenNameKey, "jack")
+		ctx.Set(context.FamilyNameKey, "jones")
+		ctx.Set(context.CompanyKey, "red hat")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// then
+		require.NoError(s.T(), err)
+		require.False(s.T(), states.VerificationRequired(userSignup))
+		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+	})
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
@@ -910,6 +946,78 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 			}}},
 		},
 	}
+}
+
+// ToolchainEventOptionIsActive sets the start time of the specified event to 24 hours in the past, the end time to
+// 24 hours in the future, and sets the "Ready" condition to true
+func ToolchainEventOptionIsActive(event *toolchainv1alpha1.ToolchainEvent) {
+	now := time.Now()
+
+	event.Spec.StartTime = v1.Time{
+		Time: now.Add(-24 * time.Hour),
+	}
+	event.Spec.EndTime = v1.Time{
+		Time: now.Add(24 * time.Hour),
+	}
+
+	event.Status.Conditions, _ = condition.AddOrUpdateStatusConditions(event.Status.Conditions,
+		toolchainv1alpha1.Condition{
+			Type:   toolchainv1alpha1.ToolchainEventReady,
+			Status: apiv1.ConditionTrue,
+		})
+}
+
+type ToolchainEventOption = func(event *toolchainv1alpha1.ToolchainEvent)
+
+func (s *TestSignupServiceSuite) newToolchainEvent(maxAttendees int, verificationRequired bool, opts ...ToolchainEventOption) (*toolchainv1alpha1.ToolchainEvent, error) {
+	eventName := fmt.Sprintf("event-%s", uuid.Must(uuid.NewV4()).String())
+	activationCode, err := generateActivationCode()
+	if err != nil {
+		return nil, err
+	}
+
+	event := &toolchainv1alpha1.ToolchainEvent{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      eventName,
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				toolchainv1alpha1.ToolchainEventActivationCodeLabelKey: activationCode,
+			},
+		},
+		Spec: toolchainv1alpha1.ToolchainEventSpec{
+			MaxAttendees:         maxAttendees,
+			VerificationRequired: verificationRequired,
+		},
+		Status: toolchainv1alpha1.ToolchainEventStatus{
+			Conditions: []toolchainv1alpha1.Condition{},
+		},
+	}
+
+	for _, opt := range opts {
+		opt(event)
+	}
+
+	return event, nil
+}
+
+func generateActivationCode() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+
+	charsetLen := len(activationCodeCharset)
+	for i := 0; i < 16; i++ {
+		buf[i] = activationCodeCharset[int(buf[i])%charsetLen]
+	}
+
+	activationCode := fmt.Sprintf("%s-%s-%s-%s",
+		string(buf[0:4]),
+		string(buf[4:8]),
+		string(buf[8:12]),
+		string(buf[12:16]))
+
+	return activationCode, nil
 }
 
 func deactivated() []toolchainv1alpha1.Condition {

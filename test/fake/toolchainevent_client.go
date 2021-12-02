@@ -60,7 +60,7 @@ func (c *FakeToolchainEventClient) ListByActivationCode(activationCode string) (
 		return c.MockListByActivationCode(activationCode)
 	}
 
-	obj := &crtapi.UserSignup{}
+	obj := &crtapi.ToolchainEvent{}
 	gvr, err := getGVRFromObject(obj, c.Scheme)
 	if err != nil {
 		return nil, err

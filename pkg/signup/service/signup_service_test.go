@@ -884,6 +884,49 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
 	})
 
+	s.Run("Test reactivate user by active activation code ok", func() {
+		event, err := s.newToolchainEvent(10, false, ToolchainEventOptionActive)
+		require.NoError(s.T(), err)
+
+		err = s.FakeToolchainEventClient.Tracker.Add(event)
+		require.NoError(s.T(), err)
+
+		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "janetsmith")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "jsmith@gmail.com")
+		ctx.Set(context.GivenNameKey, "janet")
+		ctx.Set(context.FamilyNameKey, "smith")
+		ctx.Set(context.CompanyKey, "red hat")
+		userSignup, err := s.Application.SignupService().Signup(ctx)
+		require.NoError(s.T(), err)
+
+		deactivatedUS := userSignup.DeepCopy()
+		states.SetDeactivated(deactivatedUS, true)
+		deactivatedUS.Status.Conditions = deactivated()
+
+		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+		require.NoError(s.T(), err)
+		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+		err = s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
+		require.NoError(s.T(), err)
+
+		userSignup, err = s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
+
+		// then
+		require.NoError(s.T(), err)
+		require.False(s.T(), states.VerificationRequired(userSignup))
+		require.Equal(s.T(), event.Name, userSignup.Labels[toolchainv1alpha1.UserSignupToolchainEventLabelKey])
+	})
+
 	s.Run("Test register user by active activation code but verification still required ok", func() {
 		event, err := s.newToolchainEvent(10, true, ToolchainEventOptionActive)
 		require.NoError(s.T(), err)

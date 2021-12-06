@@ -83,10 +83,10 @@ func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
 		log.Error(ctx, err, "API Proxy health check failed")
 		return false
 	}
+	defer resp.Body.Close()
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Error(ctx, err, "failed to read API Proxy health check body")
 	}
-	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
 }

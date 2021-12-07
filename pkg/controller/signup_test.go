@@ -667,9 +667,6 @@ func (s *TestSignupSuite) TestActivateHandler() {
 	svc := &FakeSignupService{}
 	s.Application.MockSignupService(svc)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-
 	// Create signup instance.
 	signupCtrl := controller.NewSignup(s.Application)
 	handler := gin.HandlerFunc(signupCtrl.ActivateHandler)
@@ -721,6 +718,7 @@ func (s *TestSignupSuite) TestActivateHandler() {
 		svc.MockActivate = func(ctx *gin.Context, code string) (*crtapi.UserSignup, error) {
 			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
 			assert.Equal(s.T(), expectedUserID+"@acme.com", ctx.GetString(context.EmailKey))
+			assert.Equal(s.T(), "AAA-BBB-CCC", code)
 			return signup, nil
 		}
 		handler(ctx)
@@ -729,7 +727,7 @@ func (s *TestSignupSuite) TestActivateHandler() {
 		require.Equal(s.T(), http.StatusAccepted, rr.Code)
 	})
 
-	s.Run("no activation code provided", func() {
+	s.Run("empty activation code provided", func() {
 		ob, err := uuid.NewV4()
 		require.NoError(s.T(), err)
 		userID := ob.String()
@@ -751,6 +749,27 @@ func (s *TestSignupSuite) TestActivateHandler() {
 		ctx.Set(context.SubKey, userID)
 
 		ctx.Params = append(ctx.Params, param)
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
+	})
+
+	s.Run("code parameter missing from request", func() {
+		ob, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+		userID := ob.String()
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(s.Application)
+		handler := gin.HandlerFunc(ctrl.ActivateHandler)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/activate/", bytes.NewBuffer(nil))
+		require.NoError(s.T(), err)
+		ctx.Request = req
+		ctx.Set(context.SubKey, userID)
 		handler(ctx)
 
 		// Check the status code is what we expect.

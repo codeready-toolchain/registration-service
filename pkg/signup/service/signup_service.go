@@ -194,7 +194,7 @@ func (s *ServiceImpl) Activate(ctx *gin.Context, code string) (*toolchainv1alpha
 	// If no event was found, return an error
 	if event == nil {
 		err := errors.NewBadRequest("invalid activation code")
-		log.Error(ctx, err, "invalid activation code")
+		log.Error(ctx, err, "invalid activation code, no matching active event found")
 		return nil, err
 	}
 

@@ -862,6 +862,14 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 
 		require.NotEmpty(s.T(), event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
 
+		// Add some noise
+		for i := 0; i < 10; i++ {
+			noisyEvent, err := s.newToolchainEvent(5, false, ToolchainEventOptionActive)
+			require.NoError(s.T(), err)
+			err = s.FakeToolchainEventClient.Tracker.Add(noisyEvent)
+			require.NoError(s.T(), err)
+		}
+
 		// given
 		userID, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -871,9 +879,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "jackjones")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "jjones1999@gmail.com")
-		ctx.Set(context.GivenNameKey, "jack")
-		ctx.Set(context.FamilyNameKey, "jones")
-		ctx.Set(context.CompanyKey, "red hat")
 
 		// when
 		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
@@ -902,9 +907,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "janetsmith")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "jsmith@gmail.com")
-		ctx.Set(context.GivenNameKey, "janet")
-		ctx.Set(context.FamilyNameKey, "smith")
-		ctx.Set(context.CompanyKey, "red hat")
 		userSignup, err := s.Application.SignupService().Signup(ctx)
 		require.NoError(s.T(), err)
 
@@ -945,9 +947,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "bobjones")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "bobjones1980@gmail.com")
-		ctx.Set(context.GivenNameKey, "bob")
-		ctx.Set(context.FamilyNameKey, "jones")
-		ctx.Set(context.CompanyKey, "red hat")
 
 		// when
 		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
@@ -976,9 +975,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "jilljones")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "jilljones1992@gmail.com")
-		ctx.Set(context.GivenNameKey, "jill")
-		ctx.Set(context.FamilyNameKey, "jones")
-		ctx.Set(context.CompanyKey, "red hat")
 
 		// when
 		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
@@ -1007,9 +1003,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "hankjohnson")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "hankjohnson@gmail.com")
-		ctx.Set(context.GivenNameKey, "hank")
-		ctx.Set(context.FamilyNameKey, "johnson")
-		ctx.Set(context.CompanyKey, "red hat")
 
 		// when
 		userSignup, err := s.Application.SignupService().Activate(ctx, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
@@ -1046,9 +1039,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx.Set(context.UsernameKey, "hankjohnson")
 		ctx.Set(context.SubKey, userID.String())
 		ctx.Set(context.EmailKey, "hankjohnson@gmail.com")
-		ctx.Set(context.GivenNameKey, "hank")
-		ctx.Set(context.FamilyNameKey, "johnson")
-		ctx.Set(context.CompanyKey, "red hat")
 
 		// when
 		userSignup, err := s.Application.SignupService().Activate(ctx, "AAA-BBB-CCC")
@@ -1075,9 +1065,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx1.Set(context.UsernameKey, "user1")
 		ctx1.Set(context.SubKey, userID1.String())
 		ctx1.Set(context.EmailKey, "user1@gmail.com")
-		ctx1.Set(context.GivenNameKey, "user")
-		ctx1.Set(context.FamilyNameKey, "one")
-		ctx1.Set(context.CompanyKey, "red hat")
 
 		userID2, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -1086,9 +1073,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx2.Set(context.UsernameKey, "user2")
 		ctx2.Set(context.SubKey, userID2.String())
 		ctx2.Set(context.EmailKey, "user2@gmail.com")
-		ctx2.Set(context.GivenNameKey, "user")
-		ctx2.Set(context.FamilyNameKey, "two")
-		ctx2.Set(context.CompanyKey, "red hat")
 
 		userID3, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -1097,9 +1081,6 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		ctx3.Set(context.UsernameKey, "user3")
 		ctx3.Set(context.SubKey, userID3.String())
 		ctx3.Set(context.EmailKey, "user3@gmail.com")
-		ctx3.Set(context.GivenNameKey, "user")
-		ctx3.Set(context.FamilyNameKey, "three")
-		ctx3.Set(context.CompanyKey, "red hat")
 
 		userSignup1, err := s.Application.SignupService().Activate(ctx1, event.Labels[toolchainv1alpha1.ToolchainEventActivationCodeLabelKey])
 		require.NoError(s.T(), err)
@@ -1113,6 +1094,26 @@ func (s *TestSignupServiceSuite) TestRegisterByActivationCode() {
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "limit reached for activation code", err.Error())
 		require.Nil(s.T(), userSignup3)
+	})
+
+	s.Run("Test register user with no events fails", func() {
+		// given
+		userID, err := uuid.NewV4()
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "hankjohnson")
+		ctx.Set(context.SubKey, userID.String())
+		ctx.Set(context.EmailKey, "hankjohnson@gmail.com")
+
+		// when
+		userSignup, err := s.Application.SignupService().Activate(ctx, "F00-BAR")
+
+		// then
+		require.Error(s.T(), err)
+		require.Equal(s.T(), "invalid activation code", err.Error())
+		require.Nil(s.T(), userSignup)
 	})
 }
 
@@ -1179,7 +1180,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 	}
 }
 
-// ToolchainEventOptionIsActive sets the start time of the specified event to 24 hours in the past, the end time to
+// ToolchainEventOptionActive sets the start time of the specified event to 24 hours in the past, the end time to
 // 24 hours in the future, and sets the "Ready" condition to true
 func ToolchainEventOptionActive(event *toolchainv1alpha1.ToolchainEvent) {
 	now := time.Now()

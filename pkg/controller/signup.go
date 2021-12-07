@@ -31,7 +31,7 @@ func NewSignup(app application.Application) *Signup {
 	}
 }
 
-// PostHandler creates a Signup resource
+// ActivateHandler is used to allow a user to register by providing an activation code for a ToolchainEvent
 func (s *Signup) ActivateHandler(ctx *gin.Context) {
 	code := ctx.Param("code")
 	if code == "" {
@@ -52,7 +52,7 @@ func (s *Signup) ActivateHandler(ctx *gin.Context) {
 		return
 	}
 
-	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
+	log.Infof(ctx, "UserSignup %s created via activation code", userSignup.Name)
 	ctx.Status(http.StatusAccepted)
 	ctx.Writer.WriteHeaderNow()
 }

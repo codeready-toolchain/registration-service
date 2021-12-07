@@ -219,27 +219,27 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 func (s *TestSignupServiceSuite) TestEncodeUserID() {
 	s.Run("test valid user ID unchanged", func() {
 		userID := "abcde-12345"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), userID, encoded)
 	})
 	s.Run("test user ID with invalid characters", func() {
 		userID := "abcde\\*-12345"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "c0177ca4-abcde-12345", encoded)
 	})
 	s.Run("test user ID with invalid prefix", func() {
 		userID := "-1234567"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "ca3e1e0f-1234567", encoded)
 	})
 	s.Run("test user ID that exceeds max length", func() {
 		userID := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-01234567890123456789"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "e3632025-0123456789abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", encoded)
 	})
 	s.Run("test user ID with colon separator", func() {
 		userID := "abc:xyz"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "a05a4053-abcxyz", encoded)
 	})
 }

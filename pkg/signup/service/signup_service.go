@@ -101,7 +101,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      EncodeUserID(ctx.GetString(context.SubKey)),
+			Name:      EncodeUserIdentifier(ctx.GetString(context.SubKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -131,12 +131,12 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
+// EncodeUserIdentifier transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
 // ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
 // resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
 // to the new value
-func EncodeUserID(subject string) string {
+func EncodeUserIdentifier(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
 
@@ -164,7 +164,7 @@ func EncodeUserID(subject string) string {
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
+	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
@@ -223,12 +223,13 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
+func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			//userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier())
 			return nil, nil
 		}
 		return nil, err
@@ -304,10 +305,17 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(userID string) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+			if err != nil {
+				return nil, err
+			}
+			return userSignup, nil
+		}
 		return nil, err
 	}
 

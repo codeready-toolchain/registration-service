@@ -169,7 +169,7 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 		// Replace token
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken))
 	}
-	var transport *http.Transport
+	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
 		transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

@@ -2,12 +2,15 @@ package proxy
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"net/textproto"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
@@ -23,13 +26,15 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	ProxyPort = "8081"
+	ProxyPort            = "8081"
+	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io."
 )
 
 type Proxy struct {
@@ -89,8 +94,8 @@ func (p *Proxy) health(res http.ResponseWriter, req *http.Request) {
 func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	ctx, err := p.createContext(req)
 	if err != nil {
-		log.Error(nil, err, "unable to create a context")
-		responseWithError(res, crterrors.NewUnauthorizedError("unable to create a context", err.Error()))
+		log.Error(nil, err, "invalid bearer token")
+		responseWithError(res, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 		return
 	}
 	ns, err := p.getTargetNamespace(ctx)
@@ -128,9 +133,18 @@ func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.NamespaceAccess
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, error) {
-	userToken, err := extractUserToken(req)
-	if err != nil {
-		return "", err
+	userToken := ""
+	var err error
+	if wsstream.IsWebSocketRequest(req) {
+		userToken, err = extractTokenFromWebsocketRequest(req)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		userToken, err = extractUserToken(req)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	token, err := p.tokenParser.FromString(userToken)
@@ -167,7 +181,11 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 			req.Header.Set("User-Agent", "")
 		}
 		// Replace token
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken))
+		if wsstream.IsWebSocketRequest(req) {
+			replaceTokenInWebsocketRequest(req, target.SAToken)
+		} else {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken))
+		}
 	}
 	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
@@ -215,4 +233,59 @@ func newClusterClient() (client.Client, error) {
 		return nil, errors.Wrap(err, "cannot create ToolchainCluster client")
 	}
 	return cl, nil
+}
+
+var ph = textproto.CanonicalMIMEHeaderKey("Sec-WebSocket-Protocol")
+
+func extractTokenFromWebsocketRequest(req *http.Request) (string, error) {
+	token := ""
+	sawTokenProtocol := false
+	var filteredProtocols []string
+	for _, protocolHeader := range req.Header[ph] {
+		for _, protocol := range strings.Split(protocolHeader, ",") {
+			protocol = strings.TrimSpace(protocol)
+			if !strings.HasPrefix(protocol, bearerProtocolPrefix) {
+				filteredProtocols = append(filteredProtocols, protocol)
+				continue
+			}
+
+			if sawTokenProtocol {
+				return "", errors.New("multiple base64.bearer.authorization tokens specified")
+			}
+			sawTokenProtocol = true
+
+			encodedToken := strings.TrimPrefix(protocol, bearerProtocolPrefix)
+			decodedToken, err := base64.RawURLEncoding.DecodeString(encodedToken)
+			if err != nil {
+				return "", errors.Wrap(err, "invalid base64.bearer.authorization token encoding")
+			}
+			if !utf8.Valid(decodedToken) {
+				return "", errors.New("invalid base64.bearer.authorization token")
+			}
+			token = string(decodedToken)
+		}
+	}
+
+	if len(token) == 0 {
+		return "", errors.New("no base64.bearer.authorization token found")
+	}
+
+	return token, nil
+}
+
+func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
+	var protocols []string
+	encodedToken := base64.RawURLEncoding.EncodeToString([]byte(newToken))
+	for _, protocolHeader := range req.Header[ph] {
+		for _, protocol := range strings.Split(protocolHeader, ",") {
+			protocol = strings.TrimSpace(protocol)
+			if !strings.HasPrefix(protocol, bearerProtocolPrefix) {
+				protocols = append(protocols, protocol)
+				continue
+			}
+			// Replace the token
+			protocols = append(protocols, bearerProtocolPrefix+encodedToken)
+		}
+	}
+	req.Header.Set(ph, strings.Join(protocols, ","))
 }

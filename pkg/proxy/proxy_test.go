@@ -100,7 +100,7 @@ func (s *TestProxySuite) TestProxy() {
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), resp)
 				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:no token found:a Bearer token is expected\n")
+				s.assertResponseBody(resp, "invalid bearer token:no token found:a Bearer token is expected\n")
 			})
 
 			s.Run("unauthorized if can't parse token", func() {
@@ -115,7 +115,7 @@ func (s *TestProxySuite) TestProxy() {
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), resp)
 				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:unable to extract userID from token:token contains an invalid number of segments\n")
+				s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments\n")
 			})
 
 			s.Run("unauthorized if can't extract userID from a valid token", func() {
@@ -132,7 +132,7 @@ func (s *TestProxySuite) TestProxy() {
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), resp)
 				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:unable to extract userID from token:token does not comply to expected claims: subject missing\n")
+				s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token does not comply to expected claims: subject missing\n")
 			})
 
 			s.Run("internal error if get namespace returns an error", func() {

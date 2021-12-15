@@ -45,7 +45,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 		return
 	}
 
-	log.Infof(ctx, "UserSignup %s created", userSignup.Name)
+	log.Infof(ctx, "UserSignup %s created or reactivated", userSignup.Name)
 	ctx.Status(http.StatusAccepted)
 	ctx.Writer.WriteHeaderNow()
 }
@@ -109,7 +109,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
-		log.Errorf(ctx, nil, "UserSignup resource for userID: %s resource not found", userID)
+		log.Infof(ctx, "UserSignup resource for userID: %s resource not found", userID)
 		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
 		ctx.JSON(http.StatusOK, signupResource)

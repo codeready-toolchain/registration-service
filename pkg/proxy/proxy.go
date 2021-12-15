@@ -240,12 +240,10 @@ var ph = textproto.CanonicalMIMEHeaderKey("Sec-WebSocket-Protocol")
 func extractTokenFromWebsocketRequest(req *http.Request) (string, error) {
 	token := ""
 	sawTokenProtocol := false
-	var filteredProtocols []string
 	for _, protocolHeader := range req.Header[ph] {
 		for _, protocol := range strings.Split(protocolHeader, ",") {
 			protocol = strings.TrimSpace(protocol)
 			if !strings.HasPrefix(protocol, bearerProtocolPrefix) {
-				filteredProtocols = append(filteredProtocols, protocol)
 				continue
 			}
 

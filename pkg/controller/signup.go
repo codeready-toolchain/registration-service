@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -45,7 +46,11 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 		return
 	}
 
-	log.Infof(ctx, "UserSignup %s created or reactivated", userSignup.Name)
+	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
+		log.Infof(ctx, "UserSignup created: %s", userSignup.Name)
+	} else {
+		log.Infof(ctx, "UserSignup reactivated: %s", userSignup.Name)
+	}
 	ctx.Status(http.StatusAccepted)
 	ctx.Writer.WriteHeaderNow()
 }

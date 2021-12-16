@@ -46,7 +46,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 		return
 	}
 
-	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
+	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; !exists {
 		log.Infof(ctx, "UserSignup created: %s", userSignup.Name)
 	} else {
 		log.Infof(ctx, "UserSignup reactivated: %s", userSignup.Name)

@@ -2,7 +2,9 @@ package proxy
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -40,12 +42,12 @@ func (s *TestProxySuite) TestProxy() {
 		Environment(env))
 	s.SetConfig(testconfig.RegistrationService().
 		Environment(string(testconfig.E2E))) // We use e2e-test environment just to be able to re-use token generation
+	_, err := auth.InitializeDefaultTokenParser()
+	require.NoError(s.T(), err)
 
 	for _, environment := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev, testconfig.Prod} {
 		s.Run("for environment "+string(environment), func() {
 
-			_, err := auth.InitializeDefaultTokenParser()
-			require.NoError(s.T(), err)
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 			fakeApp := &fakeApp{}
@@ -58,20 +60,28 @@ func (s *TestProxySuite) TestProxy() {
 				_ = server.Close()
 			}()
 
-			// Wait up to 5 seconds for the Proxy server to start
-			for i := 0; i < 5; i++ {
+			// Wait up to N seconds for the Proxy server to start
+			ready := false
+			sec := 10
+			for i := 0; i < sec; i++ {
 				log.Println("Checking if Proxy is started...")
 				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), req)
-				_, err = http.DefaultClient.Do(req)
+				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
+					time.Sleep(time.Second)
+					continue
+				} else if resp.StatusCode != http.StatusUnauthorized {
+					// The server may be running but still not fully ready to accept requests
 					time.Sleep(time.Second)
 					continue
 				}
 				// Server is up and running!
+				ready = true
 				break
 			}
+			require.True(s.T(), ready, "Proxy is not ready after %d seconds", sec)
 
 			s.Run("health check ok", func() {
 				req, err := http.NewRequest("GET", "http://localhost:8081/proxyhealth", nil)
@@ -88,112 +98,228 @@ func (s *TestProxySuite) TestProxy() {
 				s.assertResponseBody(resp, `{"alive": true}`)
 			})
 
-			s.Run("return unauthorized if no token present", func() {
-				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-
-				// when
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:no token found:a Bearer token is expected\n")
-			})
-
-			s.Run("unauthorized if can't parse token", func() {
-				// when
-				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-				req.Header.Set("Authorization", "Bearer not-a-token")
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:unable to extract userID from token:token contains an invalid number of segments\n")
-			})
-
-			s.Run("unauthorized if can't extract userID from a valid token", func() {
-				// when
-				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-				userID, err := uuid.NewV4()
-				require.NoError(s.T(), err)
-				req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to create a context:unable to extract userID from token:token does not comply to expected claims: subject missing\n")
-			})
-
-			s.Run("internal error if get namespace returns an error", func() {
-				// given
-				req, _ := s.request()
-				fakeApp.namespaces = map[string]*namespace.NamespaceAccess{}
-				fakeApp.err = errors.New("some-error")
-
-				// when
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-				s.assertResponseBody(resp, "unable to get target namespace:some-error\n")
-			})
-
-			s.Run("successfully Proxy", func() {
-				// given
-				req, userID := s.request()
-				fakeApp.err = nil
-				member1, err := url.Parse("https://member-1.openshift.com:1111")
-				require.NoError(s.T(), err)
-
-				// Start the member-2 API Server
-				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_, err := w.Write([]byte("my response"))
+			s.Run("plain http error", func() {
+				s.Run("unauthorized if no token present", func() {
+					req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 					require.NoError(s.T(), err)
-					assert.Equal(s.T(), "Bearer clusterSAToken", r.Header.Get("Authorization"))
-				}))
-				defer ts.Close()
+					require.NotNil(s.T(), req)
 
-				member2, err := url.Parse(ts.URL)
-				require.NoError(s.T(), err)
+					// when
+					resp, err := http.DefaultClient.Do(req)
 
-				fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
-					"someUserID": { // noise
-						APIURL:  *member1,
-						SAToken: "",
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+					s.assertResponseBody(resp, "invalid bearer token:no token found:a Bearer token is expected\n")
+				})
+
+				s.Run("unauthorized if can't parse token", func() {
+					// when
+					req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), req)
+					req.Header.Set("Authorization", "Bearer not-a-token")
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+					s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments\n")
+				})
+
+				s.Run("unauthorized if can't extract userID from a valid token", func() {
+					// when
+					req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), req)
+					userID, err := uuid.NewV4()
+					require.NoError(s.T(), err)
+					req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+					s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token does not comply to expected claims: subject missing\n")
+				})
+
+				s.Run("internal error if get namespace returns an error", func() {
+					// given
+					req, _ := s.request()
+					fakeApp.namespaces = map[string]*namespace.NamespaceAccess{}
+					fakeApp.err = errors.New("some-error")
+
+					// when
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
+					s.assertResponseBody(resp, "unable to get target namespace:some-error\n")
+				})
+			})
+
+			s.Run("websockets error", func() {
+				tests := map[string]struct {
+					ProtocolHeaders []string
+					ExpectedError   string
+				}{
+					"empty token": {
+						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.,dummy"},
+						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
 					},
-					userID: {
-						APIURL:  *member2,
-						SAToken: "clusterSAToken",
+					"not a jwt token": {
+						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy"},
+						ExpectedError:   "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments",
+					},
+					"invalid token is not base64 encoded": {
+						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.token,dummy"},
+						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token encoding: illegal base64 data at input byte 4",
+					},
+					"invalid token contains non UTF-8-encoded runes": {
+						ProtocolHeaders: []string{fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", base64.RawURLEncoding.EncodeToString([]byte("aa\xe2")))},
+						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token: contains non UTF-8-encoded runes",
+					},
+					"no header": {
+						ProtocolHeaders: nil,
+						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+					},
+					"empty header": {
+						ProtocolHeaders: []string{""},
+						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+					},
+					"non-bearer header": {
+						ProtocolHeaders: []string{"undefined"},
+						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+					},
+					"empty bearer token": {
+						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io."},
+						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+					},
+					"multiple bearer tokens": {
+						ProtocolHeaders: []string{
+							"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy",
+							"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy",
+						},
+						ExpectedError: "invalid bearer token:multiple base64.bearer.authorization tokens specified",
 					},
 				}
 
-				// when
-				client := http.Client{Timeout: 3 * time.Second}
-				resp, err := client.Do(req)
+				for k, tc := range tests {
+					s.Run(k, func() {
+						req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+						require.NoError(s.T(), err)
+						require.NotNil(s.T(), req)
+						upgradeToWebsocket(req)
+						for _, h := range tc.ProtocolHeaders {
+							req.Header.Add("Sec-Websocket-Protocol", h)
+						}
 
-				// then
+						// when
+						resp, err := http.DefaultClient.Do(req)
+
+						// then
+						require.NoError(s.T(), err)
+						require.NotNil(s.T(), resp)
+						assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+						s.assertResponseBody(resp, tc.ExpectedError+"\n")
+					})
+				}
+			})
+
+			s.Run("successfully proxy", func() {
+				userID, err := uuid.NewV4()
 				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
-				s.assertResponseBody(resp, "my response")
+
+				encodedSAToken := base64.RawURLEncoding.EncodeToString([]byte("clusterSAToken"))
+				encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
+
+				tests := map[string]struct {
+					Headers         map[string]string
+					ExpectedHeaders map[string]string
+				}{
+					"plain http": {
+						Headers:         map[string]string{"Authorization": "Bearer " + s.token(userID)},
+						ExpectedHeaders: map[string]string{"Authorization": "Bearer clusterSAToken"},
+					},
+					"websockets": {
+						Headers: map[string]string{
+							"Connection":             "upgrade",
+							"Upgrade":                "websocket",
+							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken),
+						},
+						ExpectedHeaders: map[string]string{
+							"Connection":             "Upgrade",
+							"Upgrade":                "websocket",
+							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken),
+						},
+					},
+				}
+
+				for k, tc := range tests {
+					s.Run(k, func() {
+						// given
+						req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+						require.NoError(s.T(), err)
+						require.NotNil(s.T(), req)
+
+						for hk, hv := range tc.Headers {
+							req.Header.Set(hk, hv)
+						}
+
+						fakeApp.err = nil
+						member1, err := url.Parse("https://member-1.openshift.com:1111")
+						require.NoError(s.T(), err)
+
+						// Start the member-2 API Server
+						ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Content-Type", "application/json")
+							w.WriteHeader(http.StatusOK)
+							_, err := w.Write([]byte("my response"))
+							require.NoError(s.T(), err)
+							for hk, hv := range tc.ExpectedHeaders {
+								assert.Equal(s.T(), hv, r.Header.Get(hk))
+							}
+						}))
+						defer ts.Close()
+
+						member2, err := url.Parse(ts.URL)
+						require.NoError(s.T(), err)
+
+						fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
+							"someUserID": { // noise
+								APIURL:  *member1,
+								SAToken: "",
+							},
+							userID.String(): {
+								APIURL:  *member2,
+								SAToken: "clusterSAToken",
+							},
+						}
+
+						// when
+						client := http.Client{Timeout: 3 * time.Second}
+						resp, err := client.Do(req)
+
+						// then
+						require.NoError(s.T(), err)
+						require.NotNil(s.T(), resp)
+						assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+						s.assertResponseBody(resp, "my response")
+					})
+				}
 			})
 		})
 	}
+}
+
+func upgradeToWebsocket(req *http.Request) {
+	req.Header.Set("Connection", "upgrade")
+	req.Header.Set("Upgrade", "websocket")
 }
 
 func (s *TestProxySuite) TestSingleJoiningSlash() {
@@ -259,6 +385,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(ctx *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
+func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
 	return f.fakeApp.namespaces[userID], f.fakeApp.err
 }

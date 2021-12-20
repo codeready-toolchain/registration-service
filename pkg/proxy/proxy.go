@@ -258,7 +258,7 @@ func extractTokenFromWebsocketRequest(req *http.Request) (string, error) {
 				return "", errors.Wrap(err, "invalid base64.bearer.authorization token encoding")
 			}
 			if !utf8.Valid(decodedToken) {
-				return "", errors.New("invalid base64.bearer.authorization token")
+				return "", errors.New("invalid base64.bearer.authorization token: contains non UTF-8-encoded runes")
 			}
 			token = string(decodedToken)
 		}

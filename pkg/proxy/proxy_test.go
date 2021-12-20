@@ -176,9 +176,13 @@ func (s *TestProxySuite) TestProxy() {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy"},
 						ExpectedError:   "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments",
 					},
-					"invalid base64 encoding": {
+					"invalid token is not base64 encoded": {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.token,dummy"},
 						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token encoding: illegal base64 data at input byte 4",
+					},
+					"invalid token contains non UTF-8-encoded runes": {
+						ProtocolHeaders: []string{fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", base64.RawURLEncoding.EncodeToString([]byte("aa\xe2")))},
+						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token: contains non UTF-8-encoded runes",
 					},
 					"no header": {
 						ProtocolHeaders: nil,

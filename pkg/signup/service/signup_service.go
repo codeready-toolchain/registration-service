@@ -288,6 +288,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		if err != nil {
 			return nil, errors2.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
+		//signupResponse.ProxyURL = status.Status
 		for _, member := range status.Status.Members {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL

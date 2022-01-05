@@ -336,12 +336,15 @@ getJSON('GET', configURL, null, function(err, data) {
       }).success(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');
+          console.log(authenticated)
           // start 15s interval token refresh.
           intervalRefRefresh = setInterval(refreshToken, 15000);
           keycloak.loadUserInfo()
             .success(function(data) {
               console.log('retrieved user info..');
               idToken = keycloak.idToken
+              console.log("data is>>");
+              console.log(data)
               showUser(data.preferred_username, data.sub)
               // now check the signup state of the user.
               updateSignupState();

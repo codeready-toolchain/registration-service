@@ -24,8 +24,46 @@
                 <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
             </div>
             <div class="pf-l-stack__item"><span id="userid"></span></div>
-            <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link" type="button" id="login-command" onclick="showLoginCommand()">Access login command</button></div>
-            <div class="pf-l-stack__item"><span id="oc-login"></span></div>
+            <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link pf-m-small" type="button"id="login-command" onclick="showLoginCommand()">Access login command</button></div>
+            <div class="pf-l-stack__item" id="oc-login" style="display:none">
+              <div class="pf-c-clipboard-copy">
+                <div class="pf-c-clipboard-copy__group">
+                  <button
+                          class="pf-c-button pf-m-control"
+                          type="button"
+                          id="expandable-not-expanded-readonly-toggle"
+                          aria-labelledby="expandable-not-expanded-readonly-toggle expandable-not-expanded-readonly-text-input"
+                          aria-controls="expandable-not-expanded-readonly-content"
+                  >
+                    <div class="pf-c-clipboard-copy__toggle-icon">
+                      <i class="fas fa-angle-right" aria-hidden="true"></i>
+                    </div>
+                  </button>
+                  <input
+                          class="pf-c-form-control"
+                          readonly
+                          type="text"
+                          id="expandable-not-expanded-readonly-text-input"
+                          aria-label="Copyable input"
+                  />
+                  <button
+                          class="pf-c-button pf-m-control"
+                          type="button"
+                          aria-label="Copy to clipboard"
+                          id="expandable-not-expanded-readonly-copy-button"
+                          aria-labelledby="expandable-not-expanded-readonly-copy-button expandable-not-expanded-readonly-text-input"
+                          onclick="copyCommand()"
+                  >
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div
+                        class="pf-c-clipboard-copy__expandable-content"
+                        hidden
+                        id="expandable-not-expanded-readonly-content"
+                ></div>
+              </div>
+            </div>
           </div>
           <span id="user-notloggedin"></span>
         </div>

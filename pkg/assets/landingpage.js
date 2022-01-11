@@ -152,7 +152,8 @@ function updateSignupState() {
       proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
       console.log("proxy url is >>>")
       console.log(proxyURL)
-      document.getElementById('oc-login').textContent = proxyURL
+      // document.getElementById('oc-login').textContent = proxyURL;
+      document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
       }
@@ -330,6 +331,11 @@ function termsAgreed(cb) {
 function showLoginCommand() {
   document.getElementById('login-command').style.display = 'none'
   document.getElementById('oc-login').style.display = 'inline'
+}
+
+function copyCommand() {
+  var inputText = document.getElementById('expandable-not-expanded-readonly-text-input');
+  navigator.clipboard.writeText(inputText.value);
 }
 
 // main operation, load config, load client, run client

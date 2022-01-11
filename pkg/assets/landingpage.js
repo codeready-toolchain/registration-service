@@ -77,6 +77,8 @@ function showUser(username, userid) {
   console.log('showing userId..')
   document.getElementById('userid').textContent = userid;
   document.getElementById('userid').style.display = 'inline';
+  document.getElementById('login-command').style.display = 'inline';
+  document.getElementById('oc-login').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'none';
 }
 
@@ -86,6 +88,8 @@ function hideUser() {
   document.getElementById('username').textContent = '';
   document.getElementById('user-loggedin').style.display = 'none';
   document.getElementById('userid').style.display = 'none';
+  document.getElementById('login-command').style.display = 'none';
+  document.getElementById('oc-login').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'inline';
 }
 
@@ -145,6 +149,10 @@ function updateSignupState() {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
       cheDashboardURL = data.cheDashboardURL;
+      proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
+      console.log("proxy url is >>>")
+      console.log(proxyURL)
+      document.getElementById('oc-login').textContent = proxyURL
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
       }
@@ -319,6 +327,11 @@ function termsAgreed(cb) {
   }
 }
 
+function showLoginCommand() {
+  document.getElementById('login-command').style.display = 'none'
+  document.getElementById('oc-login').style.display = 'inline'
+}
+
 // main operation, load config, load client, run client
 getJSON('GET', configURL, null, function(err, data) {
   if (err !== null) {
@@ -343,8 +356,6 @@ getJSON('GET', configURL, null, function(err, data) {
             .success(function(data) {
               console.log('retrieved user info..');
               idToken = keycloak.idToken
-              console.log("data is>>");
-              console.log(data)
               showUser(data.preferred_username, data.sub)
               // now check the signup state of the user.
               updateSignupState();

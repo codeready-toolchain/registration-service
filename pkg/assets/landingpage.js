@@ -150,9 +150,6 @@ function updateSignupState() {
       }
       cheDashboardURL = data.cheDashboardURL;
       proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
-      console.log("proxy url is >>>")
-      console.log(proxyURL)
-      // document.getElementById('oc-login').textContent = proxyURL;
       document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
@@ -355,7 +352,6 @@ getJSON('GET', configURL, null, function(err, data) {
       }).success(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');
-          console.log(authenticated)
           // start 15s interval token refresh.
           intervalRefRefresh = setInterval(refreshToken, 15000);
           keycloak.loadUserInfo()

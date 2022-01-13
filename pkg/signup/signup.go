@@ -7,6 +7,8 @@ type Signup struct {
 	ConsoleURL string `json:"consoleURL,omitempty"`
 	// The Che Dashboard URL of the cluster which the user was provisioned to
 	CheDashboardURL string `json:"cheDashboardURL,omitempty"`
+	// The proxy URL of the cluster
+	ProxyURL string `json:"proxyURL,omitempty"`
 	// The server api URL of the cluster which the user was provisioned to
 	APIEndpoint string `json:"apiEndpoint,omitempty"`
 	// The name of the cluster which the user was provisioned to

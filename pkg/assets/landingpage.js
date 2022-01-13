@@ -77,6 +77,8 @@ function showUser(username, userid) {
   console.log('showing userId..')
   document.getElementById('userid').textContent = userid;
   document.getElementById('userid').style.display = 'inline';
+  document.getElementById('login-command').style.display = 'inline';
+  document.getElementById('oc-login').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'none';
 }
 
@@ -86,6 +88,8 @@ function hideUser() {
   document.getElementById('username').textContent = '';
   document.getElementById('user-loggedin').style.display = 'none';
   document.getElementById('userid').style.display = 'none';
+  document.getElementById('login-command').style.display = 'none';
+  document.getElementById('oc-login').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'inline';
 }
 
@@ -145,6 +149,8 @@ function updateSignupState() {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
       cheDashboardURL = data.cheDashboardURL;
+      proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
+      document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
       }
@@ -317,6 +323,16 @@ function termsAgreed(cb) {
     document.getElementById('loginbutton').classList.add('getstartedbutton-disabled');
     document.getElementById('loginbutton').classList.remove('getstartedbutton-enabled');  
   }
+}
+
+function showLoginCommand() {
+  document.getElementById('login-command').style.display = 'none'
+  document.getElementById('oc-login').style.display = 'inline'
+}
+
+function copyCommand() {
+  var inputText = document.getElementById('expandable-not-expanded-readonly-text-input');
+  navigator.clipboard.writeText(inputText.value);
 }
 
 // main operation, load config, load client, run client

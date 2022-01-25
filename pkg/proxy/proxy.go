@@ -34,7 +34,7 @@ import (
 
 const (
 	ProxyPort            = "8081"
-	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io."
+	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 )
 
 type Proxy struct {
@@ -190,7 +190,9 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
 		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec
+			},
 		}
 	}
 	return &httputil.ReverseProxy{

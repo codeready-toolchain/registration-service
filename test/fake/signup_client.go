@@ -1,7 +1,7 @@
 package fake
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-type FakeUserSignupClient struct { // nolint: golint
+type FakeUserSignupClient struct { // nolint:revive
 	Tracker               kubetesting.ObjectTracker
 	Scheme                *runtime.Scheme
 	namespace             string
@@ -129,7 +129,7 @@ func (c *FakeUserSignupClient) ListActiveSignupsByPhoneNumberOrHash(phone string
 }
 
 func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
-	md5hash := md5.New()
+	md5hash := md5.New() // nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(labelValue))
 	hash := hex.EncodeToString(md5hash.Sum(nil))

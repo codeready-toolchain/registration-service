@@ -1,7 +1,7 @@
 package service
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	"fmt"
 	"hash/crc32"
@@ -23,7 +23,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
 	"github.com/gin-gonic/gin"
-	errors2 "github.com/pkg/errors"
+	apierrors "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,7 @@ const (
 )
 
 // ServiceConfiguration represents the config used for the signup service.
-type ServiceConfiguration interface { // nolint: golint
+type ServiceConfiguration interface { // nolint:revive
 	GetNamespace() string
 	GetVerificationEnabled() bool
 	GetVerificationExcludedEmailDomains() []string
@@ -45,7 +45,7 @@ type ServiceConfiguration interface { // nolint: golint
 }
 
 // ServiceImpl represents the implementation of the signup service.
-type ServiceImpl struct { // nolint: golint
+type ServiceImpl struct { // nolint:revive
 	base.BaseService
 }
 
@@ -68,7 +68,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	userEmail := ctx.GetString(context.EmailKey)
-	md5hash := md5.New()
+	md5hash := md5.New() // nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(userEmail))
 	emailHash := hex.EncodeToString(md5hash.Sum(nil))
@@ -82,7 +82,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, errors.NewForbidden(schema.GroupResource{}, "", errors2.New("user has been banned"))
+			return nil, errors.NewForbidden(schema.GroupResource{}, "", apierrors.New("user has been banned"))
 		}
 	}
 
@@ -269,12 +269,12 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur, err := s.CRTClient().V1Alpha1().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
 	if err != nil {
-		return nil, errors2.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
+		return nil, apierrors.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
 	ready, err := strconv.ParseBool(string(murCondition.Status))
 	if err != nil {
-		return nil, errors2.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
+		return nil, apierrors.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
 	signupResponse.Status = signup.Status{
 		Ready:                ready,
@@ -286,7 +286,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
 		status, err := s.CRTClient().V1Alpha1().ToolchainStatuses().Get()
 		if err != nil {
-			return nil, errors2.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
+			return nil, apierrors.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
 		for _, member := range status.Status.Members {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
@@ -340,8 +340,8 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 	if err != nil {
 		return errs.NewInternalError(err, "failed listing userSignups")
 	}
-	for _, signup := range userSignupList.Items {
-
+	for i := range userSignupList.Items {
+		signup := userSignupList.Items[i] // avoids the `G601: Implicit memory aliasing in for loop. (gosec)` problem
 		if signup.Spec.Userid != userID && !states.Deactivated(&signup) {
 			return errs.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")

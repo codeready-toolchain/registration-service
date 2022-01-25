@@ -35,7 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -153,7 +153,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx.Request = req
 
 		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
-			return nil, errors2.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
+			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
 		}
 
 		handler(ctx)
@@ -550,7 +550,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	s.Run("getsignup returns nil", func() {
 
 		s.FakeUserSignupClient.MockGet = func(userID string) (userSignup *crtapi.UserSignup, e error) {
-			return nil, errors2.NewNotFound(schema.GroupResource{}, userID)
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, userID)
 		}
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
@@ -579,7 +579,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 	s.Run("update usersignup returns error", func() {
 		s.FakeUserSignupClient.MockUpdate = func(*crtapi.UserSignup) (*crtapi.UserSignup, error) {
-			return nil, errors2.NewServiceUnavailable("service unavailable")
+			return nil, apierrors.NewServiceUnavailable("service unavailable")
 		}
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 

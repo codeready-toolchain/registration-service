@@ -70,9 +70,13 @@ func (s *TestServerSuite) TestServer() {
 			}
 
 			resp, err := client.Do(req)
+			defer func() {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}()
 			if err != nil {
 				// We will ignore and try again until we don't get any error or timeout.
-				return false, nil
+				return false, nil // nolint:nilerr
 			}
 
 			if resp.StatusCode != 200 {

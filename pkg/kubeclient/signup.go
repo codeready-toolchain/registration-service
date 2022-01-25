@@ -2,7 +2,7 @@ package kubeclient
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"fmt"
 	"regexp"
@@ -99,7 +99,7 @@ func (c *userSignupClient) ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHas
 // that have a label matching the md5 hash of the specified value
 func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, value string) (*crtapi.UserSignupList, error) {
 	// Calculate the md5 hash for the label value
-	md5hash := md5.New()
+	md5hash := md5.New() //nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(value))
 	hash := hex.EncodeToString(md5hash.Sum(nil))

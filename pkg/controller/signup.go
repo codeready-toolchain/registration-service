@@ -1,6 +1,7 @@
 package controller
 
 import (
+	stderrors "errors"
 	"net/http"
 	"strconv"
 
@@ -12,7 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -35,17 +36,16 @@ func NewSignup(app application.Application) *Signup {
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
-	if err, ok := err.(*errors2.StatusError); ok {
-		errors.AbortWithError(ctx, int(err.Status().Code), err, "error creating UserSignup resource")
+	e := &apierrors.StatusError{}
+	if stderrors.As(err, &e) {
+		errors.AbortWithError(ctx, int(e.Status().Code), err, "error creating UserSignup resource")
 		return
 	}
-
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
 		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return
 	}
-
 	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; !exists {
 		log.Infof(ctx, "UserSignup created: %s", userSignup.Name)
 	} else {
@@ -89,9 +89,10 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
 	if err != nil {
 		log.Errorf(ctx, nil, "Verification for %s could not be sent", userID)
-		switch t := err.(type) {
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
+		e := &errors.Error{}
+		switch {
+		case stderrors.As(err, &e):
+			errors.AbortWithError(ctx, int(e.Code), err, e.Message)
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		}
@@ -135,11 +136,12 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
-		switch t := err.(type) {
+		e := &errors.Error{}
+		switch {
+		case stderrors.As(err, &e):
+			errors.AbortWithError(ctx, int(e.Code), err, "error while verifying code")
 		default:
 			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, "error while verifying code")
 		}
 		return
 	}

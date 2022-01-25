@@ -1,7 +1,7 @@
 package service_test
 
 import (
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"hash/crc32"
 	"net/http/httptest"
@@ -20,7 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -166,7 +166,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if signup.Name == userID.String() {
-				return nil, errors.New("an error occurred")
+				return nil, stderrors.New("an error occurred")
 			}
 			return &toolchainv1alpha1.UserSignup{}, nil
 		}
@@ -371,11 +371,11 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 
 	// then
 	require.Error(s.T(), err)
-	require.IsType(s.T(), &errors2.StatusError{}, err)
-	errStatus := err.(*errors2.StatusError).ErrStatus
-	require.Equal(s.T(), "Failure", errStatus.Status)
-	require.Equal(s.T(), "forbidden: user has been banned", errStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonForbidden, errStatus.Reason)
+	e := &apierrors.StatusError{}
+	require.True(s.T(), stderrors.As(err, &e))
+	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
+	require.Equal(s.T(), "forbidden: user has been banned", e.ErrStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
@@ -507,7 +507,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 
 	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 		if name == userID.String() {
-			return nil, errors.New("an error occurred")
+			return nil, stderrors.New("an error occurred")
 		}
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
@@ -735,7 +735,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	returnedErr := errors.New("an error occurred")
+	returnedErr := stderrors.New("an error occurred")
 	s.FakeMasterUserRecordClient.MockGet = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
@@ -793,7 +793,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 
 	s.Run("getusersignup returns error", func() {
 		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, errors.New("get failed")
+			return nil, stderrors.New("get failed")
 		}
 
 		val, err := s.Application.SignupService().GetUserSignup("foo")
@@ -806,7 +806,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		s.FakeUserSignupClient.MockGet = nil
 
 		val, err := s.Application.SignupService().GetUserSignup("unknown")
-		require.True(s.T(), errors2.IsNotFound(err))
+		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
 }
@@ -832,7 +832,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 
 	s.Run("updateusersignup returns error", func() {
 		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, errors.New("update failed")
+			return nil, stderrors.New("update failed")
 		}
 
 		val, err := s.Application.SignupService().GetUserSignup(us.Name)

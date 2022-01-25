@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ServerOption = func(server *RegistrationServer) // nolint: golint
+type ServerOption = func(server *RegistrationServer) // nolint:revive
 
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.

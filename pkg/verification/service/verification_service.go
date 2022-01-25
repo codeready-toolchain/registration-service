@@ -1,10 +1,10 @@
 package service
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"crypto/rand"
 	"encoding/hex"
-	errs "errors"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -35,7 +35,7 @@ const (
 )
 
 // ServiceImpl represents the implementation of the verification service.
-type ServiceImpl struct { // nolint: golint
+type ServiceImpl struct { // nolint:revive
 	base.BaseService
 	HTTPClient *http.Client
 }
@@ -79,12 +79,11 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// Check if the provided phone number is already being used by another user
 	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
-		switch t := err.(type) {
-		case *errors.Error:
-			if t.Code == http.StatusForbidden {
-				log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
-				return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
-			}
+		e := &errors.Error{}
+		switch {
+		case stderrors.As(err, &e) && e.Code == http.StatusForbidden:
+			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
+			return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
 		default:
 			log.Error(ctx, err, "error while looking up users by phone number")
 			return errors.NewInternalError(err, "could not lookup users by phone number")
@@ -92,7 +91,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	}
 
 	// calculate the phone number hash
-	md5hash := md5.New()
+	md5hash := md5.New() //nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
@@ -346,7 +345,7 @@ func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
 		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
 		// error to the user here, as we've already logged it
 		if attempts > 4 {
-			return errors.NewInternalError(errs.New("there was an error while updating your account - please wait a moment before trying again."+
+			return errors.NewInternalError(stderrors.New("there was an error while updating your account - please wait a moment before trying again."+
 				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
 				"error while verifying code")
 		}

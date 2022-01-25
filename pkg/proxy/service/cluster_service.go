@@ -23,7 +23,7 @@ import (
 type Option func(f *ServiceImpl)
 
 // ServiceImpl represents the implementation of the member cluster service.
-type ServiceImpl struct { // nolint: golint
+type ServiceImpl struct { // nolint:revive
 	base.BaseService
 	GetMembersFunc cluster.GetMemberClustersFunc
 }

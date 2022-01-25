@@ -2,9 +2,10 @@ package service_test
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	errs "errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,34 +15,29 @@ import (
 	"testing"
 	"time"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
+	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-
 	"github.com/gin-gonic/gin"
-
-	"gopkg.in/h2non/gock.v1"
-
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	testSecretName = "host-operator-secret"
 
 	twilioSIDKey        = "twilio.sid"
-	twilioTokenKey      = "twilio.token"
+	twilioTokenKey      = "twilio.token" // nolint:gosec
 	twilioFromNumberKey = "twilio.fromnumber"
 )
 
@@ -60,7 +56,7 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 	require.NoError(s.T(), err)
 
 	secret := &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      testSecretName,
 			Namespace: ns,
 		},
@@ -121,8 +117,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	gock.Observe(obs)
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -185,8 +181,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	gock.Observe(obs)
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -294,8 +290,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	gock.Observe(obs)
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -352,8 +348,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	now := time.Now()
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -395,8 +391,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	now := time.Now()
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -439,14 +435,14 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	e164PhoneNumber := "+19875551122"
 
 	// calculate the phone number hash
-	md5hash := md5.New()
+	md5hash := md5.New() // nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	alphaUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -467,8 +463,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.NoError(s.T(), err)
 
 	bravoUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -511,14 +507,14 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	e164PhoneNumber := "+19875553344"
 
 	// calculate the phone number hash
-	md5hash := md5.New()
+	md5hash := md5.New() // nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
 
 	alphaUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -541,8 +537,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NoError(s.T(), err)
 
 	bravoUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
@@ -578,8 +574,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("verification ok", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
@@ -614,8 +610,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("when verification code is invalid", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
@@ -642,16 +638,17 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.Error{})
-		require.Equal(s.T(), "invalid code:the provided code is invalid", err.(*errors.Error).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+		e := &errors.Error{}
+		require.True(s.T(), stderrors.As(err, &e))
+		require.Equal(s.T(), "invalid code:the provided code is invalid", e.Error())
+		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
@@ -676,17 +673,17 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
-		require.Error(s.T(), err)
-		require.IsType(s.T(), err, &errors.Error{})
-		require.Equal(s.T(), "expired:verification code expired", err.(*errors.Error).Error())
-		require.Equal(s.T(), http.StatusForbidden, int(err.(*errors.Error).Code))
+		e := &errors.Error{}
+		require.True(s.T(), stderrors.As(err, &e))
+		require.Equal(s.T(), "expired:verification code expired", e.Error())
+		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
@@ -718,8 +715,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
@@ -756,8 +753,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{

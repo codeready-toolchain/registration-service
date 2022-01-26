@@ -575,6 +575,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "", response.CheDashboardURL)
 	require.Equal(s.T(), "", response.APIEndpoint)
 	require.Equal(s.T(), "", response.ClusterName)
+	require.Equal(s.T(), "", response.ProxyURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
@@ -640,6 +641,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.CheDashboardURL)
 		require.Equal(s.T(), "", response.APIEndpoint)
 		require.Equal(s.T(), "", response.ClusterName)
+		require.Equal(s.T(), "", response.ProxyURL)
 	}
 }
 
@@ -694,6 +696,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					},
 				},
 			},
+			HostRoutes: toolchainv1alpha1.HostRoutes{
+				ProxyURL: "https://proxy-url.com",
+			},
 		},
 	})
 	require.NoError(s.T(), err)
@@ -712,6 +717,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
+	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {

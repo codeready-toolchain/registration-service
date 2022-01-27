@@ -21,7 +21,7 @@ require (
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
 	github.com/ttacon/libphonenumber v1.1.0 // indirect
 	go.uber.org/zap v1.15.0
@@ -36,5 +36,9 @@ require (
 	k8s.io/klog/v2 v2.8.0
 	sigs.k8s.io/controller-runtime v0.8.3
 )
+
+replace github.com/codeready-toolchain/api => github.com/xcoulon/api v0.0.0-20220127135604-0fab356f7a15
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/xcoulon/toolchain-common v0.0.0-20220127135755-5e21549c9cb8
 
 go 1.16

@@ -145,7 +145,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// cleanup and close after being done
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
-		if err != io.EOF && err != nil {
+		if errors.Is(err, io.EOF) {
 			log.Error(nil, err, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()

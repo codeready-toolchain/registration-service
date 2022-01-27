@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -72,7 +73,10 @@ func (s *TestProxySuite) TestProxy() {
 				if err != nil {
 					time.Sleep(time.Second)
 					continue
-				} else if resp.StatusCode != http.StatusUnauthorized {
+				}
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusUnauthorized {
 					// The server may be running but still not fully ready to accept requests
 					time.Sleep(time.Second)
 					continue

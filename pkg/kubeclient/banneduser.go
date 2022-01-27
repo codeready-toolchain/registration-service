@@ -2,7 +2,7 @@ package kubeclient
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"fmt"
 
@@ -46,7 +46,7 @@ func (c *bannedUserClient) ListByPhoneNumberOrHash(phoneNumberOrHash string) (*c
 // the hash of the specified value
 func (c *bannedUserClient) listByLabelForHashedValue(labelKey, valueToHash string) (*crtapi.BannedUserList, error) {
 	// Calculate the md5 hash for the phoneNumber
-	md5hash := md5.New()
+	md5hash := md5.New() //nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(valueToHash))
 	hash := hex.EncodeToString(md5hash.Sum(nil))

@@ -8,32 +8,26 @@ import (
 	"strings"
 	"testing"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gin-gonic/gin"
-
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/test"
-
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	apiv1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
@@ -371,11 +365,11 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 
 	// then
 	require.Error(s.T(), err)
-	require.IsType(s.T(), &errors2.StatusError{}, err)
-	errStatus := err.(*errors2.StatusError).ErrStatus
-	require.Equal(s.T(), "Failure", errStatus.Status)
-	require.Equal(s.T(), "forbidden: user has been banned", errStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonForbidden, errStatus.Reason)
+	e := &apierrors.StatusError{}
+	require.True(s.T(), errors.As(err, &e))
+	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
+	require.Equal(s.T(), "forbidden: user has been banned", e.ErrStatus.Message)
+	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
@@ -812,7 +806,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		s.FakeUserSignupClient.MockGet = nil
 
 		val, err := s.Application.SignupService().GetUserSignup("unknown")
-		require.True(s.T(), errors2.IsNotFound(err))
+		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
 }

@@ -1,18 +1,19 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/nyaruka/phonenumbers"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Signup implements the signup endpoint, which is invoked for new user registrations.
@@ -35,17 +36,16 @@ func NewSignup(app application.Application) *Signup {
 // PostHandler creates a Signup resource
 func (s *Signup) PostHandler(ctx *gin.Context) {
 	userSignup, err := s.app.SignupService().Signup(ctx)
-	if err, ok := err.(*errors2.StatusError); ok {
-		errors.AbortWithError(ctx, int(err.Status().Code), err, "error creating UserSignup resource")
+	e := &apierrors.StatusError{}
+	if errors.As(err, &e) {
+		crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error creating UserSignup resource")
 		return
 	}
-
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
+		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 		return
 	}
-
 	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; !exists {
 		log.Infof(ctx, "UserSignup created: %s", userSignup.Name)
 	} else {
@@ -66,14 +66,14 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	var phone Phone
 	if err := ctx.BindJSON(&phone); err != nil {
 		log.Errorf(ctx, err, "request body does not contain required fields phone_number and country_code")
-		errors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
+		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
 		return
 	}
 
 	countryCode, err := strconv.Atoi(phone.CountryCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid country_code value")
-		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
+		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
 		return
 	}
 
@@ -81,7 +81,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	number, err := phonenumbers.Parse(phone.PhoneNumber, regionCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid phone number")
-		errors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
+		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
 		return
 	}
 
@@ -89,11 +89,12 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
 	if err != nil {
 		log.Errorf(ctx, err, "Verification for %s could not be sent", userID)
-		switch t := err.(type) {
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, t.Message)
+		e := &crterrors.Error{}
+		switch {
+		case errors.As(err, &e):
+			crterrors.AbortWithError(ctx, int(e.Code), err, e.Message)
 		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
+			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		}
 		return
 	}
@@ -111,7 +112,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	signupResource, err := s.app.SignupService().GetSignup(userID)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
-		errors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
 		log.Infof(ctx, "UserSignup resource for userID: %s resource not found", userID)
@@ -135,11 +136,12 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
-		switch t := err.(type) {
+		e := &crterrors.Error{}
+		switch {
+		case errors.As(err, &e):
+			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying code")
 		default:
-			errors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
-		case *errors.Error:
-			errors.AbortWithError(ctx, int(t.Code), err, "error while verifying code")
+			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
 		}
 		return
 	}

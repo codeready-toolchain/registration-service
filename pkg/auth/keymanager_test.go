@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -96,7 +97,13 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		defer ts.Close()
 
 		// check if service runs
-		_, err := http.Get(ts.URL)
+		resp, err := http.Get(ts.URL)
+		defer func() {
+			if resp != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}
+		}()
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.
@@ -122,7 +129,13 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 		defer ts.Close()
 
 		// check if service runs
-		_, err := http.Get(ts.URL)
+		resp, err := http.Get(ts.URL)
+		defer func() {
+			if resp != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+			}
+		}()
 		require.NoError(s.T(), err)
 
 		// Set the config for testing mode, the handler may use this.

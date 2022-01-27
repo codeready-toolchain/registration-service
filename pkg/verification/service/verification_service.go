@@ -1,29 +1,26 @@
 package service
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"crypto/rand"
 	"encoding/hex"
-	errs "errors"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-
-	"github.com/kevinburke/twilio-go"
-
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+
 	"github.com/gin-gonic/gin"
+	"github.com/kevinburke/twilio-go"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -35,7 +32,7 @@ const (
 )
 
 // ServiceImpl represents the implementation of the verification service.
-type ServiceImpl struct { // nolint: golint
+type ServiceImpl struct { // nolint:revive
 	base.BaseService
 	HTTPClient *http.Client
 }
@@ -62,10 +59,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
-			return errors.NewNotFoundError(err, "usersignup not found")
+			return crterrors.NewNotFoundError(err, "usersignup not found")
 		}
 		log.Error(ctx, err, "error retrieving usersignup")
-		return errors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 	labelValues := map[string]string{}
 	annotationValues := map[string]string{}
@@ -73,26 +70,25 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// check that verification is required before proceeding
 	if !states.VerificationRequired(signup) {
 		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: %s", userID))
-		return errors.NewBadRequest("forbidden request", "verification code will not be sent")
+		return crterrors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
 
 	// Check if the provided phone number is already being used by another user
 	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
 	if err != nil {
-		switch t := err.(type) {
-		case *errors.Error:
-			if t.Code == http.StatusForbidden {
-				log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
-				return errors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
-			}
+		e := &crterrors.Error{}
+		switch {
+		case errors.As(err, &e) && e.Code == http.StatusForbidden:
+			log.Errorf(ctx, err, "phone number already in use, cannot register using phone number: %s", e164PhoneNumber)
+			return crterrors.NewForbiddenError("phone number already in use", fmt.Sprintf("cannot register using phone number: %s", e164PhoneNumber))
 		default:
 			log.Error(ctx, err, "error while looking up users by phone number")
-			return errors.NewInternalError(err, "could not lookup users by phone number")
+			return crterrors.NewInternalError(err, "could not lookup users by phone number")
 		}
 	}
 
 	// calculate the phone number hash
-	md5hash := md5.New()
+	md5hash := md5.New() //nolint:gosec
 	// Ignore the error, as this implementation cannot return one
 	_, _ = md5hash.Write([]byte(e164PhoneNumber))
 	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
@@ -134,14 +130,14 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
-		initError = errors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
+		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	}
 
 	if initError == nil {
 		// generate verification code
 		verificationCode, err := generateVerificationCode()
 		if err != nil {
-			return errors.NewInternalError(err, "error while generating verification code")
+			return crterrors.NewInternalError(err, "error while generating verification code")
 		}
 		// set the usersignup annotations
 		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
@@ -163,7 +159,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 			}
 
 			// If we get an error here then just die, don't bother updating the UserSignup
-			return errors.NewInternalError(err, "error while sending verification code")
+			return crterrors.NewInternalError(err, "error while sending verification code")
 		}
 	}
 
@@ -223,10 +219,10 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	if lookupErr != nil {
 		if apierrors.IsNotFound(lookupErr) {
 			log.Error(ctx, lookupErr, "usersignup not found")
-			return errors.NewNotFoundError(lookupErr, "user not found")
+			return crterrors.NewNotFoundError(lookupErr, "user not found")
 		}
 		log.Error(ctx, lookupErr, "error retrieving usersignup")
-		return errors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return crterrors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 
 	annotationValues := map[string]string{}
@@ -236,7 +232,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
-		return errors.NewBadRequest("phone number already in use",
+		return crterrors.NewBadRequest("phone number already in use",
 			"the phone number provided for this signup is already in use by an active account")
 	}
 
@@ -256,7 +252,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 
 	// If the user has made more attempts than is allowed per generated verification code, return an error
 	if attemptsMade >= cfg.Verification().AttemptsAllowed() {
-		verificationErr = errors.NewTooManyRequestsError("too many verification attempts", "")
+		verificationErr = crterrors.NewTooManyRequestsError("too many verification attempts", "")
 	}
 
 	if verificationErr == nil {
@@ -264,10 +260,10 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 		exp, parseErr := time.Parse(TimestampLayout, signup.Annotations[toolchainv1alpha1.UserVerificationExpiryAnnotationKey])
 		if parseErr != nil {
 			// If the verification expiry timestamp is corrupt or missing, then return an error
-			verificationErr = errors.NewInternalError(parseErr, "error parsing expiry timestamp")
+			verificationErr = crterrors.NewInternalError(parseErr, "error parsing expiry timestamp")
 		} else if now.After(exp) {
 			// If it is now past the expiry timestamp for the verification code, return a 403 Forbidden error
-			verificationErr = errors.NewForbiddenError("expired", "verification code expired")
+			verificationErr = crterrors.NewForbiddenError("expired", "verification code expired")
 		}
 	}
 
@@ -276,7 +272,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 			// The code doesn't match
 			attemptsMade++
 			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-			verificationErr = errors.NewForbiddenError("invalid code", "the provided code is invalid")
+			verificationErr = crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
 		}
 	}
 
@@ -346,7 +342,7 @@ func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
 		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
 		// error to the user here, as we've already logged it
 		if attempts > 4 {
-			return errors.NewInternalError(errs.New("there was an error while updating your account - please wait a moment before trying again."+
+			return crterrors.NewInternalError(errors.New("there was an error while updating your account - please wait a moment before trying again."+
 				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
 				"error while verifying code")
 		}

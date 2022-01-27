@@ -13,7 +13,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 )
 
-type FakeMasterUserRecordClient struct { // nolint: golint
+type FakeMasterUserRecordClient struct { // nolint:revive
 	Tracker    kubetesting.ObjectTracker
 	Scheme     *runtime.Scheme
 	namespace  string

@@ -1,39 +1,33 @@
 package service_test
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gin-gonic/gin"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/test"
-
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	apiv1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
@@ -166,7 +160,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if signup.Name == userID.String() {
-				return nil, stderrors.New("an error occurred")
+				return nil, errors.New("an error occurred")
 			}
 			return &toolchainv1alpha1.UserSignup{}, nil
 		}
@@ -372,7 +366,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	// then
 	require.Error(s.T(), err)
 	e := &apierrors.StatusError{}
-	require.True(s.T(), stderrors.As(err, &e))
+	require.True(s.T(), errors.As(err, &e))
 	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
 	require.Equal(s.T(), "forbidden: user has been banned", e.ErrStatus.Message)
 	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
@@ -507,7 +501,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 
 	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 		if name == userID.String() {
-			return nil, stderrors.New("an error occurred")
+			return nil, errors.New("an error occurred")
 		}
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
@@ -741,7 +735,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	returnedErr := stderrors.New("an error occurred")
+	returnedErr := errors.New("an error occurred")
 	s.FakeMasterUserRecordClient.MockGet = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 		if name == us.Status.CompliantUsername {
 			return nil, returnedErr
@@ -799,7 +793,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 
 	s.Run("getusersignup returns error", func() {
 		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, stderrors.New("get failed")
+			return nil, errors.New("get failed")
 		}
 
 		val, err := s.Application.SignupService().GetUserSignup("foo")
@@ -838,7 +832,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 
 	s.Run("updateusersignup returns error", func() {
 		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, stderrors.New("update failed")
+			return nil, errors.New("update failed")
 		}
 
 		val, err := s.Application.SignupService().GetUserSignup(us.Name)

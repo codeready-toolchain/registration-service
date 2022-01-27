@@ -15,7 +15,7 @@ import (
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
@@ -23,9 +23,9 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
 	"github.com/gin-gonic/gin"
-	apierrors "github.com/pkg/errors"
+	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -64,7 +64,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	username = usersignup.TransformUsername(username)
 	if strings.HasSuffix(username, "crtadmin") {
 		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
-		return nil, errors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
+		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
 	}
 
 	userEmail := ctx.GetString(context.EmailKey)
@@ -82,7 +82,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, errors.NewForbidden(schema.GroupResource{}, "", apierrors.New("user has been banned"))
+			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
 		}
 	}
 
@@ -168,7 +168,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
 			return s.createUserSignup(ctx)
@@ -184,7 +184,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	}
 
 	username := ctx.GetString(context.UsernameKey)
-	return nil, errors.NewConflict(schema.GroupResource{}, "", fmt.Errorf("UserSignup [id: %s; username: %s]. Unable to create UserSignup because there is already an active UserSignup with such ID", encodedUserID, username))
+	return nil, apierrors.NewConflict(schema.GroupResource{}, "", fmt.Errorf("UserSignup [id: %s; username: %s]. Unable to create UserSignup because there is already an active UserSignup with such ID", encodedUserID, username))
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username and userID
@@ -228,7 +228,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -269,12 +269,12 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur, err := s.CRTClient().V1Alpha1().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
 	if err != nil {
-		return nil, apierrors.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
+		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
 	ready, err := strconv.ParseBool(string(murCondition.Status))
 	if err != nil {
-		return nil, apierrors.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
+		return nil, errs.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
 	signupResponse.Status = signup.Status{
 		Ready:                ready,
@@ -286,7 +286,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
 		status, err := s.CRTClient().V1Alpha1().ToolchainStatuses().Get()
 		if err != nil {
-			return nil, apierrors.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
+			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
 		for _, member := range status.Status.Members {
@@ -331,20 +331,19 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup)
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) error {
 	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhoneNumberOrHash(phoneNumberOrHash)
 	if err != nil {
-		return errs.NewInternalError(err, "failed listing banned users")
+		return errors.NewInternalError(err, "failed listing banned users")
 	}
 	if len(bannedUserList.Items) > 0 {
-		return errs.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+		return errors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
 	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash)
 	if err != nil {
-		return errs.NewInternalError(err, "failed listing userSignups")
+		return errors.NewInternalError(err, "failed listing userSignups")
 	}
-	for i := range userSignupList.Items {
-		signup := userSignupList.Items[i] // avoids the `G601: Implicit memory aliasing in for loop. (gosec)` problem
-		if signup.Spec.Userid != userID && !states.Deactivated(&signup) {
-			return errs.NewForbiddenError("cannot re-register with phone number",
+	for _, signup := range userSignupList.Items {
+		if signup.Spec.Userid != userID && !states.Deactivated(&signup) { // nolint:gosec
+			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}
 	}

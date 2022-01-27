@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"crypto/md5" // nolint:gosec
 	"encoding/hex"
+	"errors"
 	errs "errors"
-	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,7 +18,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
@@ -638,8 +638,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
 		require.Error(s.T(), err)
-		e := &errors.Error{}
-		require.True(s.T(), stderrors.As(err, &e))
+		e := &crterrors.Error{}
+		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "invalid code:the provided code is invalid", e.Error())
 		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
@@ -673,8 +673,8 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
-		e := &errors.Error{}
-		require.True(s.T(), stderrors.As(err, &e))
+		e := &crterrors.Error{}
+		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "expired:verification code expired", e.Error())
 		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})

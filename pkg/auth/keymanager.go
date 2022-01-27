@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"encoding/json"
-	stderrors "errors"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -77,7 +77,7 @@ func NewKeyManager() (*KeyManager, error) {
 func (km *KeyManager) Key(kid string) (*rsa.PublicKey, error) {
 	key, ok := km.keyMap[kid]
 	if !ok {
-		return nil, stderrors.New("unknown kid")
+		return nil, errors.New("unknown kid")
 	}
 	return key, nil
 }
@@ -113,7 +113,7 @@ func (km *KeyManager) unmarshalKey(jsonData []byte) (*PublicKey, error) {
 	}
 	rsaKey, ok := key.Key.(*rsa.PublicKey)
 	if !ok {
-		return nil, stderrors.New("Key is not an *rsa.PublicKey")
+		return nil, errors.New("Key is not an *rsa.PublicKey")
 	}
 	return &PublicKey{key.KeyID, rsaKey}, nil
 }
@@ -145,7 +145,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// cleanup and close after being done
 	defer func() {
 		_, err := ioutil.ReadAll(res.Body)
-		if stderrors.Is(err, io.EOF) {
+		if errors.Is(err, io.EOF) {
 			log.Error(nil, err, "failed read remaining data before closing response")
 		}
 		err = res.Body.Close()
@@ -162,7 +162,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	bodyString := buf.String()
 	// if status code was not OK, bail out
 	if res.StatusCode != http.StatusOK {
-		err := stderrors.New("unable to obtain public keys from remote service")
+		err := errors.New("unable to obtain public keys from remote service")
 		log.WithValues(map[string]interface{}{
 			"response_status": res.Status,
 			"response_body":   bodyString,

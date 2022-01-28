@@ -250,7 +250,10 @@ func (s *TestProxySuite) TestProxy() {
 					"plain http": {
 						ProxyHeaders:                    map[string]string{"Authorization": "Bearer " + s.token(userID)},
 						ExpectedAPIServerRequestHeaders: map[string]string{"Authorization": "Bearer clusterSAToken"},
-						ExpectedProxyResponseHeaders:    map[string]string{"Access-Control-Allow-Origin": "*"},
+						ExpectedProxyResponseHeaders: map[string]string{
+							"Access-Control-Allow-Origin":      "*",
+							"Access-Control-Allow-Credentials": "true",
+						},
 					},
 					"websockets": {
 						ProxyHeaders: map[string]string{
@@ -263,7 +266,10 @@ func (s *TestProxySuite) TestProxy() {
 							"Upgrade":                "websocket",
 							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken),
 						},
-						ExpectedProxyResponseHeaders: map[string]string{"Access-Control-Allow-Origin": "*"},
+						ExpectedProxyResponseHeaders: map[string]string{
+							"Access-Control-Allow-Origin":      "*",
+							"Access-Control-Allow-Credentials": "true",
+						},
 					},
 				}
 

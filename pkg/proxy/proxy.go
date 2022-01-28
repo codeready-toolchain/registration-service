@@ -201,6 +201,7 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 		FlushInterval: -1,
 		ModifyResponse: func(response *http.Response) error {
 			response.Header.Set("Access-Control-Allow-Origin", "*")
+			response.Header.Set("Access-Control-Allow-Credentials", "true")
 			return nil
 		},
 	}

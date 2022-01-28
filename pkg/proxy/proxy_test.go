@@ -253,6 +253,7 @@ func (s *TestProxySuite) TestProxy() {
 						ExpectedProxyResponseHeaders: map[string]string{
 							"Access-Control-Allow-Origin":      "*",
 							"Access-Control-Allow-Credentials": "true",
+							"Access-Control-Expose-Headers":    "Content-Encoding,Authorization",
 						},
 					},
 					"websockets": {
@@ -269,6 +270,7 @@ func (s *TestProxySuite) TestProxy() {
 						ExpectedProxyResponseHeaders: map[string]string{
 							"Access-Control-Allow-Origin":      "*",
 							"Access-Control-Allow-Credentials": "true",
+							"Access-Control-Expose-Headers":    "Content-Encoding,Authorization",
 						},
 					},
 				}

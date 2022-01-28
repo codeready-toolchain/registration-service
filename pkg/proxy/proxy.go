@@ -71,9 +71,12 @@ func (p *Proxy) StartProxy() *http.Server {
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
 	mux.HandleFunc("/proxyhealth", p.health)
 
+	// Insert the CORS preflight middleware
+	handler := corsPreflightHandler(mux)
+
 	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the Proxy server...")
-	srv := &http.Server{Addr: ":" + ProxyPort, Handler: mux}
+	srv := &http.Server{Addr: ":" + ProxyPort, Handler: handler}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
@@ -196,14 +199,10 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 		}
 	}
 	return &httputil.ReverseProxy{
-		Director:      director,
-		Transport:     transport,
-		FlushInterval: -1,
-		ModifyResponse: func(response *http.Response) error {
-			response.Header.Set("Access-Control-Allow-Origin", "*")
-			response.Header.Set("Access-Control-Allow-Credentials", "true")
-			return nil
-		},
+		Director:       director,
+		Transport:      transport,
+		FlushInterval:  -1,
+		ModifyResponse: addCorsToResponse,
 	}
 }
 

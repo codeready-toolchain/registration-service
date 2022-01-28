@@ -243,24 +243,27 @@ func (s *TestProxySuite) TestProxy() {
 				encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
 
 				tests := map[string]struct {
-					Headers         map[string]string
-					ExpectedHeaders map[string]string
+					ProxyHeaders                    map[string]string
+					ExpectedAPIServerRequestHeaders map[string]string
+					ExpectedProxyResponseHeaders    map[string]string
 				}{
 					"plain http": {
-						Headers:         map[string]string{"Authorization": "Bearer " + s.token(userID)},
-						ExpectedHeaders: map[string]string{"Authorization": "Bearer clusterSAToken"},
+						ProxyHeaders:                    map[string]string{"Authorization": "Bearer " + s.token(userID)},
+						ExpectedAPIServerRequestHeaders: map[string]string{"Authorization": "Bearer clusterSAToken"},
+						ExpectedProxyResponseHeaders:    map[string]string{"Access-Control-Allow-Origin": "*"},
 					},
 					"websockets": {
-						Headers: map[string]string{
+						ProxyHeaders: map[string]string{
 							"Connection":             "upgrade",
 							"Upgrade":                "websocket",
 							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken),
 						},
-						ExpectedHeaders: map[string]string{
+						ExpectedAPIServerRequestHeaders: map[string]string{
 							"Connection":             "Upgrade",
 							"Upgrade":                "websocket",
 							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken),
 						},
+						ExpectedProxyResponseHeaders: map[string]string{"Access-Control-Allow-Origin": "*"},
 					},
 				}
 
@@ -271,7 +274,7 @@ func (s *TestProxySuite) TestProxy() {
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), req)
 
-						for hk, hv := range tc.Headers {
+						for hk, hv := range tc.ProxyHeaders {
 							req.Header.Set(hk, hv)
 						}
 
@@ -285,7 +288,7 @@ func (s *TestProxySuite) TestProxy() {
 							w.WriteHeader(http.StatusOK)
 							_, err := w.Write([]byte("my response"))
 							require.NoError(s.T(), err)
-							for hk, hv := range tc.ExpectedHeaders {
+							for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 								assert.Equal(s.T(), hv, r.Header.Get(hk))
 							}
 						}))
@@ -314,6 +317,9 @@ func (s *TestProxySuite) TestProxy() {
 						require.NotNil(s.T(), resp)
 						assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 						s.assertResponseBody(resp, "my response")
+						for hk, hv := range tc.ExpectedProxyResponseHeaders {
+							assert.Equal(s.T(), hv, resp.Header.Get(hk))
+						}
 					})
 				}
 			})

@@ -2,8 +2,8 @@ module github.com/codeready-toolchain/registration-service
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20220110101730-04d30e90a574
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20220110102259-392256a24155
+	github.com/codeready-toolchain/api v0.0.0-20220128071955-6baa0dfc9574
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20220128072729-4dd5728f0084
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.7.2
@@ -21,7 +21,7 @@ require (
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
 	github.com/ttacon/libphonenumber v1.1.0 // indirect
 	go.uber.org/zap v1.15.0

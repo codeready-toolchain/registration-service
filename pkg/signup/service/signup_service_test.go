@@ -671,7 +671,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			Members: []toolchainv1alpha1.Member{
 				{
 					ClusterName: "member-1",
-					ApiEndpoint: "http://api.devcluster.openshift.com",
+					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-1.com",
@@ -681,7 +681,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				},
 				{
 					ClusterName: "member-123",
-					ApiEndpoint: "http://api.devcluster.openshift.com",
+					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
 							ConsoleURL:      "https://console.member-123.com",

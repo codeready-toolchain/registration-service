@@ -293,7 +293,7 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
 				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
-				signupResponse.APIEndpoint = member.ApiEndpoint
+				signupResponse.APIEndpoint = member.APIEndpoint
 				signupResponse.ClusterName = member.ClusterName
 				break
 			}

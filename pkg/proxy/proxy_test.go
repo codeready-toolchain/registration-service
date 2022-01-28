@@ -253,12 +253,14 @@ func (s *TestProxySuite) TestProxy() {
 					"plain http cors preflight request": {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
-							"Origin":                        {"https://domain.com"},
-							"Access-Control-Request-Method": {"GET"},
+							"Origin":                         {"https://domain.com"},
+							"Access-Control-Request-Method":  {"GET"},
+							"Access-Control-Request-Headers": {"Authorization"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
 							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Allow-Headers":     {"Authorization"},
 							"Vary":                             {"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
 						},
 						ExpectedProxyResponseStatus: http.StatusNoContent,

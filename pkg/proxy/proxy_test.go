@@ -326,7 +326,7 @@ func (s *TestProxySuite) TestProxy() {
 								require.NoError(s.T(), err)
 								for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 									require.Len(s.T(), r.Header.Values(hk), len(hv))
-									for i, _ := range hv {
+									for i := range hv {
 										assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
 									}
 								}
@@ -361,7 +361,7 @@ func (s *TestProxySuite) TestProxy() {
 						}
 						for hk, hv := range tc.ExpectedProxyResponseHeaders {
 							require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
-							for i, _ := range hv {
+							for i := range hv {
 								assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
 							}
 						}

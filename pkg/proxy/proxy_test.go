@@ -317,6 +317,9 @@ func (s *TestProxySuite) TestProxy() {
 						require.NotNil(s.T(), resp)
 						assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 						s.assertResponseBody(resp, "my response")
+						for hk, hv := range tc.ExpectedProxyResponseHeaders {
+							assert.Equal(s.T(), hv, resp.Header.Get(hk))
+						}
 					})
 				}
 			})

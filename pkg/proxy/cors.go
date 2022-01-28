@@ -75,6 +75,7 @@ func isMethodAllowed(method string) bool {
 // addCorsToResponse adds CORS headers to the response
 func addCorsToResponse(response *http.Response) error {
 	// CORS Headers
+	response.Header.Add("Vary", "Origin")
 	response.Header.Set("Access-Control-Allow-Origin", "*")
 	response.Header.Set("Access-Control-Allow-Credentials", "true")
 	response.Header.Set("Access-Control-Expose-Headers", "Content-Length, Content-Encoding, Authorization")

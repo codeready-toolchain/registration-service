@@ -295,6 +295,23 @@ func (s *TestProxySuite) TestProxy() {
 						ExpectedProxyResponseStatus: http.StatusNoContent,
 						Standalone:                  true,
 					},
+					"plain http cors preflight request multiple request headers": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin":                         {"https://domain.com"},
+							"Access-Control-Request-Method":  {"GET"},
+							"Access-Control-Request-Headers": {"Authorization, content-Type, header, second-header, THIRD-HEADER, Numb3r3d-H34d3r"},
+						},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Allow-Headers":     {"Authorization, Content-Type, Header, Second-Header, Third-Header, Numb3r3d-H34d3r"},
+							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},
+							"Vary":                             {"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
+						},
+						ExpectedProxyResponseStatus: http.StatusNoContent,
+						Standalone:                  true,
+					},
 					"plain http actual request": {
 						ProxyRequestMethod:              "GET",
 						ProxyRequestHeaders:             map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},

@@ -250,6 +250,23 @@ func (s *TestProxySuite) TestProxy() {
 					ExpectedProxyResponseStatus     int
 					Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
 				}{
+					"plain http cors preflight request with no request method": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin": {"https://domain.com"},
+						},
+						ExpectedProxyResponseStatus: http.StatusUnauthorized,
+						Standalone:                  true,
+					},
+					"plain http cors preflight request with unknown request method": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin":                        {"https://domain.com"},
+							"Access-Control-Request-Method": {"UNKNOWN"},
+						},
+						ExpectedProxyResponseStatus: http.StatusNoContent,
+						Standalone:                  true,
+					},
 					"plain http cors preflight request": {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
@@ -261,6 +278,7 @@ func (s *TestProxySuite) TestProxy() {
 							"Access-Control-Allow-Origin":      {"*"},
 							"Access-Control-Allow-Credentials": {"true"},
 							"Access-Control-Allow-Headers":     {"Authorization"},
+							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},
 							"Vary":                             {"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
 						},
 						ExpectedProxyResponseStatus: http.StatusNoContent,

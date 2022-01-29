@@ -255,8 +255,9 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestHeaders: map[string][]string{
 							"Origin": {"https://domain.com"},
 						},
-						ExpectedProxyResponseStatus: http.StatusUnauthorized,
-						Standalone:                  true,
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusUnauthorized,
+						Standalone:                   true,
 					},
 					"plain http cors preflight request with unknown request method": {
 						ProxyRequestMethod: "OPTIONS",
@@ -264,8 +265,18 @@ func (s *TestProxySuite) TestProxy() {
 							"Origin":                        {"https://domain.com"},
 							"Access-Control-Request-Method": {"UNKNOWN"},
 						},
-						ExpectedProxyResponseStatus: http.StatusNoContent,
-						Standalone:                  true,
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusNoContent,
+						Standalone:                   true,
+					},
+					"plain http cors preflight request with no origin": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Access-Control-Request-Method": {"GET"},
+						},
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusNoContent,
+						Standalone:                   true,
 					},
 					"plain http cors preflight request": {
 						ProxyRequestMethod: "OPTIONS",
@@ -388,6 +399,14 @@ func (s *TestProxySuite) TestProxy() {
 			})
 		})
 	}
+}
+
+var noCORSHeaders = map[string][]string{
+	"Access-Control-Allow-Origin":      {},
+	"Access-Control-Allow-Credentials": {},
+	"Access-Control-Allow-Headers":     {},
+	"Access-Control-Allow-Methods":     {},
+	"Vary":                             {},
 }
 
 func upgradeToWebsocket(req *http.Request) {

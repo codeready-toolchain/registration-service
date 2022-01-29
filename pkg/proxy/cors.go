@@ -30,10 +30,6 @@ func handlePreflight(w http.ResponseWriter, r *http.Request) {
 	headers := w.Header()
 	origin := r.Header.Get("Origin")
 
-	headers.Add("Vary", "Origin")
-	headers.Add("Vary", "Access-Control-Request-Method")
-	headers.Add("Vary", "Access-Control-Request-Headers")
-
 	// Allow all origins but empty
 	if origin == "" {
 		log.Info(nil, "Preflight aborted: empty origin")
@@ -45,6 +41,10 @@ func handlePreflight(w http.ResponseWriter, r *http.Request) {
 		log.Info(nil, fmt.Sprintf("Preflight aborted: method '%s' not allowed", reqMethod))
 		return
 	}
+	headers.Add("Vary", "Origin")
+	headers.Add("Vary", "Access-Control-Request-Method")
+	headers.Add("Vary", "Access-Control-Request-Headers")
+
 	// Since we allow all headers we don't check the "Access-Control-Request-Method" header
 	reqHeaders := parseHeaderList(r.Header.Get("Access-Control-Request-Headers"))
 

@@ -243,75 +243,155 @@ func (s *TestProxySuite) TestProxy() {
 				encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
 
 				tests := map[string]struct {
-					ProxyHeaders                    map[string]string
-					ExpectedAPIServerRequestHeaders map[string]string
-					ExpectedProxyResponseHeaders    map[string]string
+					ProxyRequestMethod              string
+					ProxyRequestHeaders             http.Header
+					ExpectedAPIServerRequestHeaders http.Header
+					ExpectedProxyResponseHeaders    http.Header
+					ExpectedProxyResponseStatus     int
+					Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
 				}{
-					"plain http": {
-						ProxyHeaders:                    map[string]string{"Authorization": "Bearer " + s.token(userID)},
-						ExpectedAPIServerRequestHeaders: map[string]string{"Authorization": "Bearer clusterSAToken"},
-						ExpectedProxyResponseHeaders: map[string]string{
-							"Access-Control-Allow-Origin":      "*",
-							"Access-Control-Allow-Credentials": "true",
+					"plain http cors preflight request with no request method": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin": {"https://domain.com"},
 						},
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusUnauthorized,
+						Standalone:                   true,
+					},
+					"plain http cors preflight request with unknown request method": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin":                        {"https://domain.com"},
+							"Access-Control-Request-Method": {"UNKNOWN"},
+						},
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusNoContent,
+						Standalone:                   true,
+					},
+					"plain http cors preflight request with no origin": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Access-Control-Request-Method": {"GET"},
+						},
+						ExpectedProxyResponseHeaders: noCORSHeaders,
+						ExpectedProxyResponseStatus:  http.StatusNoContent,
+						Standalone:                   true,
+					},
+					"plain http cors preflight request": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin":                         {"https://domain.com"},
+							"Access-Control-Request-Method":  {"GET"},
+							"Access-Control-Request-Headers": {"Authorization"},
+						},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Allow-Headers":     {"Authorization"},
+							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},
+							"Vary":                             {"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
+						},
+						ExpectedProxyResponseStatus: http.StatusNoContent,
+						Standalone:                  true,
+					},
+					"plain http cors preflight request multiple request headers": {
+						ProxyRequestMethod: "OPTIONS",
+						ProxyRequestHeaders: map[string][]string{
+							"Origin":                         {"https://domain.com"},
+							"Access-Control-Request-Method":  {"GET"},
+							"Access-Control-Request-Headers": {"Authorization, content-Type, header, second-header, THIRD-HEADER, Numb3r3d-H34d3r"},
+						},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Allow-Headers":     {"Authorization, Content-Type, Header, Second-Header, Third-Header, Numb3r3d-H34d3r"},
+							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},
+							"Vary":                             {"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
+						},
+						ExpectedProxyResponseStatus: http.StatusNoContent,
+						Standalone:                  true,
+					},
+					"plain http actual request": {
+						ProxyRequestMethod:              "GET",
+						ProxyRequestHeaders:             map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+						ExpectedAPIServerRequestHeaders: map[string][]string{"Authorization": {"Bearer clusterSAToken"}},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+							"Vary":                             {"Origin"},
+						},
+						ExpectedProxyResponseStatus: http.StatusOK,
 					},
 					"websockets": {
-						ProxyHeaders: map[string]string{
-							"Connection":             "upgrade",
-							"Upgrade":                "websocket",
-							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken),
+						ProxyRequestMethod: "GET",
+						ProxyRequestHeaders: map[string][]string{
+							"Connection":             {"upgrade"},
+							"Upgrade":                {"websocket"},
+							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken)},
 						},
-						ExpectedAPIServerRequestHeaders: map[string]string{
-							"Connection":             "Upgrade",
-							"Upgrade":                "websocket",
-							"Sec-Websocket-Protocol": fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken),
+						ExpectedAPIServerRequestHeaders: map[string][]string{
+							"Connection":             {"Upgrade"},
+							"Upgrade":                {"websocket"},
+							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken)},
 						},
-						ExpectedProxyResponseHeaders: map[string]string{
-							"Access-Control-Allow-Origin":      "*",
-							"Access-Control-Allow-Credentials": "true",
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+							"Vary":                             {"Origin"},
 						},
+						ExpectedProxyResponseStatus: http.StatusOK,
 					},
 				}
 
 				for k, tc := range tests {
 					s.Run(k, func() {
 						// given
-						req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+						req, err := http.NewRequest(tc.ProxyRequestMethod, "http://localhost:8081/api/mycoolworkspace/pods", nil)
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), req)
 
-						for hk, hv := range tc.ProxyHeaders {
-							req.Header.Set(hk, hv)
+						for hk, hv := range tc.ProxyRequestHeaders {
+							for _, v := range hv {
+								req.Header.Add(hk, v)
+							}
 						}
 
 						fakeApp.err = nil
 						member1, err := url.Parse("https://member-1.openshift.com:1111")
 						require.NoError(s.T(), err)
 
-						// Start the member-2 API Server
-						ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-							w.Header().Set("Content-Type", "application/json")
-							w.WriteHeader(http.StatusOK)
-							_, err := w.Write([]byte("my response"))
+						if !tc.Standalone {
+							// Start the member-2 API Server
+							ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								w.Header().Set("Content-Type", "application/json")
+								w.WriteHeader(http.StatusOK)
+								_, err := w.Write([]byte("my response"))
+								require.NoError(s.T(), err)
+								for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
+									require.Len(s.T(), r.Header.Values(hk), len(hv))
+									for i := range hv {
+										assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+									}
+								}
+							}))
+							defer ts.Close()
+
+							member2, err := url.Parse(ts.URL)
 							require.NoError(s.T(), err)
-							for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
-								assert.Equal(s.T(), hv, r.Header.Get(hk))
+
+							fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
+								"someUserID": { // noise
+									APIURL:  *member1,
+									SAToken: "",
+								},
+								userID.String(): {
+									APIURL:  *member2,
+									SAToken: "clusterSAToken",
+								},
 							}
-						}))
-						defer ts.Close()
-
-						member2, err := url.Parse(ts.URL)
-						require.NoError(s.T(), err)
-
-						fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
-							"someUserID": { // noise
-								APIURL:  *member1,
-								SAToken: "",
-							},
-							userID.String(): {
-								APIURL:  *member2,
-								SAToken: "clusterSAToken",
-							},
 						}
 
 						// when
@@ -321,16 +401,29 @@ func (s *TestProxySuite) TestProxy() {
 						// then
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), resp)
-						assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
-						s.assertResponseBody(resp, "my response")
+						assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
+						if !tc.Standalone {
+							s.assertResponseBody(resp, "my response")
+						}
 						for hk, hv := range tc.ExpectedProxyResponseHeaders {
-							assert.Equal(s.T(), hv, resp.Header.Get(hk))
+							require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
+							for i := range hv {
+								assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
+							}
 						}
 					})
 				}
 			})
 		})
 	}
+}
+
+var noCORSHeaders = map[string][]string{
+	"Access-Control-Allow-Origin":      {},
+	"Access-Control-Allow-Credentials": {},
+	"Access-Control-Allow-Headers":     {},
+	"Access-Control-Allow-Methods":     {},
+	"Vary":                             {},
 }
 
 func upgradeToWebsocket(req *http.Request) {

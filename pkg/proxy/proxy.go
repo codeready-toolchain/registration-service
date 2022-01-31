@@ -109,6 +109,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
+	addCorsToResponse(res, req)
 	p.newReverseProxy(ctx, ns).ServeHTTP(res, req)
 }
 
@@ -199,10 +200,9 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 		}
 	}
 	return &httputil.ReverseProxy{
-		Director:       director,
-		Transport:      transport,
-		FlushInterval:  -1,
-		ModifyResponse: addCorsToResponse,
+		Director:      director,
+		Transport:     transport,
+		FlushInterval: -1,
 	}
 }
 

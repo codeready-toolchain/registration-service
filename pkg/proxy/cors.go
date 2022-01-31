@@ -35,6 +35,7 @@ func handlePreflight(w http.ResponseWriter, r *http.Request) {
 		log.Info(nil, "Preflight aborted: empty origin")
 		return
 	}
+	log.Info(nil, "Preflight request from "+origin)
 	// Allow all known methods
 	reqMethod := r.Header.Get("Access-Control-Request-Method")
 	if !isMethodAllowed(reqMethod) {
@@ -49,7 +50,7 @@ func handlePreflight(w http.ResponseWriter, r *http.Request) {
 	reqHeaders := parseHeaderList(r.Header.Get("Access-Control-Request-Headers"))
 
 	// Set the response headers
-	headers.Set("Access-Control-Allow-Origin", "*")
+	headers.Set("Access-Control-Allow-Origin", origin)
 	headers.Set("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 	if len(reqHeaders) > 0 {
 		// Simply returning requested headers from Access-Control-Request-Headers should be enough
@@ -73,14 +74,16 @@ func isMethodAllowed(method string) bool {
 }
 
 // addCorsToResponse adds CORS headers to the response
-func addCorsToResponse(response *http.Response) error {
+func addCorsToResponse(response http.ResponseWriter, request *http.Request) {
+	origin := request.Header.Get("Origin")
+	if origin == "" {
+		origin = "*"
+	}
 	// CORS Headers
-	response.Header.Add("Vary", "Origin")
-	response.Header.Set("Access-Control-Allow-Origin", "*")
-	response.Header.Set("Access-Control-Allow-Credentials", "true")
-	response.Header.Set("Access-Control-Expose-Headers", "Content-Length, Content-Encoding, Authorization")
-
-	return nil
+	response.Header().Add("Vary", "Origin")
+	response.Header().Set("Access-Control-Allow-Origin", origin)
+	response.Header().Set("Access-Control-Allow-Credentials", "true")
+	response.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Encoding, Authorization")
 }
 
 // parseHeaderList tokenize + normalize a string containing a list of headers

@@ -286,7 +286,7 @@ func (s *TestProxySuite) TestProxy() {
 							"Access-Control-Request-Headers": {"Authorization"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
-							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Origin":      {"https://domain.com"},
 							"Access-Control-Allow-Credentials": {"true"},
 							"Access-Control-Allow-Headers":     {"Authorization"},
 							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},
@@ -303,7 +303,7 @@ func (s *TestProxySuite) TestProxy() {
 							"Access-Control-Request-Headers": {"Authorization, content-Type, header, second-header, THIRD-HEADER, Numb3r3d-H34d3r"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
-							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Origin":      {"https://domain.com"},
 							"Access-Control-Allow-Credentials": {"true"},
 							"Access-Control-Allow-Headers":     {"Authorization, Content-Type, Header, Second-Header, Third-Header, Numb3r3d-H34d3r"},
 							"Access-Control-Allow-Methods":     {"PUT, PATCH, POST, GET, DELETE, OPTIONS"},

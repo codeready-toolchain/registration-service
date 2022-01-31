@@ -109,8 +109,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	addCorsToResponse(res, req)
-	p.newReverseProxy(ctx, ns).ServeHTTP(res, req)
+	p.newReverseProxy(ctx, req, ns).ServeHTTP(res, req)
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
@@ -167,7 +166,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *namespace.NamespaceAccess) *httputil.ReverseProxy {
 	targetQuery := target.APIURL.RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
@@ -199,10 +198,12 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, target *namespace.NamespaceAcc
 			},
 		}
 	}
+	m := &responseModifier{req.Header.Get("Origin")}
 	return &httputil.ReverseProxy{
-		Director:      director,
-		Transport:     transport,
-		FlushInterval: -1,
+		Director:       director,
+		Transport:      transport,
+		FlushInterval:  -1,
+		ModifyResponse: m.addCorsToResponse,
 	}
 }
 

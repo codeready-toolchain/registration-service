@@ -73,17 +73,23 @@ func isMethodAllowed(method string) bool {
 	return false
 }
 
+type responseModifier struct {
+	requestOrigin string
+}
+
 // addCorsToResponse adds CORS headers to the response
-func addCorsToResponse(response http.ResponseWriter, request *http.Request) {
-	origin := request.Header.Get("Origin")
+func (r *responseModifier) addCorsToResponse(response *http.Response) error {
+	origin := r.requestOrigin
 	if origin == "" {
 		origin = "*"
 	}
 	// CORS Headers
-	response.Header().Add("Vary", "Origin")
-	response.Header().Set("Access-Control-Allow-Origin", origin)
-	response.Header().Set("Access-Control-Allow-Credentials", "true")
-	response.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Encoding, Authorization")
+	response.Header.Add("Vary", "Origin")
+	response.Header.Set("Access-Control-Allow-Origin", origin)
+	response.Header.Set("Access-Control-Allow-Credentials", "true")
+	response.Header.Set("Access-Control-Expose-Headers", "Content-Length, Content-Encoding, Authorization")
+
+	return nil
 }
 
 // parseHeaderList tokenize + normalize a string containing a list of headers

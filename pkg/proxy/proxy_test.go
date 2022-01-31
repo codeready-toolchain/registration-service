@@ -367,7 +367,8 @@ func (s *TestProxySuite) TestProxy() {
 							// Start the member-2 API Server
 							ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 								w.Header().Set("Content-Type", "application/json")
-								w.Header().Set("Origin", "dummy") // Set the Origin header to make sure it's overridden by the proxy response modifier
+								// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
+								w.Header().Set("Access-Control-Allow-Origin", "dummy")
 								w.WriteHeader(http.StatusOK)
 								_, err := w.Write([]byte("my response"))
 								require.NoError(s.T(), err)

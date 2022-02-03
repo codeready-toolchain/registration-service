@@ -506,7 +506,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
-	_, err = s.Application.SignupService().GetSignup(userID.String())
+	_, err = s.Application.SignupService().GetSignup(userID.String(), "")
 	require.EqualError(s.T(), err, "an error occurred")
 }
 
@@ -514,7 +514,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	signup, err := s.Application.SignupService().GetSignup(userID.String())
+	signup, err := s.Application.SignupService().GetSignup(userID.String(), "")
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 }
@@ -555,7 +555,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
-	response, err := s.Application.SignupService().GetSignup(userID.String())
+	response, err := s.Application.SignupService().GetSignup(userID.String(), "")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -621,7 +621,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
-		response, err := s.Application.SignupService().GetSignup(userID.String())
+		response, err := s.Application.SignupService().GetSignup(userID.String(), "")
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
@@ -646,7 +646,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	signup, err := s.Application.SignupService().GetSignup(us.Name)
+	signup, err := s.Application.SignupService().GetSignup(us.Name, "")
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 }
@@ -697,7 +697,71 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.Application.SignupService().GetSignup(us.Name)
+	response, err := s.Application.SignupService().GetSignup(us.Name, "")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "ted@domain.com", response.Username)
+	require.Equal(s.T(), "ted", response.CompliantUsername)
+	assert.True(s.T(), response.Status.Ready)
+	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+	assert.False(s.T(), response.Status.VerificationRequired)
+	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+	assert.Equal(s.T(), "member-123", response.ClusterName)
+	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+
+	us := s.newUserSignupComplete()
+	us.Name = service.EncodeUserIdentifier(us.Spec.Username)
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	require.NoError(s.T(), err)
+
+	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "toolchain-status",
+			Namespace: TestNamespace,
+		},
+		Status: toolchainv1alpha1.ToolchainStatusStatus{
+			Members: []toolchainv1alpha1.Member{
+				{
+					ClusterName: "member-1",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.member-1.com",
+							CheDashboardURL: "http://che-toolchain-che.member-1.com",
+						},
+					},
+				},
+				{
+					ClusterName: "member-123",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.member-123.com",
+							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+						},
+					},
+				},
+			},
+			HostRoutes: toolchainv1alpha1.HostRoutes{
+				ProxyURL: "https://proxy-url.com",
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	response, err := s.Application.SignupService().GetSignup("foo", us.Spec.Username)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -724,7 +788,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
 	require.NoError(s.T(), err)
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
 }
 
@@ -743,7 +807,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		return &toolchainv1alpha1.MasterUserRecord{}, nil
 	}
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
 }
 
@@ -774,7 +838,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
@@ -786,7 +850,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		err := s.FakeUserSignupClient.Tracker.Add(us)
 		require.NoError(s.T(), err)
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 		require.Equal(s.T(), us.Name, val.Name)
 	})
@@ -796,7 +860,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 			return nil, errors.New("get failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup("foo")
+		val, err := s.Application.SignupService().GetUserSignup("foo", "")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "get failed", err.Error())
 		require.Nil(s.T(), val)
@@ -805,7 +869,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	s.Run("getusersignup with unknown user", func() {
 		s.FakeUserSignupClient.MockGet = nil
 
-		val, err := s.Application.SignupService().GetUserSignup("unknown")
+		val, err := s.Application.SignupService().GetUserSignup("unknown", "")
 		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
@@ -819,7 +883,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	require.NoError(s.T(), err)
 
 	s.Run("updateusersignup ok", func() {
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 
 		val.Spec.FamilyName = "Johnson"
@@ -835,7 +899,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 			return nil, errors.New("update failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 
 		updated, err := s.Application.SignupService().UpdateUserSignup(val)

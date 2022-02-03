@@ -82,7 +82,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("signup service returns error", func() {
-			sc.mockGetSignup = func(userID string) (*signup.Signup, error) {
+			sc.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
@@ -352,24 +352,24 @@ func (m *fakeSignupService) addSignup(userID string, userSignup *signup.Signup) 
 }
 
 type fakeSignupService struct {
-	mockGetSignup func(userID string) (*signup.Signup, error)
+	mockGetSignup func(userID, username string) (*signup.Signup, error)
 	userSignups   map[string]*signup.Signup
 }
 
-func (m *fakeSignupService) defaultMockGetSignup() func(userID string) (*signup.Signup, error) {
-	return func(userID string) (userSignup *signup.Signup, e error) {
+func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
+	return func(userID, username string) (userSignup *signup.Signup, e error) {
 		return m.userSignups[userID], nil
 	}
 }
 
-func (m *fakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
-	return m.mockGetSignup(userID)
+func (m *fakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
+	return m.mockGetSignup(userID, username)
 }
 
 func (m *fakeSignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *fakeSignupService) GetUserSignup(_ string) (*toolchainv1alpha1.UserSignup, error) {
+func (m *fakeSignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
 func (m *fakeSignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {

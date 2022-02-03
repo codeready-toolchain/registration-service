@@ -16,8 +16,8 @@ type SignupService interface {
 }
 
 type VerificationService interface {
-	InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) error
-	VerifyCode(ctx *gin.Context, userID string, code string) error
+	InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error
+	VerifyCode(ctx *gin.Context, userID, username, code string) error
 }
 
 type MemberClusterService interface {

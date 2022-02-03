@@ -139,7 +139,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -211,7 +211,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "get failed:error retrieving usersignup: 123", err.Error())
 	})
@@ -225,7 +225,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
@@ -248,7 +248,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -314,7 +314,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -371,7 +371,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 }
@@ -414,7 +414,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 
@@ -482,7 +482,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber)
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
 
@@ -556,7 +556,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber)
 	require.NoError(s.T(), err)
 
 	// Reload bravoUserSignup
@@ -598,7 +598,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -636,7 +636,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
@@ -672,7 +672,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "expired:verification code expired", e.Error())
@@ -707,7 +707,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
@@ -740,7 +740,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 
@@ -778,7 +778,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})

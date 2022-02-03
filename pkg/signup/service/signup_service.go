@@ -165,15 +165,26 @@ func EncodeUserIdentifier(subject string) string {
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
+	var userSignup *toolchainv1alpha1.UserSignup
+	var err error
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
+	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// New Signup
-			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
-			return s.createUserSignup(ctx)
+			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded Username instead
+			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
+			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUsername)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					// New Signup
+					log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
+					return s.createUserSignup(ctx)
+				}
+				return nil, err
+			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
@@ -224,15 +235,27 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
+	// Declare variables up front
+	var userSignup *toolchainv1alpha1.UserSignup
+	var err error
 
-	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
+	// Retrieve UserSignup resource from the host cluster, using the specified UserID
+	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
+		// If the UserSignup was not found, attempt to find it using the specified username instead
 		if apierrors.IsNotFound(err) {
-			//userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier())
-			return nil, nil
+			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+
+			// Otherwise if there was any other error, return it instead
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil, nil
+				}
+				return nil, err
+			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	signupResponse := &signup.Signup{
@@ -306,12 +329,22 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
+	// Declare variables up front
+	var userSignup *toolchainv1alpha1.UserSignup
+	var err error
+	var err2 error
+
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
+	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
-			if err != nil {
+			// Capture any error here in a separate var, as we need to preserve the original
+			userSignup, err2 = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+			if err2 != nil {
+				// If the UserSignup cannot be located by its username either, then return the original error
+				if apierrors.IsNotFound(err2) {
+					return nil, err
+				}
 				return nil, err
 			}
 			return userSignup, nil

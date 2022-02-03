@@ -54,8 +54,8 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 // InitVerification sends a verification message to the specified user, using the Twilio service.  If successful,
 // the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
 // to manage the phone verification process and protect against system abuse.
-func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164PhoneNumber string) error {
-	signup, err := s.Services().SignupService().GetUserSignup(userID)
+func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error {
+	signup, err := s.Services().SignupService().GetUserSignup(userID, username)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
@@ -164,7 +164,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID string, e164Phon
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID)
+		signup, err := s.Services().SignupService().GetUserSignup(userID, "")
 		if err != nil {
 			return err
 		}
@@ -211,11 +211,11 @@ func generateVerificationCode() (string, error) {
 
 // VerifyCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
-func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (verificationErr error) {
+func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID, username, code string) (verificationErr error) {
 
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
-	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID)
+	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID, username)
 	if lookupErr != nil {
 		if apierrors.IsNotFound(lookupErr) {
 			log.Error(ctx, lookupErr, "usersignup not found")
@@ -289,7 +289,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID string, code string) (
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID)
+		signup, err := s.Services().SignupService().GetUserSignup(userID, "")
 		if err != nil {
 			return err
 		}

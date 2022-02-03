@@ -86,7 +86,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
-	err = s.app.VerificationService().InitVerification(ctx, userID, e164Number)
+	err = s.app.VerificationService().InitVerification(ctx, userID, "", e164Number)
 	if err != nil {
 		log.Errorf(ctx, err, "Verification for %s could not be sent", userID)
 		e := &crterrors.Error{}
@@ -109,7 +109,8 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
-	signupResource, err := s.app.SignupService().GetSignup(userID)
+	username := ctx.GetString(context.UsernameKey)
+	signupResource, err := s.app.SignupService().GetSignup(userID, username)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
@@ -133,7 +134,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 
 	userID := ctx.GetString(context.SubKey)
 
-	err := s.app.VerificationService().VerifyCode(ctx, userID, code)
+	err := s.app.VerificationService().VerifyCode(ctx, userID, "", code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
 		e := &crterrors.Error{}

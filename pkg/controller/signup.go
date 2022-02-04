@@ -61,6 +61,7 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 // provided by the user.
 func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
+	username := ctx.GetString(context.UsernameKey)
 
 	// Read the Body content
 	var phone Phone
@@ -86,7 +87,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
-	err = s.app.VerificationService().InitVerification(ctx, userID, "", e164Number)
+	err = s.app.VerificationService().InitVerification(ctx, userID, username, e164Number)
 	if err != nil {
 		log.Errorf(ctx, err, "Verification for %s could not be sent", userID)
 		e := &crterrors.Error{}
@@ -133,8 +134,9 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	}
 
 	userID := ctx.GetString(context.SubKey)
+	username := ctx.GetString(context.UsernameKey)
 
-	err := s.app.VerificationService().VerifyCode(ctx, userID, "", code)
+	err := s.app.VerificationService().VerifyCode(ctx, userID, username, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
 		e := &crterrors.Error{}

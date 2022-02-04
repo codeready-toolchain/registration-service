@@ -289,7 +289,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID, username, code string
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID, "")
+		signup, err := s.Services().SignupService().GetUserSignup(userID, username)
 		if err != nil {
 			return err
 		}

@@ -171,7 +171,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded Username instead
+			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
 			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
 			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUsername)
 			if err != nil {

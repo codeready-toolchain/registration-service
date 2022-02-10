@@ -19,14 +19,14 @@ const leeway = 5000
 
 // TokenClaims represents access token claims
 type TokenClaims struct {
-	Name          string `json:"name"`
-	Username      string `json:"preferred_username"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Company       string `json:"company"`
-	OriginalSub   string `json:"original_sub"`
+	Name              string `json:"name"`
+	PreferredUsername string `json:"preferred_username"`
+	GivenName         string `json:"given_name"`
+	FamilyName        string `json:"family_name"`
+	Email             string `json:"email"`
+	EmailVerified     bool   `json:"email_verified"`
+	Company           string `json:"company"`
+	OriginalSub       string `json:"original_sub"`
 	jwt.StandardClaims
 }
 
@@ -82,7 +82,7 @@ func (tp *TokenParser) FromString(jwtEncoded string) (*TokenClaims, error) {
 	}
 	if claims, ok := token.Claims.(*TokenClaims); ok && token.Valid {
 		// we need username and email, so check if those are contained in the claims
-		if claims.Username == "" {
+		if claims.PreferredUsername == "" {
 			return nil, errors.New("token does not comply to expected claims: username missing")
 		}
 		if claims.Email == "" {

@@ -117,7 +117,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
-		log.Infof(ctx, "UserSignup resource for userID: %s resource not found", userID)
+		log.Infof(ctx, "UserSignup resource for userID: %s, username: %s resource not found", userID, username)
 		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
 		ctx.JSON(http.StatusOK, signupResource)

@@ -68,7 +68,7 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		}
 		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
-		c.Set(context.UsernameKey, token.Username)
+		c.Set(context.UsernameKey, token.PreferredUsername)
 		c.Set(context.EmailKey, token.Email)
 		c.Set(context.SubKey, token.Subject)
 		c.Set(context.OriginalSubKey, token.OriginalSub)

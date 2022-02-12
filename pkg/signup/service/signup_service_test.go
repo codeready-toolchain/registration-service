@@ -174,6 +174,31 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.EqualError(s.T(), err, "an error occurred")
 	})
 }
+func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "zoeabernathy")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "zabernathy@gmail.com")
+	ctx.Set(context.GivenNameKey, "zoe")
+	ctx.Set(context.FamilyNameKey, "abernathy")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		return nil, errors2.NewInternalError(errors.New("an internal error"), "an internal error happened")
+	}
+
+	// when
+	_, err = s.Application.SignupService().Signup(ctx)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "an internal error:an internal error happened", err.Error())
+}
 
 func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 
@@ -191,11 +216,8 @@ func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 	ctx.Set(context.FamilyNameKey, "smith")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	callCount := 0
-
 	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
-		if callCount == 0 {
-			callCount++
+		if id == userID.String() {
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
 		}
 		return nil, errors2.NewInternalError(errors.New("something bad happened"), "something very bad happened")
@@ -210,18 +232,15 @@ func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() {
 
 	// given
-	callCount := 0
-
 	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
-		if callCount == 0 {
-			callCount++
+		if id == "000" {
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
 		}
 		return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
 	}
 
 	// when
-	_, err := s.Application.SignupService().GetSignup("", "")
+	_, err := s.Application.SignupService().GetSignup("000", "abc")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "something quite unfortunate happened:something bad", err.Error())
 }

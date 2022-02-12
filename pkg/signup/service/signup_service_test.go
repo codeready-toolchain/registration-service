@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -171,6 +173,57 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
 	})
+}
+
+func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "lisasmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "lsmith@gmail.com")
+	ctx.Set(context.GivenNameKey, "lisa")
+	ctx.Set(context.FamilyNameKey, "smith")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	callCount := 0
+
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		if callCount == 0 {
+			callCount++
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+		}
+		return nil, errors2.NewInternalError(errors.New("something bad happened"), "something very bad happened")
+	}
+
+	// when
+	_, err = s.Application.SignupService().Signup(ctx)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "something bad happened:something very bad happened", err.Error())
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() {
+
+	// given
+	callCount := 0
+
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		if callCount == 0 {
+			callCount++
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+		}
+		return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
+	}
+
+	// when
+	_, err := s.Application.SignupService().GetSignup("", "")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "something quite unfortunate happened:something bad", err.Error())
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {

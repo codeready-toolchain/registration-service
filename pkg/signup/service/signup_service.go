@@ -239,23 +239,14 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	var userSignup *toolchainv1alpha1.UserSignup
 	var err error
 
-	// Retrieve UserSignup resource from the host cluster, using the specified UserID
-	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
-	if err != nil {
-		// If the UserSignup was not found, attempt to find it using the specified username instead
-		if apierrors.IsNotFound(err) {
-			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
-
-			// Otherwise if there was any other error, return it instead
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					return nil, nil
-				}
-				return nil, err
-			}
-		} else {
-			return nil, err
+	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
+	userSignup, err = s.GetUserSignup(userID, username)
+	// If an error was returned, *or* the returned userSignup is nil, then return here
+	if err != nil || userSignup == nil {
+		if err != nil && apierrors.IsNotFound(err) {
+			return nil, nil
 		}
+		return nil, err
 	}
 
 	signupResponse := &signup.Signup{
@@ -341,11 +332,10 @@ func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1
 			// Capture any error here in a separate var, as we need to preserve the original
 			userSignup, err2 = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
 			if err2 != nil {
-				// If the UserSignup cannot be located by its username either, then return the original error
 				if apierrors.IsNotFound(err2) {
 					return nil, err
 				}
-				return nil, err
+				return nil, err2
 			}
 			return userSignup, nil
 		}

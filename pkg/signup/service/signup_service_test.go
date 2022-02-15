@@ -474,7 +474,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "+12268213044")
+	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "jsmith", "+12268213044")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
 }
@@ -506,7 +506,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 
 	newUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "+12268213044")
+	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "jsmith", "+12268213044")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
 }

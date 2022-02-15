@@ -375,6 +375,6 @@ func (m *fakeSignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserS
 func (m *fakeSignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _ string) error {
+func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 	return nil
 }

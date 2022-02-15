@@ -74,7 +74,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 	}
 
 	// Check if the provided phone number is already being used by another user
-	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, e164PhoneNumber)
+	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, username, e164PhoneNumber)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
@@ -229,7 +229,7 @@ func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID, username, code string
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
 
-	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
 		return crterrors.NewBadRequest("phone number already in use",

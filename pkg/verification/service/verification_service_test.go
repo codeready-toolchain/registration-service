@@ -133,11 +133,37 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		},
 	}
 
-	states.SetVerificationRequired(userSignup, true)
+	// Create a second UserSignup which we will test by username lookup instead of UserID lookup.  This will also function
+	// as some additional noise for the test
+	userSignup2 := &toolchainv1alpha1.UserSignup{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "jsmith",
+			Namespace: configuration.Namespace(),
+			Annotations: map[string]string{
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+			},
+			Labels: map[string]string{
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+61NUMBER",
+			},
+		},
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			Username: "jsmith",
+		},
+	}
 
+	// Require verification for both UserSignups
+	states.SetVerificationRequired(userSignup, true)
+	states.SetVerificationRequired(userSignup2, true)
+
+	// Add both UserSignups to the fake client
 	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
 
+	err = s.FakeUserSignupClient.Tracker.Add(userSignup2)
+	require.NoError(s.T(), err)
+
+	// Test the init verification for the first UserSignup
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.NoError(s.T(), err)
@@ -145,6 +171,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 	require.NoError(s.T(), err)
 
+	// Ensure the verification code is set
 	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
@@ -159,6 +186,40 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+
+	// Test the init verification for the second UserSignup - Setup gock again for another request
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+
+	obs = func(request *http.Request, mock gock.Mock) {
+		reqBody = request.Body
+	}
+	gock.Observe(obs)
+
+	ctx, _ = gin.CreateTestContext(httptest.NewRecorder())
+	// This time we won't pass in the UserID, just the username yet still expect the UserSignup to be found
+	err = s.Application.VerificationService().InitVerification(ctx, "", userSignup2.Spec.Username, "+61NUMBER")
+	require.NoError(s.T(), err)
+
+	userSignup2, err = s.FakeUserSignupClient.Get(userSignup2.Name)
+	require.NoError(s.T(), err)
+
+	// Ensure the verification code is set
+	require.NotEmpty(s.T(), userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+	buf = new(bytes.Buffer)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
+	reqValue = buf.String()
+
+	params, err = url.ParseQuery(reqValue)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		params.Get("Body"))
+	require.Equal(s.T(), "CodeReady", params.Get("From"))
+	require.Equal(s.T(), "+61NUMBER", params.Get("To"))
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {

@@ -448,7 +448,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 				return userSignup, nil
 			},
-			MockPhoneNumberAlreadyInUse: func(userID, e164phoneNumber string) error {
+			MockPhoneNumberAlreadyInUse: func(userID, username, e164phoneNumber string) error {
 				return nil
 			},
 		}
@@ -729,7 +729,7 @@ type FakeSignupService struct {
 	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignup           func(userID, username string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse func(userID, value string) error
+	MockPhoneNumberAlreadyInUse func(userID, username, value string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
@@ -748,6 +748,6 @@ func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*cr
 	return m.MockUpdateUserSignup(userSignup)
 }
 
-func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, e164phoneNumber string) error {
-	return m.MockPhoneNumberAlreadyInUse(userID, e164phoneNumber)
+func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, username, e164phoneNumber string) error {
+	return m.MockPhoneNumberAlreadyInUse(userID, username, e164phoneNumber)
 }

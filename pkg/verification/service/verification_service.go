@@ -164,7 +164,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID, "")
+		signup, err := s.Services().SignupService().GetUserSignup(userID, username)
 		if err != nil {
 			return err
 		}

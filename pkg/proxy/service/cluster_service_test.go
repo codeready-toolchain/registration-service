@@ -87,7 +87,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			}
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready")
+			_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -97,7 +97,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not found", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "unknown_id")
+			_, err := svc.GetNamespace(ctx, "unknown_id", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -105,7 +105,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "456-not-ready")
+			_, err := svc.GetNamespace(ctx, "456-not-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -127,7 +127,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready")
+			_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member clusters found")
@@ -147,7 +147,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster")
+			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -204,7 +204,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "can't obtain SA")
@@ -216,7 +216,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "no SA found for the user")
@@ -242,7 +242,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "can't obtain secret")
@@ -291,7 +291,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NoError(s.T(), memberClient.Create(context.TODO(), scr3))
 
 			// when
-			ns, err := svc.GetNamespace(ctx, "789-ready")
+			ns, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.NoError(s.T(), err)
@@ -343,11 +343,11 @@ func newFakeSignupService() *fakeSignupService {
 	return f
 }
 
-func (m *fakeSignupService) addSignup(userID string, userSignup *signup.Signup) *fakeSignupService {
+func (m *fakeSignupService) addSignup(identifier string, userSignup *signup.Signup) *fakeSignupService {
 	if m.userSignups == nil {
 		m.userSignups = make(map[string]*signup.Signup)
 	}
-	m.userSignups[userID] = userSignup
+	m.userSignups[identifier] = userSignup
 	return m
 }
 

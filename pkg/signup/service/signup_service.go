@@ -165,10 +165,9 @@ func EncodeUserIdentifier(subject string) string {
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
-	var userSignup *toolchainv1alpha1.UserSignup
-	var err error
+
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
@@ -235,12 +234,8 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
-	// Declare variables up front
-	var userSignup *toolchainv1alpha1.UserSignup
-	var err error
-
 	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-	userSignup, err = s.GetUserSignup(userID, username)
+	userSignup, err := s.GetUserSignup(userID, username)
 	// If an error was returned, *or* the returned userSignup is nil, then return here
 	if err != nil || userSignup == nil {
 		if err != nil && apierrors.IsNotFound(err) {
@@ -320,17 +315,12 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	// Declare variables up front
-	var userSignup *toolchainv1alpha1.UserSignup
-	var err error
-	var err2 error
-
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original
-			userSignup, err2 = s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+			userSignup, err2 := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
 			if err2 != nil {
 				if apierrors.IsNotFound(err2) {
 					return nil, err

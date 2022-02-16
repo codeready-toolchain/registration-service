@@ -668,6 +668,42 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.False(s.T(), states.VerificationRequired(userSignup))
 	})
 
+	s.T().Run("verification ok for usersignup with username identifier", func(t *testing.T) {
+
+		userSignup := &toolchainv1alpha1.UserSignup{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "employee085",
+				Namespace: configuration.Namespace(),
+				Annotations: map[string]string{
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "employee085@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+				},
+				Labels: map[string]string{
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: toolchainv1alpha1.UserSignupSpec{
+				Username: "employee085@redhat.com",
+			},
+		}
+		states.SetVerificationRequired(userSignup, true)
+
+		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().VerifyCode(ctx, "", "employee085", "654321")
+		require.NoError(s.T(), err)
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.False(s.T(), states.VerificationRequired(userSignup))
+	})
+
 	s.T().Run("when verification code is invalid", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{

@@ -236,12 +236,17 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
 	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
 	userSignup, err := s.GetUserSignup(userID, username)
-	// If an error was returned, *or* the returned userSignup is nil, then return here
-	if err != nil || userSignup == nil {
-		if err != nil && apierrors.IsNotFound(err) {
+	// If an error was returned, then return here
+	if err != nil {
+		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	// Otherwise if the returned userSignup is nil, return here also
+	if userSignup == nil {
+		return nil, nil
 	}
 
 	signupResponse := &signup.Signup{

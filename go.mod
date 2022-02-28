@@ -2,7 +2,7 @@ module github.com/codeready-toolchain/registration-service
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20220128071955-6baa0dfc9574
+	github.com/codeready-toolchain/api v0.0.0-20220215110522-1a78f33ee8fc
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20220128072729-4dd5728f0084
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
@@ -24,17 +24,21 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
 	github.com/ttacon/libphonenumber v1.1.0 // indirect
-	go.uber.org/zap v1.15.0
+	go.uber.org/zap v1.19.0
 	gopkg.in/h2non/gock.v1 v1.0.14
 	gopkg.in/square/go-jose.v2 v2.3.1
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.20.2
-	k8s.io/apimachinery v0.20.2
-	k8s.io/apiserver v0.20.2
-	k8s.io/client-go v0.20.2
+	k8s.io/api v0.22.7
+	k8s.io/apimachinery v0.22.7
+	k8s.io/apiserver v0.22.7
+	k8s.io/client-go v0.22.7
 	k8s.io/klog v1.0.0
-	k8s.io/klog/v2 v2.8.0
-	sigs.k8s.io/controller-runtime v0.8.3
+	k8s.io/klog/v2 v2.9.0
+	sigs.k8s.io/controller-runtime v0.10.3
 )
+
+replace github.com/codeready-toolchain/api => github.com/matousjobanek/api v0.0.0-20220228101619-30eaab5220b7
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/matousjobanek/toolchain-common v0.0.0-20220228101724-3d111ecefd56
 
 go 1.16

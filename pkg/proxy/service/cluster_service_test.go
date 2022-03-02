@@ -302,7 +302,23 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				APIURL:  *expectedURL,
 				SAToken: "some-token",
 			}, *ns)
+
+			s.Run("sa found when lookup by username", func() {
+				// when
+				ns, err := svc.GetNamespace(ctx, "", "smith")
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), ns)
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
+				assert.Equal(s.T(), namespace.NamespaceAccess{
+					APIURL:  *expectedURL,
+					SAToken: "some-token",
+				}, *ns)
+			})
 		})
+
 	})
 }
 
@@ -358,7 +374,16 @@ type fakeSignupService struct {
 
 func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
 	return func(userID, username string) (userSignup *signup.Signup, e error) {
-		return m.userSignups[userID], nil
+		us := m.userSignups[userID]
+		if us != nil {
+			return us, nil
+		}
+		for _, v := range m.userSignups {
+			if v.Username == username {
+				return v, nil
+			}
+		}
+		return nil, nil
 	}
 }
 

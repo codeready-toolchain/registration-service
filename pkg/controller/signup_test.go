@@ -704,7 +704,6 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey])
-
 	})
 }
 

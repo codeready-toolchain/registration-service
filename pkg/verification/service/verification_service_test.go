@@ -112,6 +112,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	var reqBody io.ReadCloser
 	obs := func(request *http.Request, mock gock.Mock) {
 		reqBody = request.Body
+		defer request.Body.Close()
 	}
 
 	gock.Observe(obs)
@@ -194,6 +195,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	obs = func(request *http.Request, mock gock.Mock) {
 		reqBody = request.Body
+		defer request.Body.Close()
 	}
 	gock.Observe(obs)
 

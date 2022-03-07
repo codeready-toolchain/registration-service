@@ -691,7 +691,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 			Key:   "code",
 			Value: "999127",
 		}
-		rr := initVerification(s.T(), handler, param, nil, otherUserSignup.Spec.Userid, otherUserSignup.Spec.Username, http.MethodGet, "/api/v1/signup/verification")
+		rr := initVerification(s.T(), handler, param, nil, "", otherUserSignup.Spec.Username, http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)

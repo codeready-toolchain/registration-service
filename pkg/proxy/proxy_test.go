@@ -496,6 +496,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID string) (*namespace.NamespaceAccess, error) {
+func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID, username string) (*namespace.NamespaceAccess, error) {
 	return f.fakeApp.namespaces[userID], f.fakeApp.err
 }

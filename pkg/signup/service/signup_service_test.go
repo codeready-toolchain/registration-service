@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -174,6 +176,76 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.EqualError(s.T(), err, "an error occurred")
 	})
 }
+func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "zoeabernathy")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "zabernathy@gmail.com")
+	ctx.Set(context.GivenNameKey, "zoe")
+	ctx.Set(context.FamilyNameKey, "abernathy")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		return nil, errors2.NewInternalError(errors.New("an internal error"), "an internal error happened")
+	}
+
+	// when
+	_, err = s.Application.SignupService().Signup(ctx)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "an internal error:an internal error happened", err.Error())
+}
+
+func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "lisasmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "lsmith@gmail.com")
+	ctx.Set(context.GivenNameKey, "lisa")
+	ctx.Set(context.FamilyNameKey, "smith")
+	ctx.Set(context.CompanyKey, "red hat")
+
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		if id == userID.String() {
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+		}
+		return nil, errors2.NewInternalError(errors.New("something bad happened"), "something very bad happened")
+	}
+
+	// when
+	_, err = s.Application.SignupService().Signup(ctx)
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "something bad happened:something very bad happened", err.Error())
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() {
+
+	// given
+	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+		if id == "000" {
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+		}
+		return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
+	}
+
+	// when
+	_, err := s.Application.SignupService().GetSignup("000", "abc")
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "something quite unfortunate happened:something bad", err.Error())
+}
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
@@ -261,27 +333,27 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 func (s *TestSignupServiceSuite) TestEncodeUserID() {
 	s.Run("test valid user ID unchanged", func() {
 		userID := "abcde-12345"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), userID, encoded)
 	})
 	s.Run("test user ID with invalid characters", func() {
 		userID := "abcde\\*-12345"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "c0177ca4-abcde-12345", encoded)
 	})
 	s.Run("test user ID with invalid prefix", func() {
 		userID := "-1234567"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "ca3e1e0f-1234567", encoded)
 	})
 	s.Run("test user ID that exceeds max length", func() {
 		userID := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-01234567890123456789"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "e3632025-0123456789abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr", encoded)
 	})
 	s.Run("test user ID with colon separator", func() {
 		userID := "abc:xyz"
-		encoded := service.EncodeUserID(userID)
+		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "a05a4053-abcxyz", encoded)
 	})
 }
@@ -444,7 +516,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "+12268213044")
+	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "jsmith", "+12268213044")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
 }
@@ -476,7 +548,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 
 	newUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "+12268213044")
+	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "jsmith", "+12268213044")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
 }
@@ -548,7 +620,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
-	_, err = s.Application.SignupService().GetSignup(userID.String())
+	_, err = s.Application.SignupService().GetSignup(userID.String(), "")
 	require.EqualError(s.T(), err, "an error occurred")
 }
 
@@ -556,7 +628,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	signup, err := s.Application.SignupService().GetSignup(userID.String())
+	signup, err := s.Application.SignupService().GetSignup(userID.String(), "")
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 }
@@ -597,7 +669,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
-	response, err := s.Application.SignupService().GetSignup(userID.String())
+	response, err := s.Application.SignupService().GetSignup(userID.String(), "")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -663,7 +735,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
-		response, err := s.Application.SignupService().GetSignup(userID.String())
+		response, err := s.Application.SignupService().GetSignup(userID.String(), "")
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
@@ -688,7 +760,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	signup, err := s.Application.SignupService().GetSignup(us.Name)
+	signup, err := s.Application.SignupService().GetSignup(us.Name, "")
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 }
@@ -739,7 +811,71 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	})
 	require.NoError(s.T(), err)
 
-	response, err := s.Application.SignupService().GetSignup(us.Name)
+	response, err := s.Application.SignupService().GetSignup(us.Name, "")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+
+	require.Equal(s.T(), "ted@domain.com", response.Username)
+	require.Equal(s.T(), "ted", response.CompliantUsername)
+	assert.True(s.T(), response.Status.Ready)
+	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+	assert.False(s.T(), response.Status.VerificationRequired)
+	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+	assert.Equal(s.T(), "member-123", response.ClusterName)
+	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+
+	us := s.newUserSignupComplete()
+	us.Name = service.EncodeUserIdentifier(us.Spec.Username)
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	require.NoError(s.T(), err)
+
+	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "toolchain-status",
+			Namespace: TestNamespace,
+		},
+		Status: toolchainv1alpha1.ToolchainStatusStatus{
+			Members: []toolchainv1alpha1.Member{
+				{
+					ClusterName: "member-1",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.member-1.com",
+							CheDashboardURL: "http://che-toolchain-che.member-1.com",
+						},
+					},
+				},
+				{
+					ClusterName: "member-123",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.member-123.com",
+							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+						},
+					},
+				},
+			},
+			HostRoutes: toolchainv1alpha1.HostRoutes{
+				ProxyURL: "https://proxy-url.com",
+			},
+		},
+	})
+	require.NoError(s.T(), err)
+
+	response, err := s.Application.SignupService().GetSignup("foo", us.Spec.Username)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -766,7 +902,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
 	require.NoError(s.T(), err)
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
 }
 
@@ -785,7 +921,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		return &toolchainv1alpha1.MasterUserRecord{}, nil
 	}
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
 }
 
@@ -816,7 +952,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	})
 	require.NoError(s.T(), err)
 
-	_, err = s.Application.SignupService().GetSignup(us.Name)
+	_, err = s.Application.SignupService().GetSignup(us.Name, "")
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
 }
 
@@ -828,7 +964,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		err := s.FakeUserSignupClient.Tracker.Add(us)
 		require.NoError(s.T(), err)
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 		require.Equal(s.T(), us.Name, val.Name)
 	})
@@ -838,7 +974,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 			return nil, errors.New("get failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup("foo")
+		val, err := s.Application.SignupService().GetUserSignup("foo", "")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "get failed", err.Error())
 		require.Nil(s.T(), val)
@@ -847,7 +983,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	s.Run("getusersignup with unknown user", func() {
 		s.FakeUserSignupClient.MockGet = nil
 
-		val, err := s.Application.SignupService().GetUserSignup("unknown")
+		val, err := s.Application.SignupService().GetUserSignup("unknown", "")
 		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
@@ -861,7 +997,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	require.NoError(s.T(), err)
 
 	s.Run("updateusersignup ok", func() {
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 
 		val.Spec.FamilyName = "Johnson"
@@ -877,7 +1013,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 			return nil, errors.New("update failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name)
+		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
 		require.NoError(s.T(), err)
 
 		updated, err := s.Application.SignupService().UpdateUserSignup(val)

@@ -102,7 +102,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			s.Run(tt.name, func() {
 				claims, err := tokenParser.FromString(tt.jwt)
 				require.NoError(s.T(), err)
-				require.Equal(s.T(), tt.username, claims.Username)
+				require.Equal(s.T(), tt.username, claims.PreferredUsername)
 				require.Equal(s.T(), tt.email, claims.Email)
 			})
 		}
@@ -303,7 +303,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 		claims, err := tokenParser.FromString(jwt0)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), identity0.Username, claims.Username)
+		require.Equal(s.T(), identity0.Username, claims.PreferredUsername)
 		require.Equal(s.T(), email0, claims.Email)
 		require.Equal(s.T(), "OriginalSubValue:1234-ABCD", claims.OriginalSub)
 	})

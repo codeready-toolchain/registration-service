@@ -82,12 +82,12 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("signup service returns error", func() {
-			sc.mockGetSignup = func(userID string) (*signup.Signup, error) {
+			sc.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready")
+			_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -97,7 +97,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not found", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "unknown_id")
+			_, err := svc.GetNamespace(ctx, "unknown_id", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -105,7 +105,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "456-not-ready")
+			_, err := svc.GetNamespace(ctx, "456-not-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -127,7 +127,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready")
+			_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member clusters found")
@@ -147,7 +147,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster")
+			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -204,7 +204,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "can't obtain SA")
@@ -216,7 +216,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "no SA found for the user")
@@ -242,7 +242,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				}
 
 				// when
-				_, err := svc.GetNamespace(ctx, "789-ready")
+				_, err := svc.GetNamespace(ctx, "789-ready", "")
 
 				// then
 				require.EqualError(s.T(), err, "can't obtain secret")
@@ -291,7 +291,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NoError(s.T(), memberClient.Create(context.TODO(), scr3))
 
 			// when
-			ns, err := svc.GetNamespace(ctx, "789-ready")
+			ns, err := svc.GetNamespace(ctx, "789-ready", "")
 
 			// then
 			require.NoError(s.T(), err)
@@ -302,7 +302,23 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				APIURL:  *expectedURL,
 				SAToken: "some-token",
 			}, *ns)
+
+			s.Run("sa found when lookup by username", func() {
+				// when
+				ns, err := svc.GetNamespace(ctx, "", "smith")
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), ns)
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
+				assert.Equal(s.T(), namespace.NamespaceAccess{
+					APIURL:  *expectedURL,
+					SAToken: "some-token",
+				}, *ns)
+			})
 		})
+
 	})
 }
 
@@ -343,38 +359,47 @@ func newFakeSignupService() *fakeSignupService {
 	return f
 }
 
-func (m *fakeSignupService) addSignup(userID string, userSignup *signup.Signup) *fakeSignupService {
+func (m *fakeSignupService) addSignup(identifier string, userSignup *signup.Signup) *fakeSignupService {
 	if m.userSignups == nil {
 		m.userSignups = make(map[string]*signup.Signup)
 	}
-	m.userSignups[userID] = userSignup
+	m.userSignups[identifier] = userSignup
 	return m
 }
 
 type fakeSignupService struct {
-	mockGetSignup func(userID string) (*signup.Signup, error)
+	mockGetSignup func(userID, username string) (*signup.Signup, error)
 	userSignups   map[string]*signup.Signup
 }
 
-func (m *fakeSignupService) defaultMockGetSignup() func(userID string) (*signup.Signup, error) {
-	return func(userID string) (userSignup *signup.Signup, e error) {
-		return m.userSignups[userID], nil
+func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
+	return func(userID, username string) (userSignup *signup.Signup, e error) {
+		us := m.userSignups[userID]
+		if us != nil {
+			return us, nil
+		}
+		for _, v := range m.userSignups {
+			if v.Username == username {
+				return v, nil
+			}
+		}
+		return nil, nil
 	}
 }
 
-func (m *fakeSignupService) GetSignup(userID string) (*signup.Signup, error) {
-	return m.mockGetSignup(userID)
+func (m *fakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
+	return m.mockGetSignup(userID, username)
 }
 
 func (m *fakeSignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *fakeSignupService) GetUserSignup(_ string) (*toolchainv1alpha1.UserSignup, error) {
+func (m *fakeSignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
 func (m *fakeSignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _ string) error {
+func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 	return nil
 }

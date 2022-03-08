@@ -112,6 +112,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	var reqBody io.ReadCloser
 	obs := func(request *http.Request, mock gock.Mock) {
 		reqBody = request.Body
+		defer request.Body.Close()
 	}
 
 	gock.Observe(obs)
@@ -133,18 +134,45 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		},
 	}
 
-	states.SetVerificationRequired(userSignup, true)
+	// Create a second UserSignup which we will test by username lookup instead of UserID lookup.  This will also function
+	// as some additional noise for the test
+	userSignup2 := &toolchainv1alpha1.UserSignup{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "jsmith",
+			Namespace: configuration.Namespace(),
+			Annotations: map[string]string{
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+			},
+			Labels: map[string]string{
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+61NUMBER",
+			},
+		},
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			Username: "jsmith",
+		},
+	}
 
+	// Require verification for both UserSignups
+	states.SetVerificationRequired(userSignup, true)
+	states.SetVerificationRequired(userSignup2, true)
+
+	// Add both UserSignups to the fake client
 	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
 	require.NoError(s.T(), err)
 
+	err = s.FakeUserSignupClient.Tracker.Add(userSignup2)
+	require.NoError(s.T(), err)
+
+	// Test the init verification for the first UserSignup
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 	require.NoError(s.T(), err)
 
+	// Ensure the verification code is set
 	require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf := new(bytes.Buffer)
@@ -159,6 +187,41 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+
+	// Test the init verification for the second UserSignup - Setup gock again for another request
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+
+	obs = func(request *http.Request, mock gock.Mock) {
+		reqBody = request.Body
+		defer request.Body.Close()
+	}
+	gock.Observe(obs)
+
+	ctx, _ = gin.CreateTestContext(httptest.NewRecorder())
+	// This time we won't pass in the UserID, just the username yet still expect the UserSignup to be found
+	err = s.Application.VerificationService().InitVerification(ctx, "", userSignup2.Spec.Username, "+61NUMBER")
+	require.NoError(s.T(), err)
+
+	userSignup2, err = s.FakeUserSignupClient.Get(userSignup2.Name)
+	require.NoError(s.T(), err)
+
+	// Ensure the verification code is set
+	require.NotEmpty(s.T(), userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+
+	buf = new(bytes.Buffer)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
+	reqValue = buf.String()
+
+	params, err = url.ParseQuery(reqValue)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
+		params.Get("Body"))
+	require.Equal(s.T(), "CodeReady", params.Get("From"))
+	require.Equal(s.T(), "+61NUMBER", params.Get("To"))
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
@@ -211,7 +274,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "get failed:error retrieving usersignup: 123", err.Error())
 	})
@@ -225,7 +288,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
@@ -248,7 +311,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -314,7 +377,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -371,7 +434,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 }
@@ -414,7 +477,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, "+1NUMBER")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
 
@@ -482,7 +545,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber)
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
 
@@ -556,7 +619,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, e164PhoneNumber)
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber)
 	require.NoError(s.T(), err)
 
 	// Reload bravoUserSignup
@@ -598,7 +661,43 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		require.NoError(s.T(), err)
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.False(s.T(), states.VerificationRequired(userSignup))
+	})
+
+	s.T().Run("verification ok for usersignup with username identifier", func(t *testing.T) {
+
+		userSignup := &toolchainv1alpha1.UserSignup{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "employee085",
+				Namespace: configuration.Namespace(),
+				Annotations: map[string]string{
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "employee085@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+				},
+				Labels: map[string]string{
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: toolchainv1alpha1.UserSignupSpec{
+				Username: "employee085@redhat.com",
+			},
+		}
+		states.SetVerificationRequired(userSignup, true)
+
+		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().VerifyCode(ctx, "", "employee085", "654321")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -636,7 +735,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
@@ -672,7 +771,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "expired:verification code expired", e.Error())
@@ -707,7 +806,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 	})
@@ -740,7 +839,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "too many verification attempts:", err.Error())
 
@@ -778,7 +877,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, "123456")
+		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
 	})

@@ -101,7 +101,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      EncodeUserID(ctx.GetString(context.SubKey)),
+			Name:      EncodeUserIdentifier(ctx.GetString(context.SubKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
@@ -131,12 +131,12 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// EncodeUserID transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
+// EncodeUserIdentifier transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
 // ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
 // resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
 // to the new value
-func EncodeUserID(subject string) string {
+func EncodeUserIdentifier(subject string) string {
 	// Convert to lower case
 	encoded := strings.ToLower(subject)
 
@@ -164,16 +164,26 @@ func EncodeUserID(subject string) string {
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	encodedUserID := EncodeUserID(ctx.GetString(context.SubKey))
+	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
+
 	// Retrieve UserSignup resource from the host cluster
 	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// New Signup
-			log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
-			return s.createUserSignup(ctx)
+			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
+			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
+			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUsername)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					// New Signup
+					log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
+					return s.createUserSignup(ctx)
+				}
+				return nil, err
+			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
@@ -223,15 +233,20 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
-
-	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
+func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
+	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
+	userSignup, err := s.GetUserSignup(userID, username)
+	// If an error was returned, then return here
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	// Otherwise if the returned userSignup is nil, return here also
+	if userSignup == nil {
+		return nil, nil
 	}
 
 	signupResponse := &signup.Signup{
@@ -304,10 +319,21 @@ func (s *ServiceImpl) GetSignup(userID string) (*signup.Signup, error) {
 }
 
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(userID string) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserID(userID))
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Capture any error here in a separate var, as we need to preserve the original
+			userSignup, err2 := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+			if err2 != nil {
+				if apierrors.IsNotFound(err2) {
+					return nil, err
+				}
+				return nil, err2
+			}
+			return userSignup, nil
+		}
 		return nil, err
 	}
 
@@ -325,10 +351,10 @@ func (s *ServiceImpl) UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup)
 }
 
 // PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
-// an internal server error. If not, check if an active (non-deactivated) UserSignup with a different userID
+// an internal server error. If not, check if an active (non-deactivated) UserSignup with a different userID and username
 // and email address exists. If so, return an internal server error. Otherwise, return without error.
 // Either the actual phone number, or the md5 hash of the phone number may be provided here.
-func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) error {
+func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error {
 	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhoneNumberOrHash(phoneNumberOrHash)
 	if err != nil {
 		return errors.NewInternalError(err, "failed listing banned users")
@@ -342,7 +368,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, phoneNumberOrHash string) 
 		return errors.NewInternalError(err, "failed listing userSignups")
 	}
 	for _, signup := range userSignupList.Items {
-		if signup.Spec.Userid != userID && !states.Deactivated(&signup) { // nolint:gosec
+		if signup.Spec.Userid != userID && signup.Spec.Username != username && !states.Deactivated(&signup) { // nolint:gosec
 			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

@@ -123,6 +123,12 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
+	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
+	if param, _ := ctx.GetQuery(context.NoSpaceKey); param == "true" {
+		log.Info(ctx, fmt.Sprintf("setting '%s' annotation to true", toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey))
+		userSignup.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey] = "true"
+	}
+
 	return userSignup, nil
 }
 

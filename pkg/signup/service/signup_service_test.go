@@ -60,7 +60,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 func (s *TestSignupServiceSuite) TestSignup() {
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
-	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, userID string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
+	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, username string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
 		require.NotNil(s.T(), userSignup)
 
 		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
@@ -76,9 +76,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 		val := userSignups.Items[0]
 		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
-		require.Equal(s.T(), userID, val.Name)
-		require.Equal(s.T(), userID, val.Spec.Userid)
-		require.Equal(s.T(), "jsmith", val.Spec.Username)
+		require.Equal(s.T(), username, val.Name)
+		require.Equal(s.T(), username, val.Spec.Username)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
@@ -112,7 +111,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
 	require.Equal(s.T(), "original-sub-value", userSignup.Spec.OriginalSub)
 
-	gvr, existing := assertUserSignupExists(userSignup, userID.String())
+	gvr, existing := assertUserSignupExists(userSignup, "jsmith")
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
@@ -128,7 +127,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 		// then
 		require.NoError(s.T(), err)
-		assertUserSignupExists(deactivatedUS, userID.String())
+		assertUserSignupExists(deactivatedUS, "jsmith")
 		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
 		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
 	})
@@ -148,7 +147,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 		// then
 		require.NoError(s.T(), err)
-		assertUserSignupExists(userSignup, userID.String())
+		assertUserSignupExists(userSignup, "jsmith")
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
 	})
@@ -161,7 +160,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
 		require.NoError(s.T(), err)
 		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-			if signup.Name == userID.String() {
+			if signup.Name == "jsmith" {
 				return nil, errors.New("an error occurred")
 			}
 			return &toolchainv1alpha1.UserSignup{}, nil
@@ -252,12 +251,12 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	subject := fmt.Sprintf("-%s", userID.String())
+	username := "-sjones"
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	ctx.Set(context.UsernameKey, "sjones")
-	ctx.Set(context.SubKey, subject)
+	ctx.Set(context.UsernameKey, username)
+	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "sjones@gmail.com")
 	ctx.Set(context.GivenNameKey, "sam")
 	ctx.Set(context.FamilyNameKey, "jones")
@@ -283,7 +282,8 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	val := userSignups.Items[0]
 
 	// Confirm that the UserSignup.Name value has been prefixed correctly
-	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(subject), crc32.IEEETable), subject)
+	expected := fmt.Sprintf("%x%s", crc32.Checksum([]byte(username), crc32.IEEETable), username)
+
 	require.Equal(s.T(), expected, val.Name)
 	require.False(s.T(), strings.HasPrefix(val.Name, "-"))
 }
@@ -557,8 +557,9 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 
 	val := userSignups.Items[0]
 	require.Equal(s.T(), TestNamespace, val.Namespace)
-	require.Equal(s.T(), userID.String(), val.Name)
+	require.Equal(s.T(), "jsmith", val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
+	require.Equal(s.T(), userID.String(), val.Spec.Userid)
 	require.Equal(s.T(), "", val.Spec.GivenName)
 	require.Equal(s.T(), "", val.Spec.FamilyName)
 	require.Equal(s.T(), "", val.Spec.Company)

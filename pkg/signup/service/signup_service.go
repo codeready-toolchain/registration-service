@@ -101,7 +101,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      EncodeUserIdentifier(ctx.GetString(context.SubKey)),
+			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,

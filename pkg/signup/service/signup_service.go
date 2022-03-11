@@ -34,6 +34,9 @@ const (
 	DNS1123NameMaximumLength         = 63
 	DNS1123NotAllowedCharacters      = "[^-a-z0-9]"
 	DNS1123NotAllowedStartCharacters = "^[^a-z0-9]+"
+
+	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
+	NoSpaceKey = "no-space"
 )
 
 // ServiceConfiguration represents the config used for the signup service.
@@ -124,7 +127,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
-	if param, _ := ctx.GetQuery(context.NoSpaceKey); param == "true" {
+	if param, _ := ctx.GetQuery(NoSpaceKey); param == "true" {
 		log.Info(ctx, fmt.Sprintf("setting '%s' annotation to true", toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey))
 		userSignup.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey] = "true"
 	}

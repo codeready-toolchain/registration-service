@@ -17,6 +17,4 @@ const (
 	OriginalSubKey = "originalSub"
 	// JWTClaimsKey is the context key for the claims struct
 	JWTClaimsKey = "jwtClaims"
-	// NoSpaceKey is the context key for specifying whether the UserSignup should be created without a Space
-	NoSpaceKey = "no-space"
 )

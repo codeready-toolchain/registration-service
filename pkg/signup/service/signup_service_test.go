@@ -88,6 +88,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
+		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
 
 		return gvr, val
 	}

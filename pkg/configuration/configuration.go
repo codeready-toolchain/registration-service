@@ -33,9 +33,9 @@ const (
 	GracefulTimeout       = time.Second * 15
 	HTTPAddress           = "0.0.0.0:8080"
 	HTTPCompressResponses = true
-	HTTPIdleTimeout       = time.Second * 15
-	HTTPReadTimeout       = time.Second * 15
-	HTTPWriteTimeout      = time.Second * 15
+	HTTPIdleTimeout       = time.Second * 60
+	HTTPReadTimeout       = time.Second * 60
+	HTTPWriteTimeout      = time.Second * 60
 
 	prodEnvironment      = "prod"
 	DefaultEnvironment   = prodEnvironment

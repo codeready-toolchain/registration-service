@@ -61,8 +61,8 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	}).addSignup("012-ready-unknown-cluster", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
 		ClusterName:       "unknown",
-		CompliantUsername: "jane",
-		Username:          "jane",
+		CompliantUsername: "smith",
+		Username:          "smith",
 		Status: signup.Status{
 			Ready: true,
 		},

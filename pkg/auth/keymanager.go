@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -133,7 +134,15 @@ func (km *KeyManager) fetchKeysFromBytes(keysBytes []byte) ([]*PublicKey, error)
 // fetchKeys fetches the keys from the given URL, unmarshalling them.
 func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	// use httpClient to perform request
-	httpClient := http.DefaultClient
+	transport := http.DefaultTransport
+	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec
+			},
+		}
+	}
+	httpClient := &http.Client{Transport: transport}
 	req, err := http.NewRequest("GET", keysEndpointURL, nil)
 	if err != nil {
 		return nil, err

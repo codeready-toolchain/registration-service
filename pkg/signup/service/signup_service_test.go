@@ -1,9 +1,11 @@
 package service_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -89,6 +91,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
+		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
 
 		return gvr, val
 	}
@@ -242,6 +245,46 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 	_, err := s.Application.SignupService().GetSignup("000", "abc")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "something quite unfortunate happened:something bad", err.Error())
+}
+
+func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+	ctx.Set(context.GivenNameKey, "jane")
+	ctx.Set(context.FamilyNameKey, "doe")
+	ctx.Set(context.CompanyKey, "red hat")
+	ctx.Request, _ = http.NewRequest("POST", "/?no-space=true", bytes.NewBufferString(""))
+
+	// when
+	userSignup, err := s.Application.SignupService().Signup(ctx)
+
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), userSignup)
+
+	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	require.NoError(s.T(), err)
+	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	require.NoError(s.T(), err)
+
+	userSignups := values.(*toolchainv1alpha1.UserSignupList)
+	require.NotEmpty(s.T(), userSignups.Items)
+	require.Len(s.T(), userSignups.Items, 1)
+
+	val := userSignups.Items[0]
+	require.Equal(s.T(), "true", val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is set
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {

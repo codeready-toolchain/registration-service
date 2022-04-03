@@ -59,6 +59,9 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 
 func (s *TestSignupServiceSuite) TestSignup() {
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	// given
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
 
 	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, username string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
 		require.NotNil(s.T(), userSignup)
@@ -76,6 +79,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 		val := userSignups.Items[0]
 		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
+		require.Equal(s.T(), userID.String(), val.Spec.Userid)
 		require.Equal(s.T(), username, val.Name)
 		require.Equal(s.T(), username, val.Spec.Username)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
@@ -88,10 +92,6 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 		return gvr, val
 	}
-
-	// given
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)

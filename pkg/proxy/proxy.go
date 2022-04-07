@@ -119,12 +119,13 @@ func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
 // createContext creates a new gin.Context with the User ID extracted from the Bearer token.
 // To be used for storing the user ID and logging only.
 func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
-	userID, err := p.extractUserID(req)
+	userID, username, err := p.extractUserID(req)
 	if err != nil {
 		return nil, err
 	}
 	keys := make(map[string]interface{})
 	keys[context.SubKey] = userID
+	keys[context.UsernameKey] = username
 	return &gin.Context{
 		Keys: keys,
 	}, nil
@@ -136,26 +137,26 @@ func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.NamespaceAccess
 	return p.namespaces.GetNamespace(ctx, userID, username)
 }
 
-func (p *Proxy) extractUserID(req *http.Request) (string, error) {
+func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
 	userToken := ""
 	var err error
 	if wsstream.IsWebSocketRequest(req) {
 		userToken, err = extractTokenFromWebsocketRequest(req)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	} else {
 		userToken, err = extractUserToken(req)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 	}
 
 	token, err := p.tokenParser.FromString(userToken)
 	if err != nil {
-		return "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
+		return "", "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
 	}
-	return token.Subject, nil
+	return token.Subject, token.PreferredUsername, nil
 }
 
 func extractUserToken(req *http.Request) (string, error) {

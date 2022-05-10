@@ -417,7 +417,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
 		require.Equal(s.T(), float64(400), bodyParams["code"])
-		require.Equal(s.T(), "forbidden request:verification code will not be sent", bodyParams["message"])
+		require.Equal(s.T(), "forbidden request: verification code will not be sent", bodyParams["message"])
 		require.Equal(s.T(), "forbidden request", bodyParams["details"])
 	})
 
@@ -543,7 +543,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.Equal(s.T(), float64(500), bodyParams["code"])
-		require.Equal(s.T(), fmt.Sprintf("no user:error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), fmt.Sprintf("no user: error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -573,7 +573,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.Equal(s.T(), float64(404), bodyParams["code"])
-		require.Equal(s.T(), fmt.Sprintf(" \"%s\" not found:user not found", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), fmt.Sprintf(" \"%s\" not found: user not found", userSignup.Name), bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -604,7 +604,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 		require.Equal(s.T(), float64(500), bodyParams["code"])
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
-			"assistance:error while verifying code", bodyParams["message"])
+			"assistance: error while verifying code", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 
@@ -638,7 +638,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
 		require.Equal(s.T(), float64(429), bodyParams["code"])
-		require.Equal(s.T(), "too many verification attempts:", bodyParams["message"])
+		require.Equal(s.T(), "too many verification attempts", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying code", bodyParams["details"])
 	})
 

@@ -51,14 +51,14 @@ func (s *TestErrorsSuite) TestErrors() {
 		require.Equal(s.T(), "bar", err.Details)
 		require.Equal(s.T(), http.StatusForbidden, err.Code)
 		require.Equal(s.T(), http.StatusText(http.StatusForbidden), err.Status)
-		require.Equal(s.T(), "foo:bar", err.Error())
+		require.Equal(s.T(), "foo: bar", err.Error())
 
 		err = errs.NewUnauthorizedError("foo", "bar")
 		require.Equal(s.T(), "foo", err.Message)
 		require.Equal(s.T(), "bar", err.Details)
 		require.Equal(s.T(), http.StatusUnauthorized, err.Code)
 		require.Equal(s.T(), http.StatusText(http.StatusUnauthorized), err.Status)
-		require.Equal(s.T(), "foo:bar", err.Error())
+		require.Equal(s.T(), "foo: bar", err.Error())
 
 		err = errs.NewTooManyRequestsError("foo", "bar")
 		require.Equal(s.T(), "foo", err.Message)

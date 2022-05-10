@@ -25,7 +25,10 @@ func AbortWithError(ctx *gin.Context, code int, err error, details string) {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s:%s", e.Message, e.Details)
+	if e.Details != "" {
+		return fmt.Sprintf("%s: %s", e.Message, e.Details)
+	}
+	return e.Message
 }
 
 func NewForbiddenError(message, details string) *Error {

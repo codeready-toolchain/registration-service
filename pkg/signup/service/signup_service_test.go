@@ -198,8 +198,7 @@ func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 
 	// when
 	_, err = s.Application.SignupService().Signup(ctx)
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "an internal error:an internal error happened", err.Error())
+	require.EqualError(s.T(), err, "an internal error: an internal error happened")
 }
 
 func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
@@ -227,8 +226,7 @@ func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 
 	// when
 	_, err = s.Application.SignupService().Signup(ctx)
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "something bad happened:something very bad happened", err.Error())
+	require.EqualError(s.T(), err, "something bad happened: something very bad happened")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() {
@@ -243,8 +241,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 
 	// when
 	_, err := s.Application.SignupService().GetSignup("000", "abc")
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "something quite unfortunate happened:something bad", err.Error())
+	require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
 }
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
@@ -409,8 +406,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 	ctx.Set(context.CompanyKey, "red hat")
 
 	userSignup, err := s.Application.SignupService().Signup(ctx)
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "forbidden: failed to create usersignup for jsmith-crtadmin", err.Error())
+	require.EqualError(s.T(), err, "forbidden: failed to create usersignup for jsmith-crtadmin")
 	require.Nil(s.T(), userSignup)
 }
 
@@ -518,8 +514,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "jsmith", "+12268213044")
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
@@ -550,8 +545,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 	newUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "jsmith", "+12268213044")
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "cannot re-register with phone number:phone number already in use", err.Error())
+	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
@@ -977,8 +971,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		}
 
 		val, err := s.Application.SignupService().GetUserSignup("foo", "")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "get failed", err.Error())
+		require.EqualError(s.T(), err, "get failed")
 		require.Nil(s.T(), val)
 	})
 
@@ -1019,8 +1012,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 		require.NoError(s.T(), err)
 
 		updated, err := s.Application.SignupService().UpdateUserSignup(val)
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "update failed", err.Error())
+		require.EqualError(s.T(), err, "update failed")
 		require.Nil(s.T(), updated)
 	})
 }

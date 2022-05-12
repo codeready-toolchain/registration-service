@@ -115,7 +115,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token:no token found:a Bearer token is expected\n")
+					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected\n")
 				})
 
 				s.Run("unauthorized if can't parse token", func() {
@@ -130,7 +130,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments\n")
 				})
 
 				s.Run("unauthorized if can't extract userID from a valid token", func() {
@@ -147,7 +147,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token:unable to extract userID from token:token does not comply to expected claims: subject missing\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing\n")
 				})
 
 				s.Run("internal error if get namespace returns an error", func() {
@@ -163,7 +163,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-					s.assertResponseBody(resp, "unable to get target namespace:some-error\n")
+					s.assertResponseBody(resp, "unable to get target namespace: some-error\n")
 				})
 			})
 
@@ -174,42 +174,42 @@ func (s *TestProxySuite) TestProxy() {
 				}{
 					"empty token": {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.,dummy"},
-						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+						ExpectedError:   "invalid bearer token: no base64.bearer.authorization token found",
 					},
 					"not a jwt token": {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy"},
-						ExpectedError:   "invalid bearer token:unable to extract userID from token:token contains an invalid number of segments",
+						ExpectedError:   "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments",
 					},
 					"invalid token is not base64 encoded": {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.token,dummy"},
-						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token encoding: illegal base64 data at input byte 4",
+						ExpectedError:   "invalid bearer token: invalid base64.bearer.authorization token encoding: illegal base64 data at input byte 4",
 					},
 					"invalid token contains non UTF-8-encoded runes": {
 						ProtocolHeaders: []string{fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", base64.RawURLEncoding.EncodeToString([]byte("aa\xe2")))},
-						ExpectedError:   "invalid bearer token:invalid base64.bearer.authorization token: contains non UTF-8-encoded runes",
+						ExpectedError:   "invalid bearer token: invalid base64.bearer.authorization token: contains non UTF-8-encoded runes",
 					},
 					"no header": {
 						ProtocolHeaders: nil,
-						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+						ExpectedError:   "invalid bearer token: no base64.bearer.authorization token found",
 					},
 					"empty header": {
 						ProtocolHeaders: []string{""},
-						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+						ExpectedError:   "invalid bearer token: no base64.bearer.authorization token found",
 					},
 					"non-bearer header": {
 						ProtocolHeaders: []string{"undefined"},
-						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+						ExpectedError:   "invalid bearer token: no base64.bearer.authorization token found",
 					},
 					"empty bearer token": {
 						ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io."},
-						ExpectedError:   "invalid bearer token:no base64.bearer.authorization token found",
+						ExpectedError:   "invalid bearer token: no base64.bearer.authorization token found",
 					},
 					"multiple bearer tokens": {
 						ProtocolHeaders: []string{
 							"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy",
 							"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy",
 						},
-						ExpectedError: "invalid bearer token:multiple base64.bearer.authorization tokens specified",
+						ExpectedError: "invalid bearer token: multiple base64.bearer.authorization tokens specified",
 					},
 				}
 

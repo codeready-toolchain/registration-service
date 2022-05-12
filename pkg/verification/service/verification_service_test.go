@@ -275,8 +275,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "get failed:error retrieving usersignup: 123", err.Error())
+		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: 123", err.Error())
 	})
 
 	s.T().Run("when client UPDATE call fails indefinitely should return error", func(t *testing.T) {
@@ -289,10 +288,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
+		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
-			"for assistance:error while verifying code", err.Error())
+			"for assistance: error while verifying code", err.Error())
 	})
 
 	s.T().Run("when client UPDATE call fails twice should return ok", func(t *testing.T) {
@@ -435,8 +433,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
+	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code")
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExceeded() {
@@ -478,9 +475,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
-	require.Error(s.T(), err)
-	require.Equal(s.T(), "daily limit exceeded:cannot generate new verification code", err.Error())
-
+	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code", err.Error())
 	require.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
@@ -547,7 +542,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber)
 	require.Error(s.T(), err)
-	require.Equal(s.T(), "phone number already in use:cannot register using phone number: +19875551122", err.Error())
+	require.Equal(s.T(), "phone number already in use: cannot register using phone number: +19875551122", err.Error())
 
 	// Reload bravoUserSignup
 	bravoUserSignup, err = s.FakeUserSignupClient.Get(bravoUserSignup.Name)
@@ -637,7 +632,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("verification ok", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -673,7 +667,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("verification ok for usersignup with username identifier", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "employee085",
 				Namespace: configuration.Namespace(),
@@ -709,7 +702,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("when verification code is invalid", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -739,14 +731,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
-		require.Equal(s.T(), "invalid code:the provided code is invalid", e.Error())
+		require.Equal(s.T(), "invalid code: the provided code is invalid", e.Error())
 		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -774,14 +765,13 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
-		require.Equal(s.T(), "expired:verification code expired", e.Error())
+		require.Equal(s.T(), "expired: verification code expired", e.Error())
 		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -807,14 +797,12 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "too many verification attempts:", err.Error())
+		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
 
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -840,8 +828,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "too many verification attempts:", err.Error())
+		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
@@ -852,7 +839,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
-			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "123",
 				Namespace: configuration.Namespace(),
@@ -878,8 +864,6 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
-		require.Error(s.T(), err)
-		require.Equal(s.T(), "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\":error parsing expiry timestamp", err.Error())
+		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
-
 }

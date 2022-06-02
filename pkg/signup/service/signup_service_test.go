@@ -354,6 +354,11 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 		encoded := service.EncodeUserIdentifier(userID)
 		require.Equal(s.T(), "a05a4053-abcxyz", encoded)
 	})
+	s.Run("test user ID with invalid end character", func() {
+		userID := "abc---"
+		encoded := service.EncodeUserIdentifier(userID)
+		require.Equal(s.T(), "ed6bd2b5-abc", encoded)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {

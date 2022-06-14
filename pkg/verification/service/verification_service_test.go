@@ -5,7 +5,6 @@ import (
 	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	"errors"
-	errs "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -269,7 +268,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		// Cause the client GET call to fail
 		s.FakeUserSignupClient.MockGet = func(s string) (*toolchainv1alpha1.UserSignup, error) {
-			return nil, errs.New("get failed")
+			return nil, errors.New("get failed")
 		}
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
@@ -282,7 +281,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		// Cause the client UPDATE call to fail always
 		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-			return nil, errs.New("update failed")
+			return nil, errors.New("update failed")
 		}
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
@@ -301,7 +300,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if failCount < 2 {
 				failCount++
-				return nil, errs.New("update failed")
+				return nil, errors.New("update failed")
 			}
 			s.FakeUserSignupClient.MockUpdate = nil
 			return s.FakeUserSignupClient.Update(userSignup)
@@ -655,7 +654,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -690,7 +689,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, "", "employee085", "654321")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, "", "employee085", "654321")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -727,7 +726,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
@@ -762,7 +761,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "expired: verification code expired", e.Error())
@@ -796,7 +795,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
 
@@ -827,7 +826,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -863,7 +862,7 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 }

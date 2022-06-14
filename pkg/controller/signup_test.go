@@ -496,7 +496,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -526,7 +526,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -556,7 +556,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance and handle the verification request
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -585,7 +585,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -621,7 +621,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -645,7 +645,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 	s.Run("no code provided", func() {
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",
@@ -685,7 +685,7 @@ func (s *TestSignupSuite) TestVerifyCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(s.Application)
-		handler := gin.HandlerFunc(ctrl.VerifyCodeHandler)
+		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
 			Key:   "code",

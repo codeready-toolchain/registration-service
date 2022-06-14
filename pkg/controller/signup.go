@@ -124,8 +124,8 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	}
 }
 
-// VerifyCodeHandler validates the phone verification code passed in by the user
-func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
+// VerifyPhoneCodeHandler validates the phone verification code passed in by the user
+func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 	code := ctx.Param("code")
 	if code == "" {
 		log.Error(ctx, nil, "no code provided in request")
@@ -136,7 +136,7 @@ func (s *Signup) VerifyCodeHandler(ctx *gin.Context) {
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	err := s.app.VerificationService().VerifyCode(ctx, userID, username, code)
+	err := s.app.VerificationService().VerifyPhoneCode(ctx, userID, username, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating user verification code")
 		e := &crterrors.Error{}

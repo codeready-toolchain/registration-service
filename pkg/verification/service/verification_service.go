@@ -209,9 +209,9 @@ func generateVerificationCode() (string, error) {
 	return string(buf), nil
 }
 
-// VerifyCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
+// VerifyPhoneCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
-func (s *ServiceImpl) VerifyCode(ctx *gin.Context, userID, username, code string) (verificationErr error) {
+func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code string) (verificationErr error) {
 
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here

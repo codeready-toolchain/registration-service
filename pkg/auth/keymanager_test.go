@@ -15,6 +15,7 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
+
 	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"

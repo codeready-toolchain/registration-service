@@ -22,14 +22,21 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
+	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
+	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 const (
@@ -289,7 +296,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER")
 		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
-			"for assistance: error while verifying code", err.Error())
+			"for assistance: error while verifying phone code")
 	})
 
 	s.T().Run("when client UPDATE call fails twice should return ok", func(t *testing.T) {
@@ -624,7 +631,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NotEmpty(s.T(), bravoUserSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
-func (s *TestVerificationServiceSuite) TestVerifyCode() {
+func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	// given
 	now := time.Now()
 
@@ -865,4 +872,183 @@ func (s *TestVerificationServiceSuite) TestVerifyCode() {
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
+}
+
+func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
+
+	// given
+
+	cfg := configuration.GetRegistrationServiceConfig()
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	s.T().Run("verification ok", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.NoError(t, err)
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.False(t, states.VerificationRequired(userSignup))
+	})
+
+	s.T().Run("last user to signup", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                        // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9)) // one seat left
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.NoError(t, err)
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.False(t, states.VerificationRequired(userSignup))
+	})
+
+	s.T().Run("when too many attempts made", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.VerificationRequired(time.Second), // just signed up
+			testusersignup.WithVerificationAttempts(cfg.Verification().AttemptsAllowed()))
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.EqualError(t, err, "too many verification attempts: 3")
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.True(t, states.VerificationRequired(userSignup)) // unchanged
+	})
+
+	s.T().Run("when invalid code", func(t *testing.T) {
+
+		t.Run("first attempt", func(t *testing.T) {
+			// given
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			err := s.setupFakeClients(userSignup)
+			require.NoError(t, err)
+
+			// when
+			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, "invalid")
+
+			// then
+			require.EqualError(t, err, "invalid code: the provided code is invalid")
+			userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(t, err)
+			require.True(t, states.VerificationRequired(userSignup))                                              // unchanged
+			assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		})
+
+		t.Run("second attempt", func(t *testing.T) {
+			// given
+			userSignup := testusersignup.NewUserSignup(
+				testusersignup.VerificationRequired(time.Second), // just signed up
+				testusersignup.WithVerificationAttempts(2))       // already tried twice before
+			err := s.setupFakeClients(userSignup)
+			require.NoError(t, err)
+
+			// when
+			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, "invalid")
+
+			// then
+			require.EqualError(t, err, "invalid code: the provided code is invalid")
+			userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(t, err)
+			require.True(t, states.VerificationRequired(userSignup))                                              // unchanged
+			assert.Equal(t, "3", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		})
+	})
+
+	s.T().Run("when max attendees reached", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                         // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10)) // same as default `spec.MaxAttendees`
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.True(t, states.VerificationRequired(userSignup))
+		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+	})
+
+	s.T().Run("when event not open yet", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                          // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour))) // starting in 1hr
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.True(t, states.VerificationRequired(userSignup))
+		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+	})
+
+	s.T().Run("when event already closed", func(t *testing.T) {
+		// given
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                         // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour))) // ended 1hr ago
+		err := s.setupFakeClients(userSignup, event)
+		require.NoError(t, err)
+
+		// when
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+
+		// then
+		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(t, err)
+		require.True(t, states.VerificationRequired(userSignup))
+		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+	})
+}
+
+func (s *TestVerificationServiceSuite) setupFakeClients(objects ...runtime.Object) error {
+	clientScheme := runtime.NewScheme()
+	if err := toolchainv1alpha1.SchemeBuilder.AddToScheme(clientScheme); err != nil {
+		return err
+	}
+	s.FakeUserSignupClient.Tracker = kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
+	s.FakeSocialEventClient.Tracker = kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
+
+	for _, obj := range objects {
+		switch obj := obj.(type) {
+		case *toolchainv1alpha1.UserSignup:
+			if err := s.FakeUserSignupClient.Tracker.Add(obj); err != nil {
+				return err
+			}
+		case *toolchainv1alpha1.SocialEvent:
+			if err := s.FakeSocialEventClient.Tracker.Add(obj); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unexpected type of object: %T", obj)
+		}
+	}
+	return nil
 }

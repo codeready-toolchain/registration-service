@@ -22,6 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kevinburke/twilio-go"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -322,6 +323,109 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	return
 }
 
+// VerifyActivationCode verifies the activation code:
+// - checks that the SocialEvent resource named after the activation code exists
+// - checks that the SocialEvent has enough capaticity to approve the user
+func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, code string) error {
+	log.Infof(ctx, "verifying activation code '%s'", code)
+	// look-up the UserSignup
+	signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return crterrors.NewNotFoundError(err, "user not found")
+		}
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
+	}
+	annotationValues := map[string]string{}
+	annotationsToDelete := []string{}
+	unsetVerificationRequired := false
+
+	defer func() {
+		doUpdate := func() error {
+			signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+			if err != nil {
+				return err
+			}
+			if unsetVerificationRequired {
+				states.SetVerificationRequired(signup, false)
+			}
+			if signup.Annotations == nil {
+				signup.Annotations = map[string]string{}
+			}
+			for k, v := range annotationValues {
+				signup.Annotations[k] = v
+			}
+			for _, annotationName := range annotationsToDelete {
+				delete(signup.Annotations, annotationName)
+			}
+			// also, label the UserSignup with the name of the SocialEvent (ie, the activation code)
+			if signup.Labels == nil {
+				signup.Labels = map[string]string{}
+			}
+			signup.Labels[toolchainv1alpha1.SocialEventUserSignupLabelKey] = code
+			_, err = s.Services().SignupService().UpdateUserSignup(signup)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+		if err := pollUpdateSignup(ctx, doUpdate); err != nil {
+			log.Errorf(ctx, err, "unable to update user signup after validating activation code")
+		}
+	}()
+
+	attemptsMade, err := checkAttempts(signup)
+	if err != nil {
+		return err
+	}
+	attemptsMade++
+	annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+
+	// look-up the SocialEvent
+	event, err := s.CRTClient().V1Alpha1().SocialEvents().Get(code)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// The code doesn't match
+			return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+		}
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving event '%s'", code))
+	}
+	// if there is room for the user and if the "time window" to signup is valid
+	now := metav1.NewTime(time.Now())
+	log.Infof(ctx, "verifying activation code '%s': event.Status.ActivationCount=%d, event.Spec.MaxAttendees=%d, event.Spec.StartTime=%s, event.Spec.EndTime=%s", code, strconv.Itoa(event.Status.ActivationCount), strconv.Itoa(event.Spec.MaxAttendees), event.Spec.StartTime.Format("2006-01-02:03:04:05"), event.Spec.EndTime.Format("2006-01-02:03:04:05"))
+
+	if event.Status.ActivationCount < event.Spec.MaxAttendees &&
+		event.Spec.StartTime.Before(&now) &&
+		event.Spec.EndTime.After(now.Time) {
+		log.Infof(ctx, "approving user signup request with activation code '%s'", code)
+		// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
+		unsetVerificationRequired = true
+		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
+		return nil
+	}
+	return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+}
+
+func checkAttempts(signup *toolchainv1alpha1.UserSignup) (int, error) {
+	cfg := configuration.GetRegistrationServiceConfig()
+	v, found := signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]
+	if !found || v == "" {
+		return 0, nil
+	}
+	attemptsMade, err := strconv.Atoi(v)
+	if err != nil {
+		return -1, crterrors.NewInternalError(err, fmt.Sprintf("error converting annotation [%s] value [%s] to integer, on UserSignup: [%s]",
+			toolchainv1alpha1.UserVerificationAttemptsAnnotationKey,
+			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey], signup.Name))
+	}
+	// If the user has made more attempts than is allowed per generated verification code, return an error
+	if attemptsMade >= cfg.Verification().AttemptsAllowed() {
+		return attemptsMade, crterrors.NewTooManyRequestsError("too many verification attempts", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
+	}
+	return attemptsMade, nil
+}
+
 func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
 	// Attempt to execute an update function, retrying a number of times if the update fails
 	attempts := 0
@@ -344,7 +448,7 @@ func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
 		if attempts > 4 {
 			return crterrors.NewInternalError(errors.New("there was an error while updating your account - please wait a moment before trying again."+
 				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
-				"error while verifying code")
+				"error while verifying phone code")
 		}
 	}
 

@@ -15,9 +15,14 @@ type SignupService interface {
 	PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error
 }
 
+type SocialEventService interface {
+	GetEvent(code string) (*toolchainv1alpha1.SocialEvent, error)
+}
+
 type VerificationService interface {
 	InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error
 	VerifyPhoneCode(ctx *gin.Context, userID, username, code string) error
+	VerifyActivationCode(ctx *gin.Context, userID, username, code string) error
 }
 
 type MemberClusterService interface {

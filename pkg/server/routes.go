@@ -87,7 +87,8 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// requires a ctx body containing the country_code and phone_number
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
-		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler)
+		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler) // TODO: also provide a `POST /signup/verification/phone-code` +deprecate this one + migrate UI?
+		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if configuration.IsTestingMode() {

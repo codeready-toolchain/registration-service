@@ -984,7 +984,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
 
 		// then
-		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		require.EqualError(t, err, "invalid code: the event is full")
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(t, err)
 		require.True(t, states.VerificationRequired(userSignup))

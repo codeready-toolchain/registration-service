@@ -395,16 +395,17 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 	now := metav1.NewTime(time.Now())
 	log.Infof(ctx, "verifying activation code '%s': event.Status.ActivationCount=%d, event.Spec.MaxAttendees=%d, event.Spec.StartTime=%s, event.Spec.EndTime=%s", code, strconv.Itoa(event.Status.ActivationCount), strconv.Itoa(event.Spec.MaxAttendees), event.Spec.StartTime.Format("2006-01-02:03:04:05"), event.Spec.EndTime.Format("2006-01-02:03:04:05"))
 
-	if event.Status.ActivationCount < event.Spec.MaxAttendees &&
-		event.Spec.StartTime.Before(&now) &&
-		event.Spec.EndTime.After(now.Time) {
-		log.Infof(ctx, "approving user signup request with activation code '%s'", code)
-		// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
-		unsetVerificationRequired = true
-		annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
-		return nil
+	if event.Status.ActivationCount >= event.Spec.MaxAttendees {
+		return crterrors.NewForbiddenError("invalid code", "the event is full")
+	} else if event.Spec.StartTime.After(now.Time) || event.Spec.EndTime.Before(&now) {
+		log.Infof(ctx, "the event with code '%s' has not started yet or is already past", code)
+		return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
 	}
-	return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+	log.Infof(ctx, "approving user signup request with activation code '%s'", code)
+	// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
+	unsetVerificationRequired = true
+	annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
+	return nil
 }
 
 func checkAttempts(signup *toolchainv1alpha1.UserSignup) (int, error) {

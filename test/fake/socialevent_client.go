@@ -36,7 +36,7 @@ func NewFakeSocialEventClient(t *testing.T, namespace string, initObjs ...runtim
 	tracker := kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
 	for _, obj := range initObjs {
 		err := tracker.Add(obj)
-		require.NoError(t, err, "failed to add object %v to fake usersignup client", obj)
+		require.NoError(t, err, "failed to add object %v to fake socialevent client", obj)
 	}
 	return &FakeSocialEventClient{
 		Tracker:   tracker,

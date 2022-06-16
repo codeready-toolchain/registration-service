@@ -325,7 +325,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 // VerifyActivationCode verifies the activation code:
 // - checks that the SocialEvent resource named after the activation code exists
-// - checks that the SocialEvent has enough capaticity to approve the user
+// - checks that the SocialEvent has enough capacity to approve the user
 func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, code string) error {
 	log.Infof(ctx, "verifying activation code '%s'", code)
 	// look-up the UserSignup

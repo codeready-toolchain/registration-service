@@ -386,7 +386,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 	event, err := s.CRTClient().V1Alpha1().SocialEvents().Get(code)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// The code doesn't match
+			// a SocialEvent was not found for the provided code
 			return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
 		}
 		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving event '%s'", code))

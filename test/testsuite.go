@@ -32,6 +32,7 @@ type UnitTestSuite struct {
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
+	FakeSocialEventClient      *fake.FakeSocialEventClient
 	factoryOptions             []factory.Option
 }
 
@@ -54,6 +55,7 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
+	s.FakeSocialEventClient = fake.NewFakeSocialEventClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
@@ -155,4 +157,8 @@ func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 
 func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface {
 	return s.FakeToolchainStatusClient
+}
+
+func (s *UnitTestSuite) SocialEvents() kubeclient.SocialEventInterface {
+	return s.FakeSocialEventClient
 }

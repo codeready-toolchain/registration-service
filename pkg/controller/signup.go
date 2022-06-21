@@ -128,7 +128,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 	code := ctx.Param("code")
 	if code == "" {
-		log.Error(ctx, nil, "no code provided in request")
+		log.Error(ctx, nil, "no phone code provided in the request")
 		ctx.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -138,13 +138,46 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 
 	err := s.app.VerificationService().VerifyPhoneCode(ctx, userID, username, code)
 	if err != nil {
-		log.Error(ctx, err, "error validating user verification code")
+		log.Error(ctx, err, "error validating user verification phone code")
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):
-			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying code")
+			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying phone code")
 		default:
-			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying code")
+			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying phone code")
+		}
+		return
+	}
+	ctx.Status(http.StatusOK)
+}
+
+// VerifyActivationCodeHandler validates the activation code passed in by the user as a form value
+func (s *Signup) VerifyActivationCodeHandler(ctx *gin.Context) {
+	body := map[string]interface{}{}
+	if err := ctx.BindJSON(&body); err != nil {
+		log.Error(ctx, nil, "no activation code provided in the request")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	code, ok := body["code"].(string)
+	if !ok {
+		log.Error(ctx, nil, "no activation code provided in the request")
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	userID := ctx.GetString(context.SubKey)
+	username := ctx.GetString(context.UsernameKey)
+
+	err := s.app.VerificationService().VerifyActivationCode(ctx, userID, username, code)
+	if err != nil {
+		log.Error(ctx, err, "error validating activation code")
+		e := &crterrors.Error{}
+		switch {
+		case errors.As(err, &e):
+			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying activation code")
+		default:
+			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying activation code")
 		}
 		return
 	}

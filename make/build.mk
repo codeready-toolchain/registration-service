@@ -23,7 +23,7 @@ build-dev:
 
 # builds the production binary with bundled assets
 ## builds production binary
-build-prod: generate check-template-changes
+build-prod: check-template-changes
 	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} ${LDFLAGS} \
 		-o $(OUT_DIR)/bin/registration-service \

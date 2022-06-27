@@ -13,7 +13,7 @@ endif
 
 .PHONY: lint-go-code
 ## Checks the code with golangci-lint
-lint-go-code: generate
+lint-go-code:
 ifeq (, $(shell which golangci-lint 2>/dev/null))
 	$(error "golangci-lint not found in PATH. Please install it using instructions on https://golangci-lint.run/usage/install/#local-installation")
 endif

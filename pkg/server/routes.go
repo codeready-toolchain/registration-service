@@ -47,7 +47,6 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1.Use(authMiddleware.HandlerFunc())
 		securedV1.POST("/signup", signupCtrl.PostHandler)
 		// requires a ctx body containing the country_code and phone_number
-		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler) // TODO: also provide a `POST /signup/verification/phone-code` +deprecate this one + migrate UI?

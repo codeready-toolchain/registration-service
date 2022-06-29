@@ -22,10 +22,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     
-    - name: generate
-      run: |
-        make generate
-    
     - name: Test
       run: |
         make test-with-coverage
@@ -49,10 +45,6 @@ jobs:
         
     - name: Checkout code
       uses: actions/checkout@v2
-    
-    - name: generate
-      run: |
-        make generate
     
     - name: Lint
       uses: golangci/golangci-lint-action@v2

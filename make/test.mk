@@ -2,13 +2,13 @@ COV_DIR = $(OUT_DIR)/coverage
 
 .PHONY: test
 ## runs all tests with bundles assets
-test: generate
+test:
 	@echo "running the tests without coverage..."
 	go test ${V_FLAG} -race -failfast ./...
 
 .PHONY: test-with-coverage
 ## runs the tests with coverage
-test-with-coverage: generate
+test-with-coverage:
 	@echo "running the tests with coverage..."
 	@-mkdir -p $(COV_DIR)
 	@-rm $(COV_DIR)/coverage.txt
@@ -23,12 +23,12 @@ test-with-coverage: generate
 E2E_REPO_PATH := ""
 
 .PHONY: publish-current-bundles-for-e2e
-publish-current-bundles-for-e2e: generate get-e2e-repo
+publish-current-bundles-for-e2e: get-e2e-repo
 	# build & publish the bundles via toolchain-e2e repo
 	$(MAKE) -C ${E2E_REPO_PATH} get-and-publish-operators REG_REPO_PATH=${PWD}
 
 .PHONY: test-e2e
-test-e2e: generate get-e2e-repo
+test-e2e: get-e2e-repo
 	# run the e2e test via toolchain-e2e repo
 	$(MAKE) -C ${E2E_REPO_PATH} test-e2e REG_REPO_PATH=${PWD}
 

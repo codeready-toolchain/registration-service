@@ -111,6 +111,11 @@
             <button class="phone-button" onclick="initiatePhoneVerification()">Send Code</button>
           </p>
           <p class="terms">Cost may apply for receiving texts outside of the United States. Please consult with your service provider for details.</p>
+          <p>Alternatively you may confirm your account using an activation code:</p>
+          <p>
+            Activation Code: <input type="text" name="activationcode" id="activationcode" required minlength="5" maxlength="5" size="10" placeholder="XXXXX">
+            <button class="activationcode-button" onclick="submitActivationCode()">Send Code</button>
+          </p>
         </div>
         <div class="toolchain-state" id="state-complete-phone-verification">
           <p>A text was sent to your mobile phone. Please enter the received code below:</p>

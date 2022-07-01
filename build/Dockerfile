@@ -8,11 +8,11 @@ ENV REG_SERVICE=/usr/local/bin/registration-service \
     USER_NAME=registration-service \
     LANG=en_US.utf8
 
-# install registration-service binary
-COPY build/_output/bin/registration-service ${REG_SERVICE}
-
 COPY build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
+
+# install registration-service binary
+COPY build/_output/bin/registration-service ${REG_SERVICE}
 
 ENTRYPOINT ["/usr/local/bin/registration-service"]
 

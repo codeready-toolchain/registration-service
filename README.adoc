@@ -21,24 +21,20 @@ make build
 
 This builds the executable with bundled assets. Only the binary needs to be deployed, all static assets are bundled with the binary.
 
-To just generate the asset bundle, execute:
-
-```
-make generate
-```
-
-This creates the asset bundle in the `static` package. Do not change the asset bundle file(s), changes will be lost on the next build.
 
 == Development
 
-To make development on the static content easier, a development binary can be built using:
+To make development on the static content easier, use the `./scripts/deploy-dev.sh` shell script with the following commands:
 
 ```
-make build-dev
+$ ./scripts/deploy-dev.sh setup
 ```
+to setup the access to the Container Registry running within the OpenShift cluster accessed via `$KUBECONFIG` and scale down the deployment to 1 replicas
 
-The resulting binare *does not use bundled assets* but reads static content directly from `pkg/assets`. *Do not deploy the dev binary*. 
-
+```
+$ ./scripts/deploy-dev.sh setup
+```
+to build the binary, package into an Image, push it to the Container Registry and update the deployment.
 
 
 === Tests

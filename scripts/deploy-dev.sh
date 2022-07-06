@@ -10,8 +10,10 @@ set -e
 # 3. Push to the Container Registry of the OpenShift cluster
 # 4. Patch the deployment/registration-service to use the new image
 #
-# Note: requires that the Container registry has a public route.
+# Notes: 
+# 1. requires that the Container registry has a public route.
 #       (see 'setup-registry.sh')
+# 2. requires that the `HOST_NS` env var is set
 #------------------------------------------------------------------
 
 setup() {
@@ -23,7 +25,7 @@ setup() {
 
     # scale down the deployment to 1 replica (a single pod is enough when working on the UI)
     echo "⚙️ scaling down the registration-service"
-    oc scale --replicas=1 deployment/registration-service
+    oc scale --replicas=1 deployment/registration-service -n $HOST_NS
 
     echo
     echo "ℹ️ you can now run the 'refresh' command to build and deploy the registration-service from your local repo"
@@ -50,12 +52,17 @@ refresh() {
     # restart the process in the pod's container
     INTERNAL_REGISTRY=image-registry.openshift-image-registry.svc:5000
     echo "✏️ patching the deployment with image $INTERNAL_REGISTRY/$HOST_NS/$IMAGE_NAME"
-    oc patch deployment/registration-service --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\":\"$INTERNAL_REGISTRY/$HOST_NS/$IMAGE_NAME\"}]"
+    oc patch deployment/registration-service -n $HOST_NS --type='json' -p="[{\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\":\"$INTERNAL_REGISTRY/$HOST_NS/$IMAGE_NAME\"}]"
     # oc rollout restart deployment/registration-service
 
     # Et voilà!
     echo "👋 all done!"
 }
+
+if [ -z "$HOST_NS" ]; then 
+    echo "HOST_NS is not set"; 
+    exit 1; 
+fi
 
 if declare -f "$1" > /dev/null
 then

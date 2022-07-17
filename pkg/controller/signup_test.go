@@ -576,7 +576,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.Equal(s.T(), float64(404), bodyParams["code"])
-		require.Equal(s.T(), fmt.Sprintf(" \"%s\" not found: user not found", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), " \"\" not found: user not found", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
 

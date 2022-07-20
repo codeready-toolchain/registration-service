@@ -92,10 +92,7 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID, username string) (*
 				if err != nil {
 					return nil, err
 				}
-				return &namespace.NamespaceAccess{
-					APIURL:  *apiURL,
-					SAToken: tokenStr,
-				}, nil
+				return namespace.NewNamespaceAccess(*apiURL, tokenStr, member.Client), nil
 			}
 			return nil, errs.New("no SA found for the user")
 		}

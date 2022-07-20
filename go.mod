@@ -2,7 +2,7 @@ module github.com/codeready-toolchain/registration-service
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20220620073500-4403ea044a96
+	github.com/codeready-toolchain/api v0.0.0-20220712190140-fca2282ae885
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20220620075348-4f3711a55236
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
@@ -37,3 +37,5 @@ require (
 )
 
 go 1.16
+
+replace github.com/codeready-toolchain/toolchain-common => /home/igels/go/src/github.com/codeready-toolchain/toolchain-common

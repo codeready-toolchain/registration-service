@@ -3,7 +3,7 @@ module github.com/codeready-toolchain/registration-service
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20220712190140-fca2282ae885
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20220620075348-4f3711a55236
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20220721220422-3c790fe87fcd
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/static v0.0.1

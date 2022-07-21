@@ -18,6 +18,9 @@ signupURL = '/api/v1/signup'
 // phone verification endpoint
 phoneVerificationURL = '/api/v1/signup/verification'
 
+// activation code endpoint
+activationCodeURL = '/api/v1/signup/verification/activation-code'
+
 // loads json data from url, the callback is called with
 // error and data, with data the parsed json.
 var getJSON = function(method, url, token, callback, body) {
@@ -249,6 +252,27 @@ function signup() {
     }
   });
   startPolling();
+}
+
+function submitActivationCode() {
+  code = document.getElementById("activationcode").value;
+  // check validity
+  let codeValid = /^[a-z0-9]{5}$/.test(code);
+  if (!codeValid) {
+    showError('Activation code is invalid, please check your input.');
+    show('state-initiate-phone-verification');
+  } else {
+    getJSON('POST', activationCodeURL, idToken, function(err, data) {
+      if (err != null) {
+        showError('Activation code is not valid. Please try again later.');
+      } else {
+        // code verification success, refresh signup state
+        updateSignupState();
+      }
+    }, {
+      code: code,
+    }, );
+  }
 }
 
 function initiatePhoneVerification() {

@@ -169,12 +169,12 @@ func extractUserToken(req *http.Request) (string, error) {
 }
 
 func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *namespace.NamespaceAccess) *httputil.ReverseProxy {
-	targetQuery := target.APIURL.RawQuery
+	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
-		req.URL.Scheme = target.APIURL.Scheme
-		req.URL.Host = target.APIURL.Host
-		req.URL.Path = singleJoiningSlash(target.APIURL.Path, req.URL.Path)
+		req.URL.Scheme = target.APIURL().Scheme
+		req.URL.Host = target.APIURL().Host
+		req.URL.Path = singleJoiningSlash(target.APIURL().Path, req.URL.Path)
 		log.Info(ctx, fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
@@ -187,9 +187,9 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *nam
 		}
 		// Replace token
 		if wsstream.IsWebSocketRequest(req) {
-			replaceTokenInWebsocketRequest(req, target.SAToken)
+			replaceTokenInWebsocketRequest(req, target.SAToken())
 		} else {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken()))
 		}
 	}
 	transport := http.DefaultTransport

@@ -17,6 +17,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/registration-service/test"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
@@ -384,15 +385,10 @@ func (s *TestProxySuite) TestProxy() {
 							member2, err := url.Parse(ts.URL)
 							require.NoError(s.T(), err)
 
+							cl := commontest.NewFakeClient(s.T())
 							fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
-								"someUserID": { // noise
-									APIURL:  *member1,
-									SAToken: "",
-								},
-								userID.String(): {
-									APIURL:  *member2,
-									SAToken: "clusterSAToken",
-								},
+								"someUserID":    namespace.NewNamespaceAccess(*member1, "", cl), // noise
+								userID.String(): namespace.NewNamespaceAccess(*member2, "clusterSAToken", cl),
 							}
 						}
 
@@ -496,6 +492,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID, username string) (*namespace.NamespaceAccess, error) {
+func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID, _ string) (*namespace.NamespaceAccess, error) {
 	return f.fakeApp.namespaces[userID], f.fakeApp.err
 }

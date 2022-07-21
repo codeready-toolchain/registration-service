@@ -298,10 +298,9 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NotNil(s.T(), ns)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), namespace.NamespaceAccess{
-				APIURL:  *expectedURL,
-				SAToken: "some-token",
-			}, *ns)
+
+			cl := commontest.NewFakeClient(s.T())
+			assert.Equal(s.T(), namespace.NewNamespaceAccess(*expectedURL, "some-token", cl), *ns)
 
 			s.Run("sa found when lookup by username", func() {
 				// when
@@ -312,10 +311,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				require.NotNil(s.T(), ns)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				assert.Equal(s.T(), namespace.NamespaceAccess{
-					APIURL:  *expectedURL,
-					SAToken: "some-token",
-				}, *ns)
+				assert.Equal(s.T(), namespace.NewNamespaceAccess(*expectedURL, "some-token", cl), *ns)
 			})
 		})
 

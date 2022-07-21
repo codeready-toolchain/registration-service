@@ -37,5 +37,3 @@ require (
 )
 
 go 1.16
-
-replace github.com/codeready-toolchain/toolchain-common => /home/igels/go/src/github.com/codeready-toolchain/toolchain-common

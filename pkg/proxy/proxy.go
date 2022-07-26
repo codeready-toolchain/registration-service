@@ -134,7 +134,7 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.NamespaceAccess, error) {
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	return p.namespaces.GetNamespace(ctx, userID, username)
+	return p.namespaces.Get(ctx, userID, username)
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {

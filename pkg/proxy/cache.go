@@ -26,7 +26,9 @@ func NewUserNamespaces(app application.Application) *UserNamespaces {
 	}
 }
 
-func (c *UserNamespaces) GetNamespace(ctx *gin.Context, userID, username string) (*namespace.NamespaceAccess, error) {
+// Get tries to retrieve the namespace access from the cache first. If found then it checks if the cached access is still valid.
+// If not found or invalid then retrieves a new namespace access from the member cluster service and stores it in the cache.
+func (c *UserNamespaces) Get(ctx *gin.Context, userID, username string) (*namespace.NamespaceAccess, error) {
 	na, err := c.namespaceFromCache(ctx, username)
 	if err != nil {
 		return nil, err

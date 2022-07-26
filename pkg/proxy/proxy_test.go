@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -20,12 +21,14 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
-
 	"github.com/gin-gonic/gin"
+
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TestProxySuite struct {
@@ -380,7 +383,7 @@ func (s *TestProxySuite) TestProxy() {
 									}
 								}
 							}))
-							defer ts.Close()
+							defer ts.Close() // It's OK to close the test member-2 API Server because the proxy cached is disabled, so no cached client is used. See below.
 
 							member2, err := url.Parse(ts.URL)
 							require.NoError(s.T(), err)
@@ -389,6 +392,16 @@ func (s *TestProxySuite) TestProxy() {
 							fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
 								"someUserID":    namespace.NewNamespaceAccess(*member1, "", cl), // noise
 								userID.String(): namespace.NewNamespaceAccess(*member2, "clusterSAToken", cl),
+							}
+
+							// Mock validation of the cached namespace access. Always invalid so no cached namespace access is ever used.
+							cl.MockCreate = func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+								tr, ok := obj.(*authenticationv1.TokenReview)
+								if ok {
+									tr.Status.Authenticated = false
+									return nil
+								}
+								return cl.Create(ctx, obj, opts...)
 							}
 						}
 

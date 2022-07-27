@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	regservicecontext "github.com/codeready-toolchain/registration-service/pkg/context"
@@ -19,7 +21,6 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
@@ -298,10 +299,8 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NotNil(s.T(), ns)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), namespace.NamespaceAccess{
-				APIURL:  *expectedURL,
-				SAToken: "some-token",
-			}, *ns)
+
+			s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, "some-token", nil), ns)
 
 			s.Run("sa found when lookup by username", func() {
 				// when
@@ -312,14 +311,17 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				require.NotNil(s.T(), ns)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				assert.Equal(s.T(), namespace.NamespaceAccess{
-					APIURL:  *expectedURL,
-					SAToken: "some-token",
-				}, *ns)
+				s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, "some-token", nil), ns)
 			})
 		})
-
 	})
+}
+
+func (s *TestClusterServiceSuite) assertNamespaceAccess(expected, actual *namespace.NamespaceAccess) {
+	require.NotNil(s.T(), expected)
+	require.NotNil(s.T(), actual)
+	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())
+	assert.Equal(s.T(), expected.SAToken(), actual.SAToken())
 }
 
 func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolchainCluster {

@@ -565,7 +565,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "111233",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification/111233")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "jsmith", http.MethodGet, "/api/v1/signup/verification/111233")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusNotFound, rr.Code)
@@ -576,7 +576,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.Equal(s.T(), float64(404), bodyParams["code"])
-		require.Equal(s.T(), " \"\" not found: user not found", bodyParams["message"])
+		require.Equal(s.T(), " \"jsmith\" not found: user not found", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
 

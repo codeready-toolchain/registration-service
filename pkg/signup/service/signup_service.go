@@ -336,11 +336,11 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 // GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
+	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original
-			userSignup, err2 := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+			userSignup, err2 := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
 			if err2 != nil {
 				if apierrors.IsNotFound(err2) {
 					return nil, err

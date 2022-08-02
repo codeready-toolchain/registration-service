@@ -611,17 +611,16 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
+	username := "johnsmith"
 
 	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-		if name == userID.String() {
+		if name == username {
 			return nil, errors.New("an error occurred")
 		}
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
-	_, err = s.Application.SignupService().GetSignup(userID.String(), "")
+	_, err := s.Application.SignupService().GetSignup("", username)
 	require.EqualError(s.T(), err, "an error occurred")
 }
 

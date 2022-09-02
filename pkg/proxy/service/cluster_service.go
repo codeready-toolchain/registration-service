@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-
-	"github.com/gin-gonic/gin"
-
-	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
@@ -15,9 +12,13 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
+	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
+	authv1 "k8s.io/api/authentication/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
 )
 
 type Option func(f *ServiceImpl)
@@ -63,40 +64,49 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID, username string) (*
 			targetNamespace := signup.CompliantUsername
 			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername)
 			saNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: saName}
-			sa := &v1.ServiceAccount{}
-			if err := member.Client.Get(context.TODO(), saNamespacedName, sa); err != nil {
+			cfg := member.Config.RestConfig
+			if cfg.ContentConfig.GroupVersion == nil {
+				cfg.ContentConfig.GroupVersion = &authv1.SchemeGroupVersion
+			}
+			if cfg.ContentConfig.NegotiatedSerializer == nil {
+				cfg.ContentConfig.NegotiatedSerializer = scheme.Codecs
+			}
+			cl, err := rest.RESTClientFor(cfg)
+			if err != nil {
 				return nil, err
 			}
-
-			for _, secret := range sa.Secrets {
-				secretNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: secret.Name}
-				s := &v1.Secret{}
-				log.Info(ctx, fmt.Sprintf("Getting secret %v", secretNamespacedName))
-				if err := member.Client.Get(context.TODO(), secretNamespacedName, s); err != nil {
-					return nil, err
-				}
-				if s.Annotations["kubernetes.io/created-by"] == "openshift.io/create-dockercfg-secrets" {
-					// There are two secrets/tokens for the SA and both are valid
-					// but let's always use the non-docker one for the sake of consistency
-					log.Info(nil, fmt.Sprintf("Skipping docker secret with the creted-by label: %v", secretNamespacedName))
-					continue
-				}
-				decodedToken, ok := s.Data["token"]
-				if !ok {
-					log.Info(ctx, fmt.Sprintf("Skipping secret with no data.token: %v", secretNamespacedName))
-					continue // It still might be the docker configuration token even if it doesn't have the "kubernetes.io/created-by" annotation
-				}
-				tokenStr := string(decodedToken)
-
-				apiURL, err := url.Parse(member.APIEndpoint)
-				if err != nil {
-					return nil, err
-				}
-				return namespace.NewNamespaceAccess(*apiURL, tokenStr, member.Client), nil
+			tokenStr, err := getServiceAccountToken(cl, saNamespacedName)
+			if err != nil {
+				return nil, err
 			}
-			return nil, errs.New("no SA found for the user")
+			apiURL, err := url.Parse(member.APIEndpoint)
+			if err != nil {
+				return nil, err
+			}
+			return namespace.NewNamespaceAccess(*apiURL, tokenStr, member.Client), nil
 		}
 	}
 
 	return nil, errs.New("no member cluster found for the user")
+}
+
+// getServiceAccountToken returns the SA's token or returns an error if none was found.
+// NOTE: due to a changes in OpenShift 4.11, tokens are not listed as `secrets` in ServiceAccounts.
+// The recommended solution is to use the TokenRequest API when server version >= 4.11
+// (see https://docs.openshift.com/container-platform/4.11/release_notes/ocp-4-11-release-notes.html#ocp-4-11-notable-technical-changes)
+func getServiceAccountToken(cl *rest.RESTClient, namespacedName types.NamespacedName) (string, error) {
+	tokenRequest := &authv1.TokenRequest{
+		Spec: authv1.TokenRequestSpec{
+			ExpirationSeconds: pointer.Int64(int64(365 * 24 * time.Hour / time.Second)), // token will be valid for 1 year
+		},
+	}
+	result := &authv1.TokenRequest{}
+	if err := cl.Post().
+		AbsPath(fmt.Sprintf("api/v1/namespaces/%s/serviceaccounts/%s/token", namespacedName.Namespace, namespacedName.Name)).
+		Body(tokenRequest).
+		Do(context.TODO()).
+		Into(result); err != nil {
+		return "", err
+	}
+	return result.Status.Token, nil
 }

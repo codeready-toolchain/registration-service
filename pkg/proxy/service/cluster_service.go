@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
@@ -64,22 +66,15 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID, username string) (*
 			targetNamespace := signup.CompliantUsername
 			saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername)
 			saNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: saName}
-			cfg := member.Config.RestConfig
-			if cfg.ContentConfig.GroupVersion == nil {
-				cfg.ContentConfig.GroupVersion = &authv1.SchemeGroupVersion
+			apiURL, err := url.Parse(member.APIEndpoint)
+			if err != nil {
+				return nil, err
 			}
-			if cfg.ContentConfig.NegotiatedSerializer == nil {
-				cfg.ContentConfig.NegotiatedSerializer = scheme.Codecs
-			}
-			cl, err := rest.RESTClientFor(cfg)
+			cl, err := newRESTClient(ctx, member)
 			if err != nil {
 				return nil, err
 			}
 			tokenStr, err := getServiceAccountToken(cl, saNamespacedName)
-			if err != nil {
-				return nil, err
-			}
-			apiURL, err := url.Parse(member.APIEndpoint)
 			if err != nil {
 				return nil, err
 			}
@@ -88,6 +83,21 @@ func (s *ServiceImpl) GetNamespace(ctx *gin.Context, userID, username string) (*
 	}
 
 	return nil, errs.New("no member cluster found for the user")
+}
+
+func newRESTClient(ctx *gin.Context, c *cluster.CachedToolchainCluster) (*rest.RESTClient, error) {
+	startTime := time.Now()
+	defer func() {
+		log.Info(ctx, fmt.Sprintf("duration to init RESTClient: %s", time.Since(startTime).String()))
+	}()
+	cfg := c.Config.RestConfig
+	if cfg.ContentConfig.GroupVersion == nil {
+		cfg.ContentConfig.GroupVersion = &authv1.SchemeGroupVersion
+	}
+	if cfg.ContentConfig.NegotiatedSerializer == nil {
+		cfg.ContentConfig.NegotiatedSerializer = scheme.Codecs
+	}
+	return rest.RESTClientFor(cfg)
 }
 
 // getServiceAccountToken returns the SA's token or returns an error if none was found.
@@ -101,11 +111,13 @@ func getServiceAccountToken(cl *rest.RESTClient, namespacedName types.Namespaced
 		},
 	}
 	result := &authv1.TokenRequest{}
+	var statusCode int
 	if err := cl.Post().
 		AbsPath(fmt.Sprintf("api/v1/namespaces/%s/serviceaccounts/%s/token", namespacedName.Namespace, namespacedName.Name)).
 		Body(tokenRequest).
 		Do(context.TODO()).
-		Into(result); err != nil {
+		StatusCode(&statusCode).
+		Into(result); err != nil && statusCode != http.StatusOK {
 		return "", err
 	}
 	return result.Status.Token, nil

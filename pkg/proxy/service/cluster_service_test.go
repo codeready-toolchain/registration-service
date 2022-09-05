@@ -1,13 +1,12 @@
 package service_test
 
 import (
-	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -21,11 +20,12 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"gopkg.in/h2non/gock.v1"
+	authv1 "k8s.io/api/authentication/v1"
+	"k8s.io/client-go/rest"
 )
 
 type TestClusterServiceSuite struct {
@@ -62,8 +62,8 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	}).addSignup("012-ready-unknown-cluster", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
 		ClusterName:       "unknown",
-		CompliantUsername: "smith",
-		Username:          "smith",
+		CompliantUsername: "doe",
+		Username:          "doe",
 		Status: signup.Status{
 			Ready: true,
 		},
@@ -171,6 +171,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 								Name:        "member-1",
 								Type:        commoncluster.Member,
 								APIEndpoint: "https://api.endpoint.member-1.com:6443",
+								RestConfig:  &rest.Config{},
 							},
 						},
 						{
@@ -179,6 +180,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 								APIEndpoint:       "https://api.endpoint.member-2.com:6443",
 								Type:              commoncluster.Member,
 								OperatorNamespace: "member-operator",
+								RestConfig:        &rest.Config{},
 							},
 							Client: memberClient,
 						},
@@ -187,6 +189,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 								Name:        "member-3",
 								APIEndpoint: "https://api.endpoint.member-3.com:6443",
 								Type:        commoncluster.Member,
+								RestConfig:  &rest.Config{},
 							},
 						},
 					}
@@ -194,102 +197,38 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			},
 		)
 
-		s.Run("member client returns error when obtaining service account", func() {
+		s.Run("member client returns error when obtaining service account token", func() {
+			// given
+			defer gock.Off()
+			gock.New("http://localhost").
+				Post("api/v1/namespaces/smith/serviceaccounts/appstudio-smith/token").
+				Reply(http.StatusInternalServerError).
+				BodyString(`{"kind":"Status","apiVersion":"v1","status":"Failure","message":"can't obtain token for SA"}`)
 
-			s.Run("when obtaining service account", func() {
-				memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-					if _, ok := obj.(*v1.ServiceAccount); ok && key.Name == "appstudio-smith" && key.Namespace == "smith" {
-						return errors.New("can't obtain SA")
-					}
-					return nil
-				}
+			// when
+			_, err := svc.GetNamespace(ctx, "789-ready", "")
 
-				// when
-				_, err := svc.GetNamespace(ctx, "789-ready", "")
-
-				// then
-				require.EqualError(s.T(), err, "can't obtain SA")
-			})
-
-			s.Run("no secrets", func() {
-				memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-					return nil
-				}
-
-				// when
-				_, err := svc.GetNamespace(ctx, "789-ready", "")
-
-				// then
-				require.EqualError(s.T(), err, "no SA found for the user")
-			})
-
-			s.Run("when obtaining secret", func() {
-				memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-					if _, ok := obj.(*v1.ServiceAccount); ok && key.Name == "appstudio-smith" && key.Namespace == "smith" {
-						sa := &v1.ServiceAccount{
-							Secrets: []v1.ObjectReference{
-								{Name: "scr1"},
-							},
-						}
-						if obj, ok := obj.(*v1.ServiceAccount); ok {
-							*obj = *sa
-							return nil
-						}
-					}
-					if _, ok := obj.(*v1.Secret); ok && key.Name == "scr1" && key.Namespace == "smith" {
-						return errors.New("can't obtain secret")
-					}
-					return nil
-				}
-
-				// when
-				_, err := svc.GetNamespace(ctx, "789-ready", "")
-
-				// then
-				require.EqualError(s.T(), err, "can't obtain secret")
-			})
+			// then
+			require.EqualError(s.T(), err, "can't obtain token for SA")
 		})
 
 		s.Run("sa found", func() {
 			memberClient.MockGet = nil
-			sa := &v1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "appstudio-smith",
-					Namespace: "smith",
-				},
-				Secrets: []v1.ObjectReference{
-					{Name: "scr1-docker1"},
-					{Name: "scr2-docker2"},
-					{Name: "scr3"},
+			expectedToken := "some-token"
+			resultTokenRequest := &authv1.TokenRequest{
+				Status: authv1.TokenRequestStatus{
+					Token: expectedToken,
 				},
 			}
-			require.NoError(s.T(), memberClient.Create(context.TODO(), sa))
+			resultTokenRequestStr, err := json.Marshal(resultTokenRequest)
+			require.NoError(s.T(), err)
 
-			scr := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "scr1-docker1",
-					Namespace:   "smith",
-					Annotations: map[string]string{"kubernetes.io/created-by": "openshift.io/create-dockercfg-secrets"},
-				},
-				Data: map[string][]byte{"token": []byte("some-token")},
-			}
-			require.NoError(s.T(), memberClient.Create(context.TODO(), scr))
-			scr2 := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "scr2-docker2",
-					Namespace: "smith",
-				},
-				Data: map[string][]byte{},
-			}
-			require.NoError(s.T(), memberClient.Create(context.TODO(), scr2))
-			scr3 := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "scr3",
-					Namespace: "smith",
-				},
-				Data: map[string][]byte{"token": []byte("some-token")},
-			}
-			require.NoError(s.T(), memberClient.Create(context.TODO(), scr3))
+			defer gock.Off()
+			gock.New("http://localhost").
+				Post("api/v1/namespaces/smith/serviceaccounts/appstudio-smith/token").
+				Persist().
+				Reply(http.StatusOK).
+				BodyString(string(resultTokenRequestStr))
 
 			// when
 			ns, err := svc.GetNamespace(ctx, "789-ready", "")
@@ -300,7 +239,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 
-			s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, "some-token", nil), ns)
+			s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
 
 			s.Run("sa found when lookup by username", func() {
 				// when
@@ -311,7 +250,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				require.NotNil(s.T(), ns)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, "some-token", nil), ns)
+				s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
 			})
 		})
 	})

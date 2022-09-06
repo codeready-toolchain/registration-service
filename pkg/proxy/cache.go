@@ -61,10 +61,10 @@ func (c *UserNamespaces) namespaceFromCache(ctx *gin.Context, username string) (
 			return nil, err
 		}
 		if valid {
-			log.Info(ctx, fmt.Sprintf("A valid Namespace Access found in cache for user : %s", username))
+			log.Info(ctx, fmt.Sprintf("A valid Namespace Access found in cache for user '%s'", username))
 			return na, nil
 		}
-		log.Info(ctx, fmt.Sprintf("Namespace Access found in cache for user : %s but it's not valid anymore", username))
+		log.Info(ctx, fmt.Sprintf("Namespace Access found in cache for user '%s' but it's not valid anymore", username))
 		return nil, nil
 	}
 	log.Info(ctx, fmt.Sprintf("Namespace Access NOT found in cache for user : %s", username))

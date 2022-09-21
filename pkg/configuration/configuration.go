@@ -209,6 +209,10 @@ func (r VerificationConfig) CodeExpiresInMin() int {
 	return commonconfig.GetInt(r.c.CodeExpiresInMin, 5)
 }
 
+func (r VerificationConfig) NotificationSender() string {
+	return commonconfig.GetString(r.c.NotificationSender, "twilio")
+}
+
 func (r VerificationConfig) TwilioAccountSID() string {
 	key := commonconfig.GetString(r.c.Secret.TwilioAccountSID, "")
 	return r.registrationServiceSecret(key)
@@ -222,4 +226,26 @@ func (r VerificationConfig) TwilioAuthToken() string {
 func (r VerificationConfig) TwilioFromNumber() string {
 	key := commonconfig.GetString(r.c.Secret.TwilioFromNumber, "")
 	return r.registrationServiceSecret(key)
+}
+
+func (r VerificationConfig) AWSAccessKeyId() string {
+	key := commonconfig.GetString(r.c.Secret.AWSAccessKeyID, "")
+	return r.registrationServiceSecret(key)
+}
+
+func (r VerificationConfig) AWSSecretAccessKey() string {
+	key := commonconfig.GetString(r.c.Secret.AWSSecretAccessKey, "")
+	return r.registrationServiceSecret(key)
+}
+
+func (r VerificationConfig) AWSRegion() string {
+	return commonconfig.GetString(r.c.AWSRegion, "")
+}
+
+func (r VerificationConfig) AWSSenderID() string {
+	return commonconfig.GetString(r.c.AWSSenderID, "")
+}
+
+func (r VerificationConfig) AWSSMSType() string {
+	return commonconfig.GetString(r.c.AWSSMSType, "Transactional")
 }

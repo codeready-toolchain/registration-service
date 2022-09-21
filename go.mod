@@ -1,8 +1,9 @@
 module github.com/codeready-toolchain/registration-service
 
 require (
+	github.com/aws/aws-sdk-go v1.44.100
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/codeready-toolchain/api v0.0.0-20220712190140-fca2282ae885
+	github.com/codeready-toolchain/api v0.0.0-20220920014350-7d93659e4b83
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20220819102131-d877c346b71d
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1

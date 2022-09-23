@@ -2,8 +2,6 @@ package service_test
 
 import (
 	"bytes"
-	"crypto/md5" // nolint:gosec
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +19,7 @@ import (
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -499,10 +498,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	e164PhoneNumber := "+19875551122"
 
 	// calculate the phone number hash
-	md5hash := md5.New() // nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(e164PhoneNumber))
-	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+	phoneHash := hash.EncodeString(e164PhoneNumber)
 
 	alphaUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: metav1.TypeMeta{},
@@ -571,10 +567,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	e164PhoneNumber := "+19875553344"
 
 	// calculate the phone number hash
-	md5hash := md5.New() // nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(e164PhoneNumber))
-	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+	phoneHash := hash.EncodeString(e164PhoneNumber)
 
 	alphaUserSignup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: metav1.TypeMeta{},

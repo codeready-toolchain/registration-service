@@ -1,12 +1,11 @@
 package fake
 
 import (
-	"crypto/md5" // nolint:gosec
-	"encoding/hex"
 	"encoding/json"
 	"testing"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
@@ -129,10 +128,7 @@ func (c *FakeUserSignupClient) ListActiveSignupsByPhoneNumberOrHash(phone string
 }
 
 func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
-	md5hash := md5.New() // nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(labelValue))
-	hash := hex.EncodeToString(md5hash.Sum(nil))
+	hash := hash.EncodeString(labelValue)
 
 	if c.MockListByHashedLabel != nil {
 		return c.MockListByHashedLabel(labelValue, labelKey)

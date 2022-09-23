@@ -1,8 +1,6 @@
 package service
 
 import (
-	"crypto/md5" // nolint:gosec
-	"encoding/hex"
 	"fmt"
 	"hash/crc32"
 	"regexp"
@@ -19,6 +17,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
@@ -26,7 +25,7 @@ import (
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -72,10 +71,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	userEmail := ctx.GetString(context.EmailKey)
-	md5hash := md5.New() // nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(userEmail))
-	emailHash := hex.EncodeToString(md5hash.Sum(nil))
+	emailHash := hash.EncodeString(userEmail)
 
 	// Query BannedUsers to check the user has not been banned
 	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
@@ -104,7 +100,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	userSignup := &toolchainv1alpha1.UserSignup{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{

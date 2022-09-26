@@ -34,7 +34,6 @@ func (s *twilioNotificationSender) SendNotification(ctx *gin.Context, content, p
 			log.Error(ctx, err, "unknown error while sending")
 		}
 
-		// If we get an error here then just die, don't bother updating the UserSignup
 		return err
 	}
 

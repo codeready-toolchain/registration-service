@@ -21,7 +21,7 @@ func NewAmazonSNSSender(cfg configuration.RegistrationServiceConfig) Notificatio
 
 func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
 	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(s.Config.Verification().AWSAccessKeyId(), s.Config.Verification().AWSSecretAccessKey(), ""),
+		Credentials: credentials.NewStaticCredentials(s.Config.Verification().AWSAccessKeyID(), s.Config.Verification().AWSSecretAccessKey(), ""),
 		Region:      aws.String(s.Config.Verification().AWSRegion())},
 	)
 
@@ -31,9 +31,9 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 
 	svc := sns.New(sess)
 
-	senderId := &sns.MessageAttributeValue{}
-	senderId.SetDataType("String")
-	senderId.SetStringValue(s.Config.Verification().AWSSenderID())
+	senderID := &sns.MessageAttributeValue{}
+	senderID.SetDataType("String")
+	senderID.SetStringValue(s.Config.Verification().AWSSenderID())
 
 	smsType := &sns.MessageAttributeValue{}
 	smsType.SetDataType("String")
@@ -43,7 +43,7 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 		Message:     &content,
 		PhoneNumber: &phoneNumber,
 		MessageAttributes: map[string]*sns.MessageAttributeValue{
-			"AWS.SNS.SMS.SenderID": senderId,
+			"AWS.SNS.SMS.SenderID": senderID,
 			"AWS.SNS.SMS.SMSType":  smsType,
 		},
 	})

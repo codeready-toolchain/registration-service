@@ -228,7 +228,7 @@ func (r VerificationConfig) TwilioFromNumber() string {
 	return r.registrationServiceSecret(key)
 }
 
-func (r VerificationConfig) AWSAccessKeyId() string {
+func (r VerificationConfig) AWSAccessKeyID() string {
 	key := commonconfig.GetString(r.c.Secret.AWSAccessKeyID, "")
 	return r.registrationServiceSecret(key)
 }

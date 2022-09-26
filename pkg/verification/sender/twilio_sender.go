@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/gin-gonic/gin"
 	"github.com/kevinburke/twilio-go"
@@ -16,9 +15,10 @@ type twilioNotificationSender struct {
 	HTTPClient *http.Client
 }
 
-func NewTwilioSender(cfg configuration.RegistrationServiceConfig) NotificationSender {
+func NewTwilioSender(cfg configuration.RegistrationServiceConfig, httpClient *http.Client) NotificationSender {
 	return &twilioNotificationSender{
-		Config: cfg,
+		Config:     cfg,
+		HTTPClient: httpClient,
 	}
 }
 
@@ -35,7 +35,7 @@ func (s *twilioNotificationSender) SendNotification(ctx *gin.Context, content, p
 		}
 
 		// If we get an error here then just die, don't bother updating the UserSignup
-		return crterrors.NewInternalError(err, "error while sending verification code")
+		return err
 	}
 
 	return nil

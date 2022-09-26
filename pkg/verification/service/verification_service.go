@@ -48,11 +48,12 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 		BaseService: base.NewBaseService(context),
 	}
 
-	s.NotificationService = sender.CreateNotificationSender()
-
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	s.NotificationService = sender.CreateNotificationSender(s.HTTPClient)
+
 	return s
 }
 
@@ -156,7 +157,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 
 		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber)
 		if err != nil {
-			log.Error(ctx, err, "unknown error while sending")
+			log.Error(ctx, err, "error while sending notification")
 
 			// If we get an error here then just die, don't bother updating the UserSignup
 			return crterrors.NewInternalError(err, "error while sending verification code")

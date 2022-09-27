@@ -2,12 +2,12 @@ package kubeclient
 
 import (
 	"context"
-	"crypto/md5" //nolint:gosec
-	"encoding/hex"
 	"fmt"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
@@ -45,13 +45,7 @@ func (c *bannedUserClient) ListByPhoneNumberOrHash(phoneNumberOrHash string) (*c
 // listByLabelForHashedValue returns a BannedUserList containing any BannedUser resources that have a label matching
 // the hash of the specified value
 func (c *bannedUserClient) listByLabelForHashedValue(labelKey, valueToHash string) (*crtapi.BannedUserList, error) {
-	// Calculate the md5 hash for the phoneNumber
-	md5hash := md5.New() //nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(valueToHash))
-	hash := hex.EncodeToString(md5hash.Sum(nil))
-
-	return c.listByLabel(labelKey, hash)
+	return c.listByLabel(labelKey, hash.EncodeString(valueToHash))
 }
 
 // listByLabel returns a BannedUserList containing any BannedUser resources that have a label matching the specified label
@@ -63,7 +57,7 @@ func (c *bannedUserClient) listByLabel(labelKey, labelValue string) (*crtapi.Ban
 	}
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: bannedUserResourcePlural}
-	listOptions := v1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", labelKey, labelValue),
 	}
 

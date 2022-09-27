@@ -1,9 +1,7 @@
 package service
 
 import (
-	"crypto/md5" //nolint:gosec
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +15,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/gin-gonic/gin"
@@ -89,10 +88,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 	}
 
 	// calculate the phone number hash
-	md5hash := md5.New() //nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(e164PhoneNumber))
-	phoneHash := hex.EncodeToString(md5hash.Sum(nil))
+	phoneHash := hash.EncodeString(e164PhoneNumber)
 
 	labelValues[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
 

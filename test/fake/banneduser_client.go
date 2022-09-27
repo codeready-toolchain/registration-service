@@ -1,17 +1,16 @@
 package fake
 
 import (
-	"crypto/md5" // nolint:gosec
-	"encoding/hex"
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
+
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubetesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type FakeBannedUserClient struct { // nolint:revive
@@ -47,10 +46,7 @@ func (c *FakeBannedUserClient) ListByPhoneNumberOrHash(phone string) (*crtapi.Ba
 }
 
 func (c *FakeBannedUserClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.BannedUserList, error) {
-	md5hash := md5.New() // nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(labelValue))
-	hash := hex.EncodeToString(md5hash.Sum(nil))
+	hash := hash.EncodeString(labelValue)
 
 	if c.MockListByHashedLabel != nil {
 		return c.MockListByHashedLabel(labelKey, labelValue)

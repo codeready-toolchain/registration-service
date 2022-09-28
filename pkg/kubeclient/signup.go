@@ -2,16 +2,15 @@ package kubeclient
 
 import (
 	"context"
-	"crypto/md5" //nolint:gosec
-	"encoding/hex"
 	"fmt"
 	"regexp"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-
-	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 )
 
 const (
@@ -97,27 +96,20 @@ func (c *userSignupClient) ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHas
 
 // listActiveSignupsByLabelForHashedValue returns a UserSignupList containing any non-deactivated UserSignup resources
 // that have a label matching the md5 hash of the specified value
-func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, value string) (*crtapi.UserSignupList, error) {
-	// Calculate the md5 hash for the label value
-	md5hash := md5.New() //nolint:gosec
-	// Ignore the error, as this implementation cannot return one
-	_, _ = md5hash.Write([]byte(value))
-	hash := hex.EncodeToString(md5hash.Sum(nil))
-
-	return c.listActiveSignupsByLabel(labelKey, hash)
+func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valueToHash string) (*crtapi.UserSignupList, error) {
+	return c.listActiveSignupsByLabel(labelKey, hash.EncodeString(valueToHash))
 }
 
 // listActiveSignupsByLabel returns a UserSignupList containing any non-deactivated UserSignup resources that have a
 // label matching the specified label
 func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
-
 	intf, err := dynamic.NewForConfig(&c.cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
-	listOptions := v1.ListOptions{
+	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s!=%s,%s=%s", crtapi.UserSignupStateLabelKey, crtapi.UserSignupStateLabelValueDeactivated, labelKey, labelValue),
 	}
 

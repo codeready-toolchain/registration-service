@@ -4,7 +4,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/codeready-toolchain/api v0.0.0-20220921080329-0c3f5c7bee32
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20220819102131-d877c346b71d
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20220923125443-14c3971a4dfe
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-contrib/static v0.0.1

@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,8 +21,13 @@ func NewAmazonSNSSender(cfg configuration.RegistrationServiceConfig) Notificatio
 }
 
 func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
+	awsAccessKeyID := s.Config.Verification().AWSAccessKeyID()
+	awsSecretAccessKey := s.Config.Verification().AWSSecretAccessKey()
+
+	creds := credentials.NewStaticCredentials(awsAccessKeyID, awsSecretAccessKey, "")
+
 	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(s.Config.Verification().AWSAccessKeyID(), s.Config.Verification().AWSSecretAccessKey(), ""),
+		Credentials: creds,
 		Region:      aws.String(s.Config.Verification().AWSRegion())},
 	)
 
@@ -39,7 +45,7 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 	smsType.SetDataType("String")
 	smsType.SetStringValue(s.Config.Verification().AWSSMSType())
 
-	_, err = svc.Publish(&sns.PublishInput{
+	out, err := svc.Publish(&sns.PublishInput{
 		Message:     &content,
 		PhoneNumber: &phoneNumber,
 		MessageAttributes: map[string]*sns.MessageAttributeValue{
@@ -51,6 +57,8 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 	if err != nil {
 		return err
 	}
+
+	log.Info(ctx, out.String())
 
 	return nil
 }

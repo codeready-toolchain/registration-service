@@ -44,6 +44,9 @@ const (
 	twilioSIDKey        = "twilio.sid"
 	twilioTokenKey      = "twilio.token" // nolint:gosec
 	twilioFromNumberKey = "twilio.fromnumber"
+
+	awsAccessKeyIDKey  = "aws.accesskeyid"
+	awsSecretAccessKey = "aws.secretaccesskey"
 )
 
 type TestVerificationServiceSuite struct {
@@ -69,6 +72,9 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 			twilioSIDKey:        []byte(accountSID),
 			twilioTokenKey:      []byte(authToken),
 			twilioFromNumberKey: []byte(fromNumber),
+			// Set the following two values to manually test with AWS
+			awsAccessKeyIDKey:  []byte(""),
+			awsSecretAccessKey: []byte(""),
 		},
 	}
 
@@ -78,11 +84,17 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 			Verification().AttemptsAllowed(3).
 			Verification().DailyLimit(3).
 			Verification().CodeExpiresInMin(5).
+			// Override this to manually test with AWS - set to "aws"
+			Verification().NotificationSender("").
+			Verification().AWSRegion("us-west-2").
+			Verification().AWSSenderID("Sandbox").
 			Verification().Secret().
 			Ref(testSecretName).
 			TwilioAccountSID(twilioSIDKey).
 			TwilioAuthToken(twilioTokenKey).
-			TwilioFromNumber(twilioFromNumberKey))
+			TwilioFromNumber(twilioFromNumberKey).
+			AWSAccessKeyID(awsAccessKeyIDKey).
+			AWSSecretAccessKey(awsSecretAccessKey))
 
 	s.SetSecret(secret)
 }
@@ -216,8 +228,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.NotEmpty(s.T(), userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf = new(bytes.Buffer)
-	_, err = buf.ReadFrom(reqBody)
-	require.NoError(s.T(), err)
+	//_, err = buf.ReadFrom(reqBody)
+	//require.NoError(s.T(), err)
 	reqValue = buf.String()
 
 	params, err = url.ParseQuery(reqValue)

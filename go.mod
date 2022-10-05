@@ -3,8 +3,8 @@ module github.com/codeready-toolchain/registration-service
 go 1.17
 
 require (
-	github.com/codeready-toolchain/api v0.0.0-20220919154005-a2ece4b1711f
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20220824075653-be1e476c99ef
+	github.com/codeready-toolchain/api v0.0.0-20221005122855-03ee2dfdcf5c
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20221005123624-3d62803fccbe
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.2.0
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -94,7 +94,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/codeready-toolchain/api => github.com/xcoulon/api v0.0.0-20220929075600-5280de04d83f
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/xcoulon/toolchain-common v0.0.0-20220929075818-4af3c101b585

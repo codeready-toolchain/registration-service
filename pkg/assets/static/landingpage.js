@@ -73,13 +73,16 @@ function showError(errorText) {
 }
 
 // shows a logged in user and its userId.
-function showUser(username, userid) {
+function showUser(username, userid, originalsub) {
   console.log('showing user..');
   document.getElementById('username').textContent = username;
   document.getElementById('user-loggedin').style.display = 'inline';
   console.log('showing userId..')
   document.getElementById('userid').textContent = userid;
   document.getElementById('userid').style.display = 'inline';
+  console.log('showing originalsub..')
+  document.getElementById('originalsub').textContent = originalsub;
+  document.getElementById('originalsub').style.display = 'inline';
   document.getElementById('login-command').style.display = 'inline';
   document.getElementById('oc-login').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'none';
@@ -382,7 +385,7 @@ getJSON('GET', configURL, null, function(err, data) {
             .success(function(data) {
               console.log('retrieved user info..');
               idToken = keycloak.idToken
-              showUser(data.preferred_username, data.sub)
+              showUser(data.preferred_username, data.sub, data.original_sub)
               // now check the signup state of the user.
               updateSignupState();
             })

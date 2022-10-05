@@ -17,7 +17,7 @@ type NotificationSenderOption = func()
 func CreateNotificationSender(httpClient *http.Client) NotificationSender {
 	cfg := configuration.GetRegistrationServiceConfig()
 	if strings.ToLower(cfg.Verification().NotificationSender()) == "aws" {
-		return NewAmazonSNSSender(cfg)
+		return NewAmazonSNSSender(cfg.Verification())
 	}
 
 	return NewTwilioSender(cfg, httpClient)

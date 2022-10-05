@@ -5,30 +5,37 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/log"
+
 	"github.com/gin-gonic/gin"
 )
 
-type amazonSNSSender struct {
-	Config configuration.RegistrationServiceConfig
+type AWSSenderConfiguration interface {
+	AWSAccessKeyID() string
+	AWSSecretAccessKey() string
+	AWSRegion() string
+	AWSSenderID() string
+	AWSSMSType() string
 }
 
-func NewAmazonSNSSender(cfg configuration.RegistrationServiceConfig) NotificationSender {
+type amazonSNSSender struct {
+	Config AWSSenderConfiguration
+}
+
+func NewAmazonSNSSender(cfg AWSSenderConfiguration) NotificationSender {
 	return &amazonSNSSender{
 		Config: cfg,
 	}
 }
 
 func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
-	awsAccessKeyID := s.Config.Verification().AWSAccessKeyID()
-	awsSecretAccessKey := s.Config.Verification().AWSSecretAccessKey()
+	awsAccessKeyID := s.Config.AWSAccessKeyID()
+	awsSecretAccessKey := s.Config.AWSSecretAccessKey()
 
 	creds := credentials.NewStaticCredentials(awsAccessKeyID, awsSecretAccessKey, "")
 
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: creds,
-		Region:      aws.String(s.Config.Verification().AWSRegion())},
+		Region:      aws.String(s.Config.AWSRegion())},
 	)
 
 	if err != nil {
@@ -39,13 +46,13 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 
 	senderID := &sns.MessageAttributeValue{}
 	senderID.SetDataType("String")
-	senderID.SetStringValue(s.Config.Verification().AWSSenderID())
+	senderID.SetStringValue(s.Config.AWSSenderID())
 
 	smsType := &sns.MessageAttributeValue{}
 	smsType.SetDataType("String")
-	smsType.SetStringValue(s.Config.Verification().AWSSMSType())
+	smsType.SetStringValue(s.Config.AWSSMSType())
 
-	out, err := svc.Publish(&sns.PublishInput{
+	_, err = svc.Publish(&sns.PublishInput{
 		Message:     &content,
 		PhoneNumber: &phoneNumber,
 		MessageAttributes: map[string]*sns.MessageAttributeValue{
@@ -57,8 +64,6 @@ func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumbe
 	if err != nil {
 		return err
 	}
-
-	log.Info(ctx, out.String())
 
 	return nil
 }

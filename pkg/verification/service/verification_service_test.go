@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -228,8 +230,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	require.NotEmpty(s.T(), userSignup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 	buf = new(bytes.Buffer)
-	//_, err = buf.ReadFrom(reqBody)
-	//require.NoError(s.T(), err)
+	_, err = buf.ReadFrom(reqBody)
+	require.NoError(s.T(), err)
 	reqValue = buf.String()
 
 	params, err = url.ParseQuery(reqValue)
@@ -239,6 +241,22 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+61NUMBER", params.Get("To"))
+}
+
+func (s *TestVerificationServiceSuite) TestNotificationSender() {
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Verification().NotificationSender("aWs"))
+
+	sender := sender2.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &sender2.AmazonSNSSender{})
+
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Verification().NotificationSender(""))
+
+	sender = sender2.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &sender2.TwilioNotificationSender{})
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {

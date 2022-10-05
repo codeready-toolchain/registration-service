@@ -10,19 +10,19 @@ import (
 	"github.com/kevinburke/twilio-go"
 )
 
-type twilioNotificationSender struct {
+type TwilioNotificationSender struct {
 	Config     configuration.RegistrationServiceConfig
 	HTTPClient *http.Client
 }
 
 func NewTwilioSender(cfg configuration.RegistrationServiceConfig, httpClient *http.Client) NotificationSender {
-	return &twilioNotificationSender{
+	return &TwilioNotificationSender{
 		Config:     cfg,
 		HTTPClient: httpClient,
 	}
 }
 
-func (s *twilioNotificationSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
+func (s *TwilioNotificationSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
 
 	client := twilio.NewClient(s.Config.Verification().TwilioAccountSID(), s.Config.Verification().TwilioAuthToken(), s.HTTPClient)
 	fromNumber := s.Config.Verification().TwilioFromNumber()

@@ -17,17 +17,17 @@ type AWSSenderConfiguration interface {
 	AWSSMSType() string
 }
 
-type amazonSNSSender struct {
+type AmazonSNSSender struct {
 	Config AWSSenderConfiguration
 }
 
 func NewAmazonSNSSender(cfg AWSSenderConfiguration) NotificationSender {
-	return &amazonSNSSender{
+	return &AmazonSNSSender{
 		Config: cfg,
 	}
 }
 
-func (s *amazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
+func (s *AmazonSNSSender) SendNotification(ctx *gin.Context, content, phoneNumber string) error {
 	awsAccessKeyID := s.Config.AWSAccessKeyID()
 	awsSecretAccessKey := s.Config.AWSSecretAccessKey()
 

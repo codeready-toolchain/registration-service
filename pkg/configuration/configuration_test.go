@@ -80,6 +80,7 @@ func TestRegistrationService(t *testing.T) {
 			Verification().CodeExpiresInMin(151).
 			Verification().AWSRegion("us-west-2").
 			Verification().AWSSenderID("sandbox").
+			Verification().AWSSMSType("Transactional").
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
@@ -115,6 +116,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, 13, regServiceCfg.Verification().AttemptsAllowed())
 		assert.Equal(t, "us-west-2", regServiceCfg.Verification().AWSRegion())
 		assert.Equal(t, "sandbox", regServiceCfg.Verification().AWSSenderID())
+		assert.Equal(t, "Transactional", regServiceCfg.Verification().AWSSMSType())
 		assert.Equal(t, "Developer Sandbox verification code: %s", regServiceCfg.Verification().MessageTemplate())
 		assert.Equal(t, []string{"redhat.com", "ibm.com"}, regServiceCfg.Verification().ExcludedEmailDomains())
 		assert.Equal(t, 151, regServiceCfg.Verification().CodeExpiresInMin())

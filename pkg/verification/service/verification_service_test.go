@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+	senderpkg "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
@@ -248,15 +248,15 @@ func (s *TestVerificationServiceSuite) TestNotificationSender() {
 		testconfig.RegistrationService().
 			Verification().NotificationSender("aWs"))
 
-	sender := sender2.CreateNotificationSender(nil)
-	require.IsType(s.T(), sender, &sender2.AmazonSNSSender{})
+	sender := senderpkg.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &senderpkg.AmazonSNSSender{})
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
 			Verification().NotificationSender(""))
 
-	sender = sender2.CreateNotificationSender(nil)
-	require.IsType(s.T(), sender, &sender2.TwilioNotificationSender{})
+	sender = senderpkg.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &senderpkg.TwilioNotificationSender{})
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {

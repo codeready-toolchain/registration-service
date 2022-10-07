@@ -78,12 +78,22 @@ func TestRegistrationService(t *testing.T) {
 			Verification().MessageTemplate("Developer Sandbox verification code: %s").
 			Verification().ExcludedEmailDomains("redhat.com,ibm.com").
 			Verification().CodeExpiresInMin(151).
-			Verification().Secret().Ref("verification-secrets").TwilioAccountSID("twilio.sid").TwilioAuthToken("twilio.token").TwilioFromNumber("twilio.fromnumber"))
+			Verification().AWSRegion("us-west-2").
+			Verification().AWSSenderID("sandbox").
+			Verification().AWSSMSType("Transactional").
+			Verification().Secret().Ref("verification-secrets").
+			TwilioAccountSID("twilio.sid").
+			TwilioAuthToken("twilio.token").
+			TwilioFromNumber("twilio.fromnumber").
+			AWSAccessKeyID("aws.accesskeyid").
+			AWSSecretAccessKey("aws.secretaccesskey"))
 
 		verificationSecretValues := make(map[string]string)
 		verificationSecretValues["twilio.sid"] = "def"
 		verificationSecretValues["twilio.token"] = "ghi"
 		verificationSecretValues["twilio.fromnumber"] = "jkl"
+		verificationSecretValues["aws.accesskeyid"] = "foo"
+		verificationSecretValues["aws.secretaccesskey"] = "bar"
 		secrets := make(map[string]map[string]string)
 		secrets["verification-secrets"] = verificationSecretValues
 
@@ -104,11 +114,16 @@ func TestRegistrationService(t *testing.T) {
 		assert.True(t, regServiceCfg.Verification().Enabled())
 		assert.Equal(t, 15, regServiceCfg.Verification().DailyLimit())
 		assert.Equal(t, 13, regServiceCfg.Verification().AttemptsAllowed())
+		assert.Equal(t, "us-west-2", regServiceCfg.Verification().AWSRegion())
+		assert.Equal(t, "sandbox", regServiceCfg.Verification().AWSSenderID())
+		assert.Equal(t, "Transactional", regServiceCfg.Verification().AWSSMSType())
 		assert.Equal(t, "Developer Sandbox verification code: %s", regServiceCfg.Verification().MessageTemplate())
 		assert.Equal(t, []string{"redhat.com", "ibm.com"}, regServiceCfg.Verification().ExcludedEmailDomains())
 		assert.Equal(t, 151, regServiceCfg.Verification().CodeExpiresInMin())
 		assert.Equal(t, "def", regServiceCfg.Verification().TwilioAccountSID())
 		assert.Equal(t, "ghi", regServiceCfg.Verification().TwilioAuthToken())
 		assert.Equal(t, "jkl", regServiceCfg.Verification().TwilioFromNumber())
+		assert.Equal(t, "foo", regServiceCfg.Verification().AWSAccessKeyID())
+		assert.Equal(t, "bar", regServiceCfg.Verification().AWSSecretAccessKey())
 	})
 }

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	senderpkg "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -44,6 +46,9 @@ const (
 	twilioSIDKey        = "twilio.sid"
 	twilioTokenKey      = "twilio.token" // nolint:gosec
 	twilioFromNumberKey = "twilio.fromnumber"
+
+	awsAccessKeyIDKey  = "aws.accesskeyid"
+	awsSecretAccessKey = "aws.secretaccesskey"
 )
 
 type TestVerificationServiceSuite struct {
@@ -69,6 +74,9 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 			twilioSIDKey:        []byte(accountSID),
 			twilioTokenKey:      []byte(authToken),
 			twilioFromNumberKey: []byte(fromNumber),
+			// Set the following two values to manually test with AWS
+			awsAccessKeyIDKey:  []byte(""),
+			awsSecretAccessKey: []byte(""),
 		},
 	}
 
@@ -78,11 +86,17 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 			Verification().AttemptsAllowed(3).
 			Verification().DailyLimit(3).
 			Verification().CodeExpiresInMin(5).
+			// Override this to manually test with AWS - set to "aws"
+			Verification().NotificationSender("").
+			Verification().AWSRegion("us-west-2").
+			Verification().AWSSenderID("Sandbox").
 			Verification().Secret().
 			Ref(testSecretName).
 			TwilioAccountSID(twilioSIDKey).
 			TwilioAuthToken(twilioTokenKey).
-			TwilioFromNumber(twilioFromNumberKey))
+			TwilioFromNumber(twilioFromNumberKey).
+			AWSAccessKeyID(awsAccessKeyIDKey).
+			AWSSecretAccessKey(awsSecretAccessKey))
 
 	s.SetSecret(secret)
 }
@@ -227,6 +241,22 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
 	require.Equal(s.T(), "+61NUMBER", params.Get("To"))
+}
+
+func (s *TestVerificationServiceSuite) TestNotificationSender() {
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Verification().NotificationSender("aWs"))
+
+	sender := senderpkg.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &senderpkg.AmazonSNSSender{})
+
+	s.OverrideApplicationDefault(
+		testconfig.RegistrationService().
+			Verification().NotificationSender(""))
+
+	sender = senderpkg.CreateNotificationSender(nil)
+	require.IsType(s.T(), sender, &senderpkg.TwilioNotificationSender{})
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {

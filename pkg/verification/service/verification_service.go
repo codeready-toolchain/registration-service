@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
@@ -19,7 +21,6 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kevinburke/twilio-go"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,7 +35,8 @@ const (
 // ServiceImpl represents the implementation of the verification service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
-	HTTPClient *http.Client
+	HTTPClient          *http.Client
+	NotificationService sender.NotificationSender
 }
 
 type VerificationServiceOption func(svc *ServiceImpl)
@@ -48,6 +50,9 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	s.NotificationService = sender.CreateNotificationSender(s.HTTPClient)
+
 	return s
 }
 
@@ -145,15 +150,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 
 		// Generate the verification message with the new verification code
 		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
-		client := twilio.NewClient(cfg.Verification().TwilioAccountSID(), cfg.Verification().TwilioAuthToken(), s.HTTPClient)
-		fromNumber := cfg.Verification().TwilioFromNumber()
-		msg, err := client.Messages.SendMessage(fromNumber, e164PhoneNumber, content, nil)
+
+		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber)
 		if err != nil {
-			if msg != nil {
-				log.Error(ctx, err, fmt.Sprintf("error while sending, code: %d message: %s", msg.ErrorCode, msg.ErrorMessage))
-			} else {
-				log.Error(ctx, err, "unknown error while sending")
-			}
+			log.Error(ctx, err, "error while sending notification")
 
 			// If we get an error here then just die, don't bother updating the UserSignup
 			return crterrors.NewInternalError(err, "error while sending verification code")

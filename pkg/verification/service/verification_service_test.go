@@ -546,8 +546,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 			Username: "alpha@foxtrot.com",
 		},
 	}
-	states.SetApproved(alphaUserSignup, true)
-	states.SetVerificationRequired(alphaUserSignup, false)
+	states.SetAutomaticallyApproved(alphaUserSignup, true)
+	// states.SetVerificationRequired(alphaUserSignup, false)
 
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 	require.NoError(s.T(), err)
@@ -616,8 +616,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 			Username: "alpha@foxtrot.com",
 		},
 	}
-	states.SetApproved(alphaUserSignup, true)
-	states.SetVerificationRequired(alphaUserSignup, false)
+	states.SetAutomaticallyApproved(alphaUserSignup, true)
+	// states.SetVerificationRequired(alphaUserSignup, false)
 	states.SetDeactivated(alphaUserSignup, true)
 
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)

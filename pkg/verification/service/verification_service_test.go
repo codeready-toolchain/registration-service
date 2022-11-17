@@ -547,7 +547,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		},
 	}
 	states.SetApprovedManually(alphaUserSignup, true)
-	// states.SetVerificationRequired(alphaUserSignup, false)
 
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)
 	require.NoError(s.T(), err)
@@ -617,7 +616,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		},
 	}
 	states.SetApprovedManually(alphaUserSignup, true)
-	// states.SetVerificationRequired(alphaUserSignup, false)
 	states.SetDeactivated(alphaUserSignup, true)
 
 	err := s.FakeUserSignupClient.Tracker.Add(alphaUserSignup)

@@ -19,7 +19,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	"github.com/gin-gonic/gin"
@@ -38,8 +38,8 @@ const (
 )
 
 type Proxy struct {
-	userClusters *UserClusters
-	tokenParser  *auth.TokenParser
+	userAccess  *UserAccess
+	tokenParser *auth.TokenParser
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -60,8 +60,8 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 		return nil, err
 	}
 	return &Proxy{
-		userClusters: NewUserClusters(app),
-		tokenParser:  tokenParser,
+		userAccess:  NewUserAccess(app),
+		tokenParser: tokenParser,
 	}, nil
 }
 
@@ -131,10 +131,10 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	}, nil
 }
 
-func (p *Proxy) getTargetCluster(ctx *gin.Context) (*namespace.ClusterAccess, error) {
+func (p *Proxy) getTargetCluster(ctx *gin.Context) (*access.ClusterAccess, error) {
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	return p.userClusters.Get(ctx, userID, username)
+	return p.userAccess.Get(ctx, userID, username)
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
@@ -168,7 +168,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *namespace.ClusterAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *access.ClusterAccess) *httputil.ReverseProxy {
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()

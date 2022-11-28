@@ -1,13 +1,7 @@
-package namespace
+package access
 
 import (
-	"context"
-	"fmt"
 	"net/url"
-
-	"github.com/codeready-toolchain/registration-service/pkg/log"
-
-	authenticationv1 "k8s.io/api/authentication/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -39,21 +33,6 @@ func (a *ClusterAccess) APIURL() url.URL {
 
 func (a *ClusterAccess) SAToken() string {
 	return a.saToken
-}
-
-// Validate returns true if the given token is valid
-func (a *ClusterAccess) Validate() (bool, error) {
-	tr := &authenticationv1.TokenReview{
-		Spec: authenticationv1.TokenReviewSpec{
-			Token: a.saToken,
-		},
-	}
-	if err := a.client.Create(context.TODO(), tr); err != nil {
-		return false, err
-	}
-
-	log.Info(nil, fmt.Sprintf("TokenReview status: %v", tr.Status))
-	return tr.Status.Authenticated, nil
 }
 
 func (a *ClusterAccess) Username() string {

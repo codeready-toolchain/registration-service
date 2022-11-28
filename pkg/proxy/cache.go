@@ -6,40 +6,37 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 
 	"github.com/gin-gonic/gin"
 )
 
-type UserClusters struct {
+type UserAccess struct {
 	sync.RWMutex
 	app application.Application
 
 	// cluster accesses by username
-	clusterAccesses map[string]*namespace.ClusterAccess
+	clusterAccesses map[string]*access.ClusterAccess
 }
 
-func NewUserClusters(app application.Application) *UserClusters {
-	return &UserClusters{
+func NewUserAccess(app application.Application) *UserAccess {
+	return &UserAccess{
 		app:             app,
-		clusterAccesses: make(map[string]*namespace.ClusterAccess),
+		clusterAccesses: make(map[string]*access.ClusterAccess),
 	}
 }
 
 // Get tries to retrieve the cluster access from the cache first. If found then it checks if the cached access is still valid.
 // If not found or invalid then retrieves a new cluster access from the member cluster service and stores it in the cache.
-func (c *UserClusters) Get(ctx *gin.Context, userID, username string) (*namespace.ClusterAccess, error) {
-	ca, err := c.clientFromCache(ctx, username)
-	if err != nil {
-		return nil, err
-	}
+func (c *UserAccess) Get(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error) {
+	ca := c.clusterAccessFromCache(ctx, username)
 	if ca != nil {
 		return ca, nil
 	}
 
 	// Not found in cache or invalid. Get a new cluster access.
 	log.Info(ctx, fmt.Sprintf("Retrieving a new Cluster Access from the cluster for the user : %s", username))
-	ca, err = c.app.MemberClusterService().GetClusterAccess(ctx, userID, username)
+	ca, err := c.app.MemberClusterService().GetClusterAccess(ctx, userID, username)
 	if err != nil {
 		return nil, err
 	}
@@ -49,29 +46,21 @@ func (c *UserClusters) Get(ctx *gin.Context, userID, username string) (*namespac
 	return ca, nil
 }
 
-// namespaceFromCache tries to retrieve a cluster access from the cache and validates it.
-// Returns nil, nil if no cluster access found or if it's invalid.
-func (c *UserClusters) clientFromCache(ctx *gin.Context, username string) (*namespace.ClusterAccess, error) {
+// clusterAccessFromCache tries to retrieve a cluster access from the cache and validates it.
+// Returns nil if no cluster access found.
+func (c *UserAccess) clusterAccessFromCache(ctx *gin.Context, username string) *access.ClusterAccess {
 	c.RLock()
 	defer c.RUnlock()
 	ca, ok := c.clusterAccesses[username]
-	if ok {
-		valid, err := ca.Validate()
-		if err != nil {
-			return nil, err
-		}
-		if valid {
-			log.Info(ctx, fmt.Sprintf("A valid Cluster Access found in cache for user '%s'", username))
-			return ca, nil
-		}
-		log.Info(ctx, fmt.Sprintf("Cluster Access found in cache for user '%s' but it's not valid anymore", username))
-		return nil, nil
+	if !ok {
+		log.Info(ctx, fmt.Sprintf("Cluster Access NOT found in cache for user : %s", username))
+		return nil
 	}
-	log.Info(ctx, fmt.Sprintf("Cluster Access NOT found in cache for user : %s", username))
-	return nil, nil
+	log.Info(ctx, fmt.Sprintf("A valid Cluster Access found in cache for user '%s'", username))
+	return ca
 }
 
-func (c *UserClusters) add(username string, ca *namespace.ClusterAccess) {
+func (c *UserAccess) add(username string, ca *access.ClusterAccess) {
 	c.Lock()
 	defer c.Unlock()
 	c.clusterAccesses[username] = ca

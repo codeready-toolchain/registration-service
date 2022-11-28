@@ -6,7 +6,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +33,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string) (*namespace.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error) {
 	// Get Signup
 	signup, err := s.ServiceContext.Services().SignupService().GetSignup(userID, username)
 	if err != nil {
@@ -52,23 +52,13 @@ func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string
 		// also check that the member cluster name matches because the api endpoint is the same for both members
 		// in the e2e tests because a single cluster is used for testing multi-member scenarios
 		if member.APIEndpoint == signup.APIEndpoint && member.Name == signup.ClusterName {
-			// Obtain the SA token
-			// targetNamespace := signup.CompliantUsername
-			// saName := fmt.Sprintf("appstudio-%s", signup.CompliantUsername)
-			// saNamespacedName := types.NamespacedName{Namespace: targetNamespace, Name: saName}
 			apiURL, err := url.Parse(member.APIEndpoint)
 			if err != nil {
 				return nil, err
 			}
-			// cl, err := newRESTClient(ctx, member, username)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			// tokenStr, err := getServiceAccountToken(cl, saNamespacedName)
-			// if err != nil {
-			// 	return nil, err
-			// }
-			return namespace.NewClusterAccess(*apiURL, member.Client, member.RestConfig.BearerToken, username), nil
+			// requests are made with member ToolchainCluster token, not user tokens
+			token := member.RestConfig.BearerToken
+			return access.NewClusterAccess(*apiURL, member.Client, token, username), nil
 		}
 	}
 

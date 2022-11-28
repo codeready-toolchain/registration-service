@@ -88,7 +88,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			}
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -98,7 +98,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not found", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "unknown_id", "")
+			_, err := svc.GetClusterAccess(ctx, "unknown_id", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -106,7 +106,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "456-not-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "456-not-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -128,7 +128,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member clusters found")
@@ -148,7 +148,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster", "")
+			_, err := svc.GetClusterAccess(ctx, "012-ready-unknown-cluster", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -206,7 +206,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				BodyString(`{"kind":"Status","apiVersion":"v1","status":"Failure","message":"can't obtain token for SA"}`)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "can't obtain token for SA")
@@ -231,7 +231,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				BodyString(string(resultTokenRequestStr))
 
 			// when
-			ns, err := svc.GetNamespace(ctx, "789-ready", "")
+			ns, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.NoError(s.T(), err)
@@ -239,24 +239,24 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 
-			s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
+			s.assertNamespaceAccess(namespace.NewClusterAccess(*expectedURL, memberClient, expectedToken, ""), ns)
 
 			s.Run("sa found when lookup by username", func() {
 				// when
-				ns, err := svc.GetNamespace(ctx, "", "smith")
+				ns, err := svc.GetClusterAccess(ctx, "", "smith")
 
 				// then
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), ns)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
+				s.assertNamespaceAccess(namespace.NewClusterAccess(*expectedURL, memberClient, expectedToken, "smith"), ns)
 			})
 		})
 	})
 }
 
-func (s *TestClusterServiceSuite) assertNamespaceAccess(expected, actual *namespace.NamespaceAccess) {
+func (s *TestClusterServiceSuite) assertNamespaceAccess(expected, actual *namespace.ClusterAccess) {
 	require.NotNil(s.T(), expected)
 	require.NotNil(s.T(), actual)
 	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())

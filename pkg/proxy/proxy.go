@@ -38,8 +38,8 @@ const (
 )
 
 type Proxy struct {
-	namespaces  *UserNamespaces
-	tokenParser *auth.TokenParser
+	userClusters *UserClusters
+	tokenParser  *auth.TokenParser
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -60,8 +60,8 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 		return nil, err
 	}
 	return &Proxy{
-		namespaces:  NewUserNamespaces(app),
-		tokenParser: tokenParser,
+		userClusters: NewUserClusters(app),
+		tokenParser:  tokenParser,
 	}, nil
 }
 
@@ -101,15 +101,15 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 		responseWithError(res, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 		return
 	}
-	ns, err := p.getTargetNamespace(ctx)
+	cluster, err := p.getTargetCluster(ctx)
 	if err != nil {
-		log.Error(ctx, err, "unable to get target namespace")
-		responseWithError(res, crterrors.NewInternalError(errors.New("unable to get target namespace"), err.Error()))
+		log.Error(ctx, err, "unable to get target cluster")
+		responseWithError(res, crterrors.NewInternalError(errors.New("unable to get target cluster"), err.Error()))
 		return
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, req, ns).ServeHTTP(res, req)
+	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
@@ -131,10 +131,10 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	}, nil
 }
 
-func (p *Proxy) getTargetNamespace(ctx *gin.Context) (*namespace.NamespaceAccess, error) {
+func (p *Proxy) getTargetCluster(ctx *gin.Context) (*namespace.ClusterAccess, error) {
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	return p.namespaces.Get(ctx, userID, username)
+	return p.userClusters.Get(ctx, userID, username)
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
@@ -168,7 +168,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *namespace.NamespaceAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *namespace.ClusterAccess) *httputil.ReverseProxy {
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
@@ -191,6 +191,9 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *nam
 		} else {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken()))
 		}
+
+		// Set impersonation header
+		req.Header.Set("Impersonate-User", target.Username())
 	}
 	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {

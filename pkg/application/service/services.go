@@ -26,7 +26,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetNamespace(ctx *gin.Context, userID, username string) (*namespace.NamespaceAccess, error)
+	GetClusterAccess(ctx *gin.Context, userID, username string) (*namespace.ClusterAccess, error)
 }
 
 type Services interface {

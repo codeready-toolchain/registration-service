@@ -31,14 +31,14 @@ func (s *TestCacheSuite) TestCache() {
 	memberURL, err := url.Parse("https://my.domain.com")
 	require.NoError(s.T(), err)
 	fakeApp := &fakeApp{}
-	csh := NewUserNamespaces(fakeApp)
+	csh := NewUserClusters(fakeApp)
 
 	cl := commontest.NewFakeClient(s.T())
-	johnNamespaceAccess := namespace.NewNamespaceAccess(*memberURL, "someToken", cl)
+	johnNamespaceAccess := namespace.NewClusterAccess(*memberURL, cl, "someToken", "john")
 
 	s.Run("first time - not found in cache", func() {
 		// when
-		fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
+		fakeApp.namespaces = map[string]*namespace.ClusterAccess{
 			"johnUserID": johnNamespaceAccess,
 		}
 
@@ -50,8 +50,8 @@ func (s *TestCacheSuite) TestCache() {
 
 	s.Run("second time - valid namespace access found in cache", func() {
 		// when
-		fakeApp.namespaces = map[string]*namespace.NamespaceAccess{} // Fake namespace access service doesn't have any namespace access. To ensure that cache is used instead.
-		cl.MockCreate = s.tokenReview(cl, true, nil, "someToken")    // Cached namespace access is valid
+		fakeApp.namespaces = map[string]*namespace.ClusterAccess{} // Fake namespace access service doesn't have any namespace access. To ensure that cache is used instead.
+		cl.MockCreate = s.tokenReview(cl, true, nil, "someToken")  // Cached namespace access is valid
 
 		// then
 		ns, err := csh.Get(nil, "johnUserID", "john")
@@ -61,8 +61,8 @@ func (s *TestCacheSuite) TestCache() {
 
 	s.Run("third time - found in cache but not valid anymore", func() {
 		// when
-		updatedJohnNamespaceAccess := namespace.NewNamespaceAccess(*memberURL, "updatedToken", cl)
-		fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
+		updatedJohnNamespaceAccess := namespace.NewClusterAccess(*memberURL, cl, "updatedToken", "john")
+		fakeApp.namespaces = map[string]*namespace.ClusterAccess{
 			"johnUserID": updatedJohnNamespaceAccess,
 		}
 		cl.MockCreate = s.tokenReview(cl, false, nil, "someToken") // Cached namespace access is not valid anymore

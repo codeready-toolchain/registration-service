@@ -157,7 +157,7 @@ func (s *TestProxySuite) TestProxy() {
 				s.Run("internal error if get namespace returns an error", func() {
 					// given
 					req, _ := s.request()
-					fakeApp.namespaces = map[string]*namespace.NamespaceAccess{}
+					fakeApp.namespaces = map[string]*namespace.ClusterAccess{}
 					fakeApp.err = errors.New("some-error")
 
 					// when
@@ -389,9 +389,9 @@ func (s *TestProxySuite) TestProxy() {
 							require.NoError(s.T(), err)
 
 							cl := commontest.NewFakeClient(s.T())
-							fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
-								"someUserID":    namespace.NewNamespaceAccess(*member1, "", cl), // noise
-								userID.String(): namespace.NewNamespaceAccess(*member2, "clusterSAToken", cl),
+							fakeApp.namespaces = map[string]*namespace.ClusterAccess{
+								"someUserID":    namespace.NewClusterAccess(*member1, cl, "", ""), // noise
+								userID.String(): namespace.NewClusterAccess(*member2, cl, "clusterSAToken", ""),
 							}
 
 							// Mock validation of the cached namespace access. Always invalid so no cached namespace access is ever used.
@@ -485,7 +485,7 @@ func (s *TestProxySuite) assertResponseBody(resp *http.Response, expectedBody st
 }
 
 type fakeApp struct {
-	namespaces map[string]*namespace.NamespaceAccess
+	namespaces map[string]*namespace.ClusterAccess
 	err        error
 }
 
@@ -505,6 +505,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID, _ string) (*namespace.NamespaceAccess, error) {
+func (f *fakeClusterService) GetClusterAccess(_ *gin.Context, userID, _ string) (*namespace.ClusterAccess, error) {
 	return f.fakeApp.namespaces[userID], f.fakeApp.err
 }

@@ -5,16 +5,17 @@ IMAGE ?= ${TARGET_REGISTRY}/${QUAY_NAMESPACE}/${GO_PACKAGE_REPO_NAME}:${IMAGE_TA
 QUAY_USERNAME ?= ${QUAY_NAMESPACE}
 TIMESTAMP := $(shell date +%s)
 IMAGE_DEV ?= ${TARGET_REGISTRY}/${QUAY_NAMESPACE}/${GO_PACKAGE_REPO_NAME}:${TIMESTAMP}
+IMAGE_PLATFORM ?= linux/amd64
 
 .PHONY: docker-image
 ## Build the docker image locally that can be deployed (only contains bare operator)
 docker-image: build
-	$(Q)docker build -f build/Dockerfile -t ${IMAGE} .
+	$(Q)docker build --platform ${IMAGE_PLATFORM} -f build/Dockerfile -t ${IMAGE} .
 
 .PHONY: docker-image-dev
 ## Build the docker image
 docker-image-dev: build
-	$(Q)docker build -f build/Dockerfile -t ${IMAGE_DEV}
+	$(Q)docker build --platform ${IMAGE_PLATFORM} -f build/Dockerfile -t ${IMAGE_DEV}
 
 .PHONY: docker-push
 ## Push the docker image to quay.io registry
@@ -24,7 +25,7 @@ docker-push: check-namespace docker-image
 .PHONY: podman-image
 ## Build the binary image
 podman-image: build
-	$(Q)podman build -f build/Dockerfile -t ${IMAGE} .
+	$(Q)podman build --platform ${IMAGE_PLATFORM} -f build/Dockerfile -t ${IMAGE} .
 
 .PHONY: podman-push
 ## Push the binary image to quay.io registry

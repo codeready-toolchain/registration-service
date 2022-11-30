@@ -243,6 +243,19 @@ func (s *TestProxySuite) TestProxy() {
 				encodedSAToken := base64.RawURLEncoding.EncodeToString([]byte("clusterSAToken"))
 				encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
 
+				// Start the member-2 API Server
+				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
+					w.Header().Set("Access-Control-Allow-Origin", "dummy")
+					w.WriteHeader(http.StatusOK)
+					_, err := w.Write([]byte("my response"))
+					require.NoError(s.T(), err)
+				}))
+				defer testServer.Close()
+				member2, err := url.Parse(testServer.URL)
+				require.NoError(s.T(), err)
+
 				tests := map[string]struct {
 					ProxyRequestMethod              string
 					ProxyRequestHeaders             http.Header
@@ -365,8 +378,7 @@ func (s *TestProxySuite) TestProxy() {
 						require.NoError(s.T(), err)
 
 						if !tc.Standalone {
-							// Start the member-2 API Server
-							ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 								w.Header().Set("Content-Type", "application/json")
 								// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 								w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -379,11 +391,7 @@ func (s *TestProxySuite) TestProxy() {
 										assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
 									}
 								}
-							}))
-							defer ts.Close() // It's OK to close the test member-2 API Server because the proxy cache is disabled, so no cached client is used. See below.
-
-							member2, err := url.Parse(ts.URL)
-							require.NoError(s.T(), err)
+							})
 
 							cl := commontest.NewFakeClient(s.T())
 							fakeApp.accesses = map[string]*access.ClusterAccess{

@@ -56,7 +56,7 @@ func (c *UserAccess) clusterAccessFromCache(ctx *gin.Context, username string) *
 		log.Info(ctx, fmt.Sprintf("Cluster Access NOT found in cache for user : %s", username))
 		return nil
 	}
-	log.Info(ctx, fmt.Sprintf("A valid Cluster Access found in cache for user '%s'", username))
+	log.Info(ctx, fmt.Sprintf("A Cluster Access found in cache for user '%s'", username))
 	return ca
 }
 

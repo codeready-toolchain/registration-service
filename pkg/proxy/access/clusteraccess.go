@@ -10,20 +10,20 @@ import (
 type ClusterAccess struct { // nolint:revive
 	// APIURL is the Cluster API Endpoint for the namespace
 	apiURL url.URL
-	// SAToken is a token of the Service Account which represents the user in the namespace
-	saToken string
+	// impersonatorToken is a token of the impersonator's Service Account, usually the impersonator SA belongs to a member toolchaincluster
+	impersonatorToken string
 	// client is the kube client for the cluster.
 	client client.Client
 	// username is the id of the user to use for impersonation
 	username string
 }
 
-func NewClusterAccess(apiURL url.URL, client client.Client, saToken, username string) *ClusterAccess {
+func NewClusterAccess(apiURL url.URL, client client.Client, impersonatorToken, username string) *ClusterAccess {
 	return &ClusterAccess{
-		apiURL:   apiURL,
-		client:   client,
-		saToken:  saToken,
-		username: username,
+		apiURL:            apiURL,
+		client:            client,
+		impersonatorToken: impersonatorToken,
+		username:          username,
 	}
 }
 
@@ -31,8 +31,8 @@ func (a *ClusterAccess) APIURL() url.URL {
 	return a.apiURL
 }
 
-func (a *ClusterAccess) SAToken() string {
-	return a.saToken
+func (a *ClusterAccess) ImpersonatorToken() string {
+	return a.impersonatorToken
 }
 
 func (a *ClusterAccess) Username() string {

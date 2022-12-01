@@ -229,7 +229,7 @@ func (s *TestClusterServiceSuite) assertClusterAccess(expected, actual *access.C
 	require.NotNil(s.T(), expected)
 	require.NotNil(s.T(), actual)
 	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())
-	assert.Equal(s.T(), expected.SAToken(), actual.SAToken())
+	assert.Equal(s.T(), expected.ImpersonatorToken(), actual.ImpersonatorToken())
 }
 
 func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolchainCluster {

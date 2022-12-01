@@ -187,9 +187,9 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *acc
 		}
 		// Replace token
 		if wsstream.IsWebSocketRequest(req) {
-			replaceTokenInWebsocketRequest(req, target.SAToken())
+			replaceTokenInWebsocketRequest(req, target.ImpersonatorToken())
 		} else {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.SAToken()))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.ImpersonatorToken()))
 		}
 
 		// Set impersonation header

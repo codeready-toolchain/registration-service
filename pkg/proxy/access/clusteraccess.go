@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ClusterAccess holds an information needed to access the namespace in a member cluster for the specific user
+// ClusterAccess holds information needed to access user namespaces in a member cluster for the specific user via impersonation
 type ClusterAccess struct { // nolint:revive
 	// APIURL is the Cluster API Endpoint for the namespace
 	apiURL url.URL

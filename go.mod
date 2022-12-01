@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20221121081259-4f672e808b89
+	github.com/codeready-toolchain/api v0.0.0-20221122101422-7c02c4c86dc7
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20221117081323-252a38460fa1
 	github.com/go-logr/logr v1.2.0
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -101,5 +101,5 @@ require (
 
 replace (
 	github.com/codeready-toolchain/api v0.0.0-20221121081259-4f672e808b89 => github.com/ranakan19/api v0.0.0-20221201091806-57fc665ce345
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20221117081323-252a38460fa1 => github.com/ranakan19/toolchain-common v0.0.0-20221201124218-41bbbd5acc3c
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20221117081323-252a38460fa1 => github.com/ranakan19/toolchain-common v0.0.0-20221201182049-e9ceb160687f
 )

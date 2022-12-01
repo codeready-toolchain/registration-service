@@ -26,8 +26,8 @@ func NewUserAccess(app application.Application) *UserAccess {
 	}
 }
 
-// Get tries to retrieve the cluster access from the cache first. If found then it checks if the cached access is still valid.
-// If not found or invalid then retrieves a new cluster access from the member cluster service and stores it in the cache.
+// Get tries to retrieve the cluster access from the cache first.
+// If not found then retrieves a new cluster access from the member cluster service and stores it in the cache.
 func (c *UserAccess) Get(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error) {
 	ca := c.clusterAccessFromCache(ctx, username)
 	if ca != nil {
@@ -46,7 +46,7 @@ func (c *UserAccess) Get(ctx *gin.Context, userID, username string) (*access.Clu
 	return ca, nil
 }
 
-// clusterAccessFromCache tries to retrieve a cluster access from the cache and validates it.
+// clusterAccessFromCache tries to retrieve a cluster access from the cache.
 // Returns nil if no cluster access found.
 func (c *UserAccess) clusterAccessFromCache(ctx *gin.Context, username string) *access.ClusterAccess {
 	c.RLock()

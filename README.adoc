@@ -9,7 +9,7 @@ This is the CodeReady Toolchain Registration Service repository. It implements t
 
 == Build
 
-Requires Go version 1.17.x (1.17.9 or higher) - download for your development environment https://golang.org/dl/[here].
+Requires Go version 1.18.x (1.18.8 or higher) - download for your development environment https://golang.org/dl/[here].
 
 This repository uses https://github.com/golang/go/wiki/Modules[Go modules].
 

@@ -76,7 +76,7 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the Proxy server...")
-	srv := &http.Server{Addr: ":" + ProxyPort, Handler: handler}
+	srv := &http.Server{Addr: ":" + ProxyPort, Handler: handler, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())

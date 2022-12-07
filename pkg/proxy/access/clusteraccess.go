@@ -12,8 +12,6 @@ type ClusterAccess struct { // nolint:revive
 	apiURL url.URL
 	// impersonatorToken is a token of the impersonator's Service Account, usually the impersonator SA belongs to a member toolchaincluster
 	impersonatorToken string
-	// client is the kube client for the cluster.
-	client client.Client
 	// username is the id of the user to use for impersonation
 	username string
 }
@@ -21,7 +19,6 @@ type ClusterAccess struct { // nolint:revive
 func NewClusterAccess(apiURL url.URL, client client.Client, impersonatorToken, username string) *ClusterAccess {
 	return &ClusterAccess{
 		apiURL:            apiURL,
-		client:            client,
 		impersonatorToken: impersonatorToken,
 		username:          username,
 	}

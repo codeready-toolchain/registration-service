@@ -21,6 +21,7 @@ import (
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	"github.com/gin-gonic/gin"
+	"k8s.io/client-go/rest"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -56,7 +57,7 @@ func (s *TestProxySuite) TestProxy() {
 			p, err := newProxyWithClusterClient(fakeApp, nil)
 			require.NoError(s.T(), err)
 
-			server := p.StartProxy()
+			server := p.StartProxy(&rest.Config{})
 			require.NotNil(s.T(), server)
 			defer func() {
 				_ = server.Close()

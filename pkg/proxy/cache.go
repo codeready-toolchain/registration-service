@@ -53,10 +53,10 @@ func (c *UserAccess) clusterAccessFromCache(ctx *gin.Context, username string) *
 	defer c.RUnlock()
 	ca, ok := c.clusterAccesses[username]
 	if !ok {
-		log.Info(ctx, fmt.Sprintf("Cluster Access NOT found in cache for user : %s", username))
+		log.Info(ctx, fmt.Sprintf("A Cluster Access was NOT found in cache for user : %s", username))
 		return nil
 	}
-	log.Info(ctx, fmt.Sprintf("A Cluster Access found in cache for user '%s'", username))
+	log.Info(ctx, fmt.Sprintf("A Cluster Access was found in cache for user '%s'", username))
 	return ca
 }
 
@@ -64,4 +64,10 @@ func (c *UserAccess) add(username string, ca *access.ClusterAccess) {
 	c.Lock()
 	defer c.Unlock()
 	c.clusterAccesses[username] = ca
+}
+
+func (c *UserAccess) remove(username string) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.clusterAccesses, username)
 }

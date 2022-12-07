@@ -65,7 +65,7 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 	}, nil
 }
 
-func (p *Proxy) StartProxy() *http.Server {
+func (p *Proxy) StartProxy(cfg *rest.Config) *http.Server {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", p.handleRequestAndRedirect)
@@ -82,6 +82,17 @@ func (p *Proxy) StartProxy() *http.Server {
 			log.Error(nil, err, err.Error())
 		}
 	}()
+
+	// start the informer to start watching UserSignups to invalidate cache
+	stopper, err := startCacheInvalidator(cfg)
+	if err != nil {
+		log.Error(nil, err, err.Error())
+	}
+
+	srv.RegisterOnShutdown(func() {
+		stopper <- struct{}{}
+	})
+
 	return srv
 }
 

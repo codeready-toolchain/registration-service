@@ -3,6 +3,7 @@ package proxy
 import (
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -27,54 +28,23 @@ func startCacheInvalidator(cfg *rest.Config) (chan struct{}, error) {
 		return nil, err
 	}
 
-	// r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
-	// listOptions := metav1.ListOptions{
-	// 	LabelSelector: fmt.Sprintf("%s!=%s", crtapi.UserSignupStateLabelKey, crtapi.UserSignupStateLabelValueDeactivated),
-	// }
-
-	informer := dynamicinformer.NewDynamicSharedInformerFactory(dynamicClient, 10*time.Hour)
-	userSignupInformer := informer.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural})
-	userSignupInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	log.Info(nil, "Create an informer for UserSignups in namespace "+configuration.Namespace())
+	informer := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 10*time.Hour, configuration.Namespace(), nil)
+	userSignupInformer := informer.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}).Informer()
+	userSignupInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    onUserSignupAdd,
 		UpdateFunc: onUserSignupUpdate,
 		DeleteFunc: onUserSignupDelete,
 	})
-	// userSignupList := indexer.ByIndex(byUserSignupNameIndexKey, )
 
 	stopper := make(chan struct{})
 
 	log.Info(nil, "Starting proxy cache invalidator")
 	informer.Start(stopper)
-	informer.WaitForCacheSync(stopper)
-
-	// list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// result := &crtapi.UserSignupList{}
-
-	// err = c.crtClient.scheme.Convert(list, result, nil)
+	// log.Info(nil, "Wait for informer cache to sync")
+	// informer.WaitForCacheSync(stopper)
 	return stopper, nil
 }
-
-// func option2(clientset kubernetes.Interface, userAccessCache *UserAccess) {
-// 	factory := informers.NewSharedInformerFactory(clientset, 0)
-// 	informer := factory.Core().V1().Pods().Informer()
-// 	stopper := make(chan struct{})
-// 	defer close(stopper)
-// 	defer runtime.HandleCrash()
-// 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-// 		AddFunc:    onAdd,
-// 		DeleteFunc: onDelete,
-// 	})
-// 	go informer.Run(stopper)
-// 	if !cache.WaitForCacheSync(stopper, informer.HasSynced) {
-// 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-// 		return
-// 	}
-// 	<-stopper
-// }
 
 // when a new pod is deployed the onAdd function would be invoked
 // for now just print the event.

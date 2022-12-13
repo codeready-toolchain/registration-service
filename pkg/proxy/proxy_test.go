@@ -17,7 +17,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/test"
-	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	"github.com/gin-gonic/gin"
@@ -393,10 +392,9 @@ func (s *TestProxySuite) TestProxy() {
 								}
 							})
 
-							cl := commontest.NewFakeClient(s.T())
 							fakeApp.accesses = map[string]*access.ClusterAccess{
-								"someUserID":    access.NewClusterAccess(*member1, cl, "", ""), // noise
-								userID.String(): access.NewClusterAccess(*member2, cl, "clusterSAToken", ""),
+								"someUserID":    access.NewClusterAccess(*member1, "", ""), // noise
+								userID.String(): access.NewClusterAccess(*member2, "clusterSAToken", ""),
 							}
 						}
 

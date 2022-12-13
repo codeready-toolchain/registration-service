@@ -6,7 +6,6 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/test"
-	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,8 +28,7 @@ func (s *TestCacheSuite) TestCache() {
 	fakeApp := &fakeApp{}
 	csh := NewUserAccess(fakeApp)
 
-	cl := commontest.NewFakeClient(s.T())
-	johnNamespaceAccess := access.NewClusterAccess(*memberURL, cl, "someToken", "john")
+	johnNamespaceAccess := access.NewClusterAccess(*memberURL, "someToken", "john")
 
 	s.Run("first time - not found in existing cache", func() {
 		// when

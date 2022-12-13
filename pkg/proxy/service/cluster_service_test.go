@@ -208,7 +208,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 
-			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, memberClient, expectedToken, ""), ca)
+			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
@@ -219,7 +219,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				require.NotNil(s.T(), ca)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, memberClient, expectedToken, "smith"), ca)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 			})
 		})
 	})

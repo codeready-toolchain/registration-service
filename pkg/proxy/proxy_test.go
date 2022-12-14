@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -16,9 +15,8 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/test"
-	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	"github.com/gin-gonic/gin"
@@ -27,8 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	authenticationv1 "k8s.io/api/authentication/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TestProxySuite struct {
@@ -154,10 +150,10 @@ func (s *TestProxySuite) TestProxy() {
 					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing\n")
 				})
 
-				s.Run("internal error if get namespace returns an error", func() {
+				s.Run("internal error if get accesses returns an error", func() {
 					// given
 					req, _ := s.request()
-					fakeApp.namespaces = map[string]*namespace.NamespaceAccess{}
+					fakeApp.accesses = map[string]*access.ClusterAccess{}
 					fakeApp.err = errors.New("some-error")
 
 					// when
@@ -167,7 +163,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-					s.assertResponseBody(resp, "unable to get target namespace: some-error\n")
+					s.assertResponseBody(resp, "unable to get target cluster: some-error\n")
 				})
 			})
 
@@ -245,6 +241,19 @@ func (s *TestProxySuite) TestProxy() {
 
 				encodedSAToken := base64.RawURLEncoding.EncodeToString([]byte("clusterSAToken"))
 				encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
+
+				// Start the member-2 API Server
+				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
+					w.Header().Set("Access-Control-Allow-Origin", "dummy")
+					w.WriteHeader(http.StatusOK)
+					_, err := w.Write([]byte("my response"))
+					require.NoError(s.T(), err)
+				}))
+				defer testServer.Close()
+				member2, err := url.Parse(testServer.URL)
+				require.NoError(s.T(), err)
 
 				tests := map[string]struct {
 					ProxyRequestMethod              string
@@ -368,8 +377,7 @@ func (s *TestProxySuite) TestProxy() {
 						require.NoError(s.T(), err)
 
 						if !tc.Standalone {
-							// Start the member-2 API Server
-							ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 								w.Header().Set("Content-Type", "application/json")
 								// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 								w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -382,26 +390,11 @@ func (s *TestProxySuite) TestProxy() {
 										assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
 									}
 								}
-							}))
-							defer ts.Close() // It's OK to close the test member-2 API Server because the proxy cached is disabled, so no cached client is used. See below.
+							})
 
-							member2, err := url.Parse(ts.URL)
-							require.NoError(s.T(), err)
-
-							cl := commontest.NewFakeClient(s.T())
-							fakeApp.namespaces = map[string]*namespace.NamespaceAccess{
-								"someUserID":    namespace.NewNamespaceAccess(*member1, "", cl), // noise
-								userID.String(): namespace.NewNamespaceAccess(*member2, "clusterSAToken", cl),
-							}
-
-							// Mock validation of the cached namespace access. Always invalid so no cached namespace access is ever used.
-							cl.MockCreate = func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-								tr, ok := obj.(*authenticationv1.TokenReview)
-								if ok {
-									tr.Status.Authenticated = false
-									return nil
-								}
-								return cl.Create(ctx, obj, opts...)
+							fakeApp.accesses = map[string]*access.ClusterAccess{
+								"someUserID":    access.NewClusterAccess(*member1, "", ""), // noise
+								userID.String(): access.NewClusterAccess(*member2, "clusterSAToken", ""),
 							}
 						}
 
@@ -485,8 +478,8 @@ func (s *TestProxySuite) assertResponseBody(resp *http.Response, expectedBody st
 }
 
 type fakeApp struct {
-	namespaces map[string]*namespace.NamespaceAccess
-	err        error
+	accesses map[string]*access.ClusterAccess
+	err      error
 }
 
 func (a *fakeApp) SignupService() service.SignupService {
@@ -505,6 +498,6 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetNamespace(_ *gin.Context, userID, _ string) (*namespace.NamespaceAccess, error) {
-	return f.fakeApp.namespaces[userID], f.fakeApp.err
+func (f *fakeClusterService) GetClusterAccess(_ *gin.Context, userID, _ string) (*access.ClusterAccess, error) {
+	return f.fakeApp.accesses[userID], f.fakeApp.err
 }

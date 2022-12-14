@@ -1,10 +1,8 @@
 package service_test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"testing"
 
@@ -12,7 +10,7 @@ import (
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	regservicecontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -23,8 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/h2non/gock.v1"
-	authv1 "k8s.io/api/authentication/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -88,7 +84,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			}
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -98,7 +94,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not found", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "unknown_id", "")
+			_, err := svc.GetClusterAccess(ctx, "unknown_id", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -106,7 +102,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetNamespace(ctx, "456-not-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "456-not-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not (yet) provisioned")
@@ -128,7 +124,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member clusters found")
@@ -148,7 +144,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetNamespace(ctx, "012-ready-unknown-cluster", "")
+			_, err := svc.GetClusterAccess(ctx, "012-ready-unknown-cluster", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -180,7 +176,9 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 								APIEndpoint:       "https://api.endpoint.member-2.com:6443",
 								Type:              commoncluster.Member,
 								OperatorNamespace: "member-operator",
-								RestConfig:        &rest.Config{},
+								RestConfig: &rest.Config{
+									BearerToken: "abc123",
+								},
 							},
 							Client: memberClient,
 						},
@@ -197,70 +195,41 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			},
 		)
 
-		s.Run("member client returns error when obtaining service account token", func() {
-			// given
-			defer gock.Off()
-			gock.New("http://localhost").
-				Post("api/v1/namespaces/smith/serviceaccounts/appstudio-smith/token").
-				Reply(http.StatusInternalServerError).
-				BodyString(`{"kind":"Status","apiVersion":"v1","status":"Failure","message":"can't obtain token for SA"}`)
-
-			// when
-			_, err := svc.GetNamespace(ctx, "789-ready", "")
-
-			// then
-			require.EqualError(s.T(), err, "can't obtain token for SA")
-		})
-
-		s.Run("sa found", func() {
+		s.Run("verify cluster access", func() {
 			memberClient.MockGet = nil
-			expectedToken := "some-token"
-			resultTokenRequest := &authv1.TokenRequest{
-				Status: authv1.TokenRequestStatus{
-					Token: expectedToken,
-				},
-			}
-			resultTokenRequestStr, err := json.Marshal(resultTokenRequest)
-			require.NoError(s.T(), err)
-
-			defer gock.Off()
-			gock.New("http://localhost").
-				Post("api/v1/namespaces/smith/serviceaccounts/appstudio-smith/token").
-				Persist().
-				Reply(http.StatusOK).
-				BodyString(string(resultTokenRequestStr))
+			expectedToken := "abc123" // should match member 2 bearer token
 
 			// when
-			ns, err := svc.GetNamespace(ctx, "789-ready", "")
+			ca, err := svc.GetClusterAccess(ctx, "789-ready", "")
 
 			// then
 			require.NoError(s.T(), err)
-			require.NotNil(s.T(), ns)
+			require.NotNil(s.T(), ca)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 
-			s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
+			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
-			s.Run("sa found when lookup by username", func() {
+			s.Run("cluster access correct when username provided", func() {
 				// when
-				ns, err := svc.GetNamespace(ctx, "", "smith")
+				ca, err := svc.GetClusterAccess(ctx, "", "smith")
 
 				// then
 				require.NoError(s.T(), err)
-				require.NotNil(s.T(), ns)
+				require.NotNil(s.T(), ca)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				s.assertNamespaceAccess(namespace.NewNamespaceAccess(*expectedURL, expectedToken, nil), ns)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 			})
 		})
 	})
 }
 
-func (s *TestClusterServiceSuite) assertNamespaceAccess(expected, actual *namespace.NamespaceAccess) {
+func (s *TestClusterServiceSuite) assertClusterAccess(expected, actual *access.ClusterAccess) {
 	require.NotNil(s.T(), expected)
 	require.NotNil(s.T(), actual)
 	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())
-	assert.Equal(s.T(), expected.SAToken(), actual.SAToken())
+	assert.Equal(s.T(), expected.ImpersonatorToken(), actual.ImpersonatorToken())
 }
 
 func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolchainCluster {

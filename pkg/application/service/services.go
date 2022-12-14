@@ -2,7 +2,7 @@ package service
 
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/namespace"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetNamespace(ctx *gin.Context, userID, username string) (*namespace.NamespaceAccess, error)
+	GetClusterAccess(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

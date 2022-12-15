@@ -2,6 +2,8 @@ package access
 
 import (
 	"net/url"
+
+	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 )
 
 // ClusterAccess holds information needed to access user namespaces in a member cluster for the specific user via impersonation
@@ -18,7 +20,7 @@ func NewClusterAccess(apiURL url.URL, impersonatorToken, username string) *Clust
 	return &ClusterAccess{
 		apiURL:            apiURL,
 		impersonatorToken: impersonatorToken,
-		username:          username,
+		username:          usersignup.TransformUsername(username),
 	}
 }
 

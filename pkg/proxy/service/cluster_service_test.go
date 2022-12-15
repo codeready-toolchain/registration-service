@@ -41,15 +41,15 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		},
 	}), fake.Signup("456-not-ready", &signup.Signup{
 		CompliantUsername: "john",
-		Username:          "john",
+		Username:          "john@",
 		Status: signup.Status{
 			Ready: false,
 		},
 	}), fake.Signup("789-ready", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.member-2.com:6443",
 		ClusterName:       "member-2",
-		CompliantUsername: "smith",
-		Username:          "smith",
+		CompliantUsername: "smith2",
+		Username:          "smith@",
 		Status: signup.Status{
 			Ready: true,
 		},
@@ -57,7 +57,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
 		ClusterName:       "unknown",
 		CompliantUsername: "doe",
-		Username:          "doe",
+		Username:          "doe@",
 		Status: signup.Status{
 			Ready: true,
 		},
@@ -205,12 +205,13 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NotNil(s.T(), ca)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "smith2", ca.CompliantUsername())
 
 			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
-				ca, err := svc.GetClusterAccess(ctx, "", "smith")
+				ca, err := svc.GetClusterAccess(ctx, "", "smith@")
 
 				// then
 				require.NoError(s.T(), err)
@@ -218,6 +219,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.CompliantUsername())
 			})
 		})
 	})

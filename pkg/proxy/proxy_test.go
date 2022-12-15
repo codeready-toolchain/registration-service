@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	service2 "github.com/codeready-toolchain/registration-service/pkg/application/service"
+	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
@@ -268,6 +268,7 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
 							"Origin":           {"https://domain.com"},
+							"Authorization":    {"Bearer clusterSAToken"},
 							"Impersonate-User": {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
@@ -279,6 +280,7 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestHeaders: map[string][]string{
 							"Origin":                        {"https://domain.com"},
 							"Access-Control-Request-Method": {"UNKNOWN"},
+							"Authorization":                 {"Bearer clusterSAToken"},
 							"Impersonate-User":              {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
@@ -449,7 +451,7 @@ func (s *TestProxySuite) TestProxy() {
 	}
 }
 
-func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) service2.MemberClusterService {
+func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
 			Client: s,

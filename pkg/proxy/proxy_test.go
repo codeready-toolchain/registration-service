@@ -386,7 +386,6 @@ func (s *TestProxySuite) TestProxy() {
 							}
 						}
 
-						// this is so silly :facepalm:
 						fakeApp.Err = nil
 
 						if !tc.Standalone {

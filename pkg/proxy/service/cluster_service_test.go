@@ -6,14 +6,12 @@ import (
 	"net/url"
 	"testing"
 
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	regservicecontext "github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
@@ -35,35 +33,35 @@ func TestRunClusterServiceSuite(t *testing.T) {
 func (s *TestClusterServiceSuite) TestGetNamespace() {
 	// given
 
-	sc := newFakeSignupService().addSignup("123-noise", &signup.Signup{
+	sc := fake.NewSignupService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
 		Username:          "noise1",
 		Status: signup.Status{
 			Ready: true,
 		},
-	}).addSignup("456-not-ready", &signup.Signup{
+	}), fake.Signup("456-not-ready", &signup.Signup{
 		CompliantUsername: "john",
-		Username:          "john",
+		Username:          "john@",
 		Status: signup.Status{
 			Ready: false,
 		},
-	}).addSignup("789-ready", &signup.Signup{
+	}), fake.Signup("789-ready", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.member-2.com:6443",
 		ClusterName:       "member-2",
-		CompliantUsername: "smith",
-		Username:          "smith",
+		CompliantUsername: "smith2",
+		Username:          "smith@",
 		Status: signup.Status{
 			Ready: true,
 		},
-	}).addSignup("012-ready-unknown-cluster", &signup.Signup{
+	}), fake.Signup("012-ready-unknown-cluster", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
 		ClusterName:       "unknown",
 		CompliantUsername: "doe",
-		Username:          "doe",
+		Username:          "doe@",
 		Status: signup.Status{
 			Ready: true,
 		},
-	})
+	}))
 	s.Application.MockSignupService(sc)
 
 	keys := make(map[string]interface{})
@@ -71,15 +69,15 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	ctx := &gin.Context{Keys: keys}
 
 	svc := service.NewMemberClusterService(
-		serviceContext{
-			cl:  s,
-			svc: s.Application,
+		fake.MemberClusterServiceContext{
+			Client: s,
+			Svcs:   s.Application,
 		},
 	)
 
 	s.Run("unable to get signup", func() {
 		s.Run("signup service returns error", func() {
-			sc.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
+			sc.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
@@ -90,7 +88,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.EqualError(s.T(), err, "oopsi woopsi")
 		})
 
-		sc.mockGetSignup = sc.defaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
+		sc.MockGetSignup = sc.DefaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
 
 		s.Run("user is not found", func() {
 			// when
@@ -112,9 +110,9 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	s.Run("no member cluster found", func() {
 		s.Run("no member clusters", func() {
 			svc := service.NewMemberClusterService(
-				serviceContext{
-					cl:  s,
-					svc: s.Application,
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -132,9 +130,9 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 
 		s.Run("no member cluster with the given URL", func() {
 			svc := service.NewMemberClusterService(
-				serviceContext{
-					cl:  s,
-					svc: s.Application,
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -155,9 +153,9 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 		memberClient := commontest.NewFakeClient(s.T())
 
 		svc := service.NewMemberClusterService(
-			serviceContext{
-				cl:  s,
-				svc: s.Application,
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
 			},
 			func(si *service.ServiceImpl) {
 				si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -207,12 +205,13 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			require.NotNil(s.T(), ca)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "smith2", ca.CompliantUsername())
 
 			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
-				ca, err := svc.GetClusterAccess(ctx, "", "smith")
+				ca, err := svc.GetClusterAccess(ctx, "", "smith@")
 
 				// then
 				require.NoError(s.T(), err)
@@ -220,6 +219,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.CompliantUsername())
 			})
 		})
 	})
@@ -248,68 +248,4 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 		})
 	}
 	return cls
-}
-
-type serviceContext struct {
-	cl  kubeclient.CRTClient
-	svc appservice.Services
-}
-
-func (sc serviceContext) CRTClient() kubeclient.CRTClient {
-	return sc.cl
-}
-
-func (sc serviceContext) Services() appservice.Services {
-	return sc.svc
-}
-
-func newFakeSignupService() *fakeSignupService {
-	f := &fakeSignupService{}
-	f.mockGetSignup = f.defaultMockGetSignup()
-	return f
-}
-
-func (m *fakeSignupService) addSignup(identifier string, userSignup *signup.Signup) *fakeSignupService {
-	if m.userSignups == nil {
-		m.userSignups = make(map[string]*signup.Signup)
-	}
-	m.userSignups[identifier] = userSignup
-	return m
-}
-
-type fakeSignupService struct {
-	mockGetSignup func(userID, username string) (*signup.Signup, error)
-	userSignups   map[string]*signup.Signup
-}
-
-func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
-	return func(userID, username string) (userSignup *signup.Signup, e error) {
-		us := m.userSignups[userID]
-		if us != nil {
-			return us, nil
-		}
-		for _, v := range m.userSignups {
-			if v.Username == username {
-				return v, nil
-			}
-		}
-		return nil, nil
-	}
-}
-
-func (m *fakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
-	return m.mockGetSignup(userID, username)
-}
-
-func (m *fakeSignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
-	return nil
 }

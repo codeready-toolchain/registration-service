@@ -193,7 +193,7 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *acc
 		}
 
 		// Set impersonation header
-		req.Header.Set("Impersonate-User", target.Username())
+		req.Header.Set("Impersonate-User", target.CompliantUsername())
 	}
 	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {

@@ -9,22 +9,25 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	service2 "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
+	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
-	"github.com/gin-gonic/gin"
-
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/client-go/rest"
 )
 
 type TestProxySuite struct {
@@ -51,7 +54,7 @@ func (s *TestProxySuite) TestProxy() {
 
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
-			fakeApp := &fakeApp{}
+			fakeApp := &fake.ProxyFakeApp{}
 			p, err := newProxyWithClusterClient(fakeApp, nil)
 			require.NoError(s.T(), err)
 
@@ -153,8 +156,8 @@ func (s *TestProxySuite) TestProxy() {
 				s.Run("internal error if get accesses returns an error", func() {
 					// given
 					req, _ := s.request()
-					fakeApp.accesses = map[string]*access.ClusterAccess{}
-					fakeApp.err = errors.New("some-error")
+					fakeApp.Accesses = map[string]*access.ClusterAccess{}
+					fakeApp.Err = errors.New("some-error")
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
@@ -252,8 +255,6 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 				}))
 				defer testServer.Close()
-				member2, err := url.Parse(testServer.URL)
-				require.NoError(s.T(), err)
 
 				tests := map[string]struct {
 					ProxyRequestMethod              string
@@ -266,7 +267,8 @@ func (s *TestProxySuite) TestProxy() {
 					"plain http cors preflight request with no request method": {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
-							"Origin": {"https://domain.com"},
+							"Origin":           {"https://domain.com"},
+							"Impersonate-User": {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusUnauthorized,
@@ -277,6 +279,7 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestHeaders: map[string][]string{
 							"Origin":                        {"https://domain.com"},
 							"Access-Control-Request-Method": {"UNKNOWN"},
+							"Impersonate-User":              {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusNoContent,
@@ -286,6 +289,8 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
 							"Access-Control-Request-Method": {"GET"},
+							"Authorization":                 {"Bearer clusterSAToken"},
+							"Impersonate-User":              {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusNoContent,
@@ -297,6 +302,8 @@ func (s *TestProxySuite) TestProxy() {
 							"Origin":                         {"https://domain.com"},
 							"Access-Control-Request-Method":  {"GET"},
 							"Access-Control-Request-Headers": {"Authorization"},
+							"Authorization":                  {"Bearer clusterSAToken"},
+							"Impersonate-User":               {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"https://domain.com"},
@@ -314,6 +321,8 @@ func (s *TestProxySuite) TestProxy() {
 							"Origin":                         {"https://domain.com"},
 							"Access-Control-Request-Method":  {"GET"},
 							"Access-Control-Request-Headers": {"Authorization, content-Type, header, second-header, THIRD-HEADER, Numb3r3d-H34d3r"},
+							"Authorization":                  {"Bearer clusterSAToken"},
+							"Impersonate-User":               {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"https://domain.com"},
@@ -326,9 +335,12 @@ func (s *TestProxySuite) TestProxy() {
 						Standalone:                  true,
 					},
 					"plain http actual request": {
-						ProxyRequestMethod:              "GET",
-						ProxyRequestHeaders:             map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
-						ExpectedAPIServerRequestHeaders: map[string][]string{"Authorization": {"Bearer clusterSAToken"}},
+						ProxyRequestMethod:  "GET",
+						ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+						ExpectedAPIServerRequestHeaders: map[string][]string{
+							"Authorization":    {"Bearer clusterSAToken"},
+							"Impersonate-User": {"smith2"},
+						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
 							"Access-Control-Allow-Credentials": {"true"},
@@ -343,11 +355,13 @@ func (s *TestProxySuite) TestProxy() {
 							"Connection":             {"upgrade"},
 							"Upgrade":                {"websocket"},
 							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken)},
+							"Impersonate-User":       {"smith2"},
 						},
 						ExpectedAPIServerRequestHeaders: map[string][]string{
 							"Connection":             {"Upgrade"},
 							"Upgrade":                {"websocket"},
 							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken)},
+							"Impersonate-User":       {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
@@ -372,9 +386,8 @@ func (s *TestProxySuite) TestProxy() {
 							}
 						}
 
-						fakeApp.err = nil
-						member1, err := url.Parse("https://member-1.openshift.com:1111")
-						require.NoError(s.T(), err)
+						// this is so silly :facepalm:
+						fakeApp.Err = nil
 
 						if !tc.Standalone {
 							testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -392,10 +405,25 @@ func (s *TestProxySuite) TestProxy() {
 								}
 							})
 
-							fakeApp.accesses = map[string]*access.ClusterAccess{
-								"someUserID":    access.NewClusterAccess(*member1, "", ""), // noise
-								userID.String(): access.NewClusterAccess(*member2, "clusterSAToken", ""),
-							}
+							fakeApp.SignupServiceMock = fake.NewSignupService(fake.Signup("someUserID", &signup.Signup{
+								APIEndpoint:       "https://api.endpoint.member-1.com:6443",
+								ClusterName:       "member-1",
+								CompliantUsername: "smith2",
+								Username:          "smith@",
+								Status: signup.Status{
+									Ready: true,
+								},
+							}), fake.Signup(userID.String(), &signup.Signup{
+								APIEndpoint:       testServer.URL,
+								ClusterName:       "member-2",
+								CompliantUsername: "smith2",
+								Username:          "smith@",
+								Status: signup.Status{
+									Ready: true,
+								},
+							}))
+							s.Application.MockSignupService(fakeApp.SignupServiceMock)
+							fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 						}
 
 						// when
@@ -420,6 +448,41 @@ func (s *TestProxySuite) TestProxy() {
 			})
 		})
 	}
+}
+
+func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) service2.MemberClusterService {
+	return service.NewMemberClusterService(
+		fake.MemberClusterServiceContext{
+			Client: s,
+			Svcs:   s.Application,
+		},
+		func(si *service.ServiceImpl) {
+			si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				return []*commoncluster.CachedToolchainCluster{
+					{
+						Config: &commoncluster.Config{
+							Name:        "member-1",
+							Type:        commoncluster.Member,
+							APIEndpoint: "https://api.endpoint.member-1.com:6443",
+							RestConfig:  &rest.Config{},
+						},
+					},
+					{
+						Config: &commoncluster.Config{
+							Name:              "member-2",
+							APIEndpoint:       serverURL,
+							Type:              commoncluster.Member,
+							OperatorNamespace: "member-operator",
+							RestConfig: &rest.Config{
+								BearerToken: "clusterSAToken",
+							},
+						},
+						Client: commontest.NewFakeClient(s.T()),
+					},
+				}
+			}
+		},
+	)
 }
 
 var noCORSHeaders = map[string][]string{
@@ -475,29 +538,4 @@ func (s *TestProxySuite) assertResponseBody(resp *http.Response, expectedBody st
 	_, err := buf.ReadFrom(resp.Body)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), expectedBody, buf.String())
-}
-
-type fakeApp struct {
-	accesses map[string]*access.ClusterAccess
-	err      error
-}
-
-func (a *fakeApp) SignupService() service.SignupService {
-	panic("SignupService shouldn't be called")
-}
-
-func (a *fakeApp) VerificationService() service.VerificationService {
-	panic("VerificationService shouldn't be called")
-}
-
-func (a *fakeApp) MemberClusterService() service.MemberClusterService {
-	return &fakeClusterService{a}
-}
-
-type fakeClusterService struct {
-	fakeApp *fakeApp
-}
-
-func (f *fakeClusterService) GetClusterAccess(_ *gin.Context, userID, _ string) (*access.ClusterAccess, error) {
-	return f.fakeApp.accesses[userID], f.fakeApp.err
 }

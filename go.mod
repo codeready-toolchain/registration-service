@@ -33,8 +33,9 @@ require (
 	gotest.tools v2.2.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.60.1
-	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 )
+
+require k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 
 require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect

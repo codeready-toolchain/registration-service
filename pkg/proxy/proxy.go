@@ -84,11 +84,13 @@ func (p *Proxy) StartProxy(cfg *rest.Config) *http.Server {
 	}()
 
 	// start the informer to start watching UserSignups to invalidate cache
-	stopper, err := startCacheInvalidator(cfg)
+	cacheInvalidator := CacheInvalidator{cfg, p.userAccess}
+	stopper, err := cacheInvalidator.Start()
 	if err != nil {
 		log.Error(nil, err, err.Error())
 	}
 
+	// stop the cache invalidator on proxy server shutdown
 	srv.RegisterOnShutdown(func() {
 		stopper <- struct{}{}
 	})

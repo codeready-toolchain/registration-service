@@ -58,7 +58,7 @@ func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string
 			}
 			// requests are made with member ToolchainCluster token, not user tokens
 			token := member.RestConfig.BearerToken
-			return access.NewClusterAccess(*apiURL, member.Client, token, username), nil
+			return access.NewClusterAccess(*apiURL, member.Client, token, signup.Name), nil
 		}
 	}
 

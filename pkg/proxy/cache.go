@@ -66,7 +66,7 @@ func (c *UserAccess) add(username string, ca *access.ClusterAccess) {
 	c.clusterAccesses[username] = ca
 }
 
-func (c *UserAccess) remove(username string) {
+func (c *UserAccess) Invalidate(username string) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.clusterAccesses, username)

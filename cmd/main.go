@@ -57,7 +57,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create client that will be used for retrieving the registration service config
+	// create runtime client
 	cl, err := configClient(cfg)
 	if err != nil {
 		panic(err.Error())

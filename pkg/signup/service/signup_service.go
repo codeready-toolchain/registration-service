@@ -261,6 +261,7 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	}
 
 	signupResponse := &signup.Signup{
+		Name:     userSignup.Name,
 		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {

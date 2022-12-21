@@ -1,9 +1,7 @@
 package proxy
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -14,8 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -27,24 +23,56 @@ import (
 const (
 	spaceResourcePlural            = "spaces"
 	toolchainclusterResourcePlural = "toolchainclusters"
-	usersignupResourcePlural       = "usersignups"
+	userSignupResourcePlural       = "usersignups"
 )
 
-type CacheInvalidator struct {
-	cfg       *rest.Config
-	userCache *UserAccess
-}
-
-type Listers struct {
+type Informer struct {
+	masteruserrecord cache.GenericLister
 	userSignup       cache.GenericLister
 	space            cache.GenericLister
 	toolchainCluster cache.GenericLister
 }
 
-func (c *CacheInvalidator) Start() (*Listers, chan struct{}, error) {
+func (inf *Informer) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+	obj, err := inf.space.ByNamespace(configuration.Namespace()).Get(name)
+	mur := &toolchainv1alpha1.MasterUserRecord{}
+	if err == nil {
+		mur = obj.(*toolchainv1alpha1.MasterUserRecord)
+	}
+	return mur, err
+}
 
-	listers := &Listers{}
-	dynamicClient, err := dynamic.NewForConfig(c.cfg)
+func (inf *Informer) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
+	obj, err := inf.space.ByNamespace(configuration.Namespace()).Get(name)
+	space := &toolchainv1alpha1.Space{}
+	if err == nil {
+		space = obj.(*toolchainv1alpha1.Space)
+	}
+	return space, err
+}
+
+func (inf *Informer) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
+	obj, err := inf.userSignup.ByNamespace(configuration.Namespace()).Get(name)
+	us := &toolchainv1alpha1.UserSignup{}
+	if err == nil {
+		us = obj.(*toolchainv1alpha1.UserSignup)
+	}
+	return us, err
+}
+
+func (inf *Informer) GetToolchainCluster(name string) (*toolchainv1alpha1.ToolchainCluster, error) {
+	obj, err := inf.toolchainCluster.ByNamespace(configuration.Namespace()).Get(name)
+	tc := &toolchainv1alpha1.ToolchainCluster{}
+	if err == nil {
+		tc = obj.(*toolchainv1alpha1.ToolchainCluster)
+	}
+	return tc, err
+}
+
+func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
+
+	informer := &Informer{}
+	dynamicClient, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,25 +80,41 @@ func (c *CacheInvalidator) Start() (*Listers, chan struct{}, error) {
 	log.Info(nil, "Creating an informer for "+spaceResourcePlural+" in namespace "+configuration.Namespace())
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, time.Hour, configuration.Namespace(), nil)
 
+	// MasterUserRecords
+	genericMasterUserRecordInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: spaceResourcePlural})
+	informer.masteruserrecord = genericMasterUserRecordInformer.Lister()
+	masterUserRecordInformer := genericMasterUserRecordInformer.Informer()
+	masterUserRecordInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: onMurUpdate,
+		DeleteFunc: onMurDelete,
+	})
+
 	// Spaces
 	genericSpaceInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: spaceResourcePlural})
-	listers.space = genericSpaceInformer.Lister()
+	informer.space = genericSpaceInformer.Lister()
 	spaceInformer := genericSpaceInformer.Informer()
 	spaceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
+		UpdateFunc: onSpaceUpdate,
+		DeleteFunc: onSpaceDelete,
 	})
 
 	// UserSignups
-	genericSpaceInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: spaceResourcePlural})
-	listers.space = genericSpaceInformer.Lister()
-	spaceInformer := genericSpaceInformer.Informer()
-	spaceInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: c.onUpdate,
-		DeleteFunc: c.onDelete,
+	genericUserSignupInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural})
+	informer.userSignup = genericUserSignupInformer.Lister()
+	userSignupInformer := genericUserSignupInformer.Informer()
+	userSignupInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: onUserSignupUpdate,
+		DeleteFunc: onUserSignupDelete,
 	})
 
 	// ToolchainClusters
+	genericToolchainClusterInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: toolchainclusterResourcePlural})
+	informer.toolchainCluster = genericToolchainClusterInformer.Lister()
+	ToolchainClusterInformer := genericToolchainClusterInformer.Informer()
+	ToolchainClusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: onToolchainClusterUpdate,
+		DeleteFunc: onToolchainClusterDelete,
+	})
 
 	stopper := make(chan struct{})
 
@@ -80,13 +124,43 @@ func (c *CacheInvalidator) Start() (*Listers, chan struct{}, error) {
 	if !cache.WaitForCacheSync(stopper, spaceInformer.HasSynced) {
 		err := fmt.Errorf("Timed out waiting for caches to sync")
 		log.Error(nil, err, "Failed to create informer")
-		return spaceLister, nil, err
+		return nil, nil, err
 	}
 
-	return spaceLister, stopper, nil
+	return informer, stopper, nil
 }
 
-func (c *CacheInvalidator) onUpdate(oldObj interface{}, newObj interface{}) {
+func onMurUpdate(oldObj interface{}, newObj interface{}) {
+	previousObj := oldObj.(*unstructured.Unstructured)
+	currentObj := newObj.(*unstructured.Unstructured)
+	murName := currentObj.GetName()
+
+	var previousMur toolchainv1alpha1.MasterUserRecord
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(previousObj.UnstructuredContent(), previousMur); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for MasterUserRecord '%s' due to previous object conversion", murName)
+		return
+	}
+
+	var currentMur toolchainv1alpha1.MasterUserRecord
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(currentObj.UnstructuredContent(), currentMur); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for MasterUserRecord '%s' due to current object conversion", murName)
+		return
+	}
+
+	log.Infof(nil, "MasterUserRecord '%s' has changed", murName)
+
+	// log.Info(nil, "Resource updated -> ")
+}
+
+func onMurDelete(obj interface{}) {
+	mur := obj.(*unstructured.Unstructured)
+	murName := mur.GetName()
+	log.Info(nil, "MasterUserRecord deleted -> "+murName)
+	// c.userCache.Invalidate(signupName)
+	// log.Info(nil, "Resource deleted -> ")
+}
+
+func onSpaceUpdate(oldObj interface{}, newObj interface{}) {
 	previousObj := oldObj.(*unstructured.Unstructured)
 	currentObj := newObj.(*unstructured.Unstructured)
 	spaceName := currentObj.GetName()
@@ -103,15 +177,12 @@ func (c *CacheInvalidator) onUpdate(oldObj interface{}, newObj interface{}) {
 		return
 	}
 
-	if previousSpace.Spec.TargetCluster != currentSpace.Spec.TargetCluster {
-		log.Infof(nil, "Space '%s' target cluster has changed, proceed to invalidate cache", spaceName)
-		go invalidateCacheForSpace(currentSpace.DeepCopy(), c.userCache)
-	}
+	log.Infof(nil, "Space '%s' has changed", spaceName)
 
 	// log.Info(nil, "Resource updated -> ")
 }
 
-func (c *CacheInvalidator) onDelete(obj interface{}) {
+func onSpaceDelete(obj interface{}) {
 	us := obj.(*unstructured.Unstructured)
 	spaceName := us.GetName()
 	log.Info(nil, "Space deleted -> "+spaceName)
@@ -119,37 +190,62 @@ func (c *CacheInvalidator) onDelete(obj interface{}) {
 	// log.Info(nil, "Resource deleted -> ")
 }
 
-func invalidateCacheForSpace(space *toolchainv1alpha1.Space, userCache *UserAccess) {
-	cl, err := newClusterClient()
-	if err != nil {
-		log.Errorf(nil, err, "failed to invalidate cache for Space '%s'", space.Name)
+func onUserSignupUpdate(oldObj interface{}, newObj interface{}) {
+	previousObj := oldObj.(*unstructured.Unstructured)
+	currentObj := newObj.(*unstructured.Unstructured)
+	name := currentObj.GetName()
+
+	var previousUserSignup toolchainv1alpha1.UserSignup
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(previousObj.UnstructuredContent(), previousUserSignup); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for UserSignup '%s' due to previous object conversion", name)
 		return
 	}
 
-	// TODO add retries
-
-	// lookup SpaceBindings
-	spaceBindings := toolchainv1alpha1.SpaceBindingList{}
-	if err := cl.List(context.TODO(),
-		&spaceBindings,
-		client.InNamespace(space.Namespace),
-		client.MatchingLabels{
-			toolchainv1alpha1.SpaceBindingSpaceLabelKey: space.Name,
-		},
-	); err != nil {
-		log.Error(nil, err, "failed to list space bindings")
+	var currentUserSignup toolchainv1alpha1.UserSignup
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(currentObj.UnstructuredContent(), currentUserSignup); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for UserSignup '%s' due to current object conversion", name)
+		return
 	}
 
-	// lookup MURs and get UserSignup names from each MUR
-	userSignups := []string{}
-	for _, sb := range spaceBindings.Items {
-		murName := sb.Labels[toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey]
-		mur := &toolchainv1alpha1.MasterUserRecord{}
-		if err := cl.Get(context.TODO(), types.NamespacedName{Namespace: space.Namespace, Name: murName}, mur); err != nil {
-			log.Error(nil, err, "failed to list space bindings")
-		}
-		log.Infof(nil, "Cache invalidator get mur: '%s'", mur.Name)
+	log.Infof(nil, "UserSignup '%s' has changed", name)
+
+	// log.Info(nil, "Resource updated -> ")
+}
+
+func onUserSignupDelete(obj interface{}) {
+	o := obj.(*unstructured.Unstructured)
+	name := o.GetName()
+	log.Info(nil, "UserSignup deleted -> "+name)
+	// c.userCache.Invalidate(signupName)
+	// log.Info(nil, "Resource deleted -> ")
+}
+
+func onToolchainClusterUpdate(oldObj interface{}, newObj interface{}) {
+	previousObj := oldObj.(*unstructured.Unstructured)
+	currentObj := newObj.(*unstructured.Unstructured)
+	name := currentObj.GetName()
+
+	var previousToolchainCluster toolchainv1alpha1.ToolchainCluster
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(previousObj.UnstructuredContent(), previousToolchainCluster); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for ToolchainCluster '%s' due to previous object conversion", name)
+		return
 	}
 
-	log.Infof(nil, "Cache invalidated for users: '%s'", strings.Join(userSignups, ","))
+	var currentToolchainCluster toolchainv1alpha1.ToolchainCluster
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(currentObj.UnstructuredContent(), currentToolchainCluster); err != nil {
+		log.Errorf(nil, err, "failed to invalidate cache for ToolchainCluster '%s' due to current object conversion", name)
+		return
+	}
+
+	log.Infof(nil, "ToolchainCluster '%s' has changed", name)
+
+	// log.Info(nil, "Resource updated -> ")
+}
+
+func onToolchainClusterDelete(obj interface{}) {
+	o := obj.(*unstructured.Unstructured)
+	name := o.GetName()
+	log.Info(nil, "ToolchainCluster deleted -> "+name)
+	// c.userCache.Invalidate(signupName)
+	// log.Info(nil, "Resource deleted -> ")
 }

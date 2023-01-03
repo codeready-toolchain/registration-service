@@ -155,6 +155,7 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 func (p *Proxy) getClusterAccess(ctx *gin.Context) (*access.ClusterAccess, error) {
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
+	log.Infof(nil, "Getting cluster access for user with username '%s' and ID '%s'", username, userID)
 
 	signup, err := p.GetUserSignup(userID, username)
 	if err != nil {
@@ -165,10 +166,12 @@ func (p *Proxy) getClusterAccess(ctx *gin.Context) (*access.ClusterAccess, error
 		return nil, errs.New("user is not approved (yet)")
 	}
 
+	log.Infof(nil, "Getting MasterUserRecord '%s'", signup.Status.CompliantUsername)
 	mur, err := p.informer.GetMasterUserRecord(signup.Status.CompliantUsername)
 	if err != nil {
 		return nil, err
 	}
+	log.Infof(nil, "Found MasterUserRecord '%s'", fmt.Sprintf("%+v", mur))
 
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
 	ready, err := strconv.ParseBool(string(murCondition.Status))
@@ -180,10 +183,14 @@ func (p *Proxy) getClusterAccess(ctx *gin.Context) (*access.ClusterAccess, error
 		return nil, errs.New("user is not provisioned (yet)")
 	}
 
+	log.Info(nil, "Looking up target member cluster")
 	// Get the target member
 	members := cluster.GetMemberClusters()
 	if len(members) == 0 {
 		return nil, errs.New("no member clusters found")
+	}
+	if len(mur.Status.UserAccounts) == 0 {
+		return nil, errs.New("no useraccounts found")
 	}
 	for _, member := range members {
 		if member.Name == mur.Status.UserAccounts[0].Cluster.Name {
@@ -193,6 +200,7 @@ func (p *Proxy) getClusterAccess(ctx *gin.Context) (*access.ClusterAccess, error
 			}
 			// requests use impersonation so are made with member ToolchainCluster token, not user tokens
 			token := member.RestConfig.BearerToken
+			log.Infof(nil, "Returning ClusterAccess with API URL '%s', username '%s'", apiURL.Path, signup.Status.CompliantUsername)
 			return access.NewClusterAccess(*apiURL, p.cl, token, signup.Status.CompliantUsername), nil
 		}
 	}

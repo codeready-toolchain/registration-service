@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -22,14 +20,11 @@ import (
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
-	signupsvc "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
@@ -45,7 +40,6 @@ const (
 type Proxy struct {
 	app         application.Application
 	cl          client.Client
-	informer    *Informer
 	tokenParser *auth.TokenParser
 }
 
@@ -91,18 +85,6 @@ func (p *Proxy) StartProxy(cfg *rest.Config) *http.Server {
 		}
 	}()
 
-	// start the informer to start watching UserSignups to invalidate cache
-	informer, stopper, err := StartInformer(cfg)
-	if err != nil {
-		log.Error(nil, err, err.Error())
-	}
-	p.informer = informer
-
-	// stop the cache invalidator on proxy server shutdown
-	srv.RegisterOnShutdown(func() {
-		stopper <- struct{}{}
-	})
-
 	return srv
 }
 
@@ -122,7 +104,9 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 		responseWithError(res, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 		return
 	}
-	cluster, err := p.getClusterAccess(ctx)
+	userID := ctx.GetString(context.SubKey)
+	username := ctx.GetString(context.UsernameKey)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
@@ -150,84 +134,6 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	return &gin.Context{
 		Keys: keys,
 	}, nil
-}
-
-func (p *Proxy) getClusterAccess(ctx *gin.Context) (*access.ClusterAccess, error) {
-	userID := ctx.GetString(context.SubKey)
-	username := ctx.GetString(context.UsernameKey)
-	log.Infof(nil, "Getting cluster access for user with username '%s' and ID '%s'", username, userID)
-
-	signup, err := p.GetUserSignup(userID, username)
-	if err != nil {
-		return nil, err
-	}
-
-	if signup == nil || signup.Status.CompliantUsername == "" {
-		return nil, errs.New("user is not approved (yet)")
-	}
-
-	log.Infof(nil, "Getting MasterUserRecord '%s'", signup.Status.CompliantUsername)
-	mur, err := p.informer.GetMasterUserRecord(signup.Status.CompliantUsername)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof(nil, "Found MasterUserRecord '%s'", fmt.Sprintf("%+v", mur))
-
-	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
-	ready, err := strconv.ParseBool(string(murCondition.Status))
-	if err != nil {
-		return nil, errs.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
-	}
-
-	if !ready {
-		return nil, errs.New("user is not provisioned (yet)")
-	}
-
-	log.Info(nil, "Looking up target member cluster")
-	// Get the target member
-	members := cluster.GetMemberClusters()
-	if len(members) == 0 {
-		return nil, errs.New("no member clusters found")
-	}
-	if len(mur.Status.UserAccounts) == 0 {
-		return nil, errs.New("no useraccounts found")
-	}
-	for _, member := range members {
-		if member.Name == mur.Status.UserAccounts[0].Cluster.Name {
-			apiURL, err := url.Parse(member.APIEndpoint)
-			if err != nil {
-				return nil, err
-			}
-			// requests use impersonation so are made with member ToolchainCluster token, not user tokens
-			token := member.RestConfig.BearerToken
-			log.Infof(nil, "Returning ClusterAccess with API URL '%s', username '%s'", apiURL.Path, signup.Status.CompliantUsername)
-			return access.NewClusterAccess(*apiURL, p.cl, token, signup.Status.CompliantUsername), nil
-		}
-	}
-
-	return nil, errs.New("no member cluster found for the user")
-}
-
-// GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (p *Proxy) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := p.informer.GetUserSignup(signupsvc.EncodeUserIdentifier(username))
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// Capture any error here in a separate var, as we need to preserve the original
-			userSignup, err2 := p.informer.GetUserSignup(signupsvc.EncodeUserIdentifier(userID))
-			if err2 != nil {
-				if apierrors.IsNotFound(err2) {
-					return nil, err
-				}
-				return nil, err2
-			}
-			return userSignup, nil
-		}
-		return nil, err
-	}
-
-	return userSignup, nil
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {

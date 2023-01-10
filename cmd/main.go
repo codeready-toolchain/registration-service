@@ -12,6 +12,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
@@ -69,7 +70,12 @@ func main() {
 	}
 	crtConfig.Print()
 
-	app, err := server.NewInClusterApplication()
+	informer, informerShutdown, err := informers.StartInformer(cfg)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	app, err := server.NewInClusterApplication(*informer)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -85,6 +91,11 @@ func main() {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
 	proxySrv := p.StartProxy(cfg)
+
+	// stop the informer when proxy server shuts down
+	proxySrv.RegisterOnShutdown(func() {
+		informerShutdown <- struct{}{}
+	})
 
 	srv := server.New(app)
 

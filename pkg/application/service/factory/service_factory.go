@@ -6,6 +6,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/informers"
+	informerservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
@@ -15,6 +17,7 @@ import (
 
 type serviceContextImpl struct {
 	kubeClient kubeclient.CRTClient
+	informer   informers.Informer
 	services   service.Services
 }
 
@@ -24,6 +27,16 @@ func CRTClientOption(kubeClient kubeclient.CRTClient) ServiceContextOption {
 	return func(ctx *serviceContextImpl) {
 		ctx.kubeClient = kubeClient
 	}
+}
+
+func InformerOption(informer informers.Informer) ServiceContextOption {
+	return func(ctx *serviceContextImpl) {
+		ctx.informer = informer
+	}
+}
+
+func (s *serviceContextImpl) Informer() informers.Informer {
+	return s.informer
 }
 
 func (s *serviceContextImpl) CRTClient() kubeclient.CRTClient {
@@ -47,6 +60,10 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 			services: s,
 		}
 	}
+}
+
+func (s *ServiceFactory) InformerService() service.InformerService {
+	return informerservice.NewInformerService(s.getContext())
 }
 
 func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {

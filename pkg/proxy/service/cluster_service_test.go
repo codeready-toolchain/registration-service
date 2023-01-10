@@ -8,16 +8,18 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
-	regservicecontext "github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
+
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	murtest "github.com/codeready-toolchain/toolchain-common/pkg/test/masteruserrecord"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,43 +34,39 @@ func TestRunClusterServiceSuite(t *testing.T) {
 	suite.Run(t, &TestClusterServiceSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestClusterServiceSuite) TestGetNamespace() {
+func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	// given
 
-	sc := newFakeSignupService().addSignup("123-noise", &signup.Signup{
+	is := newFakeInformerService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
 		Username:          "noise1",
 		Status: signup.Status{
 			Ready: true,
 		},
-	}).addSignup("456-not-ready", &signup.Signup{
+	}), fake.Signup("456-not-ready", &signup.Signup{
 		CompliantUsername: "john",
-		Username:          "john",
+		Username:          "john@",
 		Status: signup.Status{
 			Ready: false,
 		},
-	}).addSignup("789-ready", &signup.Signup{
+	}), fake.Signup("789-ready", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.member-2.com:6443",
 		ClusterName:       "member-2",
-		CompliantUsername: "smith",
-		Username:          "smith",
+		CompliantUsername: "smith2",
+		Username:          "smith@",
 		Status: signup.Status{
 			Ready: true,
 		},
-	}).addSignup("012-ready-unknown-cluster", &signup.Signup{
+	}), fake.Signup("012-ready-unknown-cluster", &signup.Signup{
 		APIEndpoint:       "https://api.endpoint.unknown.com:6443",
 		ClusterName:       "unknown",
 		CompliantUsername: "doe",
-		Username:          "doe",
+		Username:          "doe@",
 		Status: signup.Status{
 			Ready: true,
 		},
-	})
-	s.Application.MockSignupService(sc)
-
-	keys := make(map[string]interface{})
-	keys[regservicecontext.SubKey] = "unknown_id"
-	ctx := &gin.Context{Keys: keys}
+	}))
+	s.Application.MockInformerService(is)
 
 	svc := service.NewMemberClusterService(
 		serviceContext{
@@ -78,34 +76,42 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 	)
 
 	s.Run("unable to get signup", func() {
-		s.Run("signup service returns error", func() {
-			sc.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
+		s.Run("informer service returns error", func() {
+			is.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
 			// when
-			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess("789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
 		})
 
-		sc.mockGetSignup = sc.defaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
+		is.mockGetSignup = is.defaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
 
 		s.Run("user is not found", func() {
 			// when
-			_, err := svc.GetClusterAccess(ctx, "unknown_id", "")
+			_, err := svc.GetClusterAccess("unknown_id", "")
 
 			// then
-			require.EqualError(s.T(), err, "user is not (yet) provisioned")
+			require.EqualError(s.T(), err, "user is not provisioned (yet)")
+		})
+
+		s.Run("user is not found", func() {
+			// when
+			_, err := svc.GetClusterAccess("", "unknown_username")
+
+			// then
+			require.EqualError(s.T(), err, "user is not provisioned (yet)")
 		})
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetClusterAccess(ctx, "456-not-ready", "")
+			_, err := svc.GetClusterAccess("456-not-ready", "")
 
 			// then
-			require.EqualError(s.T(), err, "user is not (yet) provisioned")
+			require.EqualError(s.T(), err, "user is not provisioned (yet)")
 		})
 	})
 
@@ -124,7 +130,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetClusterAccess(ctx, "789-ready", "")
+			_, err := svc.GetClusterAccess("789-ready", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member clusters found")
@@ -144,7 +150,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			)
 
 			// when
-			_, err := svc.GetClusterAccess(ctx, "012-ready-unknown-cluster", "")
+			_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "")
 
 			// then
 			require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -200,7 +206,7 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedToken := "abc123" // should match member 2 bearer token
 
 			// when
-			ca, err := svc.GetClusterAccess(ctx, "789-ready", "")
+			ca, err := svc.GetClusterAccess("789-ready", "")
 
 			// then
 			require.NoError(s.T(), err)
@@ -208,18 +214,18 @@ func (s *TestClusterServiceSuite) TestGetNamespace() {
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
 
-			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, memberClient, expectedToken, ""), ca)
+			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
-				ca, err := svc.GetClusterAccess(ctx, "", "smith")
+				ca, err := svc.GetClusterAccess("", "smith@")
 
 				// then
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), ca)
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
-				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, memberClient, expectedToken, "smith"), ca)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 			})
 		})
 	})
@@ -251,44 +257,65 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 }
 
 type serviceContext struct {
-	cl  kubeclient.CRTClient
-	svc appservice.Services
+	cl       kubeclient.CRTClient
+	informer informers.Informer
+	svc      appservice.Services
 }
 
 func (sc serviceContext) CRTClient() kubeclient.CRTClient {
 	return sc.cl
 }
 
+func (sc serviceContext) Informer() informers.Informer {
+	return sc.informer
+}
+
 func (sc serviceContext) Services() appservice.Services {
 	return sc.svc
 }
 
-func newFakeSignupService() *fakeSignupService {
-	f := &fakeSignupService{}
+func newFakeInformerService(signupDefs ...fake.SignupDef) *fakeInformerService {
+	f := &fakeInformerService{}
 	f.mockGetSignup = f.defaultMockGetSignup()
+	for _, signupDef := range signupDefs {
+		identifier, signup := signupDef()
+		f.addSignup(identifier, signup)
+	}
 	return f
 }
 
-func (m *fakeSignupService) addSignup(identifier string, userSignup *signup.Signup) *fakeSignupService {
-	if m.userSignups == nil {
-		m.userSignups = make(map[string]*signup.Signup)
-	}
-	m.userSignups[identifier] = userSignup
-	return m
-}
-
-type fakeSignupService struct {
+type fakeInformerService struct {
 	mockGetSignup func(userID, username string) (*signup.Signup, error)
-	userSignups   map[string]*signup.Signup
+	signups       map[string]*signup.Signup
 }
 
-func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
+func (m *fakeInformerService) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+	panic("should not be called, tested separately")
+}
+
+func (m *fakeInformerService) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
+	panic("should not be called, tested separately")
+}
+
+func (m *fakeInformerService) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
+	panic("should not be called, tested separately")
+}
+
+func (m *fakeInformerService) GetSignup(userID, username string) (*signup.Signup, error) {
+	return m.mockGetSignup(userID, username)
+}
+
+func (m *fakeInformerService) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
+	panic("should not be called, tested separately")
+}
+
+func (m *fakeInformerService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
 	return func(userID, username string) (userSignup *signup.Signup, e error) {
-		us := m.userSignups[userID]
-		if us != nil {
-			return us, nil
+		signup := m.signups[userID]
+		if signup != nil {
+			return signup, nil
 		}
-		for _, v := range m.userSignups {
+		for _, v := range m.signups {
 			if v.Username == username {
 				return v, nil
 			}
@@ -297,19 +324,24 @@ func (m *fakeSignupService) defaultMockGetSignup() func(userID, username string)
 	}
 }
 
-func (m *fakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
-	return m.mockGetSignup(userID, username)
+func (m *fakeInformerService) addSignup(identifier string, s *signup.Signup) *fakeInformerService {
+	if m.signups == nil {
+		m.signups = make(map[string]*signup.Signup)
+	}
+	m.signups[identifier] = s
+	return m
 }
 
-func (m *fakeSignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-	return nil, nil
-}
-func (m *fakeSignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
-	return nil
+func WithCluster(clusterName string) murtest.MurModifier {
+	return func(mur *toolchainv1alpha1.MasterUserRecord) error {
+		if mur.Status.UserAccounts == nil {
+			mur.Status.UserAccounts = []toolchainv1alpha1.UserAccountStatusEmbedded{}
+		}
+		mur.Status.UserAccounts = append(mur.Status.UserAccounts, toolchainv1alpha1.UserAccountStatusEmbedded{
+			Cluster: toolchainv1alpha1.Cluster{
+				Name: clusterName,
+			},
+		})
+		return nil
+	}
 }

@@ -2,8 +2,6 @@ package access
 
 import (
 	"net/url"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ClusterAccess holds information needed to access user namespaces in a member cluster for the specific user via impersonation
@@ -16,7 +14,7 @@ type ClusterAccess struct { // nolint:revive
 	username string
 }
 
-func NewClusterAccess(apiURL url.URL, client client.Client, impersonatorToken, username string) *ClusterAccess {
+func NewClusterAccess(apiURL url.URL, impersonatorToken, username string) *ClusterAccess {
 	return &ClusterAccess{
 		apiURL:            apiURL,
 		impersonatorToken: impersonatorToken,

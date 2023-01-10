@@ -7,6 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type InformerService interface {
+	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
+	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
+	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
+	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
+	GetSignup(userID, username string) (*signup.Signup, error)
+}
+
 type SignupService interface {
 	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
 	GetSignup(userID, username string) (*signup.Signup, error)
@@ -26,10 +34,11 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error)
+	GetClusterAccess(userID, username string) (*access.ClusterAccess, error)
 }
 
 type Services interface {
+	InformerService() InformerService
 	SignupService() SignupService
 	VerificationService() VerificationService
 	MemberClusterService() MemberClusterService

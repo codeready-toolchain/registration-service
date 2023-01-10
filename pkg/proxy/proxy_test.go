@@ -16,11 +16,10 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
-	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
-	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/rest"
 
 	"github.com/gofrs/uuid"
@@ -394,10 +393,9 @@ func (s *TestProxySuite) TestProxy() {
 								}
 							})
 
-							cl := commontest.NewFakeClient(s.T())
 							fakeApp.accesses = map[string]*access.ClusterAccess{
-								"someUserID":    access.NewClusterAccess(*member1, cl, "", ""), // noise
-								userID.String(): access.NewClusterAccess(*member2, cl, "clusterSAToken", ""),
+								"someUserID":    access.NewClusterAccess(*member1, "", ""), // noise
+								userID.String(): access.NewClusterAccess(*member2, "clusterSAToken", ""),
 							}
 						}
 
@@ -485,6 +483,10 @@ type fakeApp struct {
 	err      error
 }
 
+func (a *fakeApp) InformerService() service.InformerService {
+	panic("InformerService shouldn't be called")
+}
+
 func (a *fakeApp) SignupService() service.SignupService {
 	panic("SignupService shouldn't be called")
 }
@@ -501,6 +503,10 @@ type fakeClusterService struct {
 	fakeApp *fakeApp
 }
 
-func (f *fakeClusterService) GetClusterAccess(_ *gin.Context, userID, _ string) (*access.ClusterAccess, error) {
+func (f *fakeClusterService) GetClusterAccess(userID, _ string) (*access.ClusterAccess, error) {
 	return f.fakeApp.accesses[userID], f.fakeApp.err
+}
+
+func (f *fakeClusterService) GetSignupViaInformers(userID, username string) (*signup.Signup, error) {
+	panic("GetSignupViaInformers shouldn't be called")
 }

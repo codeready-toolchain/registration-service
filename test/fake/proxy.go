@@ -3,7 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
+	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -17,6 +17,10 @@ type ProxyFakeApp struct {
 	Err                      error
 	SignupServiceMock        service.SignupService
 	MemberClusterServiceMock service.MemberClusterService
+}
+
+func (a *ProxyFakeApp) InformerService() service.InformerService {
+	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {
@@ -123,13 +127,17 @@ func (m *SignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 
 type MemberClusterServiceContext struct {
 	Client kubeclient.CRTClient
-	Svcs   appservice.Services
+	Svcs   service.Services
 }
 
 func (sc MemberClusterServiceContext) CRTClient() kubeclient.CRTClient {
 	return sc.Client
 }
 
-func (sc MemberClusterServiceContext) Services() appservice.Services {
+func (sc MemberClusterServiceContext) Informer() informers.Informer {
+	panic("shouldn't need informer in mock member cluster service")
+}
+
+func (sc MemberClusterServiceContext) Services() service.Services {
 	return sc.Svcs
 }

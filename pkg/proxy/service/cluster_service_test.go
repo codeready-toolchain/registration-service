@@ -18,7 +18,6 @@ import (
 
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
-	murtest "github.com/codeready-toolchain/toolchain-common/pkg/test/masteruserrecord"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,9 +68,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	s.Application.MockInformerService(is)
 
 	svc := service.NewMemberClusterService(
-		serviceContext{
-			cl:  s,
-			svc: s.Application,
+		fake.MemberClusterServiceContext{
+			Client: s,
+			Svcs:   s.Application,
 		},
 	)
 
@@ -118,9 +117,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	s.Run("no member cluster found", func() {
 		s.Run("no member clusters", func() {
 			svc := service.NewMemberClusterService(
-				serviceContext{
-					cl:  s,
-					svc: s.Application,
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -138,9 +137,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("no member cluster with the given URL", func() {
 			svc := service.NewMemberClusterService(
-				serviceContext{
-					cl:  s,
-					svc: s.Application,
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -161,9 +160,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		memberClient := commontest.NewFakeClient(s.T())
 
 		svc := service.NewMemberClusterService(
-			serviceContext{
-				cl:  s,
-				svc: s.Application,
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
 			},
 			func(si *service.ServiceImpl) {
 				si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -213,6 +212,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			require.NotNil(s.T(), ca)
 			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "smith2", ca.Username())
 
 			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
 
@@ -226,6 +226,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.Username())
 			})
 		})
 	})
@@ -330,18 +331,4 @@ func (m *fakeInformerService) addSignup(identifier string, s *signup.Signup) *fa
 	}
 	m.signups[identifier] = s
 	return m
-}
-
-func WithCluster(clusterName string) murtest.MurModifier {
-	return func(mur *toolchainv1alpha1.MasterUserRecord) error {
-		if mur.Status.UserAccounts == nil {
-			mur.Status.UserAccounts = []toolchainv1alpha1.UserAccountStatusEmbedded{}
-		}
-		mur.Status.UserAccounts = append(mur.Status.UserAccounts, toolchainv1alpha1.UserAccountStatusEmbedded{
-			Cluster: toolchainv1alpha1.Cluster{
-				Name: clusterName,
-			},
-		})
-		return nil
-	}
 }

@@ -90,7 +90,7 @@ func main() {
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
-	proxySrv := p.StartProxy(cfg)
+	proxySrv := p.StartProxy()
 
 	// stop the informer when proxy server shuts down
 	proxySrv.RegisterOnShutdown(func() {

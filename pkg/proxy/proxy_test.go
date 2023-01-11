@@ -18,9 +18,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
-	"k8s.io/client-go/rest"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -52,11 +52,11 @@ func (s *TestProxySuite) TestProxy() {
 
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
-			fakeApp := &fakeApp{}
+			fakeApp := &fake.ProxyFakeApp{}
 			p, err := newProxyWithClusterClient(fakeApp, nil)
 			require.NoError(s.T(), err)
 
-			server := p.StartProxy(&rest.Config{})
+			server := p.StartProxy()
 			require.NotNil(s.T(), server)
 			defer func() {
 				_ = server.Close()
@@ -154,8 +154,8 @@ func (s *TestProxySuite) TestProxy() {
 				s.Run("internal error if get accesses returns an error", func() {
 					// given
 					req, _ := s.request()
-					fakeApp.accesses = map[string]*access.ClusterAccess{}
-					fakeApp.err = errors.New("some-error")
+					fakeApp.Accesses = map[string]*access.ClusterAccess{}
+					fakeApp.Err = errors.New("some-error")
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
@@ -267,7 +267,9 @@ func (s *TestProxySuite) TestProxy() {
 					"plain http cors preflight request with no request method": {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
-							"Origin": {"https://domain.com"},
+							"Origin":           {"https://domain.com"},
+							"Authorization":    {"Bearer clusterSAToken"},
+							"Impersonate-User": {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusUnauthorized,
@@ -278,6 +280,8 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestHeaders: map[string][]string{
 							"Origin":                        {"https://domain.com"},
 							"Access-Control-Request-Method": {"UNKNOWN"},
+							"Authorization":                 {"Bearer clusterSAToken"},
+							"Impersonate-User":              {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusNoContent,
@@ -287,6 +291,8 @@ func (s *TestProxySuite) TestProxy() {
 						ProxyRequestMethod: "OPTIONS",
 						ProxyRequestHeaders: map[string][]string{
 							"Access-Control-Request-Method": {"GET"},
+							"Authorization":                 {"Bearer clusterSAToken"},
+							"Impersonate-User":              {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: noCORSHeaders,
 						ExpectedProxyResponseStatus:  http.StatusNoContent,
@@ -298,6 +304,8 @@ func (s *TestProxySuite) TestProxy() {
 							"Origin":                         {"https://domain.com"},
 							"Access-Control-Request-Method":  {"GET"},
 							"Access-Control-Request-Headers": {"Authorization"},
+							"Authorization":                  {"Bearer clusterSAToken"},
+							"Impersonate-User":               {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"https://domain.com"},
@@ -315,6 +323,8 @@ func (s *TestProxySuite) TestProxy() {
 							"Origin":                         {"https://domain.com"},
 							"Access-Control-Request-Method":  {"GET"},
 							"Access-Control-Request-Headers": {"Authorization, content-Type, header, second-header, THIRD-HEADER, Numb3r3d-H34d3r"},
+							"Authorization":                  {"Bearer clusterSAToken"},
+							"Impersonate-User":               {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"https://domain.com"},
@@ -327,9 +337,12 @@ func (s *TestProxySuite) TestProxy() {
 						Standalone:                  true,
 					},
 					"plain http actual request": {
-						ProxyRequestMethod:              "GET",
-						ProxyRequestHeaders:             map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
-						ExpectedAPIServerRequestHeaders: map[string][]string{"Authorization": {"Bearer clusterSAToken"}},
+						ProxyRequestMethod:  "GET",
+						ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+						ExpectedAPIServerRequestHeaders: map[string][]string{
+							"Authorization":    {"Bearer clusterSAToken"},
+							"Impersonate-User": {"smith2"},
+						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
 							"Access-Control-Allow-Credentials": {"true"},
@@ -344,11 +357,13 @@ func (s *TestProxySuite) TestProxy() {
 							"Connection":             {"upgrade"},
 							"Upgrade":                {"websocket"},
 							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSSOToken)},
+							"Impersonate-User":       {"smith2"},
 						},
 						ExpectedAPIServerRequestHeaders: map[string][]string{
 							"Connection":             {"Upgrade"},
 							"Upgrade":                {"websocket"},
 							"Sec-Websocket-Protocol": {fmt.Sprintf("base64url.bearer.authorization.k8s.io.%s,dummy", encodedSAToken)},
+							"Impersonate-User":       {"smith2"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
@@ -373,7 +388,7 @@ func (s *TestProxySuite) TestProxy() {
 							}
 						}
 
-						fakeApp.err = nil
+						fakeApp.Err = nil
 						member1, err := url.Parse("https://member-1.openshift.com:1111")
 						require.NoError(s.T(), err)
 
@@ -393,7 +408,7 @@ func (s *TestProxySuite) TestProxy() {
 								}
 							})
 
-							fakeApp.accesses = map[string]*access.ClusterAccess{
+							fakeApp.Accesses = map[string]*access.ClusterAccess{
 								"someUserID":    access.NewClusterAccess(*member1, "", ""), // noise
 								userID.String(): access.NewClusterAccess(*member2, "clusterSAToken", ""),
 							}

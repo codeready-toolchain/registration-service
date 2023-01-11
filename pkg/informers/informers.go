@@ -57,6 +57,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 		log.Error(nil, err, "Failed to create informer")
 		return nil, nil, err
 	}
+	log.Info(nil, "Informer caches synced")
 
 	return informer, stopper, nil
 }

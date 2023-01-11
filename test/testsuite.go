@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -81,7 +81,7 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) conf
 		require.NoError(s.T(), err)
 	} else {
 		// only proceed to create the toolchainconfig if it was not found
-		require.True(s.T(), apierrors.IsNotFound(err), "unexpected error", err.Error())
+		require.True(s.T(), errors.IsNotFound(err), "unexpected error", err.Error())
 	}
 
 	newcfg := testconfig.NewToolchainConfigObj(s.T(), opts...)
@@ -103,7 +103,7 @@ func (s *UnitTestSuite) SetSecret(secret *corev1.Secret) {
 		require.NoError(s.T(), err)
 	}
 
-	require.True(s.T(), apierrors.IsNotFound(err), "unexpected error")
+	require.True(s.T(), errors.IsNotFound(err), "unexpected error")
 	err = s.ConfigClient.Create(context.TODO(), secret)
 	require.NoError(s.T(), err)
 	// update config cache

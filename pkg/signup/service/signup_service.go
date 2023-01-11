@@ -39,14 +39,6 @@ const (
 	NoSpaceKey = "no-space"
 )
 
-// ServiceConfiguration represents the config used for the signup service.
-type ServiceConfiguration interface { // nolint:revive
-	GetNamespace() string
-	GetVerificationEnabled() bool
-	GetVerificationExcludedEmailDomains() []string
-	GetVerificationCodeExpiresInMin() int
-}
-
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
@@ -261,7 +253,6 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	}
 
 	signupResponse := &signup.Signup{
-		Name:     userSignup.Name,
 		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {

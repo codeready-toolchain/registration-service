@@ -12,6 +12,9 @@ type InformerService interface {
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
 	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
+
+	// GetSignup duplicates the logic of the 'GetSignup' function in the signup service, except it uses informers to get resources.
+	// This function can be move to the signup service and replace the GetSignup function there once it is determined to be stable.
 	GetSignup(userID, username string) (*signup.Signup, error)
 }
 

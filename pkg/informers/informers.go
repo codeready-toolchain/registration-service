@@ -2,7 +2,6 @@ package informers
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
@@ -30,7 +29,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 		return nil, nil, err
 	}
 
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, time.Hour, configuration.Namespace(), nil)
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, configuration.Namespace(), nil)
 
 	// MasterUserRecords
 	genericMasterUserRecordInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: kubeclient.MurResourcePlural})
@@ -54,7 +53,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 
 	if !cache.WaitForCacheSync(stopper, masterUserRecordInformer.HasSynced, userSignupInformer.HasSynced, toolchainstatusInformer.HasSynced) {
 		err := fmt.Errorf("timed out waiting for caches to sync")
-		log.Error(nil, err, "Failed to create informer")
+		log.Error(nil, err, "Failed to create informers")
 		return nil, nil, err
 	}
 	log.Info(nil, "Informer caches synced")

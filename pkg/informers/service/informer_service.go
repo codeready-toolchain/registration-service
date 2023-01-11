@@ -53,7 +53,6 @@ func (s *ServiceImpl) GetMasterUserRecord(name string) (*toolchainv1alpha1.Maste
 	}
 
 	unobj := obj.(*unstructured.Unstructured)
-
 	mur := &toolchainv1alpha1.MasterUserRecord{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), mur); err != nil {
 		log.Errorf(nil, err, "failed to get MasterUserRecord '%s'", name)
@@ -114,11 +113,11 @@ func (s *ServiceImpl) GetUserSignupFromIdentifier(userID, username string) (*too
 	return userSignup, nil
 }
 
-// TODO this function can be move to the signup service and replace the GetSignup function there once it is determined to be stable.
-// GetSignup duplicates the logic of the 'GetSignup' function in the signup service, except it uses informers to get resources
+// GetSignup duplicates the logic of the 'GetSignup' function in the signup service, except it uses informers to get resources.
+// This function can be move to the signup service and replace the GetSignup function there once it is determined to be stable.
 func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
 	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-	userSignup, err := s.Services().InformerService().GetUserSignupFromIdentifier(userID, username)
+	userSignup, err := s.GetUserSignupFromIdentifier(userID, username)
 	// If an error was returned, then return here
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -133,7 +132,6 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	}
 
 	signupResponse := &signup.Signup{
-		Name:     userSignup.Name,
 		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {
@@ -166,7 +164,7 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.Services().InformerService().GetMasterUserRecord(userSignup.Status.CompliantUsername)
+	mur, err := s.GetMasterUserRecord(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -183,7 +181,7 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
-		status, err := s.Services().InformerService().GetToolchainStatus()
+		status, err := s.GetToolchainStatus()
 		if err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}

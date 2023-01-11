@@ -6,10 +6,6 @@ import (
 	"net/url"
 	"testing"
 
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -36,7 +32,7 @@ func TestRunClusterServiceSuite(t *testing.T) {
 func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	// given
 
-	is := newFakeInformerService(fake.Signup("123-noise", &signup.Signup{
+	is := fake.NewInformerService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
 		Username:          "noise1",
 		Status: signup.Status{
@@ -76,7 +72,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("informer service returns error", func() {
-			is.mockGetSignup = func(userID, username string) (*signup.Signup, error) {
+			is.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
@@ -87,7 +83,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			require.EqualError(s.T(), err, "oopsi woopsi")
 		})
 
-		is.mockGetSignup = is.defaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
+		is.MockGetSignup = is.DefaultMockGetSignup() // restore the default informer service, so it doesn't return an error anymore
 
 		s.Run("user is not found", func() {
 			// when
@@ -255,80 +251,4 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 		})
 	}
 	return cls
-}
-
-type serviceContext struct {
-	cl       kubeclient.CRTClient
-	informer informers.Informer
-	svc      appservice.Services
-}
-
-func (sc serviceContext) CRTClient() kubeclient.CRTClient {
-	return sc.cl
-}
-
-func (sc serviceContext) Informer() informers.Informer {
-	return sc.informer
-}
-
-func (sc serviceContext) Services() appservice.Services {
-	return sc.svc
-}
-
-func newFakeInformerService(signupDefs ...fake.SignupDef) *fakeInformerService {
-	f := &fakeInformerService{}
-	f.mockGetSignup = f.defaultMockGetSignup()
-	for _, signupDef := range signupDefs {
-		identifier, signup := signupDef()
-		f.addSignup(identifier, signup)
-	}
-	return f
-}
-
-type fakeInformerService struct {
-	mockGetSignup func(userID, username string) (*signup.Signup, error)
-	signups       map[string]*signup.Signup
-}
-
-func (m *fakeInformerService) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-	panic("should not be called, tested separately")
-}
-
-func (m *fakeInformerService) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
-	panic("should not be called, tested separately")
-}
-
-func (m *fakeInformerService) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
-	panic("should not be called, tested separately")
-}
-
-func (m *fakeInformerService) GetSignup(userID, username string) (*signup.Signup, error) {
-	return m.mockGetSignup(userID, username)
-}
-
-func (m *fakeInformerService) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	panic("should not be called, tested separately")
-}
-
-func (m *fakeInformerService) defaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
-	return func(userID, username string) (userSignup *signup.Signup, e error) {
-		signup := m.signups[userID]
-		if signup != nil {
-			return signup, nil
-		}
-		for _, v := range m.signups {
-			if v.Username == username {
-				return v, nil
-			}
-		}
-		return nil, nil
-	}
-}
-
-func (m *fakeInformerService) addSignup(identifier string, s *signup.Signup) *fakeInformerService {
-	if m.signups == nil {
-		m.signups = make(map[string]*signup.Signup)
-	}
-	m.signups[identifier] = s
-	return m
 }

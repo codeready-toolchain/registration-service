@@ -15,18 +15,18 @@ import (
 type ProxyFakeApp struct {
 	Accesses                 map[string]*access.ClusterAccess
 	Err                      error
-	SignupServiceMock        service.SignupService
+	InformerServiceMock      service.InformerService
 	MemberClusterServiceMock service.MemberClusterService
 }
 
 func (a *ProxyFakeApp) InformerService() service.InformerService {
+	if a.InformerServiceMock != nil {
+		return a.InformerServiceMock
+	}
 	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {
-	if a.SignupServiceMock != nil {
-		return a.SignupServiceMock
-	}
 	panic("SignupService shouldn't be called")
 }
 

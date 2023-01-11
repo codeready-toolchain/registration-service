@@ -33,7 +33,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 }
 
 func (s *ServiceImpl) GetClusterAccess(userID, username string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().InformerService().GetSignup(userID, username)
+	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
 	}

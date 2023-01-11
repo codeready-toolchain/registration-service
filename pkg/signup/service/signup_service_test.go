@@ -963,7 +963,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 		err := s.FakeUserSignupClient.Tracker.Add(us)
 		require.NoError(s.T(), err)
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
+		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
 		require.NoError(s.T(), err)
 		require.Equal(s.T(), us.Name, val.Name)
 	})
@@ -973,7 +973,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 			return nil, errors.New("get failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup("foo", "")
+		val, err := s.Application.SignupService().GetUserSignupFromIdentifier("foo", "")
 		require.EqualError(s.T(), err, "get failed")
 		require.Nil(s.T(), val)
 	})
@@ -981,7 +981,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	s.Run("getusersignup with unknown user", func() {
 		s.FakeUserSignupClient.MockGet = nil
 
-		val, err := s.Application.SignupService().GetUserSignup("unknown", "")
+		val, err := s.Application.SignupService().GetUserSignupFromIdentifier("unknown", "")
 		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
@@ -995,7 +995,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	require.NoError(s.T(), err)
 
 	s.Run("updateusersignup ok", func() {
-		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
+		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
 		require.NoError(s.T(), err)
 
 		val.Spec.FamilyName = "Johnson"
@@ -1011,7 +1011,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 			return nil, errors.New("update failed")
 		}
 
-		val, err := s.Application.SignupService().GetUserSignup(us.Name, "")
+		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
 		require.NoError(s.T(), err)
 
 		updated, err := s.Application.SignupService().UpdateUserSignup(val)

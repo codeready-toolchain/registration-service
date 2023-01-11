@@ -407,7 +407,7 @@ func (s *TestProxySuite) TestProxy() {
 								}
 							})
 
-							fakeApp.InformerServiceMock = fake.NewInformerService(fake.Signup("someUserID", &signup.Signup{
+							fakeApp.SignupServiceMock = fake.NewSignupService(fake.Signup("someUserID", &signup.Signup{
 								APIEndpoint:       "https://api.endpoint.member-1.com:6443",
 								ClusterName:       "member-1",
 								CompliantUsername: "smith2",
@@ -424,7 +424,7 @@ func (s *TestProxySuite) TestProxy() {
 									Ready: true,
 								},
 							}))
-							s.Application.MockInformerService(fakeApp.InformerServiceMock)
+							s.Application.MockSignupService(fakeApp.SignupServiceMock)
 							fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 						}
 

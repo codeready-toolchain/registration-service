@@ -31,8 +31,7 @@ func TestRunClusterServiceSuite(t *testing.T) {
 
 func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	// given
-
-	is := fake.NewInformerService(fake.Signup("123-noise", &signup.Signup{
+	sc := fake.NewSignupService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
 		Username:          "noise1",
 		Status: signup.Status{
@@ -61,7 +60,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			Ready: true,
 		},
 	}))
-	s.Application.MockInformerService(is)
+	s.Application.MockSignupService(sc)
 
 	svc := service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
@@ -72,7 +71,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("informer service returns error", func() {
-			is.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
+			sc.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
@@ -83,7 +82,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			require.EqualError(s.T(), err, "oopsi woopsi")
 		})
 
-		is.MockGetSignup = is.DefaultMockGetSignup() // restore the default informer service, so it doesn't return an error anymore
+		sc.MockGetSignup = sc.DefaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
 
 		s.Run("user is not found", func() {
 			// when

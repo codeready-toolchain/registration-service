@@ -15,18 +15,18 @@ import (
 type ProxyFakeApp struct {
 	Accesses                 map[string]*access.ClusterAccess
 	Err                      error
-	InformerServiceMock      service.InformerService
+	SignupServiceMock        service.SignupService
 	MemberClusterServiceMock service.MemberClusterService
 }
 
 func (a *ProxyFakeApp) InformerService() service.InformerService {
-	if a.InformerServiceMock != nil {
-		return a.InformerServiceMock
-	}
 	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {
+	if a.SignupServiceMock != nil {
+		return a.SignupServiceMock
+	}
 	panic("SignupService shouldn't be called")
 }
 
@@ -47,14 +47,6 @@ type fakeClusterService struct {
 
 func (f *fakeClusterService) GetClusterAccess(userID, _ string) (*access.ClusterAccess, error) {
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
-}
-
-func (f *fakeClusterService) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	panic("should not be called")
-}
-
-func (f *fakeClusterService) GetSignupViaInformers(userID, username string) (*signup.Signup, error) {
-	panic("should not be called")
 }
 
 type SignupDef func() (string, *signup.Signup)
@@ -112,10 +104,14 @@ func (m *SignupService) GetSignup(userID, username string) (*signup.Signup, erro
 	return m.MockGetSignup(userID, username)
 }
 
+func (m *SignupService) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
+	return m.MockGetSignup(userID, username)
+}
+
 func (m *SignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *SignupService) GetUserSignup(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
+func (m *SignupService) GetUserSignupFromIdentifier(_, _ string) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
 func (m *SignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {

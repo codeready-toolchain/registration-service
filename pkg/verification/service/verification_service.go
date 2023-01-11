@@ -60,7 +60,7 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 // the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
 // to manage the phone verification process and protect against system abuse.
 func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error {
-	signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+	signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
@@ -161,7 +161,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 		if err != nil {
 			return err
 		}
@@ -212,7 +212,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
-	signup, lookupErr := s.Services().SignupService().GetUserSignup(userID, username)
+	signup, lookupErr := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 	if lookupErr != nil {
 		if apierrors.IsNotFound(lookupErr) {
 			log.Error(ctx, lookupErr, "usersignup not found")
@@ -286,7 +286,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, code string) error {
 	log.Infof(ctx, "verifying activation code '%s'", code)
 	// look-up the UserSignup
-	signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+	signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return crterrors.NewNotFoundError(err, "user not found")
@@ -338,7 +338,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 
 	defer func() {
 		doUpdate := func() error {
-			signup, err := s.Services().SignupService().GetUserSignup(userID, username)
+			signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 			if err != nil {
 				return err
 			}

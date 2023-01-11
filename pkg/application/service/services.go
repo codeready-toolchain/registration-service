@@ -11,17 +11,13 @@ type InformerService interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
-	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
-
-	// GetSignup duplicates the logic of the 'GetSignup' function in the signup service, except it uses informers to get resources.
-	// This function can be move to the signup service and replace the GetSignup function there once it is determined to be stable.
-	GetSignup(userID, username string) (*signup.Signup, error)
 }
 
 type SignupService interface {
 	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
 	GetSignup(userID, username string) (*signup.Signup, error)
-	GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error)
+	GetSignupFromInformer(userID, username string) (*signup.Signup, error)
+	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error)
 	PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error
 }

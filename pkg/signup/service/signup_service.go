@@ -42,12 +42,14 @@ const (
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
+	defaultProvider ResourceProvider
 }
 
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(context servicecontext.ServiceContext) service.SignupService {
 	return &ServiceImpl{
-		BaseService: base.NewBaseService(context),
+		BaseService:     base.NewBaseService(context),
+		defaultProvider: crtClientProvider{context.CRTClient()},
 	}
 }
 
@@ -237,8 +239,18 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(s.defaultProvider, userID, username)
+}
+
+// GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
+// This function and the ResourceProvider abstraction can replace the original GetSignup function once it is determined to be stable.
+func (s *ServiceImpl) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(s.Services().InformerService(), userID, username)
+}
+
+func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username string) (*signup.Signup, error) {
 	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-	userSignup, err := s.GetUserSignup(userID, username)
+	userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
 	// If an error was returned, then return here
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -285,7 +297,7 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.CRTClient().V1Alpha1().MasterUserRecords().Get(userSignup.Status.CompliantUsername)
+	mur, err := provider.GetMasterUserRecord(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -302,7 +314,7 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
-		status, err := s.CRTClient().V1Alpha1().ToolchainStatuses().Get()
+		status, err := provider.GetToolchainStatus()
 		if err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
@@ -321,10 +333,15 @@ func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error)
 	return signupResponse, nil
 }
 
-// GetUserSignup is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
+// GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
+func (s *ServiceImpl) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
+	return s.DoGetUserSignupFromIdentifier(s.defaultProvider, userID, username)
+}
+
+// GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
+func (s *ServiceImpl) DoGetUserSignupFromIdentifier(provider ResourceProvider, userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(username))
+	userSignup, err := provider.GetUserSignup(EncodeUserIdentifier(username))
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original

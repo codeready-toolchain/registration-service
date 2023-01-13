@@ -48,7 +48,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 
 	stopper := make(chan struct{})
 
-	log.Info(nil, "Starting informers")
+	log.Info(nil, "Starting proxy cache informers")
 	factory.Start(stopper)
 
 	if !cache.WaitForCacheSync(stopper, masterUserRecordInformer.HasSynced, userSignupInformer.HasSynced, toolchainstatusInformer.HasSynced) {

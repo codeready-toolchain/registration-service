@@ -8,10 +8,6 @@ import (
 
 const ToolchainStatusName = "toolchain-status"
 
-const (
-	toolchainStatusResourcePlural = "toolchainstatuses"
-)
-
 type toolchainStatusClient struct {
 	crtClient
 }
@@ -26,7 +22,7 @@ func (c *toolchainStatusClient) Get() (*crtapi.ToolchainStatus, error) {
 	result := &crtapi.ToolchainStatus{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(toolchainStatusResourcePlural).
+		Resource(ToolchainStatusPlural).
 		Name(ToolchainStatusName).
 		Do(context.TODO()).
 		Into(result)

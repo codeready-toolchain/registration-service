@@ -49,6 +49,10 @@ func (f *fakeClusterService) GetClusterAccess(userID, _ string) (*access.Cluster
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
 }
 
+func (f *fakeClusterService) GetWorkspaceAccess(userID, _, _ string) (*access.ClusterAccess, error) {
+	return f.fakeApp.Accesses[userID], f.fakeApp.Err
+}
+
 type SignupDef func() (string, *signup.Signup)
 
 func Signup(identifier string, userSignup *signup.Signup) SignupDef {

@@ -9,6 +9,7 @@ import (
 
 type InformerService interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
+	GetSpace(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
 }
@@ -34,6 +35,7 @@ type VerificationService interface {
 
 type MemberClusterService interface {
 	GetClusterAccess(userID, username string) (*access.ClusterAccess, error)
+	GetWorkspaceAccess(userID, username, workspace string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

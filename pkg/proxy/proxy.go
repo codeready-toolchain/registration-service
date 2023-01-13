@@ -106,7 +106,10 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	}
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username)
+
+	log.Info(ctx, fmt.Sprintf("req.URL.Path: %s", req.URL.Path)) // req.URL.Path: /workspaces/mycoolworkspace/api/pods
+
+	cluster, err := p.getClusterAccess(req, userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
@@ -115,6 +118,20 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
+}
+
+func (p *Proxy) getClusterAccess(req *http.Request, userID, username string) (*access.ClusterAccess, error) {
+	path := stripPrefix(req.URL.Path, "/")
+
+	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods
+	if strings.HasPrefix(path, "workspaces/") {
+		// get the subpath eg. mycoolworkspace/api/pods
+		subpath := stripPrefix(path, "workspaces/")
+		// get the workspace from the subpath eg. mycoolworkspace
+		workspace := strings.SplitN(subpath, "/", 2)[0]
+		p.app.MemberClusterService().GetWorkspaceAccess(userID, username, workspace)
+	}
+	return p.app.MemberClusterService().GetClusterAccess(userID, username)
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
@@ -209,6 +226,13 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *acc
 		FlushInterval:  -1,
 		ModifyResponse: m.addCorsToResponse,
 	}
+}
+
+func stripPrefix(s, prefix string) string {
+	if strings.HasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
 }
 
 func singleJoiningSlash(a, b string) string {

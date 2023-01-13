@@ -36,6 +36,7 @@ type TestInformerServiceSuite struct {
 func (s *TestInformerServiceSuite) TestInformerService() {
 
 	s.Run("masteruserrecords", func() {
+		// given
 		murLister := fakeLister{
 			objs: map[string]*unstructured.Unstructured{
 				"johnMur": {
@@ -46,6 +47,19 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 							"userAccounts": []map[string]interface{}{
 								{
 									"targetCluster": "member1",
+								},
+							},
+						},
+					},
+				},
+				"noise": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"tierName": "deactivate30",
+							"userID":   "noise-id",
+							"userAccounts": []map[string]interface{}{
+								{
+									"targetCluster": "member2",
 								},
 							},
 						},
@@ -64,12 +78,16 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		})
 
 		s.Run("not found", func() {
+			// when
 			val, err := svc.GetMasterUserRecord("unknown")
+
+			//then
 			assert.Nil(s.T(), val)
 			assert.EqualError(s.T(), err, "not found")
 		})
 
 		s.Run("found", func() {
+			// given
 			expected := &toolchainv1alpha1.MasterUserRecord{
 				Spec: toolchainv1alpha1.MasterUserRecordSpec{
 					TierName: "deactivate30",
@@ -82,7 +100,10 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 				},
 			}
 
+			// when
 			val, err := svc.GetMasterUserRecord("johnMur")
+
+			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), val, expected)
@@ -90,6 +111,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 	})
 
 	s.Run("toolchainstatuses", func() {
+		// given
 		emptyToolchainStatusLister := fakeLister{
 			objs: map[string]*unstructured.Unstructured{},
 		}
@@ -109,6 +131,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		}
 
 		s.Run("not found", func() {
+			// given
 			inf := informers.Informer{
 				ToolchainStatus: emptyToolchainStatusLister,
 			}
@@ -117,12 +140,17 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 				Svcs:     s.Application,
 				informer: inf,
 			})
+
+			// when
 			val, err := svc.GetToolchainStatus()
+
+			// then
 			assert.Nil(s.T(), val)
 			assert.EqualError(s.T(), err, "not found")
 		})
 
 		s.Run("found", func() {
+			// given
 			inf := informers.Informer{
 				ToolchainStatus: toolchainStatusLister,
 			}
@@ -140,7 +168,10 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 				},
 			}
 
+			// when
 			val, err := svc.GetToolchainStatus()
+
+			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), val, expected)
@@ -148,7 +179,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 	})
 
 	s.Run("usersignups", func() {
-
+		// given
 		userSignupLister := fakeLister{
 			objs: map[string]*unstructured.Unstructured{
 				"johnUserSignup": {
@@ -161,6 +192,19 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 							"familyName":    "Bar",
 							"company":       "Red Hat",
 							"originalSub":   "sub-key",
+						},
+					},
+				},
+				"noise": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"targetCluster": "member1",
+							"username":      "noise@redhat.com",
+							"userid":        "noise",
+							"givenName":     "Noise",
+							"familyName":    "Make",
+							"company":       "Noisy",
+							"originalSub":   "noise-key",
 						},
 					},
 				},
@@ -177,12 +221,16 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		})
 
 		s.Run("not found", func() {
+			// when
 			val, err := svc.GetUserSignup("unknown")
+
+			// then
 			assert.Nil(s.T(), val)
 			assert.EqualError(s.T(), err, "not found")
 		})
 
 		s.Run("found", func() {
+			// given
 			expected := &toolchainv1alpha1.UserSignup{
 				Spec: toolchainv1alpha1.UserSignupSpec{
 					TargetCluster: "member2",
@@ -195,7 +243,10 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 				},
 			}
 
+			// when
 			val, err := svc.GetUserSignup("johnUserSignup")
+
+			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), val, expected)

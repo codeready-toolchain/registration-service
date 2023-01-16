@@ -10,13 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -240,7 +241,34 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 
 	// when
 	_, err := s.Application.SignupService().GetSignup("000", "abc")
+
+	// then
 	require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == "000" {
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			}
+			return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer("000", "abc")
+
+		// then
+		require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
+	})
 }
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
@@ -610,6 +638,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
+	// given
 	username := "johnsmith"
 
 	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
@@ -619,8 +648,36 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		return &toolchainv1alpha1.UserSignup{}, nil
 	}
 
+	// when
 	_, err := s.Application.SignupService().GetSignup("", username)
+
+	// then
 	require.EqualError(s.T(), err, "an error occurred")
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == username {
+				return nil, errors.New("an error occurred")
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer("johnsmith", "abc")
+
+		// then
+		require.EqualError(s.T(), err, "an error occurred")
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
@@ -630,9 +687,34 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	signup, err := s.Application.SignupService().GetSignup(userID.String(), "")
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		signup, err := svc.GetSignupFromInformer(userID.String(), "")
+
+		// then
+		require.Nil(s.T(), signup)
+		require.NoError(s.T(), err)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	userID, err := uuid.NewV4()
@@ -668,7 +750,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 	require.NoError(s.T(), err)
 
+	// when
 	response, err := s.Application.SignupService().GetSignup(userID.String(), "")
+
+	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -683,9 +768,48 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "", response.APIEndpoint)
 	require.Equal(s.T(), "", response.ClusterName)
 	require.Equal(s.T(), "", response.ProxyURL)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == userID.String() {
+				return &userSignup, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		response, err := svc.GetSignupFromInformer(userID.String(), "")
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+
+		require.Equal(s.T(), "bill", response.Username)
+		require.Equal(s.T(), "", response.CompliantUsername)
+		require.False(s.T(), response.Status.Ready)
+		require.Equal(s.T(), response.Status.Reason, "test_reason")
+		require.Equal(s.T(), response.Status.Message, "test_message")
+		require.True(s.T(), response.Status.VerificationRequired)
+		require.Equal(s.T(), "", response.ConsoleURL)
+		require.Equal(s.T(), "", response.CheDashboardURL)
+		require.Equal(s.T(), "", response.APIEndpoint)
+		require.Equal(s.T(), "", response.ClusterName)
+		require.Equal(s.T(), "", response.ProxyURL)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	noCondition := toolchainv1alpha1.UserSignupStatus{}
@@ -734,7 +858,10 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
 		require.NoError(s.T(), err)
 
+		// when
 		response, err := s.Application.SignupService().GetSignup(userID.String(), "")
+
+		// then
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
@@ -749,32 +876,102 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.APIEndpoint)
 		require.Equal(s.T(), "", response.ClusterName)
 		require.Equal(s.T(), "", response.ProxyURL)
+
+		s.T().Run("informer", func(t *testing.T) {
+			// given
+			inf := fake.NewFakeInformer()
+			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+				if name == userID.String() {
+					return &userSignup, nil
+				}
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			}
+
+			s.Application.MockInformerService(inf)
+			svc := service.NewSignupService(
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
+				},
+			)
+
+			// when
+			response, err := svc.GetSignupFromInformer(userID.String(), "")
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), response)
+
+			require.Equal(s.T(), "bill", response.Username)
+			require.Equal(s.T(), "", response.CompliantUsername)
+			require.False(s.T(), response.Status.Ready)
+			require.Equal(s.T(), "PendingApproval", response.Status.Reason)
+			require.True(s.T(), response.Status.VerificationRequired)
+			require.Equal(s.T(), "", response.Status.Message)
+			require.Equal(s.T(), "", response.ConsoleURL)
+			require.Equal(s.T(), "", response.CheDashboardURL)
+			require.Equal(s.T(), "", response.APIEndpoint)
+			require.Equal(s.T(), "", response.ClusterName)
+			require.Equal(s.T(), "", response.ProxyURL)
+		})
 	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupCompleteWithReason("Deactivated")
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
+	// when
 	signup, err := s.Application.SignupService().GetSignup(us.Name, "")
+
+	// then
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		signup, err := svc.GetSignupFromInformer(us.Name, "")
+
+		// then
+		require.Nil(s.T(), signup)
+		require.NoError(s.T(), err)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	mur := s.newProvisionedMUR()
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
+	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
@@ -807,10 +1004,14 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				ProxyURL: "https://proxy-url.com",
 			},
 		},
-	})
+	}
+	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
+	// when
 	response, err := s.Application.SignupService().GetSignup(us.Name, "")
+
+	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -825,9 +1026,57 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+			return toolchainStatus, nil
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		response, err := svc.GetSignupFromInformer(us.Name, "")
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+
+		require.Equal(s.T(), "ted@domain.com", response.Username)
+		require.Equal(s.T(), "ted", response.CompliantUsername)
+		assert.True(s.T(), response.Status.Ready)
+		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+		assert.False(s.T(), response.Status.VerificationRequired)
+		assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+		assert.Equal(s.T(), "member-123", response.ClusterName)
+		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
@@ -835,10 +1084,11 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	mur := s.newProvisionedMUR()
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	err = s.FakeToolchainStatusClient.Tracker.Add(&toolchainv1alpha1.ToolchainStatus{
+	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
@@ -871,10 +1121,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 				ProxyURL: "https://proxy-url.com",
 			},
 		},
-	})
+	}
+	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
+	// when
 	response, err := s.Application.SignupService().GetSignup("foo", us.Spec.Username)
+
+	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
@@ -889,23 +1143,110 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+			return toolchainStatus, nil
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		response, err := svc.GetSignupFromInformer("foo", us.Spec.Username)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+
+		require.Equal(s.T(), "ted@domain.com", response.Username)
+		require.Equal(s.T(), "ted", response.CompliantUsername)
+		assert.True(s.T(), response.Status.Ready)
+		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+		assert.False(s.T(), response.Status.VerificationRequired)
+		assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+		assert.Equal(s.T(), "member-123", response.ClusterName)
+		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(s.newProvisionedMUR())
+	mur := s.newProvisionedMUR()
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
+	// when
 	_, err = s.Application.SignupService().GetSignup(us.Name, "")
+
+	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, "toolchain-status")
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer(us.Name, "")
+
+		// then
+		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
@@ -920,18 +1261,53 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		return &toolchainv1alpha1.MasterUserRecord{}, nil
 	}
 
+	// when
 	_, err = s.Application.SignupService().GetSignup(us.Name, "")
+
+	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == us.Status.CompliantUsername {
+				return nil, returnedErr
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer(us.Name, "")
+
+		// then
+		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
+	// given
 	s.ServiceConfiguration(TestNamespace, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	err = s.FakeMasterUserRecordClient.Tracker.Add(&toolchainv1alpha1.MasterUserRecord{
+	mur := &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
@@ -948,11 +1324,46 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 				},
 			},
 		},
-	})
+	}
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
+	// when
 	_, err = s.Application.SignupService().GetSignup(us.Name, "")
+
+	// then
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer(us.Name, "")
+
+		// then
+		require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
+	})
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {

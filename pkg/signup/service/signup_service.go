@@ -345,7 +345,7 @@ func (s *ServiceImpl) DoGetUserSignupFromIdentifier(provider ResourceProvider, u
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original
-			userSignup, err2 := s.CRTClient().V1Alpha1().UserSignups().Get(EncodeUserIdentifier(userID))
+			userSignup, err2 := provider.GetUserSignup(EncodeUserIdentifier(userID))
 			if err2 != nil {
 				if apierrors.IsNotFound(err2) {
 					return nil, err

@@ -432,7 +432,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// Create a mock SignupService
 		svc := &FakeSignupService{
-			MockGetUserSignup: func(userID, username string) (userSignup *crtapi.UserSignup, e error) {
+			MockGetUserSignupFromIdentifier: func(userID, username string) (userSignup *crtapi.UserSignup, e error) {
 				us := crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
@@ -900,23 +900,28 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 }
 
 type FakeSignupService struct {
-	MockGetSignup               func(userID, username string) (*signup.Signup, error)
-	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockGetUserSignup           func(userID, username string) (*crtapi.UserSignup, error)
-	MockUpdateUserSignup        func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse func(userID, username, value string) error
+	MockGetSignup                   func(userID, username string) (*signup.Signup, error)
+	MockGetSignupFromInformer       func(userID, username string) (*signup.Signup, error)
+	MockSignup                      func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockGetUserSignupFromIdentifier func(userID, username string) (*crtapi.UserSignup, error)
+	MockUpdateUserSignup            func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
+	MockPhoneNumberAlreadyInUse     func(userID, username, value string) error
 }
 
 func (m *FakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
 	return m.MockGetSignup(userID, username)
 }
 
+func (m *FakeSignupService) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
+	return m.MockGetSignupFromInformer(userID, username)
+}
+
 func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {
 	return m.MockSignup(ctx)
 }
 
-func (m *FakeSignupService) GetUserSignup(userID, username string) (*crtapi.UserSignup, error) {
-	return m.MockGetUserSignup(userID, username)
+func (m *FakeSignupService) GetUserSignupFromIdentifier(userID, username string) (*crtapi.UserSignup, error) {
+	return m.MockGetUserSignupFromIdentifier(userID, username)
 }
 
 func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {

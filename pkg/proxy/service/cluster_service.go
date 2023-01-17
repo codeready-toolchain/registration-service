@@ -9,7 +9,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
-	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 )
 
@@ -33,14 +32,13 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error) {
-	// Get Signup
-	signup, err := s.ServiceContext.Services().SignupService().GetSignup(userID, username)
+func (s *ServiceImpl) GetClusterAccess(userID, username string) (*access.ClusterAccess, error) {
+	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
 	}
 	if signup == nil || !signup.Status.Ready {
-		return nil, errs.New("user is not (yet) provisioned")
+		return nil, errs.New("user is not provisioned (yet)")
 	}
 
 	// Get the target member
@@ -56,9 +54,9 @@ func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username string
 			if err != nil {
 				return nil, err
 			}
-			// requests are made with member ToolchainCluster token, not user tokens
-			token := member.RestConfig.BearerToken
-			return access.NewClusterAccess(*apiURL, token, signup.CompliantUsername), nil
+			// requests use impersonation so are made with member ToolchainCluster token, not user tokens
+			impersonatorToken := member.RestConfig.BearerToken
+			return access.NewClusterAccess(*apiURL, impersonatorToken, signup.CompliantUsername), nil
 		}
 	}
 

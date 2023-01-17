@@ -6,9 +6,7 @@ import (
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 )
 
-const (
-	toolchainStatusResourcePlural = "toolchainstatuses"
-)
+const ToolchainStatusName = "toolchain-status"
 
 type toolchainStatusClient struct {
 	crtClient
@@ -24,8 +22,8 @@ func (c *toolchainStatusClient) Get() (*crtapi.ToolchainStatus, error) {
 	result := &crtapi.ToolchainStatus{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(toolchainStatusResourcePlural).
-		Name("toolchain-status").
+		Resource(ToolchainStatusPlural).
+		Name(ToolchainStatusName).
 		Do(context.TODO()).
 		Into(result)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"k8s.io/client-go/rest"
 )
@@ -13,7 +14,7 @@ import (
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication() (application.Application, error) {
+func NewInClusterApplication(informer informers.Informer) (application.Application, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -26,12 +27,18 @@ func NewInClusterApplication() (application.Application, error) {
 
 	return &InClusterApplication{
 		serviceFactory: factory.NewServiceFactory(
-			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient))),
+			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient),
+				factory.InformerOption(informer),
+			)),
 	}, nil
 }
 
 type InClusterApplication struct {
 	serviceFactory *factory.ServiceFactory
+}
+
+func (r InClusterApplication) InformerService() service.InformerService {
+	return r.serviceFactory.InformerService()
 }
 
 func (r InClusterApplication) SignupService() service.SignupService {

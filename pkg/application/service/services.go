@@ -7,10 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type InformerService interface {
+	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
+	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
+	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
+}
+
 type SignupService interface {
 	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
 	GetSignup(userID, username string) (*signup.Signup, error)
-	GetUserSignup(userID, username string) (*toolchainv1alpha1.UserSignup, error)
+	GetSignupFromInformer(userID, username string) (*signup.Signup, error)
+	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error)
 	PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error
 }
@@ -26,10 +33,11 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(ctx *gin.Context, userID, username string) (*access.ClusterAccess, error)
+	GetClusterAccess(userID, username string) (*access.ClusterAccess, error)
 }
 
 type Services interface {
+	InformerService() InformerService
 	SignupService() SignupService
 	VerificationService() VerificationService
 	MemberClusterService() MemberClusterService

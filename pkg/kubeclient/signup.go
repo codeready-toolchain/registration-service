@@ -13,10 +13,6 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-const (
-	userSignupResourcePlural = "usersignups"
-)
-
 var (
 	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
 )
@@ -39,7 +35,7 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(userSignupResourcePlural).
+		Resource(UserSignupResourcePlural).
 		Name(name).
 		Do(context.TODO()).
 		Into(result)
@@ -55,7 +51,7 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	result := &crtapi.UserSignup{}
 	err := c.client.Post().
 		Namespace(c.ns).
-		Resource(userSignupResourcePlural).
+		Resource(UserSignupResourcePlural).
 		Body(obj).
 		Do(context.TODO()).
 		Into(result)
@@ -70,7 +66,7 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	result := &crtapi.UserSignup{}
 	err := c.client.Put().
 		Namespace(c.ns).
-		Resource(userSignupResourcePlural).
+		Resource(UserSignupResourcePlural).
 		Name(obj.Name).
 		Body(obj).
 		Do(context.TODO()).
@@ -108,7 +104,7 @@ func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string)
 		return nil, err
 	}
 
-	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: userSignupResourcePlural}
+	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: UserSignupResourcePlural}
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s!=%s,%s=%s", crtapi.UserSignupStateLabelKey, crtapi.UserSignupStateLabelValueDeactivated, labelKey, labelValue),
 	}

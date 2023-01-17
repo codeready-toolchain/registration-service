@@ -8,17 +8,17 @@ import (
 type ClusterAccess struct { // nolint:revive
 	// APIURL is the Cluster API Endpoint for the namespace
 	apiURL url.URL
-	// impersonatorToken is a token of the impersonator's Service Account, usually the impersonator SA belongs to a member toolchaincluster
+	// impersonatorToken is a token of the Service Account with impersonation role, typically the member toolchaincluster SA
 	impersonatorToken string
-	// compliantUsername is the transformed username of the user (same as UserSignup.Status.CompliantUsername) to use for impersonation
-	compliantUsername string
+	// username is the id of the user to use for impersonation
+	username string
 }
 
-func NewClusterAccess(apiURL url.URL, impersonatorToken, compliantUsername string) *ClusterAccess {
+func NewClusterAccess(apiURL url.URL, impersonatorToken, username string) *ClusterAccess {
 	return &ClusterAccess{
 		apiURL:            apiURL,
 		impersonatorToken: impersonatorToken,
-		compliantUsername: compliantUsername,
+		username:          username,
 	}
 }
 
@@ -30,6 +30,6 @@ func (a *ClusterAccess) ImpersonatorToken() string {
 	return a.impersonatorToken
 }
 
-func (a *ClusterAccess) CompliantUsername() string {
-	return a.compliantUsername
+func (a *ClusterAccess) Username() string {
+	return a.username
 }

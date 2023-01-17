@@ -23,7 +23,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
+	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/util/wsstream"
@@ -38,7 +38,8 @@ const (
 )
 
 type Proxy struct {
-	userAccess  *UserAccess
+	app         application.Application
+	cl          client.Client
 	tokenParser *auth.TokenParser
 }
 
@@ -60,7 +61,8 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 		return nil, err
 	}
 	return &Proxy{
-		userAccess:  NewUserAccess(app),
+		app:         app,
+		cl:          cln,
 		tokenParser: tokenParser,
 	}, nil
 }
@@ -82,6 +84,7 @@ func (p *Proxy) StartProxy() *http.Server {
 			log.Error(nil, err, err.Error())
 		}
 	}()
+
 	return srv
 }
 
@@ -101,10 +104,12 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 		responseWithError(res, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 		return
 	}
-	cluster, err := p.getTargetCluster(ctx)
+	userID := ctx.GetString(context.SubKey)
+	username := ctx.GetString(context.UsernameKey)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
-		responseWithError(res, crterrors.NewInternalError(errors.New("unable to get target cluster"), err.Error()))
+		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
 		return
 	}
 
@@ -129,12 +134,6 @@ func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
 	return &gin.Context{
 		Keys: keys,
 	}, nil
-}
-
-func (p *Proxy) getTargetCluster(ctx *gin.Context) (*access.ClusterAccess, error) {
-	userID := ctx.GetString(context.SubKey)
-	username := ctx.GetString(context.UsernameKey)
-	return p.userAccess.Get(ctx, userID, username)
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
@@ -193,7 +192,7 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *acc
 		}
 
 		// Set impersonation header
-		req.Header.Set("Impersonate-User", target.CompliantUsername())
+		req.Header.Set("Impersonate-User", target.Username())
 	}
 	transport := http.DefaultTransport
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
@@ -242,7 +241,7 @@ func newClusterClient() (client.Client, error) {
 		Scheme: scheme,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create ToolchainCluster client")
+		return nil, errs.Wrap(err, "cannot create ToolchainCluster client")
 	}
 	return cl, nil
 }
@@ -260,24 +259,24 @@ func extractTokenFromWebsocketRequest(req *http.Request) (string, error) {
 			}
 
 			if sawTokenProtocol {
-				return "", errors.New("multiple base64.bearer.authorization tokens specified")
+				return "", errs.New("multiple base64.bearer.authorization tokens specified")
 			}
 			sawTokenProtocol = true
 
 			encodedToken := strings.TrimPrefix(protocol, bearerProtocolPrefix)
 			decodedToken, err := base64.RawURLEncoding.DecodeString(encodedToken)
 			if err != nil {
-				return "", errors.Wrap(err, "invalid base64.bearer.authorization token encoding")
+				return "", errs.Wrap(err, "invalid base64.bearer.authorization token encoding")
 			}
 			if !utf8.Valid(decodedToken) {
-				return "", errors.New("invalid base64.bearer.authorization token: contains non UTF-8-encoded runes")
+				return "", errs.New("invalid base64.bearer.authorization token: contains non UTF-8-encoded runes")
 			}
 			token = string(decodedToken)
 		}
 	}
 
 	if len(token) == 0 {
-		return "", errors.New("no base64.bearer.authorization token found")
+		return "", errs.New("no base64.bearer.authorization token found")
 	}
 
 	return token, nil

@@ -16,6 +16,7 @@ func NewMockableApplication(crtClient kubeclient.CRTClient,
 
 type MockableApplication struct {
 	serviceFactory           *factory.ServiceFactory
+	mockInformerService      service.InformerService
 	mockSignupService        service.SignupService
 	mockVerificationService  service.VerificationService
 	mockMemberClusterService service.MemberClusterService
@@ -52,4 +53,15 @@ func (m *MockableApplication) MemberClusterService() service.MemberClusterServic
 
 func (m *MockableApplication) MockMemberClusterService(svc service.MemberClusterService) {
 	m.mockMemberClusterService = svc
+}
+
+func (m *MockableApplication) InformerService() service.InformerService {
+	if m.mockInformerService != nil {
+		return m.mockInformerService
+	}
+	return m.serviceFactory.InformerService()
+}
+
+func (m *MockableApplication) MockInformerService(svc service.InformerService) {
+	m.mockInformerService = svc
 }

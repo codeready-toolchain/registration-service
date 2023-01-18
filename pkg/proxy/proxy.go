@@ -107,8 +107,6 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	log.Info(ctx, fmt.Sprintf("req.URL.Path: %s", req.URL.Path)) // req.URL.Path: /workspaces/mycoolworkspace/api/pods
-
 	cluster, err := p.getClusterAccess(req, userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")

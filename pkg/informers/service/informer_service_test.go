@@ -110,6 +110,66 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		})
 	})
 
+	s.Run("spaces", func() {
+		// given
+		spaceLister := fakeLister{
+			objs: map[string]*unstructured.Unstructured{
+				"johnSpace": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"targetCluster": "member2",
+							"tierName":      "base1ns",
+						},
+					},
+				},
+				"noise": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"targetCluster": "member1",
+							"tierName":      "base",
+						},
+					},
+				},
+			},
+		}
+
+		inf := informers.Informer{
+			Space: spaceLister,
+		}
+
+		svc := service.NewInformerService(fakeInformerServiceContext{
+			Svcs:     s.Application,
+			informer: inf,
+		})
+
+		s.Run("not found", func() {
+			// when
+			val, err := svc.GetSpace("unknown")
+
+			// then
+			assert.Nil(s.T(), val)
+			assert.EqualError(s.T(), err, "not found")
+		})
+
+		s.Run("found", func() {
+			// given
+			expected := &toolchainv1alpha1.Space{
+				Spec: toolchainv1alpha1.SpaceSpec{
+					TargetCluster: "member2",
+					TierName:      "base1ns",
+				},
+			}
+
+			// when
+			val, err := svc.GetSpace("johnSpace")
+
+			// then
+			require.NotNil(s.T(), val)
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), val, expected)
+		})
+	})
+
 	s.Run("toolchainstatuses", func() {
 		// given
 		emptyToolchainStatusLister := fakeLister{

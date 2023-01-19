@@ -33,7 +33,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error) {
 	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
@@ -42,24 +42,39 @@ func (s *ServiceImpl) GetClusterAccess(userID, username string) (*access.Cluster
 		return nil, errs.New("user is not provisioned (yet)")
 	}
 
-	return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername)
-}
-
-func (s *ServiceImpl) GetWorkspaceAccess(userID, username, workspace string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
-	if err != nil {
-		return nil, err
-	}
-	if signup == nil || !signup.Status.Ready {
-		return nil, errs.New("user is not provisioned (yet)")
+	// if workspace is not provided then return the default space access
+	if workspace == "" {
+		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername)
 	}
 
+	// look up space
 	space, err := s.Services().InformerService().GetSpace(workspace)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.accessForCluster(signup.APIEndpoint, space.Status.TargetCluster, signup.CompliantUsername)
+	return s.accessForSpace(space.Status.TargetCluster, signup.CompliantUsername)
+}
+
+func (s *ServiceImpl) accessForSpace(targetCluster, username string) (*access.ClusterAccess, error) {
+	// Get the target member
+	members := s.GetMembersFunc()
+	if len(members) == 0 {
+		return nil, errs.New("no member clusters found")
+	}
+	for _, member := range members {
+		if member.Name == targetCluster {
+			apiURL, err := url.Parse(member.APIEndpoint)
+			if err != nil {
+				return nil, err
+			}
+			// requests use impersonation so are made with member ToolchainCluster token, not user tokens
+			impersonatorToken := member.RestConfig.BearerToken
+			return access.NewClusterAccess(*apiURL, impersonatorToken, username), nil
+		}
+	}
+
+	return nil, errs.New("no member cluster found for the space")
 }
 
 func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username string) (*access.ClusterAccess, error) {

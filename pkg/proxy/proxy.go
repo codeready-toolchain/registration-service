@@ -107,7 +107,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	cluster, err := p.getClusterAccess(req, userID, username)
+	cluster, err := p.getClusterAccess(ctx, req, userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
@@ -118,18 +118,22 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
 }
 
-func (p *Proxy) getClusterAccess(req *http.Request, userID, username string) (*access.ClusterAccess, error) {
-	path := stripPrefix(req.URL.Path, "/")
-
+func (p *Proxy) getClusterAccess(ctx *gin.Context, req *http.Request, userID, username string) (*access.ClusterAccess, error) {
+	path := req.URL.Path
+	workspace := ""
 	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods
-	if strings.HasPrefix(path, "workspaces/") {
-		// get the subpath eg. mycoolworkspace/api/pods
-		subpath := stripPrefix(path, "workspaces/")
-		// get the workspace from the subpath eg. mycoolworkspace
-		workspace := strings.SplitN(subpath, "/", 2)[0]
-		p.app.MemberClusterService().GetWorkspaceAccess(userID, username, workspace)
+	if strings.HasPrefix(path, "/workspaces/") {
+		segments := strings.Split(path, "/")
+		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api counts as 4
+		if len(segments) < 4 {
+			return nil, fmt.Errorf("invalid workspace context request")
+		}
+		// get the workspace segment eg. mycoolworkspace
+		workspace := segments[2]
+		// remove workspaces/mycoolworkspace from the request path before forwarding the request
+		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/workspaces/"+workspace)
 	}
-	return p.app.MemberClusterService().GetClusterAccess(userID, username)
+	return p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
@@ -224,13 +228,6 @@ func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *acc
 		FlushInterval:  -1,
 		ModifyResponse: m.addCorsToResponse,
 	}
-}
-
-func stripPrefix(s, prefix string) string {
-	if strings.HasPrefix(s, prefix) {
-		return s[len(prefix):]
-	}
-	return s
 }
 
 func singleJoiningSlash(a, b string) string {

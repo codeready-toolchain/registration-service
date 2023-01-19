@@ -45,11 +45,7 @@ type fakeClusterService struct {
 	fakeApp *ProxyFakeApp
 }
 
-func (f *fakeClusterService) GetClusterAccess(userID, _ string) (*access.ClusterAccess, error) {
-	return f.fakeApp.Accesses[userID], f.fakeApp.Err
-}
-
-func (f *fakeClusterService) GetWorkspaceAccess(userID, _, _ string) (*access.ClusterAccess, error) {
+func (f *fakeClusterService) GetClusterAccess(userID, _, _ string) (*access.ClusterAccess, error) {
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
 }
 

@@ -107,7 +107,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	cluster, err := p.getClusterAccess(ctx, req, userID, username)
+	cluster, err := p.getClusterAccess(req, userID, username)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
@@ -118,7 +118,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
 }
 
-func (p *Proxy) getClusterAccess(ctx *gin.Context, req *http.Request, userID, username string) (*access.ClusterAccess, error) {
+func (p *Proxy) getClusterAccess(req *http.Request, userID, username string) (*access.ClusterAccess, error) {
 	path := req.URL.Path
 	workspace := ""
 	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods

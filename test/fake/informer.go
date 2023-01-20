@@ -2,6 +2,8 @@ package fake
 
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func NewFakeInformer() *Informer {
@@ -41,4 +43,20 @@ func (f Informer) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, err
 		return f.GetUserSignupFunc(name)
 	}
 	panic("not supposed to call GetUserSignup")
+}
+
+func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
+	space := &toolchainv1alpha1.Space{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: compliantUserName,
+		},
+		Spec: toolchainv1alpha1.SpaceSpec{
+			TargetCluster: targetCluster,
+			TierName:      "base1ns",
+		},
+		Status: toolchainv1alpha1.SpaceStatus{
+			TargetCluster: targetCluster,
+		},
+	}
+	return space
 }

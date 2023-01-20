@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -68,9 +67,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 		switch name {
 		case "noise1", "teamspace":
-			return newSpace("member-1", name), nil
+			return fake.NewSpace("member-1", name), nil
 		case "smith2":
-			return newSpace("member-2", name), nil
+			return fake.NewSpace("member-2", name), nil
 		}
 		return nil, fmt.Errorf("space not found error")
 	}
@@ -320,20 +319,4 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 		})
 	}
 	return cls
-}
-
-func newSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
-	space := &toolchainv1alpha1.Space{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: compliantUserName,
-		},
-		Spec: toolchainv1alpha1.SpaceSpec{
-			TargetCluster: targetCluster,
-			TierName:      "base1ns",
-		},
-		Status: toolchainv1alpha1.SpaceStatus{
-			TargetCluster: targetCluster,
-		},
-	}
-	return space
 }

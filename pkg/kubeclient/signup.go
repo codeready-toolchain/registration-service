@@ -2,15 +2,13 @@ package kubeclient
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 var (
@@ -26,7 +24,7 @@ type UserSignupInterface interface {
 	Get(name string) (*crtapi.UserSignup, error)
 	Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error)
-	ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.UserSignupList, error)
+	ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash string) ([]*crtapi.UserSignup, error)
 }
 
 // Get returns the UserSignup with the specified name, or an error if something went wrong while attempting to retrieve it
@@ -35,7 +33,7 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(UserSignupResourcePlural).
+		Resource(resources.UserSignupResourcePlural).
 		Name(name).
 		Do(context.TODO()).
 		Into(result)
@@ -51,7 +49,7 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	result := &crtapi.UserSignup{}
 	err := c.client.Post().
 		Namespace(c.ns).
-		Resource(UserSignupResourcePlural).
+		Resource(resources.UserSignupResourcePlural).
 		Body(obj).
 		Do(context.TODO()).
 		Into(result)
@@ -66,7 +64,7 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 	result := &crtapi.UserSignup{}
 	err := c.client.Put().
 		Namespace(c.ns).
-		Resource(UserSignupResourcePlural).
+		Resource(resources.UserSignupResourcePlural).
 		Name(obj.Name).
 		Body(obj).
 		Do(context.TODO()).
@@ -81,7 +79,7 @@ func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 // label value matching the provided value.  If the value provided is an actual phone number, then the hash will be
 // calculated and then used to query the UserSignups, otherwise if the hash value has been provided, then that value
 // will be used directly for the query.
-func (c *userSignupClient) ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash string) (*crtapi.UserSignupList, error) {
+func (c *userSignupClient) ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash string) ([]*crtapi.UserSignup, error) {
 	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
 		return c.listActiveSignupsByLabel(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 	}
@@ -90,32 +88,37 @@ func (c *userSignupClient) ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHas
 	return c.listActiveSignupsByLabelForHashedValue(crtapi.BannedUserPhoneNumberHashLabelKey, phoneNumberOrHash)
 }
 
-// listActiveSignupsByLabelForHashedValue returns a UserSignupList containing any non-deactivated UserSignup resources
+// listActiveSignupsByLabelForHashedValue returns an array of UserSignups containing any non-deactivated UserSignup resources
 // that have a label matching the md5 hash of the specified value
-func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valueToHash string) (*crtapi.UserSignupList, error) {
+func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valueToHash string) ([]*crtapi.UserSignup, error) {
 	return c.listActiveSignupsByLabel(labelKey, hash.EncodeString(valueToHash))
 }
 
-// listActiveSignupsByLabel returns a UserSignupList containing any non-deactivated UserSignup resources that have a
+// listActiveSignupsByLabel returns an array of UserSignups containing any non-deactivated UserSignup resources that have a
 // label matching the specified label
-func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
-	intf, err := dynamic.NewForConfig(&c.cfg)
+func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
+
+	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotEquals, []string{crtapi.UserSignupStateLabelValueDeactivated})
+	if err != nil {
+		return nil, err
+	}
+	labelRequirement, err := labels.NewRequirement(labelKey, selection.Equals, []string{labelValue})
 	if err != nil {
 		return nil, err
 	}
 
-	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: UserSignupResourcePlural}
-	listOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s!=%s,%s=%s", crtapi.UserSignupStateLabelKey, crtapi.UserSignupStateLabelValueDeactivated, labelKey, labelValue),
-	}
-
-	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
+	userSignups, err := c.informer.UserSignup.ByNamespace(c.ns).List(labels.NewSelector().Add(*stateRequirement).Add(*labelRequirement))
 	if err != nil {
 		return nil, err
 	}
 
-	result := &crtapi.UserSignupList{}
+	result := make([]*crtapi.UserSignup, len(userSignups))
 
-	err = c.crtClient.scheme.Convert(list, result, nil)
+	for i := range userSignups {
+		userSignup := &crtapi.UserSignup{}
+		err = c.crtClient.scheme.Convert(userSignups[i], userSignup, nil)
+		result[i] = userSignup
+	}
+
 	return result, err
 }

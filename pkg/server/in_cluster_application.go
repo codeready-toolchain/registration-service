@@ -20,7 +20,7 @@ func NewInClusterApplication(informer informers.Informer) (application.Applicati
 		return nil, err
 	}
 
-	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, configuration.Namespace())
+	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, informer, configuration.Namespace())
 	if err != nil {
 		return nil, err
 	}

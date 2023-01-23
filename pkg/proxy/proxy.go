@@ -132,7 +132,7 @@ func handleWorkspaceContext(req *http.Request) (string, error) {
 		segments := strings.Split(path, "/")
 		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api counts as 4
 		if len(segments) < 4 {
-			return "", fmt.Errorf("workspace request path has too few segments '%s'", path)
+			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path)
 		}
 		// get the workspace segment eg. mycoolworkspace
 		workspace = segments[2]

@@ -1,12 +1,15 @@
 package service
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/gin-gonic/gin"
 
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
@@ -33,7 +36,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username, workspace string) (*access.ClusterAccess, error) {
 	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
@@ -50,7 +53,9 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*acc
 	// look up space
 	space, err := s.Services().InformerService().GetSpace(workspace)
 	if err != nil {
-		return nil, err
+		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
+		log.Error(ctx, err, "unable to get target cluster")
+		return nil, fmt.Errorf("the requested space in not available")
 	}
 
 	return s.accessForSpace(space.Status.TargetCluster, signup.CompliantUsername)

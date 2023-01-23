@@ -34,7 +34,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error)
+	GetClusterAccess(ctx *gin.Context, userID, username, workspace string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

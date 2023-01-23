@@ -113,7 +113,7 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
 	}
 
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(ctx, userID, username, workspace)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))

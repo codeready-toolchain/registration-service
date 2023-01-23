@@ -11,6 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/gin-gonic/gin"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	errs "github.com/pkg/errors"
@@ -58,17 +59,17 @@ func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username, works
 		return nil, fmt.Errorf("the requested space in not available")
 	}
 
-	return s.accessForSpace(space.Status.TargetCluster, signup.CompliantUsername)
+	return s.accessForSpace(ctx, space, signup.CompliantUsername)
 }
 
-func (s *ServiceImpl) accessForSpace(targetCluster, username string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForSpace(ctx *gin.Context, space *toolchainv1alpha1.Space, username string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
 		return nil, errs.New("no member clusters found")
 	}
 	for _, member := range members {
-		if member.Name == targetCluster {
+		if member.Name == space.Status.TargetCluster {
 			apiURL, err := url.Parse(member.APIEndpoint)
 			if err != nil {
 				return nil, err
@@ -79,7 +80,9 @@ func (s *ServiceImpl) accessForSpace(targetCluster, username string) (*access.Cl
 		}
 	}
 
-	return nil, errs.New("no member cluster found for the space")
+	errMsg := fmt.Sprintf("no member cluster found for space '%s'", space.Name)
+	log.Error(ctx, fmt.Errorf("no matching target cluster '%s' for the space", space.Status.TargetCluster), errMsg)
+	return nil, errs.New(errMsg)
 }
 
 func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username string) (*access.ClusterAccess, error) {

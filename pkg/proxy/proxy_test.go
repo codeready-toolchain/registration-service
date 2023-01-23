@@ -382,6 +382,8 @@ func (s *TestProxySuite) TestProxy() {
 				for k, tc := range tests {
 					s.Run(k, func() {
 
+						// Test each request using both the default workspace URL and a URL that uses the
+						// workspace context. Both should yield the same results.
 						for workspaceContext, reqPath := range map[string]string{
 							"default workspace": "http://localhost:8081/api/mycoolworkspace/pods",
 							"workspace context": "http://localhost:8081/workspaces/mycoolworkspace/api/pods",

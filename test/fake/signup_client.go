@@ -24,7 +24,7 @@ type FakeUserSignupClient struct { // nolint:revive
 	MockCreate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockUpdate            func(*crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockDelete            func(name string, options *metav1.DeleteOptions) error
-	MockListByHashedLabel func(labelKey, labelValue string) (*crtapi.UserSignupList, error)
+	MockListByHashedLabel func(labelKey, labelValue string) ([]*crtapi.UserSignup, error)
 }
 
 func NewFakeUserSignupClient(t *testing.T, namespace string, initObjs ...runtime.Object) *FakeUserSignupClient {
@@ -123,11 +123,11 @@ func (c *FakeUserSignupClient) Delete(name string, options *metav1.DeleteOptions
 	return c.Tracker.Delete(gvr, c.namespace, name)
 }
 
-func (c *FakeUserSignupClient) ListActiveSignupsByPhoneNumberOrHash(phone string) (*crtapi.UserSignupList, error) {
+func (c *FakeUserSignupClient) ListActiveSignupsByPhoneNumberOrHash(phone string) ([]*crtapi.UserSignup, error) {
 	return c.listByHashedLabel(crtapi.UserSignupUserPhoneHashLabelKey, phone)
 }
 
-func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*crtapi.UserSignupList, error) {
+func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
 	hash := hash.EncodeString(labelValue)
 
 	if c.MockListByHashedLabel != nil {
@@ -151,16 +151,13 @@ func (c *FakeUserSignupClient) listByHashedLabel(labelKey, labelValue string) (*
 	}
 	list := o.(*crtapi.UserSignupList)
 
-	objs := []crtapi.UserSignup{}
+	objs := []*crtapi.UserSignup{}
 
-	for _, bu := range list.Items {
+	for i, bu := range list.Items {
 		if bu.Labels[labelKey] == hash {
-			objs = append(objs, bu)
+			objs = append(objs, &list.Items[i])
 		}
 	}
 
-	return &crtapi.UserSignupList{
-			Items: objs,
-		},
-		nil
+	return objs, nil
 }

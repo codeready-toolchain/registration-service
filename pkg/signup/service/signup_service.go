@@ -383,12 +383,12 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 		return errors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignupList, err := s.CRTClient().V1Alpha1().UserSignups().ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash)
+	userSignups, err := s.CRTClient().V1Alpha1().UserSignups().ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash)
 	if err != nil {
 		return errors.NewInternalError(err, "failed listing userSignups")
 	}
-	for _, signup := range userSignupList.Items {
-		if signup.Spec.Userid != userID && signup.Spec.Username != username && !states.Deactivated(&signup) { // nolint:gosec
+	for _, signup := range userSignups {
+		if signup.Spec.Userid != userID && signup.Spec.Username != username && !states.Deactivated(signup) { // nolint:gosec
 			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

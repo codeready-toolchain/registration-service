@@ -70,6 +70,8 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			return fake.NewSpace("member-1", name), nil
 		case "smith2":
 			return fake.NewSpace("member-2", name), nil
+		case "unknown-cluster":
+			return fake.NewSpace("unknown-cluster", name), nil
 		}
 		return nil, fmt.Errorf("space not found error")
 	}
@@ -164,12 +166,21 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 				},
 			)
+			s.Run("default workspace case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "789-ready", "", "")
 
-			// when
-			_, err := svc.GetClusterAccess(nil, "789-ready", "", "")
+				// then
+				require.EqualError(s.T(), err, "no member clusters found")
+			})
 
-			// then
-			require.EqualError(s.T(), err, "no member clusters found")
+			s.Run("workspace context case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2")
+
+				// then
+				require.EqualError(s.T(), err, "no member clusters found")
+			})
 		})
 
 		s.Run("no member cluster with the given URL", func() {
@@ -185,11 +196,21 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				},
 			)
 
-			// when
-			_, err := svc.GetClusterAccess(nil, "012-ready-unknown-cluster", "", "")
+			s.Run("default workspace case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "012-ready-unknown-cluster", "", "")
 
-			// then
-			require.EqualError(s.T(), err, "no member cluster found for the user")
+				// then
+				require.EqualError(s.T(), err, "no member cluster found for the user")
+			})
+
+			s.Run("workspace context case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "012-ready-unknown-cluster", "", "unknown-cluster")
+
+				// then
+				require.EqualError(s.T(), err, "no member cluster found for space 'unknown-cluster'")
+			})
 		})
 	})
 
@@ -268,9 +289,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				assert.Equal(s.T(), "smith2", ca.Username())
 			})
 
-			s.Run("cluster access correct when workspace provided", func() {
+			s.Run("cluster access correct when using workspace context", func() {
 				// when
-				ca, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2") // specific workspace requested
+				ca, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2") // workspace-context specified
 
 				// then
 				require.NoError(s.T(), err)
@@ -282,7 +303,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 				s.Run("another workspace on another cluster", func() {
 					// when
-					ca, err := svc.GetClusterAccess(nil, "789-ready", "", "teamspace") // another workspace requested
+					ca, err := svc.GetClusterAccess(nil, "789-ready", "", "teamspace") // workspace-context specified
 
 					// then
 					require.NoError(s.T(), err)

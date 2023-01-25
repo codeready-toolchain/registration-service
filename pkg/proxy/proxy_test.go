@@ -551,7 +551,7 @@ func (s *TestProxySuite) TestHandleWorkspaceContext() {
 			path:              "/workspaces/myworkspace",
 			expectedWorkspace: "",
 			expectedPath:      "/workspaces/myworkspace",
-			expectedErr:       "workspace request path has too few segments '/workspaces/myworkspace'",
+			expectedErr:       "workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...",
 		},
 		"no workspace context": {
 			path:              "/api/pods",

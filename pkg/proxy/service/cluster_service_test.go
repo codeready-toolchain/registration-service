@@ -12,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 
@@ -62,6 +63,20 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	}))
 	s.Application.MockSignupService(sc)
 
+	inf := fake.NewFakeInformer()
+	inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		switch name {
+		case "noise1", "teamspace":
+			return fake.NewSpace("member-1", name), nil
+		case "smith2":
+			return fake.NewSpace("member-2", name), nil
+		case "unknown-cluster":
+			return fake.NewSpace("unknown-cluster", name), nil
+		}
+		return nil, fmt.Errorf("space not found error")
+	}
+	s.Application.MockInformerService(inf)
+
 	svc := service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
 			Client: s,
@@ -70,13 +85,13 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	)
 
 	s.Run("unable to get signup", func() {
-		s.Run("informer service returns error", func() {
+		s.Run("signup service returns error", func() {
 			sc.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
 			// when
-			_, err := svc.GetClusterAccess("789-ready", "")
+			_, err := svc.GetClusterAccess(nil, "789-ready", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -84,17 +99,17 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		sc.MockGetSignup = sc.DefaultMockGetSignup() // restore the default signup service, so it doesn't return an error anymore
 
-		s.Run("user is not found", func() {
+		s.Run("userid is not found", func() {
 			// when
-			_, err := svc.GetClusterAccess("unknown_id", "")
+			_, err := svc.GetClusterAccess(nil, "unknown_id", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
 		})
 
-		s.Run("user is not found", func() {
+		s.Run("username is not found", func() {
 			// when
-			_, err := svc.GetClusterAccess("", "unknown_username")
+			_, err := svc.GetClusterAccess(nil, "", "unknown_username", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -102,10 +117,39 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetClusterAccess("456-not-ready", "")
+			_, err := svc.GetClusterAccess(nil, "456-not-ready", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
+		})
+	})
+
+	s.Run("unable to get space", func() {
+		s.Run("informer service returns error", func() {
+			original := inf.GetSpaceFunc
+			defer func() { // restore original GetSpaceFunc after test
+				inf.GetSpaceFunc = original
+				s.Application.MockInformerService(inf)
+			}()
+			inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) { // informer error
+				return nil, fmt.Errorf("oopsi woopsi")
+			}
+			s.Application.MockInformerService(inf)
+
+			// when
+			_, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2")
+
+			// then
+			// original error is only logged so that it doesn't reveal information about a space that may not belong to the requestor
+			require.EqualError(s.T(), err, "the requested space in not available")
+		})
+
+		s.Run("space not found", func() {
+			// when
+			_, err := svc.GetClusterAccess(nil, "789-ready", "", "unknown") // unknown workspace requested
+
+			// then
+			require.EqualError(s.T(), err, "the requested space in not available")
 		})
 	})
 
@@ -122,12 +166,21 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 				},
 			)
+			s.Run("default workspace case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "789-ready", "", "")
 
-			// when
-			_, err := svc.GetClusterAccess("789-ready", "")
+				// then
+				require.EqualError(s.T(), err, "no member clusters found")
+			})
 
-			// then
-			require.EqualError(s.T(), err, "no member clusters found")
+			s.Run("workspace context case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2")
+
+				// then
+				require.EqualError(s.T(), err, "no member clusters found")
+			})
 		})
 
 		s.Run("no member cluster with the given URL", func() {
@@ -143,11 +196,21 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				},
 			)
 
-			// when
-			_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "")
+			s.Run("default workspace case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "012-ready-unknown-cluster", "", "")
 
-			// then
-			require.EqualError(s.T(), err, "no member cluster found for the user")
+				// then
+				require.EqualError(s.T(), err, "no member cluster found for the user")
+			})
+
+			s.Run("workspace context case", func() {
+				// when
+				_, err := svc.GetClusterAccess(nil, "012-ready-unknown-cluster", "", "unknown-cluster")
+
+				// then
+				require.EqualError(s.T(), err, "no member cluster found for space 'unknown-cluster'")
+			})
 		})
 	})
 
@@ -167,7 +230,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 								Name:        "member-1",
 								Type:        commoncluster.Member,
 								APIEndpoint: "https://api.endpoint.member-1.com:6443",
-								RestConfig:  &rest.Config{},
+								RestConfig: &rest.Config{
+									BearerToken: "def456",
+								},
 							},
 						},
 						{
@@ -200,7 +265,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			expectedToken := "abc123" // should match member 2 bearer token
 
 			// when
-			ca, err := svc.GetClusterAccess("789-ready", "")
+			ca, err := svc.GetClusterAccess(nil, "789-ready", "", "")
 
 			// then
 			require.NoError(s.T(), err)
@@ -213,7 +278,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
-				ca, err := svc.GetClusterAccess("", "smith@")
+				ca, err := svc.GetClusterAccess(nil, "", "smith@", "")
 
 				// then
 				require.NoError(s.T(), err)
@@ -222,6 +287,32 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 				assert.Equal(s.T(), "smith2", ca.Username())
+			})
+
+			s.Run("cluster access correct when using workspace context", func() {
+				// when
+				ca, err := svc.GetClusterAccess(nil, "789-ready", "", "smith2") // workspace-context specified
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), ca)
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.Username())
+
+				s.Run("another workspace on another cluster", func() {
+					// when
+					ca, err := svc.GetClusterAccess(nil, "789-ready", "", "teamspace") // workspace-context specified
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), ca)
+					expectedURL, err := url.Parse("https://api.endpoint.member-1.com:6443")
+					require.NoError(s.T(), err)
+					s.assertClusterAccess(access.NewClusterAccess(*expectedURL, "def456", "smith"), ca)
+					assert.Equal(s.T(), "smith2", ca.Username())
+				})
 			})
 		})
 	})

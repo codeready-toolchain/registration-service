@@ -17,8 +17,9 @@ import (
 
 type Informer struct {
 	Masteruserrecord cache.GenericLister
-	UserSignup       cache.GenericLister
+	Space            cache.GenericLister
 	ToolchainStatus  cache.GenericLister
+	UserSignup       cache.GenericLister
 }
 
 func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
@@ -36,6 +37,11 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	informer.Masteruserrecord = genericMasterUserRecordInformer.Lister()
 	masterUserRecordInformer := genericMasterUserRecordInformer.Informer()
 
+	// Space
+	genericSpaceInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.SpaceResourcePlural})
+	informer.Space = genericSpaceInformer.Lister()
+	spaceInformer := genericSpaceInformer.Informer()
+
 	// ToolchainStatus
 	genericToolchainStatusInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.ToolchainStatusPlural})
 	informer.ToolchainStatus = genericToolchainStatusInformer.Lister()
@@ -51,7 +57,12 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	log.Info(nil, "Starting proxy cache informers")
 	factory.Start(stopper)
 
-	if !cache.WaitForCacheSync(stopper, masterUserRecordInformer.HasSynced, userSignupInformer.HasSynced, toolchainstatusInformer.HasSynced) {
+	if !cache.WaitForCacheSync(stopper,
+		masterUserRecordInformer.HasSynced,
+		spaceInformer.HasSynced,
+		toolchainstatusInformer.HasSynced,
+		userSignupInformer.HasSynced,
+	) {
 		err := fmt.Errorf("timed out waiting for caches to sync")
 		log.Error(nil, err, "Failed to create informers")
 		return nil, nil, err

@@ -106,7 +106,14 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 	}
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username)
+
+	workspace, err := handleWorkspaceContext(req)
+	if err != nil {
+		log.Error(ctx, err, "unable to get handle workspace context")
+		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+	}
+
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(ctx, userID, username, workspace)
 	if err != nil {
 		log.Error(ctx, err, "unable to get target cluster")
 		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
@@ -115,6 +122,24 @@ func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Requ
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
+}
+
+func handleWorkspaceContext(req *http.Request) (string, error) {
+	path := req.URL.Path
+	var workspace string
+	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods
+	if strings.HasPrefix(path, "/workspaces/") {
+		segments := strings.Split(path, "/")
+		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api counts as 4
+		if len(segments) < 4 {
+			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
+		}
+		// get the workspace segment eg. mycoolworkspace
+		workspace = segments[2]
+		// remove workspaces/mycoolworkspace from the request path before forwarding the request
+		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/workspaces/"+workspace)
+	}
+	return workspace, nil
 }
 
 func responseWithError(res http.ResponseWriter, err *crterrors.Error) {

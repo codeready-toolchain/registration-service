@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
@@ -378,76 +381,96 @@ func (s *TestProxySuite) TestProxy() {
 
 				for k, tc := range tests {
 					s.Run(k, func() {
-						// given
-						req, err := http.NewRequest(tc.ProxyRequestMethod, "http://localhost:8081/api/mycoolworkspace/pods", nil)
-						require.NoError(s.T(), err)
-						require.NotNil(s.T(), req)
 
-						for hk, hv := range tc.ProxyRequestHeaders {
-							for _, v := range hv {
-								req.Header.Add(hk, v)
-							}
-						}
-
-						fakeApp.Err = nil
-
-						if !tc.Standalone {
-							testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-								w.Header().Set("Content-Type", "application/json")
-								// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
-								w.Header().Set("Access-Control-Allow-Origin", "dummy")
-								w.WriteHeader(http.StatusOK)
-								_, err := w.Write([]byte("my response"))
+						// Test each request using both the default workspace URL and a URL that uses the
+						// workspace context. Both should yield the same results.
+						for workspaceContext, reqPath := range map[string]string{
+							"default workspace": "http://localhost:8081/api/mycoolworkspace/pods",
+							"workspace context": "http://localhost:8081/workspaces/mycoolworkspace/api/pods",
+						} {
+							s.Run(workspaceContext, func() {
+								// given
+								req, err := http.NewRequest(tc.ProxyRequestMethod, reqPath, nil)
 								require.NoError(s.T(), err)
-								for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
-									require.Len(s.T(), r.Header.Values(hk), len(hv))
+								require.NotNil(s.T(), req)
+
+								for hk, hv := range tc.ProxyRequestHeaders {
+									for _, v := range hv {
+										req.Header.Add(hk, v)
+									}
+								}
+
+								fakeApp.Err = nil
+
+								if !tc.Standalone {
+									testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+										w.Header().Set("Content-Type", "application/json")
+										// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
+										w.Header().Set("Access-Control-Allow-Origin", "dummy")
+										w.WriteHeader(http.StatusOK)
+										_, err := w.Write([]byte("my response"))
+										require.NoError(s.T(), err)
+										for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
+											require.Len(s.T(), r.Header.Values(hk), len(hv))
+											for i := range hv {
+												assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+											}
+										}
+									})
+
+									fakeApp.SignupServiceMock = fake.NewSignupService(fake.Signup("someUserID", &signup.Signup{
+										APIEndpoint:       "https://api.endpoint.member-1.com:6443",
+										ClusterName:       "member-1",
+										CompliantUsername: "smith2",
+										Username:          "smith@",
+										Status: signup.Status{
+											Ready: true,
+										},
+									}), fake.Signup(userID.String(), &signup.Signup{
+										APIEndpoint:       testServer.URL,
+										ClusterName:       "member-2",
+										CompliantUsername: "smith2",
+										Username:          "smith@",
+										Status: signup.Status{
+											Ready: true,
+										},
+									}))
+									s.Application.MockSignupService(fakeApp.SignupServiceMock)
+									inf := fake.NewFakeInformer()
+									inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+										switch name {
+										case "mycoolworkspace":
+											return fake.NewSpace("member-2", name), nil
+										}
+										return nil, fmt.Errorf("space not found error")
+									}
+									s.Application.MockInformerService(inf)
+									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+								}
+
+								// when
+								client := http.Client{Timeout: 3 * time.Second}
+								resp, err := client.Do(req)
+
+								// then
+								require.NoError(s.T(), err)
+								require.NotNil(s.T(), resp)
+								assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
+								if !tc.Standalone {
+									s.assertResponseBody(resp, "my response")
+								}
+								for hk, hv := range tc.ExpectedProxyResponseHeaders {
+									require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
 									for i := range hv {
-										assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+										assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
 									}
 								}
 							})
-
-							fakeApp.SignupServiceMock = fake.NewSignupService(fake.Signup("someUserID", &signup.Signup{
-								APIEndpoint:       "https://api.endpoint.member-1.com:6443",
-								ClusterName:       "member-1",
-								CompliantUsername: "smith2",
-								Username:          "smith@",
-								Status: signup.Status{
-									Ready: true,
-								},
-							}), fake.Signup(userID.String(), &signup.Signup{
-								APIEndpoint:       testServer.URL,
-								ClusterName:       "member-2",
-								CompliantUsername: "smith2",
-								Username:          "smith@",
-								Status: signup.Status{
-									Ready: true,
-								},
-							}))
-							s.Application.MockSignupService(fakeApp.SignupServiceMock)
-							fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
-						}
-
-						// when
-						client := http.Client{Timeout: 3 * time.Second}
-						resp, err := client.Do(req)
-
-						// then
-						require.NoError(s.T(), err)
-						require.NotNil(s.T(), resp)
-						assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
-						if !tc.Standalone {
-							s.assertResponseBody(resp, "my response")
-						}
-						for hk, hv := range tc.ExpectedProxyResponseHeaders {
-							require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
-							for i := range hv {
-								assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
-							}
 						}
 					})
 				}
 			})
+
 		})
 	}
 }
@@ -509,6 +532,58 @@ func (s *TestProxySuite) TestSingleJoiningSlash() {
 	assert.Equal(s.T(), "proxy/api/namespace/pods", singleJoiningSlash("proxy", "api/namespace/pods"))
 	assert.Equal(s.T(), "proxy/subpath/api/namespace/pods", singleJoiningSlash("proxy/subpath", "api/namespace/pods"))
 	assert.Equal(s.T(), "/proxy/subpath/api/namespace/pods/", singleJoiningSlash("/proxy/subpath/", "/api/namespace/pods/"))
+}
+
+func (s *TestProxySuite) TestHandleWorkspaceContext() {
+	tests := map[string]struct {
+		path              string
+		expectedWorkspace string
+		expectedPath      string
+		expectedErr       string
+	}{
+		"valid workspace context": {
+			path:              "/workspaces/myworkspace/api",
+			expectedWorkspace: "myworkspace",
+			expectedPath:      "/api",
+			expectedErr:       "",
+		},
+		"invalid workspace context": {
+			path:              "/workspaces/myworkspace",
+			expectedWorkspace: "",
+			expectedPath:      "/workspaces/myworkspace",
+			expectedErr:       "workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...",
+		},
+		"no workspace context": {
+			path:              "/api/pods",
+			expectedWorkspace: "",
+			expectedPath:      "/api/pods",
+			expectedErr:       "",
+		},
+		"workspace instead of workspaces": {
+			path:              "/workspace/myworkspace/api",
+			expectedWorkspace: "",
+			expectedPath:      "/workspace/myworkspace/api",
+			expectedErr:       "",
+		},
+	}
+
+	for k, tc := range tests {
+		s.T().Run(k, func(t *testing.T) {
+			req := &http.Request{
+				URL: &url.URL{
+					Path: tc.path,
+				},
+			}
+			workspace, err := handleWorkspaceContext(req)
+			if tc.expectedErr == "" {
+				require.NoError(s.T(), err)
+			} else {
+				require.EqualError(s.T(), err, tc.expectedErr)
+			}
+			assert.Equal(s.T(), tc.expectedWorkspace, workspace)
+			assert.Equal(s.T(), tc.expectedPath, req.URL.Path)
+		})
+	}
 }
 
 func (s *TestProxySuite) request() (*http.Request, string) {

@@ -38,7 +38,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	masterUserRecordInformer := genericMasterUserRecordInformer.Informer()
 
 	// Space
-	genericSpaceInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: kubeclient.SpaceResourcePlural})
+	genericSpaceInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.SpaceResourcePlural})
 	informer.Space = genericSpaceInformer.Lister()
 	spaceInformer := genericSpaceInformer.Informer()
 

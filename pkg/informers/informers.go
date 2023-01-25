@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,7 +33,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynamicClient, 0, configuration.Namespace(), nil)
 
 	// MasterUserRecords
-	genericMasterUserRecordInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: kubeclient.MurResourcePlural})
+	genericMasterUserRecordInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.MurResourcePlural})
 	informer.Masteruserrecord = genericMasterUserRecordInformer.Lister()
 	masterUserRecordInformer := genericMasterUserRecordInformer.Informer()
 
@@ -43,12 +43,12 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	spaceInformer := genericSpaceInformer.Informer()
 
 	// ToolchainStatus
-	genericToolchainStatusInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: kubeclient.ToolchainStatusPlural})
+	genericToolchainStatusInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.ToolchainStatusPlural})
 	informer.ToolchainStatus = genericToolchainStatusInformer.Lister()
 	toolchainstatusInformer := genericToolchainStatusInformer.Informer()
 
 	// UserSignups
-	genericUserSignupInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: kubeclient.UserSignupResourcePlural})
+	genericUserSignupInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.UserSignupResourcePlural})
 	informer.UserSignup = genericUserSignupInformer.Lister()
 	userSignupInformer := genericUserSignupInformer.Informer()
 

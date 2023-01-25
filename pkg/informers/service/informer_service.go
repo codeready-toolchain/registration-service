@@ -6,7 +6,7 @@ import (
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -66,7 +66,7 @@ func (s *ServiceImpl) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
 }
 
 func (s *ServiceImpl) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
-	obj, err := s.informer.ToolchainStatus.ByNamespace(configuration.Namespace()).Get(kubeclient.ToolchainStatusName)
+	obj, err := s.informer.ToolchainStatus.ByNamespace(configuration.Namespace()).Get(resources.ToolchainStatusName)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (s *ServiceImpl) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, 
 	unobj := obj.(*unstructured.Unstructured)
 	stat := &toolchainv1alpha1.ToolchainStatus{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), stat); err != nil {
-		log.Errorf(nil, err, "failed to get ToolchainStatus %s", kubeclient.ToolchainStatusName)
+		log.Errorf(nil, err, "failed to get ToolchainStatus %s", resources.ToolchainStatusName)
 		return nil, err
 	}
 	return stat, err

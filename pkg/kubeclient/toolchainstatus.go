@@ -4,9 +4,8 @@ import (
 	"context"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 )
-
-const ToolchainStatusName = "toolchain-status"
 
 type toolchainStatusClient struct {
 	crtClient
@@ -22,8 +21,8 @@ func (c *toolchainStatusClient) Get() (*crtapi.ToolchainStatus, error) {
 	result := &crtapi.ToolchainStatus{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(ToolchainStatusPlural).
-		Name(ToolchainStatusName).
+		Resource(resources.ToolchainStatusPlural).
+		Name(resources.ToolchainStatusName).
 		Do(context.TODO()).
 		Into(result)
 	if err != nil {

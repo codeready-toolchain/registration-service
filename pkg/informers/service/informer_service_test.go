@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/test"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,7 +66,6 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 				},
 			},
 		}
-
 		inf := informers.Informer{
 			Masteruserrecord: murLister,
 		}

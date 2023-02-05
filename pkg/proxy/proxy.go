@@ -29,7 +29,9 @@ import (
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 
 	// "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apiserver/pkg/util/wsstream"
@@ -165,51 +167,85 @@ func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 		return errs.New("user is not provisioned (yet)")
 	}
 
-	// murName := signup.CompliantUsername
-	// murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
-	// if err != nil {
-	// 	return err
-	// }
+	murName := signup.CompliantUsername
+	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
+	if err != nil {
+		return err
+	}
 
-	workspace := ctx.Param("workspace")
-	if len(workspace) > 0 {
-		ctx.Logger().Infof("specific workspace requested: %s", workspace)
+	workspaceName := ctx.Param("workspace")
+	if len(workspaceName) > 0 {
+		ctx.Logger().Infof("specific workspace requested: %s", workspaceName)
 
 	}
 
-	// spaceBindings, err := p.app.InformerService().ListSpaceBindings(*murSelector)
-	// if err != nil {
-	// 	return err
-	// }
+	spaceBindings, err := p.app.InformerService().ListSpaceBindings(*murSelector)
+	if err != nil {
+		return err
+	}
+
+	workspaces, err := p.workspacesFromSpaceBindings(spaceBindings)
+	if err != nil {
+		return err
+	}
 
 	workspaceList := &toolchainv1alpha1.WorkspaceList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WorkspaceList",
 			APIVersion: "toolchain.dev.openshift.com/v1alpha1",
 		},
-		Items: []toolchainv1alpha1.Workspace{
-			{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Workspace",
-					APIVersion: "toolchain.dev.openshift.com/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "workspace1",
-				},
-				Status: toolchainv1alpha1.WorkspaceStatus{
-					Namespaces: []toolchainv1alpha1.WorkspaceNamespace{
-						{
-							Name: "workspace1-dev",
-						},
-					},
-				},
-			},
-		},
+		Items: workspaces,
 	}
 
 	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
 	ctx.Response().Writer.WriteHeader(http.StatusOK)
 	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
+}
+
+func (p *Proxy) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Workspace, error) {
+	workspaces := []toolchainv1alpha1.Workspace{}
+	for _, spaceBinding := range spaceBindings {
+		if spaceBinding.Labels == nil {
+			continue
+		}
+		spaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
+		if spaceName == "" { // space may not be initialized
+			continue
+		}
+		space, err := p.app.InformerService().GetSpace(spaceName)
+		if err != nil {
+			return nil, err
+		}
+		if space.Labels == nil {
+			continue
+		}
+		// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
+		ownerName := space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
+		if spaceName == "" { // space may not be initialized
+			continue
+		}
+		workspace := toolchainv1alpha1.Workspace{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Workspace",
+				APIVersion: "toolchain.dev.openshift.com/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: spaceName,
+			},
+			Status: toolchainv1alpha1.WorkspaceStatus{
+				Role: spaceBinding.Spec.SpaceRole,
+				// TODO get namespaces from Space status once it's implemented
+				Namespaces: []toolchainv1alpha1.WorkspaceNamespace{
+					{
+						Name: "workspace1-dev",
+					},
+				},
+				Owner: ownerName,
+			},
+		}
+		workspaces = append(workspaces, workspace)
+	}
+	return workspaces, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {

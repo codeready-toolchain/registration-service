@@ -4,6 +4,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func NewFakeInformer() *Informer {
@@ -15,6 +16,7 @@ type Informer struct {
 	GetSpaceFunc           func(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatusFunc func() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignupFunc      func(name string) (*toolchainv1alpha1.UserSignup, error)
+	ListSpaceBindingFunc   func(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
 }
 
 func (f Informer) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
@@ -43,6 +45,13 @@ func (f Informer) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, err
 		return f.GetUserSignupFunc(name)
 	}
 	panic("not supposed to call GetUserSignup")
+}
+
+func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+	if f.ListSpaceBindingFunc != nil {
+		return f.ListSpaceBindingFunc()
+	}
+	panic("not supposed to call ListSpaceBindings")
 }
 
 func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space {

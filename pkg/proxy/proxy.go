@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,10 +23,15 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	// "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,18 +73,61 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 	}, nil
 }
 
+func skipLogging(ctx echo.Context) bool {
+	return ctx.Path() == "/proxyHealth"
+}
+
 func (p *Proxy) StartProxy() *http.Server {
 	// start server
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", p.handleRequestAndRedirect)
-	mux.HandleFunc("/proxyhealth", p.health)
+	router := echo.New()
+	router.Logger.SetLevel(glog.INFO)
+
+	// get user information from token before handling request
+	router.Pre(p.addUserContext())
+
+	router.Use(
+		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+			LogStatus: true,
+			LogURI:    true,
+			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+				fmt.Printf("REQUEST: uri: %v, status: %v\n", v.URI, v.Status)
+				return nil
+			},
+		}),
+		// middleware.LoggerWithConfig(middleware.LoggerConfig{
+		// 	Output: router.StdLogger.Writer(),
+		// 	// Skipper: skipLogging, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
+		// 	// Formatter: func(params echo.LogFormatterParams) string {
+		// 	// 	// custom JSON format
+		// 	// 	return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
+		// 	// 		"info",
+		// 	// 		params.ClientIP,
+		// 	// 		params.TimeStamp.Format(time.RFC1123),
+		// 	// 		params.Method,
+		// 	// 		params.Path,
+		// 	// 		params.Request.Proto,
+		// 	// 		params.StatusCode,
+		// 	// 		params.Latency,
+		// 	// 		params.Request.UserAgent(),
+		// 	// 		params.ErrorMessage,
+		// 	// 	)
+		// 	// },
+		// }),
+		middleware.Recover(),
+	)
+	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
+	wg.GET("/:workspace", p.handleSpaceListRequest)
+	wg.GET("/", p.handleSpaceListRequest)
+
+	router.GET("/proxyhealth", p.health)
+	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
-	handler := corsPreflightHandler(mux)
+	handler := corsPreflightHandler(router)
 
-	// listen concurrently to allow for graceful shutdown
 	log.Info(nil, "Starting the Proxy server...")
 	srv := &http.Server{Addr: ":" + ProxyPort, Handler: handler, ReadHeaderTimeout: 2 * time.Second}
+	// listen concurrently to allow for graceful shutdown
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Error(nil, err, err.Error())
@@ -88,40 +137,109 @@ func (p *Proxy) StartProxy() *http.Server {
 	return srv
 }
 
-func (p *Proxy) health(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-	_, err := io.WriteString(res, `{"alive": true}`)
-	if err != nil {
-		log.Error(nil, err, "failed to write health response")
-	}
+func (p *Proxy) health(ctx echo.Context) error {
+	ctx.Logger().Info("proxy health check")
+	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
+	ctx.Response().Writer.WriteHeader(http.StatusOK)
+	_, err := io.WriteString(ctx.Response().Writer, `{"alive": true}`)
+	return err
 }
 
-func (p *Proxy) handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	ctx, err := p.createContext(req)
-	if err != nil {
-		log.Error(nil, err, "invalid bearer token")
-		responseWithError(res, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
-		return
-	}
-	userID := ctx.GetString(context.SubKey)
-	username := ctx.GetString(context.UsernameKey)
+func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
+	ctx.Logger().Info("handling space list request")
 
-	workspace, err := handleWorkspaceContext(req)
-	if err != nil {
-		log.Error(ctx, err, "unable to get handle workspace context")
-		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+	userID, ok := ctx.Get(context.SubKey).(string)
+	if !ok {
+		return fmt.Errorf("userID key invalid")
+	}
+	username, ok := ctx.Get(context.UsernameKey).(string)
+	if !ok {
+		return fmt.Errorf("username key invalid")
 	}
 
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(ctx, userID, username, workspace)
+	signup, err := p.app.SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
-		log.Error(ctx, err, "unable to get target cluster")
-		responseWithError(res, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
-		return
+		return err
+	}
+	if signup == nil || !signup.Status.Ready {
+		return errs.New("user is not provisioned (yet)")
+	}
+
+	// murName := signup.CompliantUsername
+	// murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
+	// if err != nil {
+	// 	return err
+	// }
+
+	workspace := ctx.Param("workspace")
+	if len(workspace) > 0 {
+		ctx.Logger().Infof("specific workspace requested: %s", workspace)
+
+	}
+
+	// spaceBindings, err := p.app.InformerService().ListSpaceBindings(*murSelector)
+	// if err != nil {
+	// 	return err
+	// }
+
+	workspaceList := &toolchainv1alpha1.WorkspaceList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "WorkspaceList",
+			APIVersion: "toolchain.dev.openshift.com/v1alpha1",
+		},
+		Items: []toolchainv1alpha1.Workspace{
+			{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Workspace",
+					APIVersion: "toolchain.dev.openshift.com/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "workspace1",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Namespaces: []toolchainv1alpha1.WorkspaceNamespace{
+						{
+							Name: "workspace1-dev",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
+	ctx.Response().Writer.WriteHeader(http.StatusOK)
+	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
+}
+
+func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
+	log.Info(nil, "handleRequestAndRedirect")
+	userID, ok := ctx.Get(context.SubKey).(string)
+	if !ok {
+		return fmt.Errorf("userID key invalid")
+	}
+	username, ok := ctx.Get(context.UsernameKey).(string)
+	if !ok {
+		return fmt.Errorf("username key invalid")
+	}
+
+	workspace, err := handleWorkspaceContext(ctx.Request())
+	if err != nil {
+		ctx.Logger().Error("unable to get workspace context", err)
+		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+		return nil
+	}
+
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
+	if err != nil {
+		log.Error(nil, err, "unable to get target cluster")
+		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+		return nil
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, req, cluster).ServeHTTP(res, req)
+	p.newReverseProxy(ctx, ctx.Request(), cluster).ServeHTTP(ctx.Response().Writer, ctx.Request())
+	return nil
 }
 
 func handleWorkspaceContext(req *http.Request) (string, error) {
@@ -146,19 +264,33 @@ func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
 	http.Error(res, err.Error(), err.Code)
 }
 
-// createContext creates a new gin.Context with the User ID extracted from the Bearer token.
+// addUserContext updates echo.Context with the User ID extracted from the Bearer token.
 // To be used for storing the user ID and logging only.
-func (p *Proxy) createContext(req *http.Request) (*gin.Context, error) {
-	userID, username, err := p.extractUserID(req)
-	if err != nil {
-		return nil, err
+func (p *Proxy) addUserContext() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			// ctx.Logger().Info("ctx path", ctx.Path())
+			// if ctx.Path() == "/proxyhealth" { // skip only for health endpoint
+			if ctx.Request().URL.Path == "/proxyhealth" { // skip only for health endpoint
+				return next(ctx)
+			}
+
+			userID, username, err := p.extractUserID(ctx.Request())
+			if err != nil {
+				ctx.Logger().Error(err) // log the original error
+
+				// err2 := echo.NewHTTPError(http.StatusUnauthorized, "unauthorized - invalid token")
+				responseWithError(ctx.Response().Writer, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
+				// return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
+				// return echo.NewHTTPError(http.StatusUnauthorized, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
+				return nil
+			}
+			ctx.Set(context.SubKey, userID)
+			ctx.Set(context.UsernameKey, username)
+
+			return next(ctx)
+		}
 	}
-	keys := make(map[string]interface{})
-	keys[context.SubKey] = userID
-	keys[context.UsernameKey] = username
-	return &gin.Context{
-		Keys: keys,
-	}, nil
 }
 
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
@@ -192,14 +324,14 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx *gin.Context, req *http.Request, target *access.ClusterAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, req *http.Request, target *access.ClusterAccess) *httputil.ReverseProxy {
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()
 		req.URL.Scheme = target.APIURL().Scheme
 		req.URL.Host = target.APIURL().Host
 		req.URL.Path = singleJoiningSlash(target.APIURL().Path, req.URL.Path)
-		log.Info(ctx, fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
+		ctx.Logger().Info(fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {

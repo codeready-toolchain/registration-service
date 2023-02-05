@@ -43,7 +43,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	informer.Space = genericSpaceInformer.Lister()
 	spaceInformer := genericSpaceInformer.Informer()
 
-	// Space
+	// SpaceBinding
 	genericSpaceBindingInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.SpaceBindingResourcePlural})
 	informer.SpaceBinding = genericSpaceBindingInformer.Lister()
 	spaceBindingInformer := genericSpaceBindingInformer.Informer()

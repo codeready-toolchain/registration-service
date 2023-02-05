@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 
-	// "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,7 +75,7 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 }
 
 func skipLogging(ctx echo.Context) bool {
-	return ctx.Path() == "/proxyHealth"
+	return ctx.Path() == "/proxyHealth" // skip logging for health check so it doesn't pollute the logs
 }
 
 func (p *Proxy) StartProxy() *http.Server {
@@ -89,6 +88,7 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	router.Use(
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+			Skipper:   skipLogging,
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
@@ -96,25 +96,6 @@ func (p *Proxy) StartProxy() *http.Server {
 				return nil
 			},
 		}),
-		// middleware.LoggerWithConfig(middleware.LoggerConfig{
-		// 	Output: router.StdLogger.Writer(),
-		// 	// Skipper: skipLogging, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
-		// 	// Formatter: func(params echo.LogFormatterParams) string {
-		// 	// 	// custom JSON format
-		// 	// 	return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
-		// 	// 		"info",
-		// 	// 		params.ClientIP,
-		// 	// 		params.TimeStamp.Format(time.RFC1123),
-		// 	// 		params.Method,
-		// 	// 		params.Path,
-		// 	// 		params.Request.Proto,
-		// 	// 		params.StatusCode,
-		// 	// 		params.Latency,
-		// 	// 		params.Request.UserAgent(),
-		// 	// 		params.ErrorMessage,
-		// 	// 	)
-		// 	// },
-		// }),
 		middleware.Recover(),
 	)
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
@@ -150,14 +131,8 @@ func (p *Proxy) health(ctx echo.Context) error {
 func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 	ctx.Logger().Info("handling space list request")
 
-	userID, ok := ctx.Get(context.SubKey).(string)
-	if !ok {
-		return fmt.Errorf("userID key invalid")
-	}
-	username, ok := ctx.Get(context.UsernameKey).(string)
-	if !ok {
-		return fmt.Errorf("username key invalid")
-	}
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
 
 	signup, err := p.app.SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
@@ -176,7 +151,6 @@ func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 	workspaceName := ctx.Param("workspace")
 	if len(workspaceName) > 0 {
 		ctx.Logger().Infof("specific workspace requested: %s", workspaceName)
-
 	}
 
 	spaceBindings, err := p.app.InformerService().ListSpaceBindings(*murSelector)
@@ -205,59 +179,39 @@ func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 func (p *Proxy) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Workspace, error) {
 	workspaces := []toolchainv1alpha1.Workspace{}
 	for _, spaceBinding := range spaceBindings {
+
 		if spaceBinding.Labels == nil {
 			continue
 		}
+
+		var ownerName string
 		spaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
-		if spaceName == "" { // space may not be initialized
-			continue
-		}
 		space, err := p.app.InformerService().GetSpace(spaceName)
 		if err != nil {
-			return nil, err
-		}
-		if space.Labels == nil {
+			// log error and continue so that the api behaves in a best effort manner
+			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
+			log.Errorf(nil, err, "unable to get space", "space", spaceName)
 			continue
 		}
-		// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
-		ownerName := space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
-		if spaceName == "" { // space may not be initialized
-			continue
+		if space.Labels != nil { // space may not be initialized yet
+			// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
+			ownerName = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
+			if spaceName == "" { // space may not be initialized
+				continue
+			}
 		}
-		workspace := toolchainv1alpha1.Workspace{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Workspace",
-				APIVersion: "toolchain.dev.openshift.com/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: spaceName,
-			},
-			Status: toolchainv1alpha1.WorkspaceStatus{
-				Role: spaceBinding.Spec.SpaceRole,
-				// TODO get namespaces from Space status once it's implemented
-				Namespaces: []toolchainv1alpha1.WorkspaceNamespace{
-					{
-						Name: "workspace1-dev",
-					},
-				},
-				Owner: ownerName,
-			},
-		}
-		workspaces = append(workspaces, workspace)
+
+		workspaces = append(workspaces, NewWorkspace(spaceName,
+			WithOwner(ownerName),
+			WithRole(spaceBinding.Spec.SpaceRole),
+		))
 	}
 	return workspaces, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	log.Info(nil, "handleRequestAndRedirect")
-	userID, ok := ctx.Get(context.SubKey).(string)
-	if !ok {
-		return fmt.Errorf("userID key invalid")
-	}
-	username, ok := ctx.Get(context.UsernameKey).(string)
-	if !ok {
-		return fmt.Errorf("username key invalid")
-	}
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
 
 	workspace, err := handleWorkspaceContext(ctx.Request())
 	if err != nil {

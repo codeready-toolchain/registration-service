@@ -10,6 +10,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -145,10 +146,10 @@ func (s *SpaceLister) workspacesFromSpaceBindings(spaceBindings []*toolchainv1al
 			},
 		}
 
-		workspace := NewWorkspace(spaceName,
-			WithNamespaces(namespaces),
-			WithOwner(ownerName),
-			WithRole(spaceBinding.Spec.SpaceRole),
+		workspace := commonproxy.NewWorkspace(spaceName,
+			commonproxy.WithNamespaces(namespaces),
+			commonproxy.WithOwner(ownerName),
+			commonproxy.WithRole(spaceBinding.Spec.SpaceRole),
 		)
 		workspaces = append(workspaces, *workspace)
 	}

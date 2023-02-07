@@ -108,3 +108,5 @@ require (
 )
 
 replace github.com/codeready-toolchain/api => github.com/rajivnathan/api v0.0.0-20230206185838-81bf04f3c5d3
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/rajivnathan/toolchain-common v0.0.0-20230206190931-61a5ee0ff0df

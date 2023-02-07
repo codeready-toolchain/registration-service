@@ -117,12 +117,6 @@ func (s *SpaceLister) workspacesFromSpaceBindings(spaceBindings []*toolchainv1al
 	workspaces := []toolchainv1alpha1.Workspace{}
 	for _, spaceBinding := range spaceBindings {
 
-		// it's possible for Labels to be nil
-		if spaceBinding.Labels == nil {
-			log.Infof(nil, "space binding '%s' has no labels", spaceBinding.Name)
-			continue
-		}
-
 		var ownerName string
 		spaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
 		space, err := s.GetInformerServiceFunc().GetSpace(spaceName)

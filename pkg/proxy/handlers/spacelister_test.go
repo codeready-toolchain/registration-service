@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Work in progress
 func TestHandleSpaceListRequest(t *testing.T) {
 	tests := map[string]struct {
 		username         string

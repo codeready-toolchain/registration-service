@@ -27,7 +27,7 @@ func (a *ProxyFakeApp) SignupService() service.SignupService {
 	if a.SignupServiceMock != nil {
 		return a.SignupServiceMock
 	}
-	panic("SignupService shouldn't be called")
+	return NewSignupService()
 }
 
 func (a *ProxyFakeApp) VerificationService() service.VerificationService {

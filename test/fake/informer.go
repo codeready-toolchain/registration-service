@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func NewFakeInformer() *Informer {
-	return &Informer{}
+func NewFakeInformer() Informer {
+	return Informer{}
 }
 
 type Informer struct {
@@ -68,4 +68,19 @@ func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space 
 		},
 	}
 	return space
+}
+
+func NewSpaceBinding(name, murLabelValue, spaceLabelValue string) *toolchainv1alpha1.SpaceBinding {
+	return &toolchainv1alpha1.SpaceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murLabelValue,
+				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            spaceLabelValue,
+			},
+		},
+		Spec: toolchainv1alpha1.SpaceBindingSpec{
+			SpaceRole: "admin",
+		},
+	}
 }

@@ -3,7 +3,6 @@ package proxy
 import (
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,27 +14,21 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
@@ -51,10 +44,10 @@ const (
 )
 
 type Proxy struct {
-	app                    application.Application
-	cl                     client.Client
-	tokenParser            *auth.TokenParser
-	getInformerServiceFunc func() service.InformerService
+	app         application.Application
+	cl          client.Client
+	tokenParser *auth.TokenParser
+	spaceLister *handlers.SpaceLister
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -74,11 +67,15 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 	if err != nil {
 		return nil, err
 	}
+
+	// init handlers
+	spaceLister := handlers.NewSpaceLister(app)
+
 	return &Proxy{
-		app:                    app,
-		cl:                     cln,
-		tokenParser:            tokenParser,
-		getInformerServiceFunc: app.InformerService,
+		app:         app,
+		cl:          cln,
+		tokenParser: tokenParser,
+		spaceLister: spaceLister,
 	}, nil
 }
 
@@ -108,9 +105,11 @@ func (p *Proxy) StartProxy() *http.Server {
 		}),
 		middleware.Recover(),
 	)
+
+	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
-	wg.GET("/:workspace", p.handleSpaceListRequest)
-	wg.GET("", p.handleSpaceListRequest)
+	wg.GET("/:workspace", p.spaceLister.HandleSpaceListRequest)
+	wg.GET("", p.spaceLister.HandleSpaceListRequest)
 
 	router.GET(proxyHealthEndpoint, p.health)
 	router.Any("/*", p.handleRequestAndRedirect)
@@ -136,129 +135,6 @@ func (p *Proxy) health(ctx echo.Context) error {
 	ctx.Response().Writer.WriteHeader(http.StatusOK)
 	_, err := io.WriteString(ctx.Response().Writer, `{"alive": true}`)
 	return err
-}
-
-func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
-	userID, _ := ctx.Get(context.SubKey).(string)
-	username, _ := ctx.Get(context.UsernameKey).(string)
-	workspaceName := ctx.Param("workspace")
-	isGetWorkspaceCase := len(workspaceName) > 0
-
-	signup, err := p.app.SignupService().GetSignupFromInformer(userID, username)
-	if err != nil {
-		return err
-	}
-	if signup == nil || !signup.Status.Ready {
-		return errs.New("user is not provisioned (yet)")
-	}
-
-	murName := signup.CompliantUsername
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
-	if err != nil {
-		return err
-	}
-
-	requirements := []labels.Requirement{*murSelector}
-
-	if isGetWorkspaceCase {
-		// specific workspace requested so add label requirement to match the space
-		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{workspaceName})
-		if err != nil {
-			return err
-		}
-		requirements = append(requirements, *spaceSelector)
-	}
-
-	spaceBindings, err := p.getInformerServiceFunc().ListSpaceBindings(requirements...)
-	if err != nil {
-		return err
-	}
-
-	workspaces, err := p.workspacesFromSpaceBindings(spaceBindings)
-	if err != nil {
-		return err
-	}
-
-	if isGetWorkspaceCase {
-		// specific workspace requested
-		if len(workspaces) != 1 {
-			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName), http.StatusNotFound)
-		}
-		return getWorkspaceResponse(ctx, workspaces[0])
-	}
-
-	return listWorkspaceResponse(ctx, workspaces)
-}
-
-func errorResponse(ctx echo.Context, err *apierrors.StatusError, code int) error {
-	ctx.Logger().Error(err, err.Error())
-	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
-	ctx.Response().Writer.WriteHeader(code)
-	return json.NewEncoder(ctx.Response().Writer).Encode(err.ErrStatus)
-}
-
-func getWorkspaceResponse(ctx echo.Context, workspace toolchainv1alpha1.Workspace) error {
-	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
-	ctx.Response().Writer.WriteHeader(http.StatusOK)
-	return json.NewEncoder(ctx.Response().Writer).Encode(workspace)
-}
-
-func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Workspace) error {
-	workspaceList := &toolchainv1alpha1.WorkspaceList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "WorkspaceList",
-			APIVersion: "toolchain.dev.openshift.com/v1alpha1",
-		},
-		Items: workspaces,
-	}
-
-	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
-	ctx.Response().Writer.WriteHeader(http.StatusOK)
-	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
-}
-
-func (p *Proxy) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Workspace, error) {
-	workspaces := []toolchainv1alpha1.Workspace{}
-	for _, spaceBinding := range spaceBindings {
-
-		if spaceBinding.Labels == nil {
-			continue
-		}
-
-		var ownerName string
-		spaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
-		space, err := p.getInformerServiceFunc().GetSpace(spaceName)
-		if err != nil {
-			// log error and continue so that the api behaves in a best effort manner
-			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
-			log.Errorf(nil, err, "unable to get space", "space", spaceName)
-			continue
-		}
-		if space.Labels != nil { // space may not be initialized yet
-			// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
-			ownerName = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
-			if spaceName == "" { // space may not be initialized
-				continue
-			}
-		}
-
-		// TODO get namespaces from Space status once it's implemented
-		namespaces := []toolchainv1alpha1.SpaceNamespace{
-			{
-				Name: spaceName + "-tenant",
-				Type: "default",
-			},
-		}
-
-		workspace := commonproxy.NewWorkspace(spaceName,
-			commonproxy.WithNamespaces(namespaces),
-			commonproxy.WithOwner(ownerName),
-			commonproxy.WithRole(spaceBinding.Spec.SpaceRole),
-		)
-		workspaces = append(workspaces, *workspace)
-	}
-	return workspaces, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {

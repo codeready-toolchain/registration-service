@@ -196,7 +196,6 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 				ctx.Logger().Error(err) // log the original error
 
 				responseWithError(ctx.Response().Writer, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
-bearer token", err.Error()))
 				return nil
 			}
 			ctx.Set(context.SubKey, userID)

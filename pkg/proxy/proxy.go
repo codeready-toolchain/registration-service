@@ -195,7 +195,6 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 			if err != nil {
 				ctx.Logger().Error(err) // log the original error
 
-				// err2 := echo.NewHTTPError(http.StatusUnauthorized, "unauthorized - invalid token")
 				responseWithError(ctx.Response().Writer, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 				// return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
 				// return echo.NewHTTPError(http.StatusUnauthorized, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))

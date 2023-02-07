@@ -26,6 +26,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/kevinburke/twilio-go v0.0.0-20220922200631-8f3f155dfe1f
 	github.com/labstack/echo/v4 v4.10.0
+	github.com/labstack/gommon v0.4.0
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/nyaruka/phonenumbers v1.1.1
 	github.com/spf13/pflag v1.0.5
@@ -37,7 +38,6 @@ require (
 )
 
 require (
-	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
@@ -107,4 +107,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/codeready-toolchain/api => github.com/rajivnathan/api v0.0.0-20230127201522-39fbe8fcf950
+replace github.com/codeready-toolchain/api => github.com/rajivnathan/api v0.0.0-20230206185838-81bf04f3c5d3
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/rajivnathan/toolchain-common v0.0.0-20230206190931-61a5ee0ff0df

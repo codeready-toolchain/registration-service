@@ -15,6 +15,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -22,15 +23,18 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
@@ -42,12 +46,15 @@ import (
 const (
 	ProxyPort            = "8081"
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
+
+	proxyHealthEndpoint = "/proxyhealth"
 )
 
 type Proxy struct {
-	app         application.Application
-	cl          client.Client
-	tokenParser *auth.TokenParser
+	app                    application.Application
+	cl                     client.Client
+	tokenParser            *auth.TokenParser
+	getInformerServiceFunc func() service.InformerService
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -68,14 +75,11 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 		return nil, err
 	}
 	return &Proxy{
-		app:         app,
-		cl:          cln,
-		tokenParser: tokenParser,
+		app:                    app,
+		cl:                     cln,
+		tokenParser:            tokenParser,
+		getInformerServiceFunc: app.InformerService,
 	}, nil
-}
-
-func skipLogging(ctx echo.Context) bool {
-	return ctx.Path() == "/proxyHealth" // skip logging for health check so it doesn't pollute the logs
 }
 
 func (p *Proxy) StartProxy() *http.Server {
@@ -83,12 +87,18 @@ func (p *Proxy) StartProxy() *http.Server {
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
 
-	// get user information from token before handling request
-	router.Pre(p.addUserContext())
+	// middleware before routing
+	router.Pre(
+		middleware.RemoveTrailingSlash(),
+		p.addUserContext(), // get user information from token before handling request
+	)
 
+	// middleware after routing
 	router.Use(
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-			Skipper:   skipLogging,
+			Skipper: func(ctx echo.Context) bool {
+				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check so it doesn't pollute the logs
+			},
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
@@ -100,9 +110,9 @@ func (p *Proxy) StartProxy() *http.Server {
 	)
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
 	wg.GET("/:workspace", p.handleSpaceListRequest)
-	wg.GET("/", p.handleSpaceListRequest)
+	wg.GET("", p.handleSpaceListRequest)
 
-	router.GET("/proxyhealth", p.health)
+	router.GET(proxyHealthEndpoint, p.health)
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
@@ -129,10 +139,10 @@ func (p *Proxy) health(ctx echo.Context) error {
 }
 
 func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
-	ctx.Logger().Info("handling space list request")
-
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
+	workspaceName := ctx.Param("workspace")
+	isGetWorkspaceCase := len(workspaceName) > 0
 
 	signup, err := p.app.SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
@@ -148,12 +158,18 @@ func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 		return err
 	}
 
-	workspaceName := ctx.Param("workspace")
-	if len(workspaceName) > 0 {
-		ctx.Logger().Infof("specific workspace requested: %s", workspaceName)
+	requirements := []labels.Requirement{*murSelector}
+
+	if isGetWorkspaceCase {
+		// specific workspace requested so add label requirement to match the space
+		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{workspaceName})
+		if err != nil {
+			return err
+		}
+		requirements = append(requirements, *spaceSelector)
 	}
 
-	spaceBindings, err := p.app.InformerService().ListSpaceBindings(*murSelector)
+	spaceBindings, err := p.getInformerServiceFunc().ListSpaceBindings(requirements...)
 	if err != nil {
 		return err
 	}
@@ -163,6 +179,32 @@ func (p *Proxy) handleSpaceListRequest(ctx echo.Context) error {
 		return err
 	}
 
+	if isGetWorkspaceCase {
+		// specific workspace requested
+		if len(workspaces) != 1 {
+			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
+			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName), http.StatusNotFound)
+		}
+		return getWorkspaceResponse(ctx, workspaces[0])
+	}
+
+	return listWorkspaceResponse(ctx, workspaces)
+}
+
+func errorResponse(ctx echo.Context, err *apierrors.StatusError, code int) error {
+	ctx.Logger().Error(err, err.Error())
+	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
+	ctx.Response().Writer.WriteHeader(code)
+	return json.NewEncoder(ctx.Response().Writer).Encode(err.ErrStatus)
+}
+
+func getWorkspaceResponse(ctx echo.Context, workspace toolchainv1alpha1.Workspace) error {
+	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
+	ctx.Response().Writer.WriteHeader(http.StatusOK)
+	return json.NewEncoder(ctx.Response().Writer).Encode(workspace)
+}
+
+func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Workspace) error {
 	workspaceList := &toolchainv1alpha1.WorkspaceList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "WorkspaceList",
@@ -186,7 +228,7 @@ func (p *Proxy) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.S
 
 		var ownerName string
 		spaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
-		space, err := p.app.InformerService().GetSpace(spaceName)
+		space, err := p.getInformerServiceFunc().GetSpace(spaceName)
 		if err != nil {
 			// log error and continue so that the api behaves in a best effort manner
 			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
@@ -201,10 +243,20 @@ func (p *Proxy) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.S
 			}
 		}
 
-		workspaces = append(workspaces, NewWorkspace(spaceName,
-			WithOwner(ownerName),
-			WithRole(spaceBinding.Spec.SpaceRole),
-		))
+		// TODO get namespaces from Space status once it's implemented
+		namespaces := []toolchainv1alpha1.SpaceNamespace{
+			{
+				Name: spaceName + "-tenant",
+				Type: "default",
+			},
+		}
+
+		workspace := commonproxy.NewWorkspace(spaceName,
+			commonproxy.WithNamespaces(namespaces),
+			commonproxy.WithOwner(ownerName),
+			commonproxy.WithRole(spaceBinding.Spec.SpaceRole),
+		)
+		workspaces = append(workspaces, *workspace)
 	}
 	return workspaces, nil
 }
@@ -259,9 +311,7 @@ func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
 func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			// ctx.Logger().Info("ctx path", ctx.Path())
-			// if ctx.Path() == "/proxyhealth" { // skip only for health endpoint
-			if ctx.Request().URL.Path == "/proxyhealth" { // skip only for health endpoint
+			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
 				return next(ctx)
 			}
 

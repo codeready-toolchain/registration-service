@@ -49,7 +49,7 @@ func (f Informer) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, err
 
 func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
 	if f.ListSpaceBindingFunc != nil {
-		return f.ListSpaceBindingFunc()
+		return f.ListSpaceBindingFunc(req...)
 	}
 	panic("not supposed to call ListSpaceBindings")
 }
@@ -58,6 +58,9 @@ func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space 
 	space := &toolchainv1alpha1.Space{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: compliantUserName,
+			Labels: map[string]string{
+				toolchainv1alpha1.SpaceCreatorLabelKey: compliantUserName,
+			},
 		},
 		Spec: toolchainv1alpha1.SpaceSpec{
 			TargetCluster: targetCluster,
@@ -70,7 +73,7 @@ func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space 
 	return space
 }
 
-func NewSpaceBinding(name, murLabelValue, spaceLabelValue string) *toolchainv1alpha1.SpaceBinding {
+func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolchainv1alpha1.SpaceBinding {
 	return &toolchainv1alpha1.SpaceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -80,7 +83,7 @@ func NewSpaceBinding(name, murLabelValue, spaceLabelValue string) *toolchainv1al
 			},
 		},
 		Spec: toolchainv1alpha1.SpaceBindingSpec{
-			SpaceRole: "admin",
+			SpaceRole: role,
 		},
 	}
 }

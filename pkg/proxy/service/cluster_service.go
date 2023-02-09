@@ -9,7 +9,6 @@ import (
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
-	"github.com/gin-gonic/gin"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -37,7 +36,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username, workspace string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error) {
 	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
@@ -55,14 +54,14 @@ func (s *ServiceImpl) GetClusterAccess(ctx *gin.Context, userID, username, works
 	space, err := s.Services().InformerService().GetSpace(workspace)
 	if err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
-		log.Error(ctx, err, "unable to get target cluster")
-		return nil, fmt.Errorf("the requested space in not available")
+		log.Error(nil, err, "unable to get target cluster for workspace "+workspace)
+		return nil, fmt.Errorf("the requested space is not available")
 	}
 
-	return s.accessForSpace(ctx, space, signup.CompliantUsername)
+	return s.accessForSpace(space, signup.CompliantUsername)
 }
 
-func (s *ServiceImpl) accessForSpace(ctx *gin.Context, space *toolchainv1alpha1.Space, username string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -81,7 +80,7 @@ func (s *ServiceImpl) accessForSpace(ctx *gin.Context, space *toolchainv1alpha1.
 	}
 
 	errMsg := fmt.Sprintf("no member cluster found for space '%s'", space.Name)
-	log.Error(ctx, fmt.Errorf("no matching target cluster '%s' for the space", space.Status.TargetCluster), errMsg)
+	log.Error(nil, fmt.Errorf("no matching target cluster '%s' for the space", space.Status.TargetCluster), errMsg)
 	return nil, errs.New(errMsg)
 }
 

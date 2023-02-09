@@ -12,6 +12,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -93,4 +94,24 @@ func (s *ServiceImpl) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup,
 		return nil, err
 	}
 	return us, err
+}
+
+func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+	selector := labels.NewSelector().Add(reqs...)
+	objs, err := s.informer.SpaceBinding.ByNamespace(configuration.Namespace()).List(selector)
+	if err != nil {
+		return nil, err
+	}
+
+	sbs := []*toolchainv1alpha1.SpaceBinding{}
+	for _, obj := range objs {
+		unobj := obj.(*unstructured.Unstructured)
+		sb := &toolchainv1alpha1.SpaceBinding{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), sb); err != nil {
+			log.Errorf(nil, err, "failed to list SpaceBindings")
+			return nil, err
+		}
+		sbs = append(sbs, sb)
+	}
+	return sbs, err
 }

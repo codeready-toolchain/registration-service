@@ -27,7 +27,7 @@ func (a *ProxyFakeApp) SignupService() service.SignupService {
 	if a.SignupServiceMock != nil {
 		return a.SignupServiceMock
 	}
-	panic("SignupService shouldn't be called")
+	return NewSignupService()
 }
 
 func (a *ProxyFakeApp) VerificationService() service.VerificationService {
@@ -45,7 +45,7 @@ type fakeClusterService struct {
 	fakeApp *ProxyFakeApp
 }
 
-func (f *fakeClusterService) GetClusterAccess(_ *gin.Context, userID, _, _ string) (*access.ClusterAccess, error) {
+func (f *fakeClusterService) GetClusterAccess(userID, _, _ string) (*access.ClusterAccess, error) {
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
 }
 

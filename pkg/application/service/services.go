@@ -5,6 +5,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 type InformerService interface {
@@ -12,6 +13,7 @@ type InformerService interface {
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
+	ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
 }
 
 type SignupService interface {
@@ -34,7 +36,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(ctx *gin.Context, userID, username, workspace string) (*access.ClusterAccess, error)
+	GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

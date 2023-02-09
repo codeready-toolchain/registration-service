@@ -130,7 +130,6 @@ func (p *Proxy) StartProxy() *http.Server {
 }
 
 func (p *Proxy) health(ctx echo.Context) error {
-	ctx.Logger().Info("proxy health check")
 	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
 	ctx.Response().Writer.WriteHeader(http.StatusOK)
 	_, err := io.WriteString(ctx.Response().Writer, `{"alive": true}`)

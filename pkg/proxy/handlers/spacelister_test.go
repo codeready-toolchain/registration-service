@@ -59,7 +59,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 
 	s := &handlers.SpaceLister{
 		GetSignupFunc:          fakeSignupService.GetSignupFromInformer,
-		GetInformerServiceFunc: getFakeInformerService(t, fakeClient),
+		GetInformerServiceFunc: getFakeInformerService(fakeClient),
 	}
 
 	tests := map[string]struct {

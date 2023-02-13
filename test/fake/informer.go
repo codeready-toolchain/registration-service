@@ -2,6 +2,7 @@ package fake
 
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -57,7 +58,8 @@ func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]*toolchainv1al
 func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
 	space := &toolchainv1alpha1.Space{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: compliantUserName,
+			Name:      compliantUserName,
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceCreatorLabelKey: compliantUserName,
 			},

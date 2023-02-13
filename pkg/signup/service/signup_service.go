@@ -265,6 +265,7 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 	}
 
 	signupResponse := &signup.Signup{
+		Name:     userSignup.GetName(),
 		Username: userSignup.Spec.Username,
 	}
 	if userSignup.Status.CompliantUsername != "" {

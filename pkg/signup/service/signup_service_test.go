@@ -757,6 +757,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
+	require.Equal(s.T(), userID.String(), response.Name)
 	require.Equal(s.T(), "bill", response.Username)
 	require.Equal(s.T(), "", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
@@ -794,6 +795,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
+		require.Equal(s.T(), userID.String(), response.Name)
 		require.Equal(s.T(), "bill", response.Username)
 		require.Equal(s.T(), "", response.CompliantUsername)
 		require.False(s.T(), response.Status.Ready)
@@ -865,6 +867,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
+		require.Equal(s.T(), userID.String(), response.Name)
 		require.Equal(s.T(), "bill", response.Username)
 		require.Equal(s.T(), "", response.CompliantUsername)
 		require.False(s.T(), response.Status.Ready)
@@ -902,6 +905,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), response)
 
+			require.Equal(s.T(), userID.String(), response.Name)
 			require.Equal(s.T(), "bill", response.Username)
 			require.Equal(s.T(), "", response.CompliantUsername)
 			require.False(s.T(), response.Status.Ready)
@@ -1015,6 +1019,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
+	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "ted@domain.com", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
@@ -1132,6 +1137,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
+	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "ted@domain.com", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
@@ -1178,6 +1184,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
+		require.Equal(s.T(), us.Name, response.Name)
 		require.Equal(s.T(), "ted@domain.com", response.Username)
 		require.Equal(s.T(), "ted", response.CompliantUsername)
 		assert.True(s.T(), response.Status.Ready)

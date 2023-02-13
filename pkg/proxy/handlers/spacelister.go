@@ -73,7 +73,7 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		return errorResponse(ctx, apierrors.NewInternalError(fmt.Errorf("workspace lookup failed")), http.StatusInternalServerError)
 	}
 
-	workspaces := s.workspacesFromSpaceBindings(spaceBindings)
+	workspaces := s.workspacesFromSpaceBindings(signup.Name, spaceBindings)
 
 	if doGetWorkspace { // specific workspace requested
 		if len(workspaces) != 1 {
@@ -114,7 +114,7 @@ func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Work
 	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
 }
 
-func (s *SpaceLister) workspacesFromSpaceBindings(spaceBindings []*toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
+func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []*toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
 	workspaces := []toolchainv1alpha1.Workspace{}
 	for _, spaceBinding := range spaceBindings {
 
@@ -144,11 +144,19 @@ func (s *SpaceLister) workspacesFromSpaceBindings(spaceBindings []*toolchainv1al
 			},
 		}
 
-		workspace := commonproxy.NewWorkspace(spaceName,
+		wsOptions := []commonproxy.WorkspaceOption{
 			commonproxy.WithNamespaces(namespaces),
 			commonproxy.WithOwner(ownerName),
 			commonproxy.WithRole(spaceBinding.Spec.SpaceRole),
-		)
+			commonproxy.WithObjectMetaFrom(space.ObjectMeta),
+		}
+		// set the workspace type to "home" to indicate it is the user's home space
+		// TODO set home type based on UserSignup.Status.HomeSpace once it's implemented
+		if ownerName == signupName {
+			wsOptions = append(wsOptions, commonproxy.WithType("home"))
+		}
+
+		workspace := commonproxy.NewWorkspace(spaceName, wsOptions...)
 		workspaces = append(workspaces, *workspace)
 	}
 	return workspaces

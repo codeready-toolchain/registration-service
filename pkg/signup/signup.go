@@ -3,6 +3,8 @@ package signup
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
 // and the corresponding MasterUserRecord resources.
 type Signup struct {
+	// The UserSignup resource name
+	Name string `json:"name"`
 	// The Web Console URL of the cluster which the user was provisioned to
 	ConsoleURL string `json:"consoleURL,omitempty"`
 	// The Che Dashboard URL of the cluster which the user was provisioned to

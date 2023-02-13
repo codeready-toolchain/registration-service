@@ -194,7 +194,7 @@ func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	})
 }
 
-func getFakeInformerService(t *testing.T, fakeClient client.Client) func() service.InformerService {
+func getFakeInformerService(fakeClient client.Client) func() service.InformerService {
 	return func() service.InformerService {
 
 		inf := fake.NewFakeInformer()

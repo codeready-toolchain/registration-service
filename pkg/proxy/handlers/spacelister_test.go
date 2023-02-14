@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -15,11 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -37,9 +38,28 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		newSignup("usernospace", "user.nospace", true),
 		newSignup("racinglover", "racing.lover", false),
 	)
+
+	// space that is not provisioned yet
+	spaceNotProvisionedYet := fake.NewSpace("member-2", "pandalover")
+	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
+
+	fakeClient := initFakeClient(t,
+		// spaces
+		fake.NewSpace("member-1", "dancelover"),
+		fake.NewSpace("member-1", "movielover"),
+		fake.NewSpace("member-2", "racinglover"),
+		spaceNotProvisionedYet,
+
+		//spacebindings
+		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
+		fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
+		fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
+		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
+	)
+
 	s := &handlers.SpaceLister{
 		GetSignupFunc:          fakeSignupService.GetSignupFromInformer,
-		GetInformerServiceFunc: getFakeInformerService(t),
+		GetInformerServiceFunc: getFakeInformerService(fakeClient),
 	}
 
 	tests := map[string]struct {
@@ -52,22 +72,22 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		"dancelover lists spaces": {
 			username: "dance.lover",
 			expected: []toolchainv1alpha1.Workspace{
-				workspaceFor("dancelover", "admin"),
-				workspaceFor("movielover", "other"),
+				workspaceFor(t, fakeClient, "dancelover", "admin", true),
+				workspaceFor(t, fakeClient, "movielover", "other", false),
 			},
 			expectedErr: "",
 		},
 		"movielover lists spaces": {
 			username: "movie.lover",
 			expected: []toolchainv1alpha1.Workspace{
-				workspaceFor("movielover", "admin"),
+				workspaceFor(t, fakeClient, "movielover", "admin", true),
 			},
 			expectedErr: "",
 		},
 		"dancelover gets dancelover space": {
 			username: "dance.lover",
 			expected: []toolchainv1alpha1.Workspace{
-				workspaceFor("dancelover", "admin"),
+				workspaceFor(t, fakeClient, "dancelover", "admin", true),
 			},
 			expectedErr:       "",
 			expectedWorkspace: "dancelover",
@@ -75,7 +95,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		"dancelover gets movielover space": {
 			username: "dance.lover",
 			expected: []toolchainv1alpha1.Workspace{
-				workspaceFor("movielover", "other"),
+				workspaceFor(t, fakeClient, "movielover", "other", false),
 			},
 			expectedErr:       "",
 			expectedWorkspace: "movielover",
@@ -83,7 +103,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		"movielover gets movielover space": {
 			username: "movie.lover",
 			expected: []toolchainv1alpha1.Workspace{
-				workspaceFor("movielover", "admin"),
+				workspaceFor(t, fakeClient, "movielover", "admin", true),
 			},
 			expectedErr:       "",
 			expectedWorkspace: "movielover",
@@ -143,7 +163,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					// get workspace case
 					workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
 					require.NoError(t, decodeErr)
-					require.Equal(t, 1, len(tc.expected), "test case should have exactly one expected item")
+					require.Equal(t, 1, len(tc.expected), "test case should have exactly one expected item since it's a get request")
 					for i := range tc.expected {
 						assert.Equal(t, tc.expected[i].Name, workspace.Name)
 						assert.Equal(t, tc.expected[i].Status, workspace.Status)
@@ -165,6 +185,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	return fake.Signup(signupName, &signup.Signup{
+		Name:              signupName,
 		CompliantUsername: signupName,
 		Username:          username,
 		Status: signup.Status{
@@ -173,25 +194,8 @@ func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	})
 }
 
-func getFakeInformerService(t *testing.T) func() service.InformerService {
-
-	spaceNotProvisionedYet := fake.NewSpace("member-2", "pandalover")
-	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
-
+func getFakeInformerService(fakeClient client.Client) func() service.InformerService {
 	return func() service.InformerService {
-		fakeClient := initFakeClient(t,
-			// spaces
-			fake.NewSpace("member-1", "dancelover"),
-			fake.NewSpace("member-1", "movielover"),
-			fake.NewSpace("member-2", "racinglover"),
-			spaceNotProvisionedYet,
-
-			//spacebindings
-			fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
-			fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
-			fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
-			fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
-		)
 
 		inf := fake.NewFakeInformer()
 		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
@@ -247,20 +251,27 @@ func decodeResponseToWorkspaceList(data []byte) (*toolchainv1alpha1.WorkspaceLis
 	return obj, nil
 }
 
-func workspaceFor(name, role string) toolchainv1alpha1.Workspace {
-	return toolchainv1alpha1.Workspace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Status: toolchainv1alpha1.WorkspaceStatus{
-			Owner: name,
-			Role:  role,
-			Namespaces: []toolchainv1alpha1.SpaceNamespace{
-				{
-					Name: name + "-tenant",
-					Type: "default",
-				},
+func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool) toolchainv1alpha1.Workspace {
+	// get the space for the user
+	space := &toolchainv1alpha1.Space{}
+	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, space)
+	require.NoError(t, err)
+
+	// create the workspace based on the space
+	ws := commonproxy.NewWorkspace(name,
+		commonproxy.WithObjectMetaFrom(space.ObjectMeta),
+		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
+			{
+				Name: name + "-tenant",
+				Type: "default",
 			},
-		},
+		}),
+		commonproxy.WithOwner(name),
+		commonproxy.WithRole(role),
+	)
+	// if the user is the same as the one who created the workspace, then expect type should be "home"
+	if isHomeWorkspace {
+		ws.Status.Type = "home"
 	}
+	return *ws
 }

@@ -1,6 +1,10 @@
 package context
 
 const (
+	// UserIDKey is the context key for the user_id claim
+	UserIDKey = "user_id"
+	// AccountIDKey is the context key for the account_id claim
+	AccountIDKey = "account_id"
 	// UsernameKey is the context key for the preferred_username claim
 	UsernameKey = "username"
 	// EmailKey is the context key for the email claim

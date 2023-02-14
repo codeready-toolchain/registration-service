@@ -58,6 +58,9 @@ func NewSignupService(context servicecontext.ServiceContext) service.SignupServi
 func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
 
+	userID := ctx.GetString(context.UserIDKey)
+	accountID := ctx.GetString(context.AccountIDKey)
+
 	username = usersignup.TransformUsername(username)
 	if strings.HasSuffix(username, "crtadmin") {
 		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
@@ -100,6 +103,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
+				toolchainv1alpha1.UserSignupSSOUserIDAnnotationKey:           userID,
+				toolchainv1alpha1.UserSignupSSOAccountIDAnnotationKey:        accountID,
 			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,

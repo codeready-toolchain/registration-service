@@ -27,6 +27,8 @@ type TokenClaims struct {
 	EmailVerified     bool   `json:"email_verified"`
 	Company           string `json:"company"`
 	OriginalSub       string `json:"original_sub"`
+	UserID            string `json:"user_id"`
+	AccountID         string `json:"account_id"`
 	jwt.StandardClaims
 }
 

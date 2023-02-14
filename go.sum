@@ -98,8 +98,8 @@ github.com/cncf/xds/go v0.0.0-20210312221358-fbca930ec8ed/go.mod h1:eXthEFrGJvWH
 github.com/cockroachdb/datadriven v0.0.0-20200714090401-bf6692d28da5/go.mod h1:h6jFvWxBdQXxjopDMZyH2UVceIRfR84bdzbkoKrsWNo=
 github.com/cockroachdb/errors v1.2.4/go.mod h1:rQD95gz6FARkaKkQXUksEje/d9a6wBJoCr5oaCLELYA=
 github.com/cockroachdb/logtags v0.0.0-20190617123548-eb05cc24525f/go.mod h1:i/u985jwjWRlyHXQbwatDASoW0RMlZ/3i9yJHE2xLkI=
-github.com/codeready-toolchain/api v0.0.0-20230210095221-59de0ef9b59c h1:CZXvsMJhWqa6U5kRqzc3h8+KFVEIOb16rdgDNt5RqhE=
-github.com/codeready-toolchain/api v0.0.0-20230210095221-59de0ef9b59c/go.mod h1:eOu09m3Vyr5/gmTKQ0w1z6bOmujX6l6PuaXqCx3whpw=
+github.com/codeready-toolchain/api v0.0.0-20230214041705-3c1ec4c94467 h1:GtsEUdXu0Uc0ZZYNnywDCXqJRjzdx4WprXdIhi38mA8=
+github.com/codeready-toolchain/api v0.0.0-20230214041705-3c1ec4c94467/go.mod h1:eOu09m3Vyr5/gmTKQ0w1z6bOmujX6l6PuaXqCx3whpw=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20230213135025-a17b1e073489 h1:xkSuQ2V31JPflyq5hCceDFobeEq8Qkk9Y6hKoxgpolQ=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20230213135025-a17b1e073489/go.mod h1:1jYyp0yNGSLTFDEAZz3XO4q6YEYw88GpjugBKCVICOA=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
@@ -722,8 +722,8 @@ golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20201207232520-09787c993a3a/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
-golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f h1:Ax0t5p6N38Ga0dThY21weqDEyz2oklo4IvDkpigvkD8=
-golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 h1:uVc8UZUe6tr40fFVnUP5Oj+veunVezqYl9z7DYw9xzw=
+golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20180823144017-11551d06cbcc/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180903190138-2b024373dcd9/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
@@ -1042,7 +1042,6 @@ honnef.co/go/tools v0.0.1-2019.2.3/go.mod h1:a3bituU0lyd329TUQxRnasdCoJDkEUEAqEt
 honnef.co/go/tools v0.0.1-2020.1.3/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 k8s.io/api v0.24.0/go.mod h1:5Jl90IUrJHUJYEMANRURMiVvJ0g7Ax7r3R1bqO8zx8I=
-k8s.io/api v0.24.0/go.mod h1:5Jl90IUrJHUJYEMANRURMiVvJ0g7Ax7r3R1bqO8zx8I=
 k8s.io/api v0.24.2 h1:g518dPU/L7VRLxWfcadQn2OnsiGWVOadTLpdnqgY2OI=
 k8s.io/api v0.24.2/go.mod h1:AHqbSkTm6YrQ0ObxjO3Pmp/ubFF/KuM7jU+3khoBsOg=
 k8s.io/apiextensions-apiserver v0.24.2 h1:/4NEQHKlEz1MlaK/wHT5KMKC9UKYz6NZz6JE6ov4G6k=
@@ -1053,7 +1052,6 @@ k8s.io/apiserver v0.24.2 h1:orxipm5elPJSkkFNlwH9ClqaKEDJJA3yR2cAAlCnyj4=
 k8s.io/apiserver v0.24.2/go.mod h1:pSuKzr3zV+L+MWqsEo0kHHYwCo77AT5qXbFXP2jbvFI=
 k8s.io/client-go v0.24.2 h1:CoXFSf8if+bLEbinDqN9ePIDGzcLtqhfd6jpfnwGOFA=
 k8s.io/client-go v0.24.2/go.mod h1:zg4Xaoo+umDsfCWr4fCnmLEtQXyCNXCvJuSsglNcV30=
-k8s.io/code-generator v0.24.0/go.mod h1:dpVhs00hTuTdTY6jvVxvTFCk6gSMrtfRydbhZwHI15w=
 k8s.io/code-generator v0.24.0/go.mod h1:dpVhs00hTuTdTY6jvVxvTFCk6gSMrtfRydbhZwHI15w=
 k8s.io/component-base v0.24.2/go.mod h1:ucHwW76dajvQ9B7+zecZAP3BVqvrHoOxm8olHEg0nmM=
 k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c/go.mod h1:FiNAH4ZV3gBg2Kwh89tzAEV2be7d5xI0vBa/VySYy3E=

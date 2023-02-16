@@ -103,8 +103,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
-				toolchainv1alpha1.UserSignupSSOUserIDAnnotationKey:           userID,
-				toolchainv1alpha1.UserSignupSSOAccountIDAnnotationKey:        accountID,
+				toolchainv1alpha1.SSOUserIDAnnotationKey:                     userID,
+				toolchainv1alpha1.SSOAccountIDAnnotationKey:                  accountID,
 			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,

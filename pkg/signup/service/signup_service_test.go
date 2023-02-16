@@ -90,8 +90,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "red hat", val.Spec.Company)
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "jsmith@gmail.com", val.Annotations[toolchainv1alpha1.UserSignupUserEmailAnnotationKey])
-		require.Equal(s.T(), "13349822", val.Annotations[toolchainv1alpha1.UserSignupSSOUserIDAnnotationKey])
-		require.Equal(s.T(), "45983711", val.Annotations[toolchainv1alpha1.UserSignupSSOAccountIDAnnotationKey])
+		require.Equal(s.T(), "13349822", val.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.Equal(s.T(), "45983711", val.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
 

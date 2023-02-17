@@ -41,6 +41,8 @@ const (
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
 	proxyHealthEndpoint = "/proxyhealth"
+
+	workspaceCtxKey = "workspace"
 )
 
 type Proxy struct {
@@ -98,8 +100,11 @@ func (p *Proxy) StartProxy() *http.Server {
 			},
 			LogStatus: true,
 			LogURI:    true,
-			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-				fmt.Printf("REQUEST: uri: %v, status: %v\n", v.URI, v.Status)
+			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
+				userID, _ := ctx.Get(context.SubKey).(string)
+				username, _ := ctx.Get(context.UsernameKey).(string)
+				workspace, _ := ctx.Get(workspaceCtxKey).(string)
+				fmt.Printf("REQUEST: method: %v, uri: %v, status: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, v.Status, workspace, userID, username)
 				return nil
 			},
 		}),
@@ -146,6 +151,7 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
 		return nil
 	}
+	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
 	if err != nil {
@@ -155,7 +161,7 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, ctx.Request(), cluster).ServeHTTP(ctx.Response().Writer, ctx.Request())
+	p.newReverseProxy(ctx, cluster).ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 
@@ -235,7 +241,8 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx echo.Context, req *http.Request, target *access.ClusterAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess) *httputil.ReverseProxy {
+	req := ctx.Request()
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
 		origin := req.URL.String()

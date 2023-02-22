@@ -1,8 +1,10 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	routev1 "github.com/openshift/api/route/v1"
 	"net/url"
 	"testing"
 
@@ -19,7 +21,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TestClusterServiceSuite struct {
@@ -75,6 +80,23 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		}
 		return nil, fmt.Errorf("space not found error")
 	}
+	inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+		if name != "tekton-results" {
+			return nil, errors.New("not found")
+		}
+		pp := &toolchainv1alpha1.ProxyPlugin{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: toolchainv1alpha1.ProxyPluginSpec{
+				OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+					Namespace: "tekton-results",
+					Name:      "tekton-results",
+				},
+			},
+		}
+		return pp, nil
+	}
 	s.Application.MockInformerService(inf)
 
 	svc := service.NewMemberClusterService(
@@ -91,7 +113,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			}
 
 			// when
-			_, err := svc.GetClusterAccess("789-ready", "", "")
+			_, err := svc.GetClusterAccess("789-ready", "", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "oopsi woopsi")
@@ -101,7 +123,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("userid is not found", func() {
 			// when
-			_, err := svc.GetClusterAccess("unknown_id", "", "")
+			_, err := svc.GetClusterAccess("unknown_id", "", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -109,7 +131,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("username is not found", func() {
 			// when
-			_, err := svc.GetClusterAccess("", "unknown_username", "")
+			_, err := svc.GetClusterAccess("", "unknown_username", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -117,7 +139,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("user is not provisioned yet", func() {
 			// when
-			_, err := svc.GetClusterAccess("456-not-ready", "", "")
+			_, err := svc.GetClusterAccess("456-not-ready", "", "", "")
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -137,7 +159,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			s.Application.MockInformerService(inf)
 
 			// when
-			_, err := svc.GetClusterAccess("789-ready", "", "smith2")
+			_, err := svc.GetClusterAccess("789-ready", "", "smith2", "")
 
 			// then
 			// original error is only logged so that it doesn't reveal information about a space that may not belong to the requestor
@@ -146,7 +168,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 		s.Run("space not found", func() {
 			// when
-			_, err := svc.GetClusterAccess("789-ready", "", "unknown") // unknown workspace requested
+			_, err := svc.GetClusterAccess("789-ready", "", "unknown", "") // unknown workspace requested
 
 			// then
 			require.EqualError(s.T(), err, "the requested space is not available")
@@ -168,7 +190,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			)
 			s.Run("default workspace case", func() {
 				// when
-				_, err := svc.GetClusterAccess("789-ready", "", "")
+				_, err := svc.GetClusterAccess("789-ready", "", "", "")
 
 				// then
 				require.EqualError(s.T(), err, "no member clusters found")
@@ -176,7 +198,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("workspace context case", func() {
 				// when
-				_, err := svc.GetClusterAccess("789-ready", "", "smith2")
+				_, err := svc.GetClusterAccess("789-ready", "", "smith2", "")
 
 				// then
 				require.EqualError(s.T(), err, "no member clusters found")
@@ -198,7 +220,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("default workspace case", func() {
 				// when
-				_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "")
+				_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "", "")
 
 				// then
 				require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -206,7 +228,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("workspace context case", func() {
 				// when
-				_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "unknown-cluster")
+				_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "unknown-cluster", "")
 
 				// then
 				require.EqualError(s.T(), err, "no member cluster found for space 'unknown-cluster'")
@@ -216,6 +238,38 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	s.Run("member found", func() {
 		memberClient := commontest.NewFakeClient(s.T())
+		memberArray := []*commoncluster.CachedToolchainCluster{
+			{
+				Config: &commoncluster.Config{
+					Name:        "member-1",
+					Type:        commoncluster.Member,
+					APIEndpoint: "https://api.endpoint.member-1.com:6443",
+					RestConfig: &rest.Config{
+						BearerToken: "def456",
+					},
+				},
+			},
+			{
+				Config: &commoncluster.Config{
+					Name:              "member-2",
+					APIEndpoint:       "https://api.endpoint.member-2.com:6443",
+					Type:              commoncluster.Member,
+					OperatorNamespace: "member-operator",
+					RestConfig: &rest.Config{
+						BearerToken: "abc123",
+					},
+				},
+				Client: memberClient,
+			},
+			{
+				Config: &commoncluster.Config{
+					Name:        "member-3",
+					APIEndpoint: "https://api.endpoint.member-3.com:6443",
+					Type:        commoncluster.Member,
+					RestConfig:  &rest.Config{},
+				},
+			},
+		}
 
 		svc := service.NewMemberClusterService(
 			fake.MemberClusterServiceContext{
@@ -224,48 +278,30 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			},
 			func(si *service.ServiceImpl) {
 				si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-					return []*commoncluster.CachedToolchainCluster{
-						{
-							Config: &commoncluster.Config{
-								Name:        "member-1",
-								Type:        commoncluster.Member,
-								APIEndpoint: "https://api.endpoint.member-1.com:6443",
-								RestConfig: &rest.Config{
-									BearerToken: "def456",
-								},
-							},
-						},
-						{
-							Config: &commoncluster.Config{
-								Name:              "member-2",
-								APIEndpoint:       "https://api.endpoint.member-2.com:6443",
-								Type:              commoncluster.Member,
-								OperatorNamespace: "member-operator",
-								RestConfig: &rest.Config{
-									BearerToken: "abc123",
-								},
-							},
-							Client: memberClient,
-						},
-						{
-							Config: &commoncluster.Config{
-								Name:        "member-3",
-								APIEndpoint: "https://api.endpoint.member-3.com:6443",
-								Type:        commoncluster.Member,
-								RestConfig:  &rest.Config{},
-							},
-						},
-					}
+					return memberArray
 				}
 			},
 		)
 
-		s.Run("verify cluster access", func() {
-			memberClient.MockGet = nil
+		s.Run("verify cluster access with route", func() {
+			memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+				route, ok := obj.(*routev1.Route)
+				if ok && key.Namespace == "tekton-results" && key.Name == "tekton-results" {
+					route.Namespace = key.Namespace
+					route.Name = key.Name
+					route.Status.Ingress = []routev1.RouteIngress{
+						{
+							Host: "https://api.endpoint.member-2.com:6443",
+						},
+					}
+					return nil
+				}
+				return memberClient.Client.Get(ctx, key, obj)
+			}
 			expectedToken := "abc123" // should match member 2 bearer token
 
 			// when
-			ca, err := svc.GetClusterAccess("789-ready", "", "")
+			ca, err := svc.GetClusterAccess("789-ready", "", "", "tekton-results")
 
 			// then
 			require.NoError(s.T(), err)
@@ -278,7 +314,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("cluster access correct when username provided", func() {
 				// when
-				ca, err := svc.GetClusterAccess("", "smith@", "")
+				ca, err := svc.GetClusterAccess("", "smith@", "", "tekton-results")
 
 				// then
 				require.NoError(s.T(), err)
@@ -291,7 +327,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("cluster access correct when using workspace context", func() {
 				// when
-				ca, err := svc.GetClusterAccess("789-ready", "", "smith2") // workspace-context specified
+				ca, err := svc.GetClusterAccess("789-ready", "", "smith2", "tekton-results") // workspace-context specified
 
 				// then
 				require.NoError(s.T(), err)
@@ -303,7 +339,79 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 				s.Run("another workspace on another cluster", func() {
 					// when
-					ca, err := svc.GetClusterAccess("789-ready", "", "teamspace") // workspace-context specified
+					mC := commontest.NewFakeClient(s.T())
+					mC.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						route, ok := obj.(*routev1.Route)
+						if ok && key.Namespace == "tekton-results" && key.Name == "tekton-results" {
+							route.Namespace = key.Namespace
+							route.Name = key.Name
+							route.Status.Ingress = []routev1.RouteIngress{
+								{
+									Host: "https://api.endpoint.member-1.com:6443",
+								},
+							}
+							return nil
+						}
+						return memberClient.Client.Get(ctx, key, obj)
+					}
+					memberArray[0].Client = mC
+					ca, err := svc.GetClusterAccess("789-ready", "", "teamspace", "tekton-results") // workspace-context specified
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), ca)
+					expectedURL, err := url.Parse("https://api.endpoint.member-1.com:6443")
+					require.NoError(s.T(), err)
+					s.assertClusterAccess(access.NewClusterAccess(*expectedURL, "def456", "smith"), ca)
+					assert.Equal(s.T(), "smith2", ca.Username())
+				})
+			})
+		})
+
+		s.Run("verify cluster access no route", func() {
+			memberClient.MockGet = nil
+			expectedToken := "abc123" // should match member 2 bearer token
+
+			// when
+			ca, err := svc.GetClusterAccess("789-ready", "", "", "")
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), ca)
+			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "smith2", ca.Username())
+
+			s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, ""), ca)
+
+			s.Run("cluster access correct when username provided", func() {
+				// when
+				ca, err := svc.GetClusterAccess("", "smith@", "", "")
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), ca)
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.Username())
+			})
+
+			s.Run("cluster access correct when using workspace context", func() {
+				// when
+				ca, err := svc.GetClusterAccess("789-ready", "", "smith2", "") // workspace-context specified
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), ca)
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
+				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
+				assert.Equal(s.T(), "smith2", ca.Username())
+
+				s.Run("another workspace on another cluster", func() {
+					// when
+					ca, err := svc.GetClusterAccess("789-ready", "", "teamspace", "") // workspace-context specified
 
 					// then
 					require.NoError(s.T(), err)

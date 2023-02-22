@@ -1,19 +1,23 @@
 package service
 
 import (
+	"context"
 	"fmt"
-	"net/url"
-
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"net/url"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
+	routev1 "github.com/openshift/api/route/v1"
+
 	errs "github.com/pkg/errors"
+
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type Option func(f *ServiceImpl)
@@ -36,7 +40,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyName string) (*access.ClusterAccess, error) {
 	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
@@ -47,7 +51,7 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*acc
 
 	// if workspace is not provided then return the default space access
 	if workspace == "" {
-		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername)
+		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyName)
 	}
 
 	// look up space
@@ -58,10 +62,10 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace string) (*acc
 		return nil, fmt.Errorf("the requested space is not available")
 	}
 
-	return s.accessForSpace(space, signup.CompliantUsername)
+	return s.accessForSpace(space, signup.CompliantUsername, proxyName)
 }
 
-func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -69,7 +73,7 @@ func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username st
 	}
 	for _, member := range members {
 		if member.Name == space.Status.TargetCluster {
-			apiURL, err := url.Parse(member.APIEndpoint)
+			apiURL, err := s.getMemberURL(proxyName, member)
 			if err != nil {
 				return nil, err
 			}
@@ -84,7 +88,7 @@ func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username st
 	return nil, errs.New(errMsg)
 }
 
-func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxyName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -94,7 +98,7 @@ func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username string
 		// also check that the member cluster name matches because the api endpoint is the same for both members
 		// in the e2e tests because a single cluster is used for testing multi-member scenarios
 		if member.APIEndpoint == apiEndpoint && member.Name == clusterName {
-			apiURL, err := url.Parse(member.APIEndpoint)
+			apiURL, err := s.getMemberURL(proxyName, member)
 			if err != nil {
 				return nil, err
 			}
@@ -105,4 +109,40 @@ func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username string
 	}
 
 	return nil, errs.New("no member cluster found for the user")
+}
+
+func (s *ServiceImpl) getMemberURL(proxyName string, member *cluster.CachedToolchainCluster) (*url.URL, error) {
+	if member == nil {
+		return nil, errs.New("nil member provided")
+	}
+	if len(proxyName) == 0 {
+		return url.Parse(member.APIEndpoint)
+	}
+	if member.Client == nil {
+		return nil, errs.New(fmt.Sprintf("client for member %s not set", member.Name))
+	}
+	proxyCfg, err := s.Services().InformerService().GetProxyPluginConfig(proxyName)
+	if err != nil {
+		return nil, errs.New(fmt.Sprintf("unable to get proxy config %s: %s", proxyName, err.Error()))
+	}
+	if proxyCfg.Spec.OpenShiftRouteTargetEndpoint == nil {
+		return nil, errs.New(fmt.Sprintf("the proxy plugin config %s does not define an openshift route endpoint", proxyName))
+	}
+	routeNamespace := proxyCfg.Spec.OpenShiftRouteTargetEndpoint.Namespace
+	routeName := proxyCfg.Spec.OpenShiftRouteTargetEndpoint.Name
+
+	proxyRoute := &routev1.Route{}
+	key := types.NamespacedName{
+		Namespace: routeNamespace,
+		Name:      routeName,
+	}
+	err = member.Client.Get(context.Background(), key, proxyRoute)
+	if err != nil {
+		return nil, err
+	}
+	if len(proxyRoute.Status.Ingress) == 0 {
+		return nil, fmt.Errorf("the route %q has not initialized to the point where the status ingress is populated", key.String())
+	}
+	return url.Parse(proxyRoute.Status.Ingress[0].Host)
+
 }

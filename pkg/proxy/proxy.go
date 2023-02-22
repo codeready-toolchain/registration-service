@@ -43,6 +43,8 @@ const (
 
 	proxyHealthEndpoint = "/proxyhealth"
 
+	pluginsEndpoint = "/plugins"
+
 	workspaceCtxKey = "workspace"
 )
 
@@ -148,13 +150,13 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	workspace, err := getWorkspaceContext(ctx.Request())
+	proxyName, workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
 		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyName)
 	if err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
@@ -175,22 +177,44 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	return nil
 }
 
-func getWorkspaceContext(req *http.Request) (string, error) {
+func getWorkspaceContext(req *http.Request) (string, string, error) {
 	path := req.URL.Path
+	proxyName := ""
+	// first string off any preceding proxy plugin url segment
+	if strings.HasPrefix(path, pluginsEndpoint) {
+		segments := strings.Split(path, "/")
+		// NOTE: a split on "/plugins" results in an array with 2 items.  One is the empty string, two is "plugins"
+		if len(segments) < 3 {
+			return "", "", fmt.Errorf("path %q not a proxied route request", path)
+		}
+		prefixToTrim := ""
+		// NOTE: just in case the Split behavior is golang version dependent, let's make sure the first entry is empty
+		if len(segments[0]) == 0 {
+			prefixToTrim = fmt.Sprintf("/%s/%s", segments[1], segments[2])
+			proxyName = segments[2]
+		} else {
+			prefixToTrim = fmt.Sprintf("/%s/%s", segments[0], segments[1])
+			proxyName = segments[1]
+		}
+		req.URL.Path = strings.TrimPrefix(path, prefixToTrim)
+		path = req.URL.Path
+	}
 	var workspace string
 	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/clusterroles
 	if strings.HasPrefix(path, "/workspaces/") {
 		segments := strings.Split(path, "/")
 		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api/clusterroles counts as 4
 		if len(segments) < 4 {
-			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
+			// NOTE, still return valid proxy name in case that helps with debug down the line
+			return proxyName, "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
 		}
 		// get the workspace segment eg. mycoolworkspace
 		workspace = segments[2]
 		// remove workspaces/mycoolworkspace from the request path before forwarding the request
 		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/workspaces/"+workspace)
 	}
-	return workspace, nil
+
+	return proxyName, workspace, nil
 }
 
 func customHTTPErrorHandler(cause error, ctx echo.Context) {

@@ -55,10 +55,10 @@ func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]*toolchainv1al
 	panic("not supposed to call ListSpaceBindings")
 }
 
-func NewSpace(targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
+func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
 	space := &toolchainv1alpha1.Space{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      compliantUserName,
+			Name:      name,
 			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceCreatorLabelKey: compliantUserName,

@@ -67,11 +67,11 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 		switch name {
 		case "noise1", "teamspace":
-			return fake.NewSpace("member-1", name), nil
+			return fake.NewSpace(name, "member-1", name), nil
 		case "smith2":
-			return fake.NewSpace("member-2", name), nil
+			return fake.NewSpace(name, "member-2", name), nil
 		case "unknown-cluster":
-			return fake.NewSpace("unknown-cluster", name), nil
+			return fake.NewSpace(name, "unknown-cluster", name), nil
 		}
 		return nil, fmt.Errorf("space not found error")
 	}

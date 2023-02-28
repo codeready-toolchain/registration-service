@@ -108,7 +108,6 @@ func (p *Proxy) StartProxy() *http.Server {
 				return nil
 			},
 		}),
-		middleware.Recover(),
 	)
 
 	// routes
@@ -145,18 +144,34 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	workspace, err := handleWorkspaceContext(ctx.Request())
+	workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		ctx.Logger().Error("unable to get workspace context", err)
-		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+		ctx.Logger().Error(errs.Wrap(err, "unable to get workspace context"))
+		responseWithError(ctx.Response().Writer, crterrors.NewBadRequest("unable to get workspace context", err.Error()))
 		return nil
 	}
 	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
 	if err != nil {
-		log.Error(nil, err, "unable to get target cluster")
+		ctx.Logger().Error(errs.Wrap(err, "unable to get target cluster"))
 		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
+		return nil
+	}
+
+	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
+	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
+	if err != nil {
+		ctx.Logger().Error(errs.Wrap(err, "unable to retrieve user workspaces"))
+		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error()))
+		return nil
+	}
+
+	requestedWorkspace := ctx.Param("workspace")
+	requestedNamespace := namespaceFromCtx(ctx)
+	if err := validateWorkspaceRequest(requestedWorkspace, requestedNamespace, workspaces); err != nil {
+		ctx.Logger().Info(errs.Wrap(err, "invalid workspace request")) // don't log as error since this is a user error
+		responseWithError(ctx.Response().Writer, crterrors.NewForbiddenError("invalid workspace request", err.Error()))
 		return nil
 	}
 
@@ -165,13 +180,13 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	return nil
 }
 
-func handleWorkspaceContext(req *http.Request) (string, error) {
+func getWorkspaceContext(req *http.Request) (string, error) {
 	path := req.URL.Path
 	var workspace string
-	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods
+	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/clusterroles
 	if strings.HasPrefix(path, "/workspaces/") {
 		segments := strings.Split(path, "/")
-		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api counts as 4
+		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api/clusterroles counts as 4
 		if len(segments) < 4 {
 			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
 		}
@@ -198,7 +213,7 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 
 			userID, username, err := p.extractUserID(ctx.Request())
 			if err != nil {
-				ctx.Logger().Error(err) // log the original error
+				ctx.Logger().Error(errs.Wrap(err, "invalid bearer token")) // log the original error
 				responseWithError(ctx.Response().Writer, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
 				return nil
 			}
@@ -372,4 +387,49 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 		}
 	}
 	req.Header.Set(ph, strings.Join(protocols, ","))
+}
+
+func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces []toolchainv1alpha1.Workspace) error {
+	// check workspace access
+	isHomeWSRequested := requestedWorkspace == ""
+
+	allowedWorkspace := -1
+	for i, w := range workspaces {
+		if w.Name == requestedWorkspace || (isHomeWSRequested && w.Status.Type == "home") {
+			allowedWorkspace = i
+			break
+		}
+	}
+	if allowedWorkspace == -1 {
+		return fmt.Errorf("access to workspace '%s' is forbidden", requestedWorkspace)
+	}
+
+	// check namespace access
+	if requestedNamespace != "" {
+		allowedNamespace := false
+		namespaces := workspaces[allowedWorkspace].Status.Namespaces
+		for _, ns := range namespaces {
+			if ns.Name == requestedNamespace {
+				allowedNamespace = true
+				break
+			}
+		}
+		if !allowedNamespace {
+			return fmt.Errorf("access to requested namespace '%s' is forbidden", requestedNamespace)
+		}
+	}
+	return nil
+}
+
+func namespaceFromCtx(ctx echo.Context) string {
+	path := ctx.Request().URL.Path
+	if strings.Index(path, "/namespaces/") > 0 {
+		segments := strings.Split(path, "/")
+		for i, segment := range segments {
+			if segment == "namespaces" && i+1 < len(segments) {
+				return segments[i+1]
+			}
+		}
+	}
+	return ""
 }

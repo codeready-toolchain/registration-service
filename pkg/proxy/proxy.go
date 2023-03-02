@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -107,7 +108,8 @@ func (p *Proxy) StartProxy() *http.Server {
 				workspace, _ := ctx.Get(workspaceCtxKey).(string)
 
 				code := v.Status
-				if ce, ok := v.Error.(*crterrors.Error); ok {
+				ce := &crterrors.Error{}
+				if errors.As(v.Error, &ce) {
 					code = ce.Code
 				}
 				fmt.Printf("REQUEST: method: %v, uri: %v, status: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, code, workspace, userID, username)
@@ -200,7 +202,8 @@ func getWorkspaceContext(req *http.Request) (string, error) {
 
 func customHTTPErrorHandler(cause error, ctx echo.Context) {
 	code := http.StatusInternalServerError
-	if ce, ok := cause.(*crterrors.Error); ok {
+	ce := &crterrors.Error{}
+	if errors.As(cause, &ce) {
 		code = ce.Code
 	}
 	ctx.Logger().Error(cause)

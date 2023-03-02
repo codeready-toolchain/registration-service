@@ -162,7 +162,7 @@ func (s *TestProxySuite) TestProxy() {
 
 				s.Run("unauthorized if workspace context is invalid", func() {
 					// when
-					req, _ := s.request()
+					req := s.request()
 					req.URL.Path = "http://localhost:8081/workspaces/myworkspace" // invalid workspace context
 					require.NotNil(s.T(), req)
 
@@ -178,7 +178,7 @@ func (s *TestProxySuite) TestProxy() {
 
 				s.Run("internal error if get accesses returns an error", func() {
 					// given
-					req, _ := s.request()
+					req := s.request()
 					fakeApp.Accesses = map[string]*access.ClusterAccess{}
 					fakeApp.Err = errors.New("some-error")
 
@@ -735,7 +735,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 	}
 }
 
-func (s *TestProxySuite) request() (*http.Request, string) {
+func (s *TestProxySuite) request() *http.Request {
 	req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), req)
@@ -743,7 +743,7 @@ func (s *TestProxySuite) request() (*http.Request, string) {
 	require.NoError(s.T(), err)
 	req.Header.Set("Authorization", "Bearer "+s.token(userID))
 
-	return req, userID.String()
+	return req
 }
 
 func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.ExtraClaim) string {

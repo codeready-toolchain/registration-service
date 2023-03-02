@@ -100,6 +100,7 @@ func (p *Proxy) StartProxy() *http.Server {
 			Skipper: func(ctx echo.Context) bool {
 				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check so it doesn't pollute the logs
 			},
+			LogMethod: true,
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
@@ -107,12 +108,7 @@ func (p *Proxy) StartProxy() *http.Server {
 				username, _ := ctx.Get(context.UsernameKey).(string)
 				workspace, _ := ctx.Get(workspaceCtxKey).(string)
 
-				code := v.Status
-				ce := &crterrors.Error{}
-				if errors.As(v.Error, &ce) {
-					code = ce.Code
-				}
-				fmt.Printf("REQUEST: method: %v, uri: %v, status: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, code, workspace, userID, username)
+				fmt.Printf("REQUEST: method: %v, uri: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, workspace, userID, username)
 				return nil
 			},
 		}),
@@ -154,21 +150,18 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 
 	workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "unable to get workspace context"))
 		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
 	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "unable to get target cluster"))
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 
 	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
 	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
 	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "unable to retrieve user workspaces"))
 		return crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}
 
@@ -223,7 +216,6 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 
 			userID, username, err := p.extractUserID(ctx.Request())
 			if err != nil {
-				ctx.Logger().Error(errs.Wrap(err, "invalid bearer token")) // log the original error
 				return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
 			}
 			ctx.Set(context.SubKey, userID)

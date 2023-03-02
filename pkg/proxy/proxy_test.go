@@ -125,7 +125,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected\n")
+					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected")
 				})
 
 				s.Run("unauthorized if can't parse token", func() {
@@ -140,7 +140,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments")
 				})
 
 				s.Run("unauthorized if can't extract userID from a valid token", func() {
@@ -157,7 +157,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
 				})
 
 				s.Run("unauthorized if workspace context is invalid", func() {
@@ -173,7 +173,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
-					s.assertResponseBody(resp, "unable to get workspace context: workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...\n")
+					s.assertResponseBody(resp, "unable to get workspace context: workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...")
 				})
 
 				s.Run("internal error if get accesses returns an error", func() {
@@ -189,7 +189,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-					s.assertResponseBody(resp, "unable to get target cluster: some-error\n")
+					s.assertResponseBody(resp, "unable to get target cluster: some-error")
 				})
 			})
 
@@ -256,7 +256,7 @@ func (s *TestProxySuite) TestProxy() {
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), resp)
 						assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-						s.assertResponseBody(resp, tc.ExpectedError+"\n")
+						s.assertResponseBody(resp, tc.ExpectedError)
 					})
 				}
 			})
@@ -703,7 +703,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 					},
 				},
 			}},
-			expectedErr: "access to requested namespace 'notexist' is forbidden",
+			expectedErr: "access to namespace 'notexist' in workspace 'myworkspace' is forbidden",
 		},
 		"namespace not allowed for home workspace": {
 			requestedWorkspace: "", // home workspace is default when no workspace is specified
@@ -719,7 +719,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 					},
 				},
 			}},
-			expectedErr: "access to requested namespace 'myns' is forbidden",
+			expectedErr: "access to namespace 'myns' in workspace 'homews' is forbidden",
 		},
 	}
 

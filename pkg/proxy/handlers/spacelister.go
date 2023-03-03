@@ -101,11 +101,7 @@ func (s *SpaceLister) listSpaceBindingsForUser(ctx echo.Context, murName string)
 		requirements = append(requirements, *spaceSelector)
 	}
 
-	spaceBindings, err := s.GetInformerServiceFunc().ListSpaceBindings(requirements...)
-	if err != nil {
-		return nil, err
-	}
-	return spaceBindings, nil
+	return s.GetInformerServiceFunc().ListSpaceBindings(requirements...)
 }
 
 func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []*toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {

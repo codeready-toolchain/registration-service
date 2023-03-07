@@ -16,6 +16,7 @@ import (
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -31,6 +32,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
 )
 
@@ -122,7 +125,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected\n")
+					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected")
 				})
 
 				s.Run("unauthorized if can't parse token", func() {
@@ -137,7 +140,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments")
 				})
 
 				s.Run("unauthorized if can't extract userID from a valid token", func() {
@@ -154,12 +157,28 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing\n")
+					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
+				})
+
+				s.Run("unauthorized if workspace context is invalid", func() {
+					// when
+					req := s.request()
+					req.URL.Path = "http://localhost:8081/workspaces/myworkspace" // invalid workspace context
+					require.NotNil(s.T(), req)
+
+					// when
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
+					s.assertResponseBody(resp, "unable to get workspace context: workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...")
 				})
 
 				s.Run("internal error if get accesses returns an error", func() {
 					// given
-					req, _ := s.request()
+					req := s.request()
 					fakeApp.Accesses = map[string]*access.ClusterAccess{}
 					fakeApp.Err = errors.New("some-error")
 
@@ -170,7 +189,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-					s.assertResponseBody(resp, "unable to get target cluster: some-error\n")
+					s.assertResponseBody(resp, "unable to get target cluster: some-error")
 				})
 			})
 
@@ -237,7 +256,7 @@ func (s *TestProxySuite) TestProxy() {
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), resp)
 						assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-						s.assertResponseBody(resp, tc.ExpectedError+"\n")
+						s.assertResponseBody(resp, tc.ExpectedError)
 					})
 				}
 			})
@@ -386,7 +405,7 @@ func (s *TestProxySuite) TestProxy() {
 						// workspace context. Both should yield the same results.
 						for workspaceContext, reqPath := range map[string]string{
 							"default workspace": "http://localhost:8081/api/mycoolworkspace/pods",
-							"workspace context": "http://localhost:8081/workspaces/mycoolworkspace/api/pods",
+							"workspace context": "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
 						} {
 							s.Run(workspaceContext, func() {
 								// given
@@ -417,35 +436,56 @@ func (s *TestProxySuite) TestProxy() {
 											}
 										}
 									})
-
-									fakeApp.SignupServiceMock = fake.NewSignupService(fake.Signup("someUserID", &signup.Signup{
-										APIEndpoint:       "https://api.endpoint.member-1.com:6443",
-										ClusterName:       "member-1",
-										CompliantUsername: "smith2",
-										Username:          "smith@",
-										Status: signup.Status{
-											Ready: true,
-										},
-									}), fake.Signup(userID.String(), &signup.Signup{
-										APIEndpoint:       testServer.URL,
-										ClusterName:       "member-2",
-										CompliantUsername: "smith2",
-										Username:          "smith@",
-										Status: signup.Status{
-											Ready: true,
-										},
-									}))
+									fakeApp.SignupServiceMock = fake.NewSignupService(
+										fake.Signup("someUserID", &signup.Signup{
+											Name:              "smith1",
+											APIEndpoint:       "https://api.endpoint.member-1.com:6443",
+											ClusterName:       "member-1",
+											CompliantUsername: "smith1",
+											Username:          "smith1@",
+											Status: signup.Status{
+												Ready: true,
+											},
+										}),
+										fake.Signup(userID.String(), &signup.Signup{
+											Name:              "smith2",
+											APIEndpoint:       testServer.URL,
+											ClusterName:       "member-2",
+											CompliantUsername: "smith2",
+											Username:          "smith2@",
+											Status: signup.Status{
+												Ready: true,
+											},
+										}),
+									)
 									s.Application.MockSignupService(fakeApp.SignupServiceMock)
 									inf := fake.NewFakeInformer()
 									inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 										switch name {
 										case "mycoolworkspace":
-											return fake.NewSpace("member-2", name), nil
+											return fake.NewSpace("mycoolworkspace", "member-2", "smith2"), nil
 										}
 										return nil, fmt.Errorf("space not found error")
 									}
+									inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+										// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
+										spaceBindings := []*toolchainv1alpha1.SpaceBinding{}
+										for _, req := range reqs {
+											if req.Values().List()[0] == "smith2" {
+												spaceBindings = append(spaceBindings, fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
+											}
+										}
+										return spaceBindings, nil
+									}
 									s.Application.MockInformerService(inf)
 									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+
+									p.spaceLister = &handlers.SpaceLister{
+										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+										GetInformerServiceFunc: func() appservice.InformerService {
+											return inf
+										},
+									}
 								}
 
 								// when
@@ -534,7 +574,7 @@ func (s *TestProxySuite) TestSingleJoiningSlash() {
 	assert.Equal(s.T(), "/proxy/subpath/api/namespace/pods/", singleJoiningSlash("/proxy/subpath/", "/api/namespace/pods/"))
 }
 
-func (s *TestProxySuite) TestHandleWorkspaceContext() {
+func (s *TestProxySuite) TestGetWorkspaceContext() {
 	tests := map[string]struct {
 		path              string
 		expectedWorkspace string
@@ -574,7 +614,7 @@ func (s *TestProxySuite) TestHandleWorkspaceContext() {
 					Path: tc.path,
 				},
 			}
-			workspace, err := handleWorkspaceContext(req)
+			workspace, err := getWorkspaceContext(req)
 			if tc.expectedErr == "" {
 				require.NoError(s.T(), err)
 			} else {
@@ -586,7 +626,116 @@ func (s *TestProxySuite) TestHandleWorkspaceContext() {
 	}
 }
 
-func (s *TestProxySuite) request() (*http.Request, string) {
+func (s *TestProxySuite) TestValidateWorkspaceRequest() {
+	tests := map[string]struct {
+		requestedWorkspace string
+		requestedNamespace string
+		workspaces         []toolchainv1alpha1.Workspace
+		expectedErr        string
+	}{
+		"valid workspace request": {
+			requestedWorkspace: "myworkspace",
+			requestedNamespace: "ns-dev",
+			workspaces: []toolchainv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "myworkspace",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Namespaces: []toolchainv1alpha1.SpaceNamespace{
+						{Name: "ns-dev"},
+						{Name: "ns-stage"},
+					},
+				},
+			},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "otherworkspace",
+					},
+					Status: toolchainv1alpha1.WorkspaceStatus{
+						Namespaces: []toolchainv1alpha1.SpaceNamespace{
+							{Name: "ns-test"},
+						},
+					},
+				}},
+			expectedErr: "",
+		},
+		"valid home workspace request": {
+			requestedWorkspace: "", // home workspace is default when no workspace is specified
+			requestedNamespace: "test-1234",
+			workspaces: []toolchainv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "homews",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Type: "home", // home workspace
+					Namespaces: []toolchainv1alpha1.SpaceNamespace{
+						{Name: "test-1234"},
+					},
+				},
+			}},
+			expectedErr: "",
+		},
+		"workspace not allowed": {
+			requestedWorkspace: "notexist",
+			requestedNamespace: "myns",
+			workspaces: []toolchainv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "myworkspace",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Namespaces: []toolchainv1alpha1.SpaceNamespace{
+						{Name: "ns-dev"},
+					},
+				},
+			}},
+			expectedErr: "access to workspace 'notexist' is forbidden",
+		},
+		"namespace not allowed": {
+			requestedWorkspace: "myworkspace",
+			requestedNamespace: "notexist",
+			workspaces: []toolchainv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "myworkspace",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Namespaces: []toolchainv1alpha1.SpaceNamespace{
+						{Name: "ns-dev"},
+					},
+				},
+			}},
+			expectedErr: "access to namespace 'notexist' in workspace 'myworkspace' is forbidden",
+		},
+		"namespace not allowed for home workspace": {
+			requestedWorkspace: "", // home workspace is default when no workspace is specified
+			requestedNamespace: "myns",
+			workspaces: []toolchainv1alpha1.Workspace{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "homews",
+				},
+				Status: toolchainv1alpha1.WorkspaceStatus{
+					Type: "home", // home workspace
+					Namespaces: []toolchainv1alpha1.SpaceNamespace{
+						{Name: "test-1234"}, // namespace does not match the requested one
+					},
+				},
+			}},
+			expectedErr: "access to namespace 'myns' in workspace 'homews' is forbidden",
+		},
+	}
+
+	for k, tc := range tests {
+		s.T().Run(k, func(t *testing.T) {
+			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces)
+			if tc.expectedErr == "" {
+				require.NoError(s.T(), err)
+			} else {
+				require.EqualError(s.T(), err, tc.expectedErr)
+			}
+		})
+	}
+}
+
+func (s *TestProxySuite) request() *http.Request {
 	req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), req)
@@ -594,7 +743,7 @@ func (s *TestProxySuite) request() (*http.Request, string) {
 	require.NoError(s.T(), err)
 	req.Header.Set("Authorization", "Bearer "+s.token(userID))
 
-	return req, userID.String()
+	return req
 }
 
 func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.ExtraClaim) string {

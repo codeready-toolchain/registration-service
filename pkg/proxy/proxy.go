@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,6 +86,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	// start server
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
+	router.HTTPErrorHandler = customHTTPErrorHandler
 
 	// middleware before routing
 	router.Pre(
@@ -98,17 +100,18 @@ func (p *Proxy) StartProxy() *http.Server {
 			Skipper: func(ctx echo.Context) bool {
 				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check so it doesn't pollute the logs
 			},
+			LogMethod: true,
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
 				userID, _ := ctx.Get(context.SubKey).(string)
 				username, _ := ctx.Get(context.UsernameKey).(string)
 				workspace, _ := ctx.Get(workspaceCtxKey).(string)
-				fmt.Printf("REQUEST: method: %v, uri: %v, status: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, v.Status, workspace, userID, username)
+
+				fmt.Printf("REQUEST: method: %v, uri: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, workspace, userID, username)
 				return nil
 			},
 		}),
-		middleware.Recover(),
 	)
 
 	// routes
@@ -145,19 +148,26 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	workspace, err := handleWorkspaceContext(ctx.Request())
+	workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		ctx.Logger().Error("unable to get workspace context", err)
-		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
-		return nil
+		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
 	if err != nil {
-		log.Error(nil, err, "unable to get target cluster")
-		responseWithError(ctx.Response().Writer, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error()))
-		return nil
+		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+	}
+
+	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
+	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
+	if err != nil {
+		return crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+	}
+
+	requestedNamespace := namespaceFromCtx(ctx)
+	if err := validateWorkspaceRequest(workspace, requestedNamespace, workspaces); err != nil {
+		return crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
@@ -165,13 +175,13 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	return nil
 }
 
-func handleWorkspaceContext(req *http.Request) (string, error) {
+func getWorkspaceContext(req *http.Request) (string, error) {
 	path := req.URL.Path
 	var workspace string
-	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/pods
+	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/clusterroles
 	if strings.HasPrefix(path, "/workspaces/") {
 		segments := strings.Split(path, "/")
-		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api counts as 4
+		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api/clusterroles counts as 4
 		if len(segments) < 4 {
 			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
 		}
@@ -183,8 +193,16 @@ func handleWorkspaceContext(req *http.Request) (string, error) {
 	return workspace, nil
 }
 
-func responseWithError(res http.ResponseWriter, err *crterrors.Error) {
-	http.Error(res, err.Error(), err.Code)
+func customHTTPErrorHandler(cause error, ctx echo.Context) {
+	code := http.StatusInternalServerError
+	ce := &crterrors.Error{}
+	if errors.As(cause, &ce) {
+		code = ce.Code
+	}
+	ctx.Logger().Error(cause)
+	if err := ctx.String(code, cause.Error()); err != nil {
+		ctx.Logger().Error(err)
+	}
 }
 
 // addUserContext updates echo.Context with the User ID extracted from the Bearer token.
@@ -198,9 +216,7 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 
 			userID, username, err := p.extractUserID(ctx.Request())
 			if err != nil {
-				ctx.Logger().Error(err) // log the original error
-				responseWithError(ctx.Response().Writer, crterrors.NewUnauthorizedError("invalid bearer token", err.Error()))
-				return nil
+				return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
 			}
 			ctx.Set(context.SubKey, userID)
 			ctx.Set(context.UsernameKey, username)
@@ -372,4 +388,49 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 		}
 	}
 	req.Header.Set(ph, strings.Join(protocols, ","))
+}
+
+func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces []toolchainv1alpha1.Workspace) error {
+	// check workspace access
+	isHomeWSRequested := requestedWorkspace == ""
+
+	allowedWorkspace := -1
+	for i, w := range workspaces {
+		if w.Name == requestedWorkspace || (isHomeWSRequested && w.Status.Type == "home") {
+			allowedWorkspace = i
+			break
+		}
+	}
+	if allowedWorkspace == -1 {
+		return fmt.Errorf("access to workspace '%s' is forbidden", requestedWorkspace)
+	}
+
+	// check namespace access
+	if requestedNamespace != "" {
+		allowedNamespace := false
+		namespaces := workspaces[allowedWorkspace].Status.Namespaces
+		for _, ns := range namespaces {
+			if ns.Name == requestedNamespace {
+				allowedNamespace = true
+				break
+			}
+		}
+		if !allowedNamespace {
+			return fmt.Errorf("access to namespace '%s' in workspace '%s' is forbidden", requestedNamespace, workspaces[allowedWorkspace].Name)
+		}
+	}
+	return nil
+}
+
+func namespaceFromCtx(ctx echo.Context) string {
+	path := ctx.Request().URL.Path
+	if strings.Index(path, "/namespaces/") > 0 {
+		segments := strings.Split(path, "/")
+		for i, segment := range segments {
+			if segment == "namespaces" && i+1 < len(segments) {
+				return segments[i+1]
+			}
+		}
+	}
+	return ""
 }

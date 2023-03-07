@@ -126,16 +126,8 @@ func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindin
 		// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
 		ownerName = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
 
-		// TODO get namespaces from Space status once it's implemented
-		namespaces := []toolchainv1alpha1.SpaceNamespace{
-			{
-				Name: spaceName + "-tenant",
-				Type: "default",
-			},
-		}
-
 		wsOptions := []commonproxy.WorkspaceOption{
-			commonproxy.WithNamespaces(namespaces),
+			commonproxy.WithNamespaces(space.Status.ProvisionedNamespaces),
 			commonproxy.WithOwner(ownerName),
 			commonproxy.WithRole(spaceBinding.Spec.SpaceRole),
 			commonproxy.WithObjectMetaFrom(space.ObjectMeta),

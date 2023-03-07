@@ -300,8 +300,11 @@ func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isH
 		commonproxy.WithObjectMetaFrom(space.ObjectMeta),
 		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
 			{
-				Name: name + "-tenant",
+				Name: "john-dev",
 				Type: "default",
+			},
+			{
+				Name: "john-stage",
 			},
 		}),
 		commonproxy.WithOwner(name),

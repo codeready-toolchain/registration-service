@@ -600,6 +600,12 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			expectedPath:      "/api/pods",
 			expectedErr:       "",
 		},
+		"no workspace context but plugins in kube api portion": {
+			path:              "/api/plugins/something",
+			expectedWorkspace: "",
+			expectedPath:      "/api/plugins/something",
+			expectedErr:       "",
+		},
 		"workspace instead of workspaces": {
 			path:              "/workspace/myworkspace/api",
 			expectedWorkspace: "",
@@ -610,6 +616,13 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			path:              "/plugins/tekton-results/workspaces/myworkspace/api",
 			expectedWorkspace: "myworkspace",
 			expectedPath:      "/api",
+			expectedErr:       "",
+			expectedProxy:     "tekton-results",
+		},
+		"valid workspace context with route plus plugin in kube api portion": {
+			path:              "/plugins/tekton-results/workspaces/myworkspace/api/plugins/something",
+			expectedWorkspace: "myworkspace",
+			expectedPath:      "/api/plugins/something",
 			expectedErr:       "",
 			expectedProxy:     "tekton-results",
 		},

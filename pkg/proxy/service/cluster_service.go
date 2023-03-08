@@ -40,7 +40,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyName string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
 	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyName st
 
 	// if workspace is not provided then return the default space access
 	if workspace == "" {
-		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyName)
+		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyPluginName)
 	}
 
 	// look up space
@@ -62,10 +62,10 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyName st
 		return nil, fmt.Errorf("the requested space is not available")
 	}
 
-	return s.accessForSpace(space, signup.CompliantUsername, proxyName)
+	return s.accessForSpace(space, signup.CompliantUsername, proxyPluginName)
 }
 
-func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyName string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -73,7 +73,7 @@ func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, p
 	}
 	for _, member := range members {
 		if member.Name == space.Status.TargetCluster {
-			apiURL, err := s.getMemberURL(proxyName, member)
+			apiURL, err := s.getMemberURL(proxyPluginName, member)
 			if err != nil {
 				return nil, err
 			}
@@ -88,7 +88,7 @@ func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, p
 	return nil, errs.New(errMsg)
 }
 
-func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxyName string) (*access.ClusterAccess, error) {
+func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -98,7 +98,7 @@ func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxy
 		// also check that the member cluster name matches because the api endpoint is the same for both members
 		// in the e2e tests because a single cluster is used for testing multi-member scenarios
 		if member.APIEndpoint == apiEndpoint && member.Name == clusterName {
-			apiURL, err := s.getMemberURL(proxyName, member)
+			apiURL, err := s.getMemberURL(proxyPluginName, member)
 			if err != nil {
 				return nil, err
 			}
@@ -111,22 +111,22 @@ func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxy
 	return nil, errs.New("no member cluster found for the user")
 }
 
-func (s *ServiceImpl) getMemberURL(proxyName string, member *cluster.CachedToolchainCluster) (*url.URL, error) {
+func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.CachedToolchainCluster) (*url.URL, error) {
 	if member == nil {
 		return nil, errs.New("nil member provided")
 	}
-	if len(proxyName) == 0 {
+	if len(proxyPluginName) == 0 {
 		return url.Parse(member.APIEndpoint)
 	}
 	if member.Client == nil {
 		return nil, errs.New(fmt.Sprintf("client for member %s not set", member.Name))
 	}
-	proxyCfg, err := s.Services().InformerService().GetProxyPluginConfig(proxyName)
+	proxyCfg, err := s.Services().InformerService().GetProxyPluginConfig(proxyPluginName)
 	if err != nil {
-		return nil, errs.New(fmt.Sprintf("unable to get proxy config %s: %s", proxyName, err.Error()))
+		return nil, errs.New(fmt.Sprintf("unable to get proxy config %s: %s", proxyPluginName, err.Error()))
 	}
 	if proxyCfg.Spec.OpenShiftRouteTargetEndpoint == nil {
-		return nil, errs.New(fmt.Sprintf("the proxy plugin config %s does not define an openshift route endpoint", proxyName))
+		return nil, errs.New(fmt.Sprintf("the proxy plugin config %s does not define an openshift route endpoint", proxyPluginName))
 	}
 	routeNamespace := proxyCfg.Spec.OpenShiftRouteTargetEndpoint.Namespace
 	routeName := proxyCfg.Spec.OpenShiftRouteTargetEndpoint.Name

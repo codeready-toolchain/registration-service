@@ -37,7 +37,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(userID, username, workspace, proxyName string) (*access.ClusterAccess, error)
+	GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

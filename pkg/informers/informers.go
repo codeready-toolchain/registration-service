@@ -60,9 +60,9 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	userSignupInformer := genericUserSignupInformer.Informer()
 
 	// Proxy plugins
-	proxyPluginsInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.ProxyPluginsPlural})
-	informer.ProxyPluginConfig = proxyPluginsInformer.Lister()
-	proxyPluginConfigMapInformer := proxyPluginsInformer.Informer()
+	proxyPluginInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.ProxyPluginsPlural})
+	informer.ProxyPluginConfig = proxyPluginInformer.Lister()
+	proxyPluginConfigInformer := proxyPluginInformer.Informer()
 
 	stopper := make(chan struct{})
 
@@ -75,7 +75,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 		spaceBindingInformer.HasSynced,
 		toolchainstatusInformer.HasSynced,
 		userSignupInformer.HasSynced,
-		proxyPluginConfigMapInformer.HasSynced,
+		proxyPluginConfigInformer.HasSynced,
 	) {
 		err := fmt.Errorf("timed out waiting for caches to sync")
 		log.Error(nil, err, "Failed to create informers")

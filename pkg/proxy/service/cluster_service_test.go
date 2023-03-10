@@ -291,7 +291,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					route.Name = key.Name
 					route.Status.Ingress = []routev1.RouteIngress{
 						{
-							Host: "https://api.endpoint.member-2.com:6443",
+							Host: "https://myservice.endpoint.member-2.com",
 						},
 					}
 					return nil
@@ -306,7 +306,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			// then
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), ca)
-			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+			expectedURL, err := url.Parse("https://myservice.endpoint.member-2.com")
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), "smith2", ca.Username())
 
@@ -319,7 +319,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				// then
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), ca)
-				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				expectedURL, err := url.Parse("https://myservice.endpoint.member-2.com")
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 				assert.Equal(s.T(), "smith2", ca.Username())
@@ -332,7 +332,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				// then
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), ca)
-				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				expectedURL, err := url.Parse("https://myservice.endpoint.member-2.com")
 				require.NoError(s.T(), err)
 				s.assertClusterAccess(access.NewClusterAccess(*expectedURL, expectedToken, "smith"), ca)
 				assert.Equal(s.T(), "smith2", ca.Username())

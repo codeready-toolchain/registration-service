@@ -43,7 +43,7 @@ const (
 
 	proxyHealthEndpoint = "/proxyhealth"
 
-	pluginsEndpoint = "/plugins"
+	pluginsEndpoint = "/plugins/"
 
 	workspaceCtxKey = "workspace"
 )
@@ -183,9 +183,16 @@ func getWorkspaceContext(req *http.Request) (string, string, error) {
 	// first string off any preceding proxy plugin url segment
 	if strings.HasPrefix(path, pluginsEndpoint) {
 		segments := strings.Split(path, "/")
-		// NOTE: a split on "/plugins" results in an array with 2 items.  One is the empty string, two is "plugins"
+		// NOTE: a split on "/plugins/" results in an array with 2 items.  One is the empty string, two is "plugins", 3 is empty string
+		// behavior is not unique to "/";  "," and ",plugins," works the same way
 		if len(segments) < 3 {
 			return "", "", fmt.Errorf("path %q not a proxied route request", path)
+		}
+		if len(segments) == 3 {
+			// need to distinguish between the third entry being "" vs "<plugin-name>"
+			if len(strings.TrimSpace(segments[2])) == 0 {
+				return "", "", fmt.Errorf("path %q not a proxied route request", path)
+			}
 		}
 		prefixToTrim := ""
 		// NOTE: just in case the Split behavior is golang version dependent, let's make sure the first entry is empty

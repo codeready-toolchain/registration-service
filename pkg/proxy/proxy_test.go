@@ -580,7 +580,7 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 		expectedWorkspace string
 		expectedPath      string
 		expectedErr       string
-		expectedProxy     string
+		expectedPlugin    string
 	}{
 		"valid workspace context": {
 			path:              "/workspaces/myworkspace/api",
@@ -612,56 +612,61 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			expectedPath:      "/workspace/myworkspace/api",
 			expectedErr:       "",
 		},
-		"valid workspace context with route": {
+		"valid workspace context with plugin": {
 			path:              "/plugins/tekton-results/workspaces/myworkspace/api",
 			expectedWorkspace: "myworkspace",
 			expectedPath:      "/api",
 			expectedErr:       "",
-			expectedProxy:     "tekton-results",
+			expectedPlugin:    "tekton-results",
 		},
-		"valid workspace context with route plus plugin in kube api portion": {
+		"valid workspace context with plugin plus another plugin in kube api portion": {
 			path:              "/plugins/tekton-results/workspaces/myworkspace/api/plugins/something",
 			expectedWorkspace: "myworkspace",
 			expectedPath:      "/api/plugins/something",
 			expectedErr:       "",
-			expectedProxy:     "tekton-results",
+			expectedPlugin:    "tekton-results",
 		},
-		// the pre-plugin testcases all assumed /workspace would exists or /api/... exists; should we assume /plugins/<plugin name>/workspace or /plugins/<plugin name/api/... exists?
-		"no specific plugin segment": {
+		"no specific plugin segment no trailing slash": {
 			path:              "/plugins",
 			expectedWorkspace: "",
 			expectedPath:      "/plugins",
-			expectedErr:       "path \"/plugins\" not a proxied route request",
-			expectedProxy:     "",
+			expectedErr:       "",
+			expectedPlugin:    "",
 		},
-		// the pre-plugin testcases all assumed /workspace would exists or /api/... exists; should we assume /plugins/<plugin name>/workspace or /plugins/<plugin name/api/... exists?
+		"no specific plugin segment with trailing slash": {
+			path:              "/plugins/",
+			expectedWorkspace: "",
+			expectedPath:      "/plugins/",
+			expectedErr:       "path \"/plugins/\" not a proxied route request",
+			expectedPlugin:    "",
+		},
 		"plugin spec but nothing else": {
 			path:              "/plugins/whatever",
 			expectedWorkspace: "",
 			expectedPath:      "",
 			expectedErr:       "",
-			expectedProxy:     "whatever",
+			expectedPlugin:    "whatever",
 		},
 		"invalid workspace context with route": {
 			path:              "/plugins/tekton-results/workspaces/myworkspace",
 			expectedWorkspace: "",
 			expectedPath:      "/workspaces/myworkspace",
 			expectedErr:       "workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...",
-			expectedProxy:     "tekton-results",
+			expectedPlugin:    "tekton-results",
 		},
 		"no workspace context with route": {
 			path:              "/plugins/tekton-results/api/pods",
 			expectedWorkspace: "",
 			expectedPath:      "/api/pods",
 			expectedErr:       "",
-			expectedProxy:     "tekton-results",
+			expectedPlugin:    "tekton-results",
 		},
 		"workspace instead of workspaces with route": {
 			path:              "/plugins/tekton-results/workspace/myworkspace/api",
 			expectedWorkspace: "",
 			expectedPath:      "/workspace/myworkspace/api",
 			expectedErr:       "",
-			expectedProxy:     "tekton-results",
+			expectedPlugin:    "tekton-results",
 		},
 	}
 
@@ -680,7 +685,7 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			}
 			assert.Equal(s.T(), tc.expectedWorkspace, workspace, fmt.Sprintf("failed for tc %s", k))
 			assert.Equal(s.T(), tc.expectedPath, req.URL.Path, fmt.Sprintf("failed for tc %s", k))
-			assert.Equal(s.T(), tc.expectedProxy, proxy, fmt.Sprintf("failed for tc %s", k))
+			assert.Equal(s.T(), tc.expectedPlugin, proxy, fmt.Sprintf("failed for tc %s", k))
 		})
 	}
 }

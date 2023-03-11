@@ -647,11 +647,25 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			expectedErr:       "",
 			expectedPlugin:    "whatever",
 		},
-		"invalid workspace context with route": {
+		"valid workspace context with route": {
 			path:              "/plugins/tekton-results/workspaces/myworkspace",
+			expectedWorkspace: "myworkspace",
+			expectedPath:      "",
+			expectedErr:       "",
+			expectedPlugin:    "tekton-results",
+		},
+		"invalid workspace context with route": {
+			path:              "/plugins/tekton-results/workspaces/",
 			expectedWorkspace: "",
-			expectedPath:      "/workspaces/myworkspace",
-			expectedErr:       "workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...",
+			expectedPath:      "/workspaces/",
+			expectedErr:       "workspace request path has too few segments '/workspaces/'; expected path format: /workspaces/<workspace_name>/<optional path>",
+			expectedPlugin:    "",
+		},
+		"plugin and workspaces as the sub path": {
+			path:              "/plugins/tekton-results/workspaces",
+			expectedWorkspace: "",
+			expectedPath:      "/workspaces",
+			expectedErr:       "",
 			expectedPlugin:    "tekton-results",
 		},
 		"no workspace context with route": {

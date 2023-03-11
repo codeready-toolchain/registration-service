@@ -3,15 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
-	"net/url"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"net/url"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -143,6 +142,17 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 	if len(proxyRoute.Status.Ingress) == 0 {
 		return nil, fmt.Errorf("the route %q has not initialized to the point where the status ingress is populated", key.String())
 	}
-	return url.Parse(proxyRoute.Status.Ingress[0].Host)
+
+	scheme := ""
+	port := proxyRoute.Spec.Port
+	switch {
+	case port != nil && port.String() == "http":
+		scheme = "http://"
+	case port != nil && port.String() == "https":
+		scheme = "https://"
+	default:
+		scheme = "https://"
+	}
+	return url.Parse(scheme + proxyRoute.Status.Ingress[0].Host)
 
 }

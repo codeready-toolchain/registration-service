@@ -291,7 +291,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					route.Name = key.Name
 					route.Status.Ingress = []routev1.RouteIngress{
 						{
-							Host: "https://myservice.endpoint.member-2.com",
+							Host: "myservice.endpoint.member-2.com",
 						},
 					}
 					return nil
@@ -347,7 +347,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 							route.Name = key.Name
 							route.Status.Ingress = []routev1.RouteIngress{
 								{
-									Host: "https://api.endpoint.member-1.com:6443",
+									Host: "api.endpoint.member-1.com:6443",
 								},
 							}
 							return nil

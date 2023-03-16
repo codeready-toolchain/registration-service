@@ -173,7 +173,7 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, cluster).ServeHTTP(ctx.Response().Writer, ctx.Request())
+	p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0).ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 
@@ -297,7 +297,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, isPlugin bool) *httputil.ReverseProxy {
 	req := ctx.Request()
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
@@ -305,6 +305,12 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess) 
 		req.URL.Scheme = target.APIURL().Scheme
 		req.URL.Host = target.APIURL().Host
 		req.URL.Path = singleJoiningSlash(target.APIURL().Path, req.URL.Path)
+		if isPlugin {
+			// for non k8s clients testing, like vanilla http clients accessing plugin proxy flows, testing has proven that the request
+			// host needs to be updated in addition to the URL in order to have the reverse proxy contact the openshift
+			// route on the member cluster
+			req.Host = target.APIURL().Host
+		}
 		ctx.Logger().Info(fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery

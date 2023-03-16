@@ -2,14 +2,17 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,12 +32,14 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gofrs/uuid"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TestProxySuite struct {
@@ -374,6 +379,21 @@ func (s *TestProxySuite) TestProxy() {
 						},
 						ExpectedProxyResponseStatus: http.StatusOK,
 					},
+					"proxy plain http actual request": {
+						ProxyRequestMethod:  "GET",
+						ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+						ExpectedAPIServerRequestHeaders: map[string][]string{
+							"Authorization":    {"Bearer clusterSAToken"},
+							"Impersonate-User": {"smith2"},
+						},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+							"Vary":                             {"Origin"},
+						},
+						ExpectedProxyResponseStatus: http.StatusOK,
+					},
 					"websockets": {
 						ProxyRequestMethod: "GET",
 						ProxyRequestHeaders: map[string][]string{
@@ -404,8 +424,9 @@ func (s *TestProxySuite) TestProxy() {
 						// Test each request using both the default workspace URL and a URL that uses the
 						// workspace context. Both should yield the same results.
 						for workspaceContext, reqPath := range map[string]string{
-							"default workspace": "http://localhost:8081/api/mycoolworkspace/pods",
-							"workspace context": "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+							"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
+							"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+							"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
 						} {
 							s.Run(workspaceContext, func() {
 								// given
@@ -477,6 +498,25 @@ func (s *TestProxySuite) TestProxy() {
 										}
 										return spaceBindings, nil
 									}
+									inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+										switch name {
+										case "myplugin":
+											return &toolchainv1alpha1.ProxyPlugin{
+												ObjectMeta: metav1.ObjectMeta{
+													Namespace: metav1.NamespaceDefault,
+													Name:      "myplugin",
+												},
+												Spec: toolchainv1alpha1.ProxyPluginSpec{
+													OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+														Namespace: metav1.NamespaceDefault,
+														Name:      metav1.NamespaceDefault,
+													},
+												},
+												Status: toolchainv1alpha1.ProxyPluginStatus{},
+											}, nil
+										}
+										return nil, fmt.Errorf("proxy plugin not found")
+									}
 									s.Application.MockInformerService(inf)
 									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 
@@ -516,6 +556,29 @@ func (s *TestProxySuite) TestProxy() {
 }
 
 func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {
+	fakeClient := commontest.NewFakeClient(s.T())
+	serverHost := serverURL
+	switch {
+	case strings.HasPrefix(serverURL, "http://"):
+		serverHost = strings.TrimPrefix(serverURL, "http://")
+	case strings.HasPrefix(serverURL, "https://"):
+		serverHost = strings.TrimPrefix(serverURL, "https://")
+	}
+	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+		route, ok := obj.(*routev1.Route)
+		if ok && key.Namespace == metav1.NamespaceDefault && key.Name == metav1.NamespaceDefault {
+			route.Namespace = key.Namespace
+			route.Name = key.Name
+			route.Spec.Port = &routev1.RoutePort{TargetPort: intstr.FromString("http")}
+			route.Status.Ingress = []routev1.RouteIngress{
+				{
+					Host: serverHost,
+				},
+			}
+			return nil
+		}
+		return fakeClient.Client.Get(ctx, key, obj)
+	}
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
 			Client: s,
@@ -542,7 +605,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 								BearerToken: "clusterSAToken",
 							},
 						},
-						Client: commontest.NewFakeClient(s.T()),
+						Client: fakeClient,
 					},
 				}
 			}

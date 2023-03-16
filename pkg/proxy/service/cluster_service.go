@@ -146,9 +146,9 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 	scheme := ""
 	port := proxyRoute.Spec.Port
 	switch {
-	case port != nil && port.String() == "http":
+	case port != nil && port.TargetPort.String() == "http":
 		scheme = "http://"
-	case port != nil && port.String() == "https":
+	case port != nil && port.TargetPort.String() == "https":
 		scheme = "https://"
 	default:
 		scheme = "https://"

@@ -25,7 +25,7 @@ func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlu
 	if f.GetProxyPluginConfigFunc != nil {
 		return f.GetProxyPluginConfigFunc(name)
 	}
-	panic("not supposed to call GetRoute")
+	panic("not supposed to call GetProxyPluginConfig")
 }
 
 func (f Informer) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {

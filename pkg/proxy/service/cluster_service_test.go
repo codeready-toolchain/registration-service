@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	routev1 "github.com/openshift/api/route/v1"
 	"net/url"
 	"testing"
 
@@ -17,6 +16,8 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
+
+	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

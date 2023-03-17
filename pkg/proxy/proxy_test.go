@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -38,6 +37,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

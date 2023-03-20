@@ -194,16 +194,8 @@ func getWorkspaceContext(req *http.Request) (string, string, error) {
 				return "", "", fmt.Errorf("path %q not a proxied route request", path)
 			}
 		}
-		prefixToTrim := ""
-		// NOTE: just in case the Split behavior is golang version dependent, let's make sure the first entry is empty
-		if len(strings.TrimSpace(segments[0])) == 0 {
-			prefixToTrim = fmt.Sprintf("/%s/%s", segments[1], segments[2])
-			proxyPluginName = segments[2]
-		} else {
-			prefixToTrim = fmt.Sprintf("/%s/%s", segments[0], segments[1])
-			proxyPluginName = segments[1]
-		}
-		req.URL.Path = strings.TrimPrefix(path, prefixToTrim)
+		proxyPluginName = segments[2]
+		req.URL.Path = strings.TrimPrefix(path, fmt.Sprintf("/%s/%s", segments[1], segments[2]))
 		path = req.URL.Path
 	}
 	var workspace string

@@ -196,7 +196,7 @@ func getWorkspaceContext(req *http.Request) (string, string, error) {
 		}
 		prefixToTrim := ""
 		// NOTE: just in case the Split behavior is golang version dependent, let's make sure the first entry is empty
-		if len(segments[0]) == 0 {
+		if len(strings.TrimSpace(segments[0])) == 0 {
 			prefixToTrim = fmt.Sprintf("/%s/%s", segments[1], segments[2])
 			proxyPluginName = segments[2]
 		} else {

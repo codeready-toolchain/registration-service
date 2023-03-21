@@ -1,6 +1,7 @@
 package service
 
 import (
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
@@ -8,8 +9,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -34,6 +33,22 @@ func NewInformerService(context servicecontext.ServiceContext, options ...Option
 		o(si)
 	}
 	return si
+}
+
+func (s *ServiceImpl) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+	obj, err := s.informer.ProxyPluginConfig.ByNamespace(configuration.Namespace()).Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	unobj := obj.(*unstructured.Unstructured)
+	config := &toolchainv1alpha1.ProxyPlugin{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), config); err != nil {
+		log.Errorf(nil, err, "failed to get Proxy Plugin config %q", name)
+		return nil, err
+
+	}
+	return config, err
 }
 
 func (s *ServiceImpl) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {

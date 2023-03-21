@@ -168,6 +168,67 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		})
 	})
 
+	s.Run("proxy configs", func() {
+		// given
+		proxyConfigLister := fakeLister{
+			objs: map[string]*unstructured.Unstructured{
+				"tekton-results": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"openShiftRouteTargetEndpoint": map[string]interface{}{
+								"namespace": "tekton-results",
+								"name":      "tekton-results",
+							},
+						},
+					},
+				},
+				"noise": {
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{},
+					},
+				},
+			},
+		}
+
+		inf := informers.Informer{
+			ProxyPluginConfig: proxyConfigLister,
+		}
+
+		svc := service.NewInformerService(fakeInformerServiceContext{
+			Svcs:     s.Application,
+			informer: inf,
+		})
+
+		s.Run("not found", func() {
+			// when
+			val, err := svc.GetProxyPluginConfig("unknown")
+
+			// then
+			assert.Nil(s.T(), val)
+			assert.EqualError(s.T(), err, "not found")
+		})
+
+		s.Run("found", func() {
+			// given
+			expected := &toolchainv1alpha1.ProxyPlugin{
+				Spec: toolchainv1alpha1.ProxyPluginSpec{
+					OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+						Namespace: "tekton-results",
+						Name:      "tekton-results",
+					},
+				},
+			}
+
+			// when
+			val, err := svc.GetProxyPluginConfig("tekton-results")
+
+			// then
+			require.NotNil(s.T(), val)
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), val, expected)
+		})
+	})
+
 	s.Run("toolchainstatuses", func() {
 		// given
 		emptyToolchainStatusLister := fakeLister{

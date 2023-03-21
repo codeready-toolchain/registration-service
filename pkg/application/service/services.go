@@ -14,6 +14,7 @@ type InformerService interface {
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
 	ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
+	GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 }
 
 type SignupService interface {
@@ -36,7 +37,7 @@ type VerificationService interface {
 }
 
 type MemberClusterService interface {
-	GetClusterAccess(userID, username, workspace string) (*access.ClusterAccess, error)
+	GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error)
 }
 
 type Services interface {

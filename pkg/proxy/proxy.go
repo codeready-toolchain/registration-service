@@ -43,6 +43,8 @@ const (
 
 	proxyHealthEndpoint = "/proxyhealth"
 
+	pluginsEndpoint = "/plugins/"
+
 	workspaceCtxKey = "workspace"
 )
 
@@ -148,13 +150,13 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	workspace, err := getWorkspaceContext(ctx.Request())
+	proxyPluginName, workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
 		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
 
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyPluginName)
 	if err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
@@ -171,26 +173,56 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	}
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, cluster).ServeHTTP(ctx.Response().Writer, ctx.Request())
+	p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0).ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 
-func getWorkspaceContext(req *http.Request) (string, error) {
+func getWorkspaceContext(req *http.Request) (string, string, error) {
 	path := req.URL.Path
+	proxyPluginName := ""
+	// first string off any preceding proxy plugin url segment
+	if strings.HasPrefix(path, pluginsEndpoint) {
+		segments := strings.Split(path, "/")
+		// NOTE: a split on "/plugins/" results in an array with 2 items.  One is the empty string, two is "plugins", 3 is empty string
+		// behavior is not unique to "/";  "," and ",plugins," works the same way
+		if len(segments) < 3 {
+			return "", "", fmt.Errorf("path %q not a proxied route request", path)
+		}
+		if len(segments) == 3 {
+			// need to distinguish between the third entry being "" vs "<plugin-name>"
+			if len(strings.TrimSpace(segments[2])) == 0 {
+				return "", "", fmt.Errorf("path %q not a proxied route request", path)
+			}
+		}
+		proxyPluginName = segments[2]
+		req.URL.Path = strings.TrimPrefix(path, fmt.Sprintf("/%s/%s", segments[1], segments[2]))
+		path = req.URL.Path
+	}
 	var workspace string
 	// handle specific workspace request eg. /workspaces/mycoolworkspace/api/clusterroles
 	if strings.HasPrefix(path, "/workspaces/") {
 		segments := strings.Split(path, "/")
 		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api/clusterroles counts as 4
-		if len(segments) < 4 {
-			return "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
+		if len(segments) < 4 && len(proxyPluginName) == 0 {
+			return "", "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
+		}
+		// with proxy plugins, the route host is sufficient, and hence do not need api/...
+		if len(segments) < 3 {
+			return "", "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/<optional path>", path) // nolint:revive
+		}
+		if len(segments) == 3 {
+			// need to distinguish between the third entry being "" vs "<plugin-name>"
+			if len(strings.TrimSpace(segments[2])) == 0 {
+				return "", "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/<optional path>", path) // nolint:revive
+			}
 		}
 		// get the workspace segment eg. mycoolworkspace
 		workspace = segments[2]
 		// remove workspaces/mycoolworkspace from the request path before forwarding the request
 		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/workspaces/"+workspace)
 	}
-	return workspace, nil
+
+	return proxyPluginName, workspace, nil
 }
 
 func customHTTPErrorHandler(cause error, ctx echo.Context) {
@@ -257,7 +289,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, isPlugin bool) *httputil.ReverseProxy {
 	req := ctx.Request()
 	targetQuery := target.APIURL().RawQuery
 	director := func(req *http.Request) {
@@ -265,6 +297,12 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess) 
 		req.URL.Scheme = target.APIURL().Scheme
 		req.URL.Host = target.APIURL().Host
 		req.URL.Path = singleJoiningSlash(target.APIURL().Path, req.URL.Path)
+		if isPlugin {
+			// for non k8s clients testing, like vanilla http clients accessing plugin proxy flows, testing has proven that the request
+			// host needs to be updated in addition to the URL in order to have the reverse proxy contact the openshift
+			// route on the member cluster
+			req.Host = target.APIURL().Host
+		}
 		ctx.Logger().Info(fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery

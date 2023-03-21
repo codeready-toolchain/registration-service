@@ -16,11 +16,12 @@ import (
 )
 
 type Informer struct {
-	Masteruserrecord cache.GenericLister
-	Space            cache.GenericLister
-	SpaceBinding     cache.GenericLister
-	ToolchainStatus  cache.GenericLister
-	UserSignup       cache.GenericLister
+	Masteruserrecord  cache.GenericLister
+	Space             cache.GenericLister
+	SpaceBinding      cache.GenericLister
+	ToolchainStatus   cache.GenericLister
+	UserSignup        cache.GenericLister
+	ProxyPluginConfig cache.GenericLister
 }
 
 func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
@@ -58,6 +59,11 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	informer.UserSignup = genericUserSignupInformer.Lister()
 	userSignupInformer := genericUserSignupInformer.Informer()
 
+	// Proxy plugins
+	proxyPluginInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.ProxyPluginsPlural})
+	informer.ProxyPluginConfig = proxyPluginInformer.Lister()
+	proxyPluginConfigInformer := proxyPluginInformer.Informer()
+
 	stopper := make(chan struct{})
 
 	log.Info(nil, "Starting proxy cache informers")
@@ -69,6 +75,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 		spaceBindingInformer.HasSynced,
 		toolchainstatusInformer.HasSynced,
 		userSignupInformer.HasSynced,
+		proxyPluginConfigInformer.HasSynced,
 	) {
 		err := fmt.Errorf("timed out waiting for caches to sync")
 		log.Error(nil, err, "Failed to create informers")

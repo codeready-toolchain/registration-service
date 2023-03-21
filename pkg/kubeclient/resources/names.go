@@ -7,4 +7,5 @@ const (
 	SpaceBindingResourcePlural = "spacebindings"
 	ToolchainStatusPlural      = "toolchainstatuses"
 	ToolchainStatusName        = "toolchain-status"
+	ProxyPluginsPlural         = "proxyplugins"
 )

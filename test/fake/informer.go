@@ -13,11 +13,19 @@ func NewFakeInformer() Informer {
 }
 
 type Informer struct {
-	GetMurFunc             func(name string) (*toolchainv1alpha1.MasterUserRecord, error)
-	GetSpaceFunc           func(name string) (*toolchainv1alpha1.Space, error)
-	GetToolchainStatusFunc func() (*toolchainv1alpha1.ToolchainStatus, error)
-	GetUserSignupFunc      func(name string) (*toolchainv1alpha1.UserSignup, error)
-	ListSpaceBindingFunc   func(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
+	GetMurFunc               func(name string) (*toolchainv1alpha1.MasterUserRecord, error)
+	GetSpaceFunc             func(name string) (*toolchainv1alpha1.Space, error)
+	GetToolchainStatusFunc   func() (*toolchainv1alpha1.ToolchainStatus, error)
+	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
+	ListSpaceBindingFunc     func(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
+	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
+}
+
+func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+	if f.GetProxyPluginConfigFunc != nil {
+		return f.GetProxyPluginConfigFunc(name)
+	}
+	panic("not supposed to call GetProxyPluginConfig")
 }
 
 func (f Informer) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {

@@ -564,7 +564,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 	case strings.HasPrefix(serverURL, "https://"):
 		serverHost = strings.TrimPrefix(serverURL, "https://")
 	}
-	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 		route, ok := obj.(*routev1.Route)
 		if ok && key.Namespace == metav1.NamespaceDefault && key.Name == metav1.NamespaceDefault {
 			route.Namespace = key.Namespace
@@ -577,7 +577,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 			}
 			return nil
 		}
-		return fakeClient.Client.Get(ctx, key, obj)
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{

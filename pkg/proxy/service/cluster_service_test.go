@@ -285,7 +285,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		)
 
 		s.Run("verify cluster access with route", func() {
-			memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+			memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 				route, ok := obj.(*routev1.Route)
 				if ok && key.Namespace == "tekton-results" && key.Name == "tekton-results" {
 					route.Namespace = key.Namespace
@@ -297,7 +297,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 					return nil
 				}
-				return memberClient.Client.Get(ctx, key, obj)
+				return memberClient.Client.Get(ctx, key, obj, opts...)
 			}
 			expectedToken := "abc123" // should match member 2 bearer token
 
@@ -341,7 +341,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				s.Run("another workspace on another cluster", func() {
 					// when
 					mC := commontest.NewFakeClient(s.T())
-					mC.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					mC.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						route, ok := obj.(*routev1.Route)
 						if ok && key.Namespace == "tekton-results" && key.Name == "tekton-results" {
 							route.Namespace = key.Namespace
@@ -353,7 +353,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 							}
 							return nil
 						}
-						return memberClient.Client.Get(ctx, key, obj)
+						return memberClient.Client.Get(ctx, key, obj, opts...)
 					}
 					memberArray[0].Client = mC
 					ca, err := svc.GetClusterAccess("789-ready", "", "teamspace", "tekton-results") // workspace-context specified

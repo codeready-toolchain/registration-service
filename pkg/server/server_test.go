@@ -118,7 +118,7 @@ func startFakeProxy(t *testing.T) *http.Server {
 	return srv
 }
 
-func fakehealth(res http.ResponseWriter, req *http.Request) {
+func fakehealth(res http.ResponseWriter, _ *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	io.WriteString(res, `{"alive": true}`) //nolint:golint,errcheck

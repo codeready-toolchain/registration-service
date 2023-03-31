@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -153,7 +152,7 @@ func (km *KeyManager) fetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	}
 	// cleanup and close after being done
 	defer func() {
-		_, err := ioutil.ReadAll(res.Body)
+		_, err := io.ReadAll(res.Body)
 		if errors.Is(err, io.EOF) {
 			log.Error(nil, err, "failed read remaining data before closing response")
 		}

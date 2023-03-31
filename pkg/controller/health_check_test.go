@@ -219,10 +219,10 @@ type mockHealthChecker struct {
 	proxyAlive bool
 }
 
-func (c *mockHealthChecker) Alive(ctx *gin.Context) bool {
+func (c *mockHealthChecker) Alive(_ *gin.Context) bool {
 	return c.alive
 }
 
-func (c *mockHealthChecker) APIProxyAlive(ctx *gin.Context) bool {
+func (c *mockHealthChecker) APIProxyAlive(_ *gin.Context) bool {
 	return c.proxyAlive
 }

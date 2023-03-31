@@ -25,7 +25,7 @@ type StaticContentFileSystem struct {
 	http.FileSystem
 }
 
-func (e StaticContentFileSystem) Exists(prefix string, path string) bool {
+func (e StaticContentFileSystem) Exists(_ string, path string) bool {
 	_, err := e.Open(path)
 	return err == nil
 }

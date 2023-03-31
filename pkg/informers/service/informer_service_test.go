@@ -396,7 +396,7 @@ type fakeLister struct {
 }
 
 // List will return all objects across namespaces
-func (l fakeLister) List(selector labels.Selector) (ret []runtime.Object, err error) {
+func (l fakeLister) List(_ labels.Selector) (ret []runtime.Object, err error) {
 	return nil, nil
 }
 
@@ -410,6 +410,6 @@ func (l fakeLister) Get(name string) (runtime.Object, error) {
 }
 
 // ByNamespace will give you a GenericNamespaceLister for one namespace
-func (l fakeLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
+func (l fakeLister) ByNamespace(_ string) cache.GenericNamespaceLister {
 	return l
 }

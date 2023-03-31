@@ -12,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -32,7 +33,7 @@ func TestLog(t *testing.T) {
 		value := buf.String()
 		assert.Contains(t, value, `"logger":"logger_tests"`)
 		assert.Contains(t, value, `"msg":"test logger with no formatting"`)
-		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"user_id":"test"`) // subject -> user_id
 		assert.Contains(t, value, `"username":"usernametest"`)
 		assert.Contains(t, value, `"level":"info"`)
 		assert.Contains(t, value, `"timestamp":"`)
@@ -50,7 +51,7 @@ func TestLog(t *testing.T) {
 		value := buf.String()
 		assert.Contains(t, value, `"logger":"logger_tests"`)
 		assert.Contains(t, value, `"msg":"test info"`)
-		assert.Contains(t, value, `"user_id":"test"`)
+		assert.Contains(t, value, `"user_id":"test"`) // subject -> user_id
 		assert.Contains(t, value, `"username":"usernametest"`)
 		assert.Contains(t, value, `"level":"info"`)
 		assert.Contains(t, value, `"timestamp":"`)
@@ -149,6 +150,10 @@ func TestLog(t *testing.T) {
 		assert.Contains(t, value, `"Accept":["application/json"]`)
 		assert.Contains(t, value, `"Authorization":"*****"`)
 		assert.Contains(t, value, `"req_payload":"{\"testing-body\":\"test\"}"`)
+		buf := new(bytes.Buffer)
+		_, err := buf.ReadFrom(req.Body)
+		require.NoError(t, err, "it should still be possible to read the body after it was passed to the logs")
+		assert.Equal(t, `{"testing-body":"test"}`, buf.String(), "body contents should be unchanged")
 	})
 
 	t.Run("log infof withValues", func(t *testing.T) {

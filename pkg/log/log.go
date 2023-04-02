@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -260,7 +260,7 @@ func addRequestInfo(req *http.Request) []interface{} {
 		fields = append(fields, newStr)
 		// Once req.Body is read, it is empty. Restore its contents by
 		// assigning a new reader with the same contents.
-		req.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
+		req.Body = io.NopCloser(bytes.NewReader(buf.Bytes()))
 	}
 
 	return fields

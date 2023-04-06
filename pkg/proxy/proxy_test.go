@@ -109,6 +109,7 @@ func (s *TestProxySuite) TestProxy() {
 
 				// when
 				resp, err := http.DefaultClient.Do(req)
+				defer resp.Body.Close() //nolint:govet,staticcheck
 
 				// then
 				require.NoError(s.T(), err)
@@ -125,6 +126,7 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
+					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
@@ -140,6 +142,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NotNil(s.T(), req)
 					req.Header.Set("Authorization", "Bearer not-a-token")
 					resp, err := http.DefaultClient.Do(req)
+					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
@@ -157,6 +160,7 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
 					resp, err := http.DefaultClient.Do(req)
+					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
@@ -173,6 +177,7 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
+					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
@@ -189,6 +194,7 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
+					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
@@ -256,6 +262,7 @@ func (s *TestProxySuite) TestProxy() {
 
 						// when
 						resp, err := http.DefaultClient.Do(req)
+						defer resp.Body.Close() //nolint:govet,staticcheck
 
 						// then
 						require.NoError(s.T(), err)
@@ -531,6 +538,7 @@ func (s *TestProxySuite) TestProxy() {
 								// when
 								client := http.Client{Timeout: 3 * time.Second}
 								resp, err := client.Do(req)
+								defer resp.Body.Close() //nolint:govet,staticcheck
 
 								// then
 								require.NoError(s.T(), err)
@@ -564,7 +572,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 	case strings.HasPrefix(serverURL, "https://"):
 		serverHost = strings.TrimPrefix(serverURL, "https://")
 	}
-	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 		route, ok := obj.(*routev1.Route)
 		if ok && key.Namespace == metav1.NamespaceDefault && key.Name == metav1.NamespaceDefault {
 			route.Namespace = key.Namespace
@@ -577,7 +585,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 			}
 			return nil
 		}
-		return fakeClient.Client.Get(ctx, key, obj)
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{

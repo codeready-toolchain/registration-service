@@ -2,7 +2,7 @@ package controller
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -24,7 +24,7 @@ type HealthCheck struct {
 
 type HealthStatus struct {
 	*status.Health
-	ProxyAlive bool
+	ProxyAlive bool `json:"proxyAlive"`
 }
 
 // HealthCheck returns a new HealthCheck instance.
@@ -84,7 +84,7 @@ func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
 		return false
 	}
 	defer resp.Body.Close()
-	_, err = ioutil.ReadAll(resp.Body)
+	_, err = io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error(ctx, err, "failed to read API Proxy health check body")
 	}

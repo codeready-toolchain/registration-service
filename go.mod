@@ -4,8 +4,8 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20230308235149-3d2d5e3f0c16
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20230309215822-8671d3261389
+	github.com/codeready-toolchain/api v0.0.0-20230406073419-4f8108d3a1c6
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20230406074039-c486d404e698
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -40,10 +40,21 @@ require (
 require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
+	github.com/fatih/color v1.12.0 // indirect
+	github.com/go-bindata/go-bindata v3.1.2+incompatible // indirect
+	github.com/gobuffalo/flect v0.2.5 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/tools v0.1.12 // indirect
+	k8s.io/apiextensions-apiserver v0.25.0 // indirect
+	k8s.io/code-generator v0.25.0 // indirect
+	k8s.io/gengo v0.0.0-20211129171323-c02415ce4185 // indirect
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed // indirect
+	sigs.k8s.io/controller-tools v0.10.0 // indirect
 )
 
 require (
@@ -107,7 +118,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/codeready-toolchain/api => github.com/mfrancisc/api v0.0.0-20230331125452-ce759e9013ed
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/mfrancisc/toolchain-common v0.0.0-20230331125149-52e1310a177b

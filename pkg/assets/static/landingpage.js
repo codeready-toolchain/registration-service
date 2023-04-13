@@ -23,11 +23,18 @@ activationCodeURL = '/api/v1/signup/verification/activation-code'
 
 // loads json data from url, the callback is called with
 // error and data, with data the parsed json.
-var getJSON = function(method, url, token, callback, body) {
+var getJSON = function(method, url, token, callback, body, headers) {
   var xhr = new XMLHttpRequest();
   xhr.open(method, url, true);
   if (token != null)
     xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+
+  if (headers != null) {
+    for (const [key, value] of headers.entries()) {
+      xhr.setRequestHeader(key, value)
+    }
+  }
+
   xhr.responseType = 'json';
   xhr.onload = function() {
     var status = xhr.status;
@@ -213,7 +220,7 @@ function updateSignupState() {
 }
 
 function stopPolling() {
-  console.log('start polling..');
+  console.log('stop polling..');
   if (intervalRef) {
     clearInterval(intervalRef);
     intervalRef = undefined;
@@ -221,7 +228,7 @@ function stopPolling() {
 }
 
 function startPolling() {
-  console.log('stop polling..');
+  console.log('start polling..');
   if (!intervalRef) {
     intervalRef = setInterval(updateSignupState, 1000);
   }
@@ -246,13 +253,19 @@ function login() {
 
 // start signup process.
 function signup() {
-  getJSON('POST', signupURL, idToken, function(err, data) {
-    if (err != null) {
-      showError(JSON.stringify(data, null, 2));
-    } else {
-      hideAll();
-      show('state-waiting-for-approval');
-    }
+  grecaptcha.enterprise.ready(async () => {
+    recaptchaToken = await grecaptcha.enterprise.execute('6LcaESslAAAAAO1aPnbNiP1fg6z9VC5Y33Rq-Sl4', {action: 'SIGNUP'});
+    var headers = new Map();
+    headers.set("captchaToken", recaptchaToken)
+    console.log("recaptcha token: ", recaptchaToken)
+    getJSON('POST', signupURL, idToken, function(err, data) {
+      if (err != null) {
+        showError(JSON.stringify(data, null, 2));
+      } else {
+        hideAll();
+        show('state-waiting-for-approval');
+      }
+    }, null, headers);
   });
   startPolling();
 }

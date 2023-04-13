@@ -59,6 +59,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().TwilioAccountSID())
 		assert.Empty(t, regServiceCfg.Verification().TwilioAuthToken())
 		assert.Empty(t, regServiceCfg.Verification().TwilioFromNumber())
+		assert.False(t, regServiceCfg.Verification().CaptchaEnabled())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -73,6 +74,7 @@ func TestRegistrationService(t *testing.T) {
 			Auth().AuthClientConfigRaw(`{"realm": "toolchain-private"}`).
 			Auth().AuthClientPublicKeysURL("https://sso.openshift.com/certs").
 			Verification().Enabled(true).
+			Verification().CaptchaEnabled(true).
 			Verification().DailyLimit(15).
 			Verification().AttemptsAllowed(13).
 			Verification().MessageTemplate("Developer Sandbox verification code: %s").
@@ -125,5 +127,6 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "jkl", regServiceCfg.Verification().TwilioFromNumber())
 		assert.Equal(t, "foo", regServiceCfg.Verification().AWSAccessKeyID())
 		assert.Equal(t, "bar", regServiceCfg.Verification().AWSSecretAccessKey())
+		assert.True(t, regServiceCfg.Verification().CaptchaEnabled())
 	})
 }

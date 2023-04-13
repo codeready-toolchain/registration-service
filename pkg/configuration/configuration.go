@@ -249,3 +249,7 @@ func (r VerificationConfig) AWSSenderID() string {
 func (r VerificationConfig) AWSSMSType() string {
 	return commonconfig.GetString(r.c.AWSSMSType, "Transactional")
 }
+
+func (r VerificationConfig) CaptchaEnabled() bool {
+	return commonconfig.GetBool(r.c.Captcha.Enabled, false)
+}

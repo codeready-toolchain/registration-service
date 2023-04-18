@@ -44,14 +44,24 @@ const (
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
 	defaultProvider ResourceProvider
+	CaptchaChecker  captcha.Assessor
 }
 
+type SignupServiceOption func(svc *ServiceImpl)
+
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(context servicecontext.ServiceContext) service.SignupService {
-	return &ServiceImpl{
+func NewSignupService(context servicecontext.ServiceContext, opts ...SignupServiceOption) service.SignupService {
+	s := &ServiceImpl{
 		BaseService:     base.NewBaseService(context),
 		defaultProvider: crtClientProvider{context.CRTClient()},
+		CaptchaChecker:  captcha.Helper{},
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // newUserSignup generates a new UserSignup resource with the specified username and userID.
@@ -84,8 +94,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	cHelper := &captcha.Helper{}
-	verificationRequired := IsPhoneVerificationRequired(cHelper, ctx)
+	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
 	cfg := configuration.GetRegistrationServiceConfig()
@@ -121,6 +130,11 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			OriginalSub:   ctx.GetString(context.OriginalSubKey),
 		},
 	}
+
+	if captchaScore > -1.0 {
+		userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = fmt.Sprintf("%.1f", captchaScore)
+	}
+
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
@@ -144,39 +158,39 @@ Returns false in the following cases:
 1. Overall verification configuration is disabled
 2. Captcha is enabled and the assessment is successful
 */
-func IsPhoneVerificationRequired(cHelper captcha.CaptchaHelper, ctx *gin.Context) bool {
+func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32) {
 	cfg := configuration.GetRegistrationServiceConfig()
 	if !cfg.Verification().Enabled() {
-		return false
+		return false, -1
 	}
 
 	if !cfg.Verification().CaptchaEnabled() {
-		return true
+		return true, -1
 	}
 
-	if ctx.Request == nil {
+	if ctx == nil || ctx.Request == nil {
 		log.Error(ctx, nil, "no request in context")
-		return true
+		return true, -1
 	}
 
 	captchaToken, exists := ctx.Request.Header["Recaptcha-Token"]
 	if !exists || len(captchaToken) != 1 {
 		log.Error(ctx, nil, "no valid captcha token found in request header")
-		return true
+		return true, -1
 	}
 
-	score, err := cHelper.CompleteAssessment(ctx, cfg, captchaToken[0])
+	score, err := captchaChecker.CompleteAssessment(ctx, cfg, captchaToken[0])
 	if err != nil {
 		log.Error(ctx, err, "signup assessment failed")
-		return true
+		return true, -1
 	}
 
 	if score < cfg.Verification().CaptchaScoreThreshold() {
 		log.Error(ctx, fmt.Errorf("the risk analysis score did not meet the expected threshold"), "signup assessment failed")
-		return true
+		return true, score
 	}
 
-	return false
+	return false, score
 }
 
 func extractEmailHost(email string) string {

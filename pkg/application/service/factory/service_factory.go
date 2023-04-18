@@ -52,6 +52,8 @@ type ServiceFactory struct {
 	serviceContextOptions      []ServiceContextOption
 	verificationServiceFunc    func(opts ...verificationservice.VerificationServiceOption) service.VerificationService
 	verificationServiceOptions []verificationservice.VerificationServiceOption
+	signupServiceFunc          func(opts ...signupservice.SignupServiceOption) service.SignupService
+	signupServiceOptions       []signupservice.SignupServiceOption
 }
 
 func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceContextProducer {
@@ -71,7 +73,11 @@ func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
-	return signupservice.NewSignupService(s.getContext())
+	return s.signupServiceFunc(s.signupServiceOptions...)
+}
+
+func (s *ServiceFactory) WithSignupServiceOption(opt signupservice.SignupServiceOption) {
+	s.signupServiceOptions = append(s.signupServiceOptions, opt)
 }
 
 func (s *ServiceFactory) VerificationService() service.VerificationService {
@@ -107,6 +113,10 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 	// default function to return an instance of Verification service
 	f.verificationServiceFunc = func(opts ...verificationservice.VerificationServiceOption) service.VerificationService {
 		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
+	}
+
+	f.signupServiceFunc = func(opts ...signupservice.SignupServiceOption) service.SignupService {
+		return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
 	}
 
 	return f

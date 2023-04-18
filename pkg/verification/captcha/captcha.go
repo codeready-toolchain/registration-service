@@ -15,7 +15,7 @@ import (
 // recaptchaSignupAction is the action name corresponding to the token
 const recaptchaSignupAction = "SIGNUP"
 
-type CaptchaHelper interface {
+type Assessor interface {
 	CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error)
 }
 
@@ -31,11 +31,11 @@ type Helper struct{}
 
 returns an error if the assessment failed due to error or the assessment score was below the threshold.
 */
-func (c *Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
+func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
 	gctx := gocontext.Background()
 	client, err := recaptcha.NewClient(gctx)
 	if err != nil {
-		return 0, fmt.Errorf("error creating reCAPTCHA client")
+		return -1, fmt.Errorf("error creating reCAPTCHA client")
 	}
 	defer client.Close()
 
@@ -59,12 +59,12 @@ func (c *Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registra
 		ctx,
 		request)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create reCAPTCHA assessment")
+		return -1, fmt.Errorf("failed to create reCAPTCHA assessment")
 	}
 
 	// Check if the token is valid.
 	if !response.TokenProperties.Valid {
-		return 0, fmt.Errorf("the CreateAssessment() call failed because the token"+
+		return -1, fmt.Errorf("the CreateAssessment() call failed because the token"+
 			" was invalid for the following reasons: %v",
 			response.TokenProperties.InvalidReason)
 	}
@@ -82,5 +82,5 @@ func (c *Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registra
 		return response.RiskAnalysis.Score, nil
 	}
 
-	return 0, fmt.Errorf("the action attribute in the reCAPTCHA token does not match the expected action to score")
+	return -1, fmt.Errorf("the action attribute in the reCAPTCHA token does not match the expected action to score")
 }

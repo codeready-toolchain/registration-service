@@ -76,7 +76,7 @@ func main() {
 			panic("failed to create captcha file")
 		}
 
-		// set application credentials env var required recaptcha client
+		// set application credentials env var required for recaptcha client
 		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", configuration.CaptchaFilePath); err != nil {
 			panic("cannot set captcha credentials")
 		}

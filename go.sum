@@ -92,8 +92,10 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20230406073419-4f8108d3a1c6 h1:zF4fWYcqgYK2SdJl5uJS5nP1ebaFm1iYRms0zZn8Elk=
-github.com/codeready-toolchain/api v0.0.0-20230406073419-4f8108d3a1c6/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
+github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40 h1:mYvAU7EPFPiiRCLfLetmq5QH0UO/xfJBB33v1RpqfmQ=
+github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250 h1:pJxYYEyOwxVQKUirAB7RnlLu3AMchErW/6Y+801EvNA=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250/go.mod h1:7dBoCiCqiphu+W2rQX95Jcl6ibns3o0T8PsVA+G5S8U=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -346,8 +348,6 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/prometheus/client_model v0.2.0 h1:uq5h0d+GuxiXLJLNABMgp2qUWDPiLvgCzz2dUR+/W/M=
 github.com/prometheus/common v0.32.1 h1:hWIdL3N2HoUx3B8j3YN9mWor0qhY/NlEKZEaXxuIRh4=
 github.com/prometheus/procfs v0.7.3 h1:4jVXhlkAyzOScmCkXBTOLRLTz8EeU+eyjrwB/EPq0VU=
-github.com/rajivnathan/toolchain-common v0.0.0-20230413000923-116435d70689 h1:SFgWknUyLf7D2CqblmbUjvU776tlWJvFYkQ1aO22SFI=
-github.com/rajivnathan/toolchain-common v0.0.0-20230413000923-116435d70689/go.mod h1:vEOtsQaR6ugislmL6fho1ErnKjONdPGzJ8atk12p+4w=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=

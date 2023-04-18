@@ -256,8 +256,7 @@ function signup() {
   grecaptcha.enterprise.ready(async () => {
     recaptchaToken = await grecaptcha.enterprise.execute('6LcaESslAAAAAO1aPnbNiP1fg6z9VC5Y33Rq-Sl4', {action: 'SIGNUP'});
     var headers = new Map();
-    headers.set("captchaToken", recaptchaToken)
-    console.log("recaptcha token: ", recaptchaToken)
+    headers.set("Recaptcha-Token", recaptchaToken)
     getJSON('POST', signupURL, idToken, function(err, data) {
       if (err != null) {
         showError(JSON.stringify(data, null, 2));

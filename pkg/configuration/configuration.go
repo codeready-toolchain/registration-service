@@ -5,6 +5,7 @@ package configuration
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,13 @@ const (
 	prodEnvironment      = "prod"
 	DefaultEnvironment   = prodEnvironment
 	UnitTestsEnvironment = "unit-tests"
+)
+
+// captcha specific configuration
+const (
+	CaptchaSecretName = "captcha-config"
+	CaptchaFileName   = "captcha.json"
+	CaptchaFilePath   = "/tmp/" + CaptchaFileName
 )
 
 var configurationClient client.Client
@@ -252,4 +260,27 @@ func (r VerificationConfig) AWSSMSType() string {
 
 func (r VerificationConfig) CaptchaEnabled() bool {
 	return commonconfig.GetBool(r.c.Captcha.Enabled, false)
+}
+
+func (r VerificationConfig) CaptchaScoreThreshold() float32 {
+	threshold := commonconfig.GetString(r.c.Captcha.ScoreThreshold, "")
+	thresholdFloat, err := strconv.ParseFloat(threshold, 32)
+	if err != nil {
+		return 0.9
+	}
+	return float32(thresholdFloat)
+}
+
+func (r VerificationConfig) CaptchaSiteKey() string {
+	return commonconfig.GetString(r.c.Captcha.SiteKey, "")
+}
+
+func (r VerificationConfig) CaptchaProjectID() string {
+	return commonconfig.GetString(r.c.Captcha.ProjectID, "")
+}
+
+func (r VerificationConfig) CaptchaServiceAccountFileContents() string {
+	key := commonconfig.GetString(r.c.Secret.RecaptchaServiceAccountFile, "")
+	content := r.registrationServiceSecret(key)
+	return string(content)
 }

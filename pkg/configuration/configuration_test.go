@@ -60,6 +60,10 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().TwilioAuthToken())
 		assert.Empty(t, regServiceCfg.Verification().TwilioFromNumber())
 		assert.False(t, regServiceCfg.Verification().CaptchaEnabled())
+		assert.Empty(t, regServiceCfg.Verification().CaptchaProjectID())
+		assert.Empty(t, regServiceCfg.Verification().CaptchaSiteKey())
+		assert.Equal(t, float32(0.9), regServiceCfg.Verification().CaptchaScoreThreshold())
+		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -74,7 +78,6 @@ func TestRegistrationService(t *testing.T) {
 			Auth().AuthClientConfigRaw(`{"realm": "toolchain-private"}`).
 			Auth().AuthClientPublicKeysURL("https://sso.openshift.com/certs").
 			Verification().Enabled(true).
-			Verification().CaptchaEnabled(true).
 			Verification().DailyLimit(15).
 			Verification().AttemptsAllowed(13).
 			Verification().MessageTemplate("Developer Sandbox verification code: %s").
@@ -83,12 +86,17 @@ func TestRegistrationService(t *testing.T) {
 			Verification().AWSRegion("us-west-2").
 			Verification().AWSSenderID("sandbox").
 			Verification().AWSSMSType("Transactional").
+			Verification().CaptchaEnabled(true).
+			Verification().CaptchaProjectID("test-project").
+			Verification().CaptchaSiteKey("site-key").
+			Verification().CaptchaScoreThreshold("0.7").
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
 			TwilioFromNumber("twilio.fromnumber").
 			AWSAccessKeyID("aws.accesskeyid").
-			AWSSecretAccessKey("aws.secretaccesskey"))
+			AWSSecretAccessKey("aws.secretaccesskey").
+			RecaptchaServiceAccountFile("captcha.json"))
 
 		verificationSecretValues := make(map[string]string)
 		verificationSecretValues["twilio.sid"] = "def"
@@ -96,6 +104,7 @@ func TestRegistrationService(t *testing.T) {
 		verificationSecretValues["twilio.fromnumber"] = "jkl"
 		verificationSecretValues["aws.accesskeyid"] = "foo"
 		verificationSecretValues["aws.secretaccesskey"] = "bar"
+		verificationSecretValues["captcha.json"] = "example-content"
 		secrets := make(map[string]map[string]string)
 		secrets["verification-secrets"] = verificationSecretValues
 
@@ -128,5 +137,9 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "foo", regServiceCfg.Verification().AWSAccessKeyID())
 		assert.Equal(t, "bar", regServiceCfg.Verification().AWSSecretAccessKey())
 		assert.True(t, regServiceCfg.Verification().CaptchaEnabled())
+		assert.Equal(t, "test-project", regServiceCfg.Verification().CaptchaProjectID())
+		assert.Equal(t, "site-key", regServiceCfg.Verification().CaptchaSiteKey())
+		assert.Equal(t, float32(0.7), regServiceCfg.Verification().CaptchaScoreThreshold())
+		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 	})
 }

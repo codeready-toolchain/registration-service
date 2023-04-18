@@ -137,13 +137,6 @@ objects:
                 requests:
                   cpu: "50m"
                   memory: "100M"
-              volumeMounts:
-                - mountPath: /crtconfig
-                  name: crtconfig-volume
-          volumes:
-            - name: crtconfig-volume
-              emptyDir:
-                sizeLimit: 10Mi
   - kind: Service
     apiVersion: v1
     metadata:

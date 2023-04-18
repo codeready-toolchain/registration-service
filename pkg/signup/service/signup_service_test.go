@@ -1442,6 +1442,88 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 }
 
+func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
+	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, TestNamespace)
+
+	s.Run("phone verification is required", func() {
+		s.Run("captcha verification is disabled", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(false))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(nil, nil))
+		})
+
+		s.Run("nil request", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(nil, &gin.Context{}))
+		})
+
+		s.Run("request missing Recaptcha-Token header", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}}))
+		})
+
+		s.Run("request Recaptcha-Token header incorrect length", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}}))
+		})
+
+		s.Run("captcha assessment error", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(&FakeCaptcha{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}}))
+		})
+
+		s.Run("captcha is enabled but the score is too low", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true).
+					Verification().CaptchaScoreThreshold("0.8"))
+
+			assert.True(s.T(), service.IsPhoneVerificationRequired(&FakeCaptcha{score: 0.5}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}}))
+		})
+	})
+
+	s.Run("phone verification is not required", func() {
+		s.Run("overall verification is disabled", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(false))
+
+			assert.False(s.T(), service.IsPhoneVerificationRequired(nil, nil))
+		})
+		s.Run("captcha is enabled and the assessment is successful", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(false).
+					Verification().CaptchaEnabled(true).
+					Verification().CaptchaScoreThreshold("0.8"))
+
+			assert.False(s.T(), service.IsPhoneVerificationRequired(&FakeCaptcha{score: 1.0}, nil))
+		})
+
+	})
+
+}
+
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }
@@ -1513,4 +1595,13 @@ func deactivated() []toolchainv1alpha1.Condition {
 			Reason: "Deactivated",
 		},
 	}
+}
+
+type FakeCaptcha struct {
+	score  float32
+	result error
+}
+
+func (c *FakeCaptcha) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
+	return c.score, c.result
 }

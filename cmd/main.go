@@ -21,16 +21,12 @@ import (
 	errs "github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
-
-const captchaFilePath = "/crtconfig/captcha.json"
 
 func main() {
 	// create logger and registry
@@ -75,13 +71,13 @@ func main() {
 	crtConfig.Print()
 
 	if crtConfig.Verification().CaptchaEnabled() {
-		if err := createCaptchaFileFromSecret(cl); err != nil {
+		if err := createCaptchaFileFromSecret(crtConfig, cl); err != nil {
 			log.Error(nil, err, "failed to create captcha file")
 			panic("failed to create captcha file")
 		}
 
 		// set application credentials env var required recaptcha client
-		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", captchaFilePath); err != nil {
+		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", configuration.CaptchaFilePath); err != nil {
 			panic("cannot set captcha credentials")
 		}
 	}
@@ -183,22 +179,10 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 	})
 }
 
-func createCaptchaFileFromSecret(cl client.Client) error {
-	secretName := "captcha-config"
-
-	secret := &v1.Secret{}
-	namespacedName := types.NamespacedName{Namespace: configuration.Namespace(), Name: secretName}
-	if err := cl.Get(context.TODO(), namespacedName, secret); err != nil {
-		return errs.Wrap(err, "captcha secret not found")
-	}
-
-	for key, value := range secret.Data {
-		if key == "captcha.json" {
-			if err := os.WriteFile(captchaFilePath, []byte(value), 0644); err != nil {
-				return errs.Wrap(err, "error writing to captcha file")
-			}
-			break
-		}
+func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig, cl client.Client) error {
+	contents := cfg.Verification().CaptchaServiceAccountFileContents()
+	if err := os.WriteFile(configuration.CaptchaFilePath, []byte(contents), 0644); err != nil {
+		return errs.Wrap(err, "error writing captcha file")
 	}
 	return nil
 }

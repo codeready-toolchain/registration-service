@@ -1,7 +1,6 @@
 package service
 
 import (
-	gocontext "context"
 	"fmt"
 	"hash/crc32"
 	"regexp"
@@ -17,13 +16,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/pkg/verification/captcha"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
-	recaptcha "cloud.google.com/go/recaptchaenterprise/v2/apiv1"
-	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
@@ -86,7 +84,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	verificationRequired := isVerificationRequired(ctx)
+	cHelper := &captcha.Helper{}
+	verificationRequired := IsPhoneVerificationRequired(cHelper, ctx)
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
 	cfg := configuration.GetRegistrationServiceConfig()
@@ -133,31 +132,50 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	return userSignup, nil
 }
 
-func isVerificationRequired(ctx *gin.Context) bool {
+/*
+IsPhoneVerificationRequired determines whether phone verification is required
+
+Returns true in the following cases:
+1. Captcha configuration is disabled
+2. The captcha token is invalid
+3. Captcha failed with an error or the assessment failed
+
+Returns false in the following cases:
+1. Overall verification configuration is disabled
+2. Captcha is enabled and the assessment is successful
+*/
+func IsPhoneVerificationRequired(cHelper captcha.CaptchaHelper, ctx *gin.Context) bool {
 	cfg := configuration.GetRegistrationServiceConfig()
 	if !cfg.Verification().Enabled() {
 		return false
 	}
 
-	projectID := "devsandbox-gcp"
-	recaptchaSiteKey := "6LcaESslAAAAAO1aPnbNiP1fg6z9VC5Y33Rq-Sl4"
-	recaptchaAction := "SIGNUP"
-
-	body := map[string]interface{}{}
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		log.Error(ctx, err, "invalid request body - expected captcha token")
-		return true
-	}
-	captchaToken, ok := body["captchaToken"].(string)
-	if !ok {
-		log.Error(ctx, nil, "no captcha token found in request body")
+	if !cfg.Verification().CaptchaEnabled() {
 		return true
 	}
 
-	if err := completeCaptchaAssessment(projectID, recaptchaSiteKey, captchaToken, recaptchaAction); err != nil {
+	if ctx.Request == nil {
+		log.Error(ctx, nil, "no request in context")
+		return true
+	}
+
+	captchaToken, exists := ctx.Request.Header["Recaptcha-Token"]
+	if !exists || len(captchaToken) != 1 {
+		log.Error(ctx, nil, "no valid captcha token found in request header")
+		return true
+	}
+
+	score, err := cHelper.CompleteAssessment(ctx, cfg, captchaToken[0])
+	if err != nil {
 		log.Error(ctx, err, "signup assessment failed")
 		return true
 	}
+
+	if score < cfg.Verification().CaptchaScoreThreshold() {
+		log.Error(ctx, fmt.Errorf("the risk analysis score did not meet the expected threshold"), "signup assessment failed")
+		return true
+	}
+
 	return false
 }
 
@@ -431,76 +449,4 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 	}
 
 	return nil
-}
-
-/**
- * Creates an assessment to analyze the risk of an UI action.
- *
- * @param projectID: GCloud Project ID
- * @param recaptchaSiteKey: Site key obtained by registering a domain/app to use recaptcha services.
- * @param token: The token obtained from the client on passing the recaptchaSiteKey.
- * @param recaptchaAction: Action name corresponding to the token.
- */
-func completeCaptchaAssessment(projectID string, recaptchaSiteKey string, token string, recaptchaAction string) error {
-
-	// Create the recaptcha client.
-	// TODO: To avoid memory issues, move this client generation outside
-	// of this example, and cache it (recommended) or call client.close()
-	// before exiting this method.
-	ctx := gocontext.Background()
-	client, err := recaptcha.NewClient(ctx)
-	if err != nil {
-		return fmt.Errorf("error creating reCAPTCHA client")
-	}
-	defer client.Close()
-
-	// Set the properties of the event to be tracked.
-	event := &recaptchapb.Event{
-		Token:   token,
-		SiteKey: recaptchaSiteKey,
-	}
-
-	assessment := &recaptchapb.Assessment{
-		Event: event,
-	}
-
-	// Build the assessment request.
-	request := &recaptchapb.CreateAssessmentRequest{
-		Assessment: assessment,
-		Parent:     fmt.Sprintf("projects/%s", projectID),
-	}
-
-	response, err := client.CreateAssessment(
-		ctx,
-		request)
-
-	if err != nil {
-		fmt.Printf("%v", err.Error())
-	}
-
-	// Check if the token is valid.
-	if !response.TokenProperties.Valid {
-		return fmt.Errorf("the CreateAssessment() call failed because the token"+
-			" was invalid for the following reasons: %v",
-			response.TokenProperties.InvalidReason)
-	}
-
-	// Check if the expected action was executed.
-	if response.TokenProperties.Action == recaptchaAction {
-		// Get the risk score and the reason(s).
-		// For more information on interpreting the assessment,
-		// see: https://cloud.google.com/recaptcha-enterprise/docs/interpret-assessment
-		log.Info(nil, fmt.Sprintf("The reCAPTCHA score for this token is:  %v", response.RiskAnalysis.Score))
-
-		for _, reason := range response.RiskAnalysis.Reasons {
-			fmt.Printf(reason.String() + "\n")
-		}
-		if response.RiskAnalysis.Score < 0.8 {
-			return fmt.Errorf("the risk analysis score did not meet the expected threshold")
-		}
-		return nil
-	}
-
-	return fmt.Errorf("the action attribute in your reCAPTCHA tag does " +
-		"not match the action you are expecting to score")
 }

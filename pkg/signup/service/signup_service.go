@@ -97,14 +97,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
 
 	// Check if the user's email address is in the list of domains excluded for phone verification
-	cfg := configuration.GetRegistrationServiceConfig()
-	emailHost := extractEmailHost(userEmail)
-	for _, d := range cfg.Verification().ExcludedEmailDomains() {
-		if strings.EqualFold(d, emailHost) {
-			verificationRequired = false
-			break
-		}
-	}
+	// cfg := configuration.GetRegistrationServiceConfig()
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,40 +149,58 @@ Returns true in the following cases:
 
 Returns false in the following cases:
 1. Overall verification configuration is disabled
-2. Captcha is enabled and the assessment is successful
+2. User's email domain is excluded
+3. Captcha is enabled and the assessment is successful
 */
 func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32) {
 	cfg := configuration.GetRegistrationServiceConfig()
+
+	// skip verification if verification is disabled
 	if !cfg.Verification().Enabled() {
 		return false, -1
 	}
 
+	// skip verification for excluded email domains
+	userEmail := ctx.GetString(context.EmailKey)
+	emailHost := extractEmailHost(userEmail)
+	for _, d := range cfg.Verification().ExcludedEmailDomains() {
+		if strings.EqualFold(d, emailHost) {
+			return false, -1
+		}
+	}
+
+	// require verification if captcha is enabled
 	if !cfg.Verification().CaptchaEnabled() {
 		return true, -1
 	}
 
-	if ctx == nil || ctx.Request == nil {
+	// require verification if context is invalid
+	if ctx.Request == nil {
 		log.Error(ctx, nil, "no request in context")
 		return true, -1
 	}
 
+	// require verification if captcha token is invalid
 	captchaToken, exists := ctx.Request.Header["Recaptcha-Token"]
 	if !exists || len(captchaToken) != 1 {
 		log.Error(ctx, nil, "no valid captcha token found in request header")
 		return true, -1
 	}
 
+	// require verification if captcha failed
 	score, err := captchaChecker.CompleteAssessment(ctx, cfg, captchaToken[0])
 	if err != nil {
 		log.Error(ctx, err, "signup assessment failed")
 		return true, -1
 	}
 
+	// require verification if captcha score is too low
 	if score < cfg.Verification().CaptchaScoreThreshold() {
 		log.Error(ctx, fmt.Errorf("the risk analysis score did not meet the expected threshold"), "signup assessment failed")
 		return true, score
 	}
 
+	// verification not required, score is above threshold
 	return false, score
 }
 

@@ -1511,7 +1511,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(false))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, nil)
+			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
 			assert.Equal(s.T(), float32(-1), score)
 		})
@@ -1580,6 +1580,17 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(false))
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, nil)
+			assert.False(s.T(), isVerificationRequired)
+			assert.Equal(s.T(), float32(-1), score)
+		})
+		s.Run("user's email domain is excluded", func() {
+			s.OverrideApplicationDefault(
+				testconfig.RegistrationService().
+					Verification().Enabled(true).
+					Verification().CaptchaEnabled(true).
+					Verification().ExcludedEmailDomains("redhat.com"))
+
+			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
 			assert.False(s.T(), isVerificationRequired)
 			assert.Equal(s.T(), float32(-1), score)
 		})

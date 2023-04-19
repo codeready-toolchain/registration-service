@@ -96,9 +96,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
 
-	// Check if the user's email address is in the list of domains excluded for phone verification
-	// cfg := configuration.GetRegistrationServiceConfig()
-
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),

@@ -148,6 +148,10 @@ Returns false in the following cases:
 1. Overall verification configuration is disabled
 2. User's email domain is excluded
 3. Captcha is enabled and the assessment is successful
+
+Returns true/false to dictate whether phone verification is required.
+Returns the captcha score if the assessment was successful, otherwise returns -1 which will
+prevent the score from being set in the UserSignup annotation.
 */
 func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32) {
 	cfg := configuration.GetRegistrationServiceConfig()

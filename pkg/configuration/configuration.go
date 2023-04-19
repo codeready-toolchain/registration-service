@@ -11,6 +11,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
+	"github.com/labstack/gommon/log"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +49,8 @@ const (
 	CaptchaSecretName = "captcha-config"
 	CaptchaFileName   = "captcha.json"
 	CaptchaFilePath   = "/tmp/" + CaptchaFileName
+
+	defaultScoreThreshold float32 = 0.9
 )
 
 var configurationClient client.Client
@@ -266,7 +269,11 @@ func (r VerificationConfig) CaptchaScoreThreshold() float32 {
 	threshold := commonconfig.GetString(r.c.Captcha.ScoreThreshold, "")
 	thresholdFloat, err := strconv.ParseFloat(threshold, 32)
 	if err != nil {
-		return 0.9
+
+		if threshold != "" {
+			log.Error(nil, err, fmt.Sprintf("unable to parse captcha score threshold, using default value '%.1f'", defaultScoreThreshold))
+		}
+		return defaultScoreThreshold
 	}
 	return float32(thresholdFloat)
 }

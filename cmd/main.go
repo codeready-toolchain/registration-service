@@ -180,7 +180,7 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 
 func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig) error {
 	contents := cfg.Verification().CaptchaServiceAccountFileContents()
-	if err := os.WriteFile(configuration.CaptchaFilePath, []byte(contents), 0644); err != nil {
+	if err := os.WriteFile(configuration.CaptchaFilePath, []byte(contents), 0600); err != nil {
 		return errs.Wrap(err, "error writing captcha file")
 	}
 	return nil

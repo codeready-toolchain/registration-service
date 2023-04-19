@@ -74,7 +74,7 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 		// Get the risk score and the reason(s).
 		// For more information on interpreting the assessment,
 		// see: https://cloud.google.com/recaptcha-enterprise/docs/interpret-assessment
-		log.Info(ctx, fmt.Sprintf("The reCAPTCHA assessment score is:  %v", response.RiskAnalysis.Score))
+		log.Info(ctx, fmt.Sprintf("The reCAPTCHA assessment score is:  %.1f", response.RiskAnalysis.Score))
 
 		for _, reason := range response.RiskAnalysis.Reasons {
 			log.Info(ctx, fmt.Sprintf("Risk analysis reason: %s", reason.String()))

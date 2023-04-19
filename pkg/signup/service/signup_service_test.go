@@ -1688,12 +1688,6 @@ type FakeCaptchaChecker struct {
 	result error
 }
 
-func (c FakeCaptchaChecker) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
+func (c FakeCaptchaChecker) CompleteAssessment(_ *gin.Context, _ configuration.RegistrationServiceConfig, _ string) (float32, error) {
 	return c.score, c.result
-}
-
-func WithFakeCaptchaChecker(score float32, result error) func(svc *service.ServiceImpl) {
-	return func(svc *service.ServiceImpl) {
-		svc.CaptchaChecker = &FakeCaptchaChecker{}
-	}
 }

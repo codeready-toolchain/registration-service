@@ -46,7 +46,7 @@ const (
 
 // captcha specific configuration
 const (
-	CaptchaSecretName = "captcha-config"
+	CaptchaSecretName = "captcha-config" // #nosec
 	CaptchaFileName   = "captcha.json"
 	CaptchaFilePath   = "/tmp/" + CaptchaFileName
 

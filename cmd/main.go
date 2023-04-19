@@ -71,7 +71,7 @@ func main() {
 	crtConfig.Print()
 
 	if crtConfig.Verification().CaptchaEnabled() {
-		if err := createCaptchaFileFromSecret(crtConfig, cl); err != nil {
+		if err := createCaptchaFileFromSecret(crtConfig); err != nil {
 			panic(fmt.Sprintf("failed to create captcha file: %s", err.Error()))
 		}
 
@@ -178,7 +178,7 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 	})
 }
 
-func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig, cl client.Client) error {
+func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig) error {
 	contents := cfg.Verification().CaptchaServiceAccountFileContents()
 	if err := os.WriteFile(configuration.CaptchaFilePath, []byte(contents), 0644); err != nil {
 		return errs.Wrap(err, "error writing captcha file")

@@ -72,13 +72,12 @@ func main() {
 
 	if crtConfig.Verification().CaptchaEnabled() {
 		if err := createCaptchaFileFromSecret(crtConfig, cl); err != nil {
-			log.Error(nil, err, "failed to create captcha file")
-			panic("failed to create captcha file")
+			panic(fmt.Sprintf("failed to create captcha file: %s", err.Error()))
 		}
 
 		// set application credentials env var required for recaptcha client
 		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", configuration.CaptchaFilePath); err != nil {
-			panic("cannot set captcha credentials")
+			panic(fmt.Sprintf("cannot set captcha credentials: %s", err.Error()))
 		}
 	}
 

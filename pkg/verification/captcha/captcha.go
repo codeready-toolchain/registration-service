@@ -29,7 +29,7 @@ type Helper struct{}
 * @param cfg: The Registration Service Configuration object.
 * @param token: The token obtained from the client on passing the reCAPTCHA Site Key.
 
-returns an error if the assessment failed due to error or the assessment score was below the threshold.
+returns the score value and nil if the assessment was successful, otherwise returns -1 and the error.
 */
 func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
 	gctx := gocontext.Background()

@@ -196,8 +196,9 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 	}
 
 	// require verification if captcha score is too low
-	if score < cfg.Verification().CaptchaScoreThreshold() {
-		log.Error(ctx, fmt.Errorf("the risk analysis score did not meet the expected threshold"), "signup assessment failed")
+	threshold := cfg.Verification().CaptchaScoreThreshold()
+	if score < threshold {
+		log.Info(ctx, fmt.Sprintf("the risk analysis score '%.1f' did not meet the expected threshold '%.1f'", score, threshold))
 		return true, score
 	}
 

@@ -46,9 +46,8 @@ const (
 
 // captcha specific configuration
 const (
-	CaptchaSecretName = "captcha-config" // #nosec
-	CaptchaFileName   = "captcha.json"
-	CaptchaFilePath   = "/tmp/" + CaptchaFileName
+	CaptchaFileName = "captcha.json"
+	CaptchaFilePath = "/tmp/" + CaptchaFileName
 
 	defaultScoreThreshold float32 = 0.9
 )

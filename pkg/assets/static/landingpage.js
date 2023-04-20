@@ -254,7 +254,7 @@ function login() {
 // start signup process.
 function signup() {
   grecaptcha.enterprise.ready(async () => {
-    recaptchaToken = await grecaptcha.enterprise.execute('6LcaESslAAAAAO1aPnbNiP1fg6z9VC5Y33Rq-Sl4', {action: 'SIGNUP'});
+    recaptchaToken = await grecaptcha.enterprise.execute('6LdL7aMlAAAAALvuuAZWjwlOLRKMCIrWjOpv-U3G', {action: 'SIGNUP'});
     var headers = new Map();
     headers.set("Recaptcha-Token", recaptchaToken)
     getJSON('POST', signupURL, idToken, function(err, data) {

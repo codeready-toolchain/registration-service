@@ -70,6 +70,17 @@ func main() {
 	}
 	crtConfig.Print()
 
+	if crtConfig.Verification().CaptchaEnabled() {
+		if err := createCaptchaFileFromSecret(crtConfig); err != nil {
+			panic(fmt.Sprintf("failed to create captcha file: %s", err.Error()))
+		}
+
+		// set application credentials env var required for recaptcha client
+		if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", configuration.CaptchaFilePath); err != nil {
+			panic(fmt.Sprintf("cannot set captcha credentials: %s", err.Error()))
+		}
+	}
+
 	informer, informerShutdown, err := informers.StartInformer(cfg)
 	if err != nil {
 		panic(err.Error())
@@ -165,4 +176,12 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 	return client.New(cfg, client.Options{
 		Scheme: scheme,
 	})
+}
+
+func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig) error {
+	contents := cfg.Verification().CaptchaServiceAccountFileContents()
+	if err := os.WriteFile(configuration.CaptchaFilePath, []byte(contents), 0600); err != nil {
+		return errs.Wrap(err, "error writing captcha file")
+	}
+	return nil
 }

@@ -355,7 +355,7 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 	// Check UserSignup status to determine whether user signup is complete
 	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
 	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
-	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
+	if !completeFound || (approvedFound && approvedCondition.Status != apiv1.ConditionTrue) {
 		signupResponse.Status = signup.Status{
 			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: states.VerificationRequired(userSignup),

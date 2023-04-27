@@ -442,10 +442,9 @@ func (s *TestProxySuite) TestProxy() {
 					s.Run(k, func() {
 
 						for _, firstHeader := range rejectedHeaders {
+							rejectedHeadersToAdd := []headerToAdd{firstHeader}
 							for _, additionalHeader := range rejectedHeaders {
-								rejectedHeadersToAdd := []headerToAdd{
-									firstHeader, additionalHeader,
-								}
+								rejectedHeadersToAdd = append(rejectedHeadersToAdd, additionalHeader)
 
 								// Test each request using both the default workspace URL and a URL that uses the
 								// workspace context. Both should yield the same results.
@@ -463,11 +462,11 @@ func (s *TestProxySuite) TestProxy() {
 										for hk, hv := range tc.ProxyRequestHeaders {
 											for _, v := range hv {
 												req.Header.Add(hk, v)
-												for _, header := range rejectedHeadersToAdd {
-													if header.key != "" {
-														req.Header.Add(header.key, header.value)
-													}
-												}
+											}
+										}
+										for _, header := range rejectedHeadersToAdd {
+											if header.key != "" {
+												req.Header.Add(header.key, header.value)
 											}
 										}
 

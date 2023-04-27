@@ -425,141 +425,184 @@ func (s *TestProxySuite) TestProxy() {
 					},
 				}
 
+				rejectedHeaders := []headerToAdd{
+					{},
+					{"Impersonate-User", "myvalue"},
+					{"Impersonate-Group", "developers"},
+					{"Impersonate-Group", "admins"},
+					{"Impersonate-Extra-dn", "cn=jane,ou=engineers,dc=example,dc=com"},
+					{"Impersonate-Extra-acme.com%2Fproject", "some-project"},
+					{"Impersonate-Extra-scopes", "view"},
+					{"Impersonate-Extra-scopes", "development"},
+					{"Impersonate-Uid", "06f6ce97-e2c5-4ab8-7ba5-7654dd08d52b"},
+					{"Impersonate-New", "myvalue"},
+				}
+
 				for k, tc := range tests {
 					s.Run(k, func() {
 
-						// Test each request using both the default workspace URL and a URL that uses the
-						// workspace context. Both should yield the same results.
-						for workspaceContext, reqPath := range map[string]string{
-							"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
-							"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-							"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-						} {
-							s.Run(workspaceContext, func() {
-								// given
-								req, err := http.NewRequest(tc.ProxyRequestMethod, reqPath, nil)
-								require.NoError(s.T(), err)
-								require.NotNil(s.T(), req)
-
-								for hk, hv := range tc.ProxyRequestHeaders {
-									for _, v := range hv {
-										req.Header.Add(hk, v)
-									}
+						for _, firstHeader := range rejectedHeaders {
+							for _, additionalHeader := range rejectedHeaders {
+								rejectedHeadersToAdd := []headerToAdd{
+									firstHeader, additionalHeader,
 								}
 
-								fakeApp.Err = nil
-
-								if !tc.Standalone {
-									testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-										w.Header().Set("Content-Type", "application/json")
-										// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
-										w.Header().Set("Access-Control-Allow-Origin", "dummy")
-										w.WriteHeader(http.StatusOK)
-										_, err := w.Write([]byte("my response"))
+								// Test each request using both the default workspace URL and a URL that uses the
+								// workspace context. Both should yield the same results.
+								for workspaceContext, reqPath := range map[string]string{
+									"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
+									"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+									"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+								} {
+									s.Run(workspaceContext, func() {
+										// given
+										req, err := http.NewRequest(tc.ProxyRequestMethod, reqPath, nil)
 										require.NoError(s.T(), err)
-										for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
-											require.Len(s.T(), r.Header.Values(hk), len(hv))
+										require.NotNil(s.T(), req)
+
+										for hk, hv := range tc.ProxyRequestHeaders {
+											for _, v := range hv {
+												req.Header.Add(hk, v)
+												for _, header := range rejectedHeadersToAdd {
+													header.add(req.Header)
+												}
+											}
+										}
+
+										fakeApp.Err = nil
+
+										if !tc.Standalone {
+											testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+												w.Header().Set("Content-Type", "application/json")
+												// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
+												w.Header().Set("Access-Control-Allow-Origin", "dummy")
+												w.WriteHeader(http.StatusOK)
+												_, err := w.Write([]byte("my response"))
+												require.NoError(s.T(), err)
+												for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
+													require.Len(s.T(), r.Header.Values(hk), len(hv))
+													for i := range hv {
+														assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+													}
+												}
+												impersonateUser := tc.ExpectedAPIServerRequestHeaders.Get("Impersonate-User")
+												for _, header := range rejectedHeaders {
+													if impersonateUser != "" && header.key == "Impersonate-User" {
+														assert.NotEqual(s.T(), header.value, r.Header.Get(header.key))
+													} else {
+														assert.Emptyf(s.T(), r.Header.Get(header.key), "The header %s should be deleted", header.key)
+														assert.Emptyf(s.T(), r.Header.Values(header.key), "The header %s should be deleted", header.key)
+													}
+												}
+											})
+											fakeApp.SignupServiceMock = fake.NewSignupService(
+												fake.Signup("someUserID", &signup.Signup{
+													Name:              "smith1",
+													APIEndpoint:       "https://api.endpoint.member-1.com:6443",
+													ClusterName:       "member-1",
+													CompliantUsername: "smith1",
+													Username:          "smith1@",
+													Status: signup.Status{
+														Ready: true,
+													},
+												}),
+												fake.Signup(userID.String(), &signup.Signup{
+													Name:              "smith2",
+													APIEndpoint:       testServer.URL,
+													ClusterName:       "member-2",
+													CompliantUsername: "smith2",
+													Username:          "smith2@",
+													Status: signup.Status{
+														Ready: true,
+													},
+												}),
+											)
+											s.Application.MockSignupService(fakeApp.SignupServiceMock)
+											inf := fake.NewFakeInformer()
+											inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+												switch name {
+												case "mycoolworkspace":
+													return fake.NewSpace("mycoolworkspace", "member-2", "smith2"), nil
+												}
+												return nil, fmt.Errorf("space not found error")
+											}
+											inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+												// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
+												spaceBindings := []*toolchainv1alpha1.SpaceBinding{}
+												for _, req := range reqs {
+													if req.Values().List()[0] == "smith2" {
+														spaceBindings = append(spaceBindings, fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
+													}
+												}
+												return spaceBindings, nil
+											}
+											inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+												switch name {
+												case "myplugin":
+													return &toolchainv1alpha1.ProxyPlugin{
+														ObjectMeta: metav1.ObjectMeta{
+															Namespace: metav1.NamespaceDefault,
+															Name:      "myplugin",
+														},
+														Spec: toolchainv1alpha1.ProxyPluginSpec{
+															OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+																Namespace: metav1.NamespaceDefault,
+																Name:      metav1.NamespaceDefault,
+															},
+														},
+														Status: toolchainv1alpha1.ProxyPluginStatus{},
+													}, nil
+												}
+												return nil, fmt.Errorf("proxy plugin not found")
+											}
+											s.Application.MockInformerService(inf)
+											fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+
+											p.spaceLister = &handlers.SpaceLister{
+												GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+												GetInformerServiceFunc: func() appservice.InformerService {
+													return inf
+												},
+											}
+										}
+
+										// when
+										client := http.Client{Timeout: 3 * time.Second}
+										resp, err := client.Do(req)
+										defer resp.Body.Close() //nolint:govet,staticcheck
+
+										// then
+										require.NoError(s.T(), err)
+										require.NotNil(s.T(), resp)
+										assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
+										if !tc.Standalone {
+											s.assertResponseBody(resp, "my response")
+										}
+										for hk, hv := range tc.ExpectedProxyResponseHeaders {
+											require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
 											for i := range hv {
-												assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+												assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
 											}
 										}
 									})
-									fakeApp.SignupServiceMock = fake.NewSignupService(
-										fake.Signup("someUserID", &signup.Signup{
-											Name:              "smith1",
-											APIEndpoint:       "https://api.endpoint.member-1.com:6443",
-											ClusterName:       "member-1",
-											CompliantUsername: "smith1",
-											Username:          "smith1@",
-											Status: signup.Status{
-												Ready: true,
-											},
-										}),
-										fake.Signup(userID.String(), &signup.Signup{
-											Name:              "smith2",
-											APIEndpoint:       testServer.URL,
-											ClusterName:       "member-2",
-											CompliantUsername: "smith2",
-											Username:          "smith2@",
-											Status: signup.Status{
-												Ready: true,
-											},
-										}),
-									)
-									s.Application.MockSignupService(fakeApp.SignupServiceMock)
-									inf := fake.NewFakeInformer()
-									inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-										switch name {
-										case "mycoolworkspace":
-											return fake.NewSpace("mycoolworkspace", "member-2", "smith2"), nil
-										}
-										return nil, fmt.Errorf("space not found error")
-									}
-									inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
-										// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
-										spaceBindings := []*toolchainv1alpha1.SpaceBinding{}
-										for _, req := range reqs {
-											if req.Values().List()[0] == "smith2" {
-												spaceBindings = append(spaceBindings, fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
-											}
-										}
-										return spaceBindings, nil
-									}
-									inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
-										switch name {
-										case "myplugin":
-											return &toolchainv1alpha1.ProxyPlugin{
-												ObjectMeta: metav1.ObjectMeta{
-													Namespace: metav1.NamespaceDefault,
-													Name:      "myplugin",
-												},
-												Spec: toolchainv1alpha1.ProxyPluginSpec{
-													OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
-														Namespace: metav1.NamespaceDefault,
-														Name:      metav1.NamespaceDefault,
-													},
-												},
-												Status: toolchainv1alpha1.ProxyPluginStatus{},
-											}, nil
-										}
-										return nil, fmt.Errorf("proxy plugin not found")
-									}
-									s.Application.MockInformerService(inf)
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
-
-									p.spaceLister = &handlers.SpaceLister{
-										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
-										GetInformerServiceFunc: func() appservice.InformerService {
-											return inf
-										},
-									}
 								}
-
-								// when
-								client := http.Client{Timeout: 3 * time.Second}
-								resp, err := client.Do(req)
-								defer resp.Body.Close() //nolint:govet,staticcheck
-
-								// then
-								require.NoError(s.T(), err)
-								require.NotNil(s.T(), resp)
-								assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
-								if !tc.Standalone {
-									s.assertResponseBody(resp, "my response")
-								}
-								for hk, hv := range tc.ExpectedProxyResponseHeaders {
-									require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
-									for i := range hv {
-										assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
-									}
-								}
-							})
+							}
 						}
 					})
 				}
 			})
 
 		})
+	}
+}
+
+type headerToAdd struct {
+	key, value string
+}
+
+func (h headerToAdd) add(header http.Header) {
+	if h.key != "" {
+		header.Add(h.key, h.value)
 	}
 }
 

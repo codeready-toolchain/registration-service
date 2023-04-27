@@ -23,8 +23,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-
 	"github.com/labstack/echo/v4"
+
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
@@ -318,6 +318,12 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 			replaceTokenInWebsocketRequest(req, target.ImpersonatorToken())
 		} else {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.ImpersonatorToken()))
+		}
+
+		for header := range req.Header {
+			if strings.HasPrefix(header, "Impersonate-") {
+				req.Header.Del(header)
+			}
 		}
 
 		// Set impersonation header

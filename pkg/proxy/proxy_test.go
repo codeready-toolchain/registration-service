@@ -464,7 +464,9 @@ func (s *TestProxySuite) TestProxy() {
 											for _, v := range hv {
 												req.Header.Add(hk, v)
 												for _, header := range rejectedHeadersToAdd {
-													header.add(req.Header)
+													if header.key != "" {
+														req.Header.Add(header.key, header.value)
+													}
 												}
 											}
 										}
@@ -598,12 +600,6 @@ func (s *TestProxySuite) TestProxy() {
 
 type headerToAdd struct {
 	key, value string
-}
-
-func (h headerToAdd) add(header http.Header) {
-	if h.key != "" {
-		header.Add(h.key, h.value)
-	}
 }
 
 func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {

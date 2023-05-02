@@ -20,8 +20,6 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
-
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
@@ -72,8 +70,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	userID := ctx.GetString(context.UserIDKey)
 	accountID := ctx.GetString(context.AccountIDKey)
 
-	username = usersignup.TransformUsername(username)
-	if strings.HasSuffix(username, "crtadmin") {
+	if isCRTAdmin(username) {
 		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
 		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
 	}
@@ -134,6 +131,14 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	return userSignup, nil
+}
+
+func isCRTAdmin(username string) bool {
+	newUsername := regexp.MustCompile("[^A-Za-z0-9]").ReplaceAllString(strings.Split(username, "@")[0], "-")
+	if strings.HasSuffix(newUsername, "crtadmin") {
+		return true
+	}
+	return false
 }
 
 /*

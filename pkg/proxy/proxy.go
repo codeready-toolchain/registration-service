@@ -263,7 +263,8 @@ func (p *Proxy) stripInvalidHeaders() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			for header := range ctx.Request().Header {
-				if strings.HasPrefix(header, "Impersonate-") {
+				lowercase := strings.ToLower(header)
+				if strings.HasPrefix(lowercase, "impersonate-") {
 					ctx.Request().Header.Del(header)
 				}
 			}

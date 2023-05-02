@@ -109,11 +109,11 @@ func (s *TestProxySuite) TestProxy() {
 
 				// when
 				resp, err := http.DefaultClient.Do(req)
-				defer resp.Body.Close() //nolint:govet,staticcheck
 
 				// then
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), resp)
+				defer resp.Body.Close()
 				assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 				s.assertResponseBody(resp, `{"alive": true}`)
 			})
@@ -126,11 +126,11 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
-					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 					s.assertResponseBody(resp, "invalid bearer token: no token found: a Bearer token is expected")
 				})
@@ -142,11 +142,11 @@ func (s *TestProxySuite) TestProxy() {
 					require.NotNil(s.T(), req)
 					req.Header.Set("Authorization", "Bearer not-a-token")
 					resp, err := http.DefaultClient.Do(req)
-					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments")
 				})
@@ -160,11 +160,11 @@ func (s *TestProxySuite) TestProxy() {
 					require.NoError(s.T(), err)
 					req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
 					resp, err := http.DefaultClient.Do(req)
-					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 					s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
 				})
@@ -177,11 +177,11 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
-					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
 					s.assertResponseBody(resp, "unable to get workspace context: workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...")
 				})
@@ -194,11 +194,11 @@ func (s *TestProxySuite) TestProxy() {
 
 					// when
 					resp, err := http.DefaultClient.Do(req)
-					defer resp.Body.Close() //nolint:govet,staticcheck
 
 					// then
 					require.NoError(s.T(), err)
 					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
 					s.assertResponseBody(resp, "unable to get target cluster: some-error")
 				})
@@ -262,11 +262,11 @@ func (s *TestProxySuite) TestProxy() {
 
 						// when
 						resp, err := http.DefaultClient.Do(req)
-						defer resp.Body.Close() //nolint:govet,staticcheck
 
 						// then
 						require.NoError(s.T(), err)
 						require.NotNil(s.T(), resp)
+						defer resp.Body.Close()
 						assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 						s.assertResponseBody(resp, tc.ExpectedError)
 					})
@@ -427,9 +427,10 @@ func (s *TestProxySuite) TestProxy() {
 
 				rejectedHeaders := []headerToAdd{
 					{},
+					{"impersonate-user", "myvalue"},
 					{"Impersonate-User", "myvalue"},
 					{"Impersonate-Group", "developers"},
-					{"Impersonate-Group", "admins"},
+					{"Impersonate-gRoup", "admins"},
 					{"Impersonate-Extra-dn", "cn=jane,ou=engineers,dc=example,dc=com"},
 					{"Impersonate-Extra-acme.com%2Fproject", "some-project"},
 					{"Impersonate-Extra-scopes", "view"},
@@ -487,12 +488,12 @@ func (s *TestProxySuite) TestProxy() {
 													}
 												}
 												impersonateUser := tc.ExpectedAPIServerRequestHeaders.Get("Impersonate-User")
-												for _, header := range rejectedHeaders {
-													if impersonateUser != "" && header.key == "Impersonate-User" {
-														assert.NotEqual(s.T(), header.value, r.Header.Get(header.key))
+												for _, rejectedHeader := range rejectedHeaders {
+													if impersonateUser != "" && strings.ToLower(rejectedHeader.key) == "impersonate-user" { // only the expected Impersonate-User header should not be rejected
+														assert.NotEqual(s.T(), rejectedHeader.value, r.Header.Get(rejectedHeader.key))
 													} else {
-														assert.Emptyf(s.T(), r.Header.Get(header.key), "The header %s should be deleted", header.key)
-														assert.Emptyf(s.T(), r.Header.Values(header.key), "The header %s should be deleted", header.key)
+														assert.Emptyf(s.T(), r.Header.Get(rejectedHeader.key), "The header %s should be deleted", rejectedHeader.key)
+														assert.Emptyf(s.T(), r.Header.Values(rejectedHeader.key), "The header %s should be deleted", rejectedHeader.key)
 													}
 												}
 											})
@@ -570,11 +571,11 @@ func (s *TestProxySuite) TestProxy() {
 										// when
 										client := http.Client{Timeout: 3 * time.Second}
 										resp, err := client.Do(req)
-										defer resp.Body.Close() //nolint:govet,staticcheck
 
 										// then
 										require.NoError(s.T(), err)
 										require.NotNil(s.T(), resp)
+										defer resp.Body.Close()
 										assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
 										if !tc.Standalone {
 											s.assertResponseBody(resp, "my response")

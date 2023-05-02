@@ -98,7 +98,7 @@ func (s *TestServerSuite) TestServer() {
 		defer resp.Body.Close()
 
 		require.Equal(s.T(), 204, resp.StatusCode)
-		require.Equal(s.T(), "Content-Length,Content-Type,Authorization,Accept", resp.Header.Get("Access-Control-Allow-Headers"))
+		require.Equal(s.T(), "Content-Length,Content-Type,Authorization,Accept,Recaptcha-Token", resp.Header.Get("Access-Control-Allow-Headers"))
 		require.Equal(s.T(), "PUT,PATCH,POST,GET,DELETE,OPTIONS", resp.Header.Get("Access-Control-Allow-Methods"))
 		require.Equal(s.T(), "*", resp.Header.Get("Access-Control-Allow-Origin"))
 		require.Equal(s.T(), "true", resp.Header.Get("Access-Control-Allow-Credentials"))

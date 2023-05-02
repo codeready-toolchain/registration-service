@@ -63,7 +63,7 @@ func New(application application.Application) *RegistrationServer {
 		cors.New(cors.Config{
 			AllowAllOrigins:  true,
 			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
-			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept"},
+			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept", "Recaptcha-Token"},
 			ExposeHeaders:    []string{"Content-Length", "Authorization"},
 			AllowCredentials: true,
 		}),

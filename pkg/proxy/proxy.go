@@ -93,6 +93,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	// middleware before routing
 	router.Pre(
 		middleware.RemoveTrailingSlash(),
+		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
 	)
 
@@ -258,6 +259,19 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	}
 }
 
+func (p *Proxy) stripInvalidHeaders() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			for header := range ctx.Request().Header {
+				if strings.HasPrefix(header, "Impersonate-") {
+					ctx.Request().Header.Del(header)
+				}
+			}
+			return next(ctx)
+		}
+	}
+}
+
 func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
 	userToken := ""
 	var err error
@@ -318,12 +332,6 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 			replaceTokenInWebsocketRequest(req, target.ImpersonatorToken())
 		} else {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.ImpersonatorToken()))
-		}
-
-		for header := range req.Header {
-			if strings.HasPrefix(header, "Impersonate-") {
-				req.Header.Del(header)
-			}
 		}
 
 		// Set impersonation header

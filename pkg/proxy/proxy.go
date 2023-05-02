@@ -265,6 +265,7 @@ func (p *Proxy) stripInvalidHeaders() echo.MiddlewareFunc {
 			for header := range ctx.Request().Header {
 				lowercase := strings.ToLower(header)
 				if strings.HasPrefix(lowercase, "impersonate-") {
+					log.Info(nil, fmt.Sprintf("Removing invalid header %s from context '%+v'", header, ctx))
 					ctx.Request().Header.Del(header)
 				}
 			}

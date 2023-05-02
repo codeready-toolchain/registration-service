@@ -430,7 +430,7 @@ func (s *TestProxySuite) TestProxy() {
 					{"impersonate-user", "myvalue"},
 					{"Impersonate-User", "myvalue"},
 					{"Impersonate-Group", "developers"},
-					{"Impersonate-Group", "admins"},
+					{"Impersonate-gRoup", "admins"},
 					{"Impersonate-Extra-dn", "cn=jane,ou=engineers,dc=example,dc=com"},
 					{"Impersonate-Extra-acme.com%2Fproject", "some-project"},
 					{"Impersonate-Extra-scopes", "view"},

@@ -123,6 +123,20 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		require.EqualError(s.T(), err, "token does not comply to expected claims: email missing")
 	})
 
+	s.Run("unexpected signing method", func() {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"foo": "bar",
+			"nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		})
+		// serialize
+		jwt0string, err := token.SignedString([]byte("secret"))
+		require.NoError(s.T(), err)
+		// validate token
+		_, err = tokenParser.FromString(jwt0string)
+		require.Error(s.T(), err)
+		require.EqualError(s.T(), err, "unexpected signing method: HS256")
+	})
+
 	s.Run("token signed by unknown key", func() {
 		// new key
 		kidX := uuid.Must(uuid.NewV4()).String()
@@ -153,7 +167,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0))
 		delete(jwt0.Header, "kid")
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
@@ -172,7 +186,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0))
 		// delete preferred_username
 		jwt0.Claims.(*authsupport.MyClaims).PreferredUsername = ""
 		// serialize
@@ -191,7 +205,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			Username: username0,
 		}
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0)
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0)
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)
@@ -209,7 +223,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithSubClaim(""))
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithSubClaim(""))
 
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
@@ -230,7 +244,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		expTime := time.Now().Add(-60 * time.Second)
 		expClaim := authsupport.WithExpClaim(expTime)
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
 
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
@@ -251,7 +265,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		nbfTime := time.Now().Add(60 * time.Second)
 		nbfClaim := authsupport.WithNotBeforeClaim(nbfTime)
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), nbfClaim)
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0), nbfClaim)
 
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
@@ -270,7 +284,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 		email0 := identity0.Username + "@email.tld"
 		// generate non-serialized token
-		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
+		jwt0 := tokengenerator.GenerateToken(jwt.SigningMethodRS256, *identity0, kid0, authsupport.WithEmailClaim(email0))
 		// serialize
 		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
 		require.NoError(s.T(), err)

@@ -135,10 +135,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 func isCRTAdmin(username string) bool {
 	newUsername := regexp.MustCompile("[^A-Za-z0-9]").ReplaceAllString(strings.Split(username, "@")[0], "-")
-	if strings.HasSuffix(newUsername, "crtadmin") {
-		return true
-	}
-	return false
+	return strings.HasSuffix(newUsername, "crtadmin")
 }
 
 /*

@@ -123,6 +123,20 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		require.EqualError(s.T(), err, "token does not comply to expected claims: email missing")
 	})
 
+	s.Run("unexpected signing method", func() {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"foo": "bar",
+			"nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		})
+		// serialize
+		jwt0string, err := token.SignedString([]byte("secret"))
+		require.NoError(s.T(), err)
+		// validate token
+		_, err = tokenParser.FromString(jwt0string)
+		require.Error(s.T(), err)
+		require.EqualError(s.T(), err, "unexpected signing method: HS256")
+	})
+
 	s.Run("token signed by unknown key", func() {
 		// new key
 		kidX := uuid.Must(uuid.NewV4()).String()

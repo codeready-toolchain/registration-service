@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/test/fake"
-	"github.com/golang-jwt/jwt"
 	"gopkg.in/h2non/gock.v1"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -68,7 +67,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// invalid token - expired
 	expTime := time.Now().Add(-60 * time.Second)
 	expClaim := authsupport.WithExpClaim(expTime)
-	tokenInvalidExpiredJWT := tokengenerator.GenerateToken(jwt.SigningMethodRS256, identity0, kid0, emailClaim0, expClaim)
+	tokenInvalidExpiredJWT := tokengenerator.GenerateToken(identity0, kid0, emailClaim0, expClaim)
 	tokenInvalidExpired, err := tokengenerator.SignToken(tokenInvalidExpiredJWT, kid0)
 	require.NoError(s.T(), err)
 

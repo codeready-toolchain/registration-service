@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -61,9 +62,14 @@ func NewTokenParser(keyManager *KeyManager) (*TokenParser, error) {
 	}, nil
 }
 
-// FromString parses a JWT, validates the signaure and returns the claims struct.
+// FromString parses a JWT, validates the signature and returns the claims struct.
 func (tp *TokenParser) FromString(jwtEncoded string) (*TokenClaims, error) {
 	token, err := jwt.ParseWithClaims(jwtEncoded, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// validate the alg is what we expect
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
 		kid := token.Header["kid"]
 		if kid == nil {
 			return nil, errors.New("no key id given in the token")

@@ -39,7 +39,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/woopra-domain", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(woopraCtrl.GetWoopraDomain)
+		handler := gin.HandlerFunc(woopraCtrl.GetDevSpacesWoopraDomain)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
@@ -50,7 +50,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 		cfg := configuration.GetRegistrationServiceConfig()
 
-		assert.Equal(s.T(), "testing woopra domain", cfg.Analytics().WoopraDomain())
+		assert.Equal(s.T(), "testing woopra domain", cfg.Analytics().DevSpacesWoopraDomain())
 		handler(ctx)
 
 		// Check the status code is what we expect.
@@ -62,7 +62,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		require.NoError(s.T(), err)
 
 		s.Run("envelope woopra domain name", func() {
-			assert.Equal(s.T(), cfg.Analytics().WoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
+			assert.Equal(s.T(), cfg.Analytics().DevSpacesWoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
 		})
 	})
 
@@ -73,7 +73,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/segment-write-key", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(woopraCtrl.GetSegmentWriteKey)
+		handler := gin.HandlerFunc(woopraCtrl.GetSandboxSegmentWriteKey)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()

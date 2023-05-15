@@ -18,15 +18,22 @@ func NewWoopra() *Woopra {
 }
 
 // GetHandler returns the woopra-domain for UI.
-func (w *Woopra) GetWoopraDomain(ctx *gin.Context) {
+func (w *Woopra) GetDevSpacesWoopraDomain(ctx *gin.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()
-	domain := cfg.Analytics().WoopraDomain()
+	domain := cfg.Analytics().DevSpacesWoopraDomain()
 	ctx.String(http.StatusOK, domain)
 }
 
-// GetSegmentWriteKey returns segment-write-key content for UI.
-func (w *Woopra) GetSegmentWriteKey(ctx *gin.Context) {
+// GetSandboxSegmentWriteKey returns segment-write-key content for UI.
+func (w *Woopra) GetSandboxSegmentWriteKey(ctx *gin.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()
 	segmentWriteKey := cfg.Analytics().SegmentWriteKey()
+	ctx.String(http.StatusOK, segmentWriteKey)
+}
+
+// GetDevSpacesSegmentWriteKey returns segment-write-key content for DevSpaces
+func (w *Woopra) GetDevSpacesSegmentWriteKey(ctx *gin.Context) {
+	cfg := configuration.GetRegistrationServiceConfig()
+	segmentWriteKey := cfg.Analytics().DevSpacesSegmentWriteKey()
 	ctx.String(http.StatusOK, segmentWriteKey)
 }

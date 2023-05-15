@@ -153,12 +153,16 @@ type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }
 
-func (r AnalyticsConfig) WoopraDomain() string {
-	return commonconfig.GetString(r.c.WoopraDomain, "")
+func (r AnalyticsConfig) DevSpacesWoopraDomain() string {
+	return commonconfig.GetString(r.c.DevSpacesAnalytics.WoopraDomain, "")
 }
 
 func (r AnalyticsConfig) SegmentWriteKey() string {
 	return commonconfig.GetString(r.c.SegmentWriteKey, "")
+}
+
+func (r AnalyticsConfig) DevSpacesSegmentWriteKey() string {
+	return commonconfig.GetString(r.c.DevSpacesAnalytics.SegmentWriteKey, "")
 }
 
 type AuthConfig struct {

@@ -46,7 +46,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
-			Analytics().WoopraDomain("testing woopra domain"))
+			Analytics().DevSpacesWoopraDomain("testing woopra domain"))
 
 		cfg := configuration.GetRegistrationServiceConfig()
 

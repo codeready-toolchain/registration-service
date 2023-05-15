@@ -73,7 +73,7 @@ func TestRegistrationService(t *testing.T) {
 			LogLevel("debug").
 			RegistrationServiceURL("www.crtregservice.com").
 			Analytics().SegmentWriteKey("keyabc").
-			Analytics().WoopraDomain("woopra.com").
+			Analytics().DevSpacesWoopraDomain("woopra.com").
 			Auth().AuthClientLibraryURL("https://sso.openshift.com/auth/js/keycloak.js").
 			Auth().AuthClientConfigContentType("application/xml").
 			Auth().AuthClientConfigRaw(`{"realm": "toolchain-private"}`).

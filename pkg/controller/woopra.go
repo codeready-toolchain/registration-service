@@ -17,7 +17,7 @@ func NewWoopra() *Woopra {
 	return &Woopra{}
 }
 
-// GetHandler returns the woopra-domain for DevSoaces.
+// GetHandler returns the woopra-domain for DevSpaces.
 func (w *Woopra) GetDevSpacesWoopraDomain(ctx *gin.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()
 	domain := cfg.Analytics().DevSpacesWoopraDomain()

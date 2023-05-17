@@ -361,10 +361,10 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/prometheus/client_model v0.2.0 h1:uq5h0d+GuxiXLJLNABMgp2qUWDPiLvgCzz2dUR+/W/M=
 github.com/prometheus/common v0.32.1 h1:hWIdL3N2HoUx3B8j3YN9mWor0qhY/NlEKZEaXxuIRh4=
 github.com/prometheus/procfs v0.7.3 h1:4jVXhlkAyzOScmCkXBTOLRLTz8EeU+eyjrwB/EPq0VU=
-github.com/ranakan19/api v0.0.0-20230517025157-876a6d55658c h1:4sW5345+KQeTlt+Ycl4IAAHglWDVSrFI7QkTyhGeNuI=
-github.com/ranakan19/api v0.0.0-20230517025157-876a6d55658c/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
-github.com/ranakan19/toolchain-common v0.0.0-20230517025549-1a712e9a51c5 h1:M15r4gkDOHQg+I9YKFWxmuaHoXmiKHrd4cqYcPdstsk=
-github.com/ranakan19/toolchain-common v0.0.0-20230517025549-1a712e9a51c5/go.mod h1:5bCFNgcjN4PVeqgazEJ6K1iNgs8iZ3hax3QnlzAyQXA=
+github.com/ranakan19/api v0.0.0-20230517162808-27ba2472d96f h1:FGzvlI6Xj5511YtUnGLLmdJNaLRw9jMe0w0gGpx9VRc=
+github.com/ranakan19/api v0.0.0-20230517162808-27ba2472d96f/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
+github.com/ranakan19/toolchain-common v0.0.0-20230517163102-33251a287971 h1:C0fPJsPwuQNh1Q/2rD61RMrbW7p7Xwj5WRhZwgIY+GY=
+github.com/ranakan19/toolchain-common v0.0.0-20230517163102-33251a287971/go.mod h1:TmFwP9a5LD9rW5ycKHnLY92k2vnayjFn7B5KJ7HPQ7M=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=

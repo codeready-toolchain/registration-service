@@ -125,6 +125,6 @@ require (
 )
 
 replace (
-	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40 => github.com/ranakan19/api v0.0.0-20230511192915-bdf571a529fe
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250 => github.com/ranakan19/toolchain-common v0.0.0-20230515153853-575baf601a7f
+	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40 => github.com/ranakan19/api v0.0.0-20230517025157-876a6d55658c
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250 => github.com/ranakan19/toolchain-common v0.0.0-20230517025549-1a712e9a51c5
 )

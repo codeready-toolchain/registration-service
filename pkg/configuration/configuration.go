@@ -154,7 +154,7 @@ type AnalyticsConfig struct {
 }
 
 func (r AnalyticsConfig) DevSpacesWoopraDomain() string {
-	return commonconfig.GetString(r.c.DevSpacesAnalytics.WoopraDomain, "")
+	return commonconfig.GetString(r.c.DevSpaces.WoopraDomain, "")
 }
 
 func (r AnalyticsConfig) SegmentWriteKey() string {
@@ -162,7 +162,7 @@ func (r AnalyticsConfig) SegmentWriteKey() string {
 }
 
 func (r AnalyticsConfig) DevSpacesSegmentWriteKey() string {
-	return commonconfig.GetString(r.c.DevSpacesAnalytics.SegmentWriteKey, "")
+	return commonconfig.GetString(r.c.DevSpaces.SegmentWriteKey, "")
 }
 
 type AuthConfig struct {

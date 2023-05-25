@@ -16,21 +16,21 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TestWoopraSuite struct {
+type TestAnalyticsSuite struct {
 	test.UnitTestSuite
 }
 
-func TestRunWoopraSuite(t *testing.T) {
-	suite.Run(t, &TestWoopraSuite{test.UnitTestSuite{}})
+func TestRunAnalyticsSuite(t *testing.T) {
+	suite.Run(t, &TestAnalyticsSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestWoopraSuite) TestWoopraHandler() {
+func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create handler instance.
 
-	woopraCtrl := NewWoopra()
+	analyticsCtrl := NewAnalytics()
 
 	s.Run("valid sandbox segment write key json", func() {
 
@@ -39,7 +39,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/segment-write-key", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(woopraCtrl.GetSandboxSegmentWriteKey)
+		handler := gin.HandlerFunc(analyticsCtrl.GetSandboxSegmentWriteKey)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
@@ -75,7 +75,7 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/devspaces-segment-write-key", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(woopraCtrl.GetDevSpacesSegmentWriteKey)
+		handler := gin.HandlerFunc(analyticsCtrl.GetDevSpacesSegmentWriteKey)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()

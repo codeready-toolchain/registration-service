@@ -24,7 +24,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		// creating the controllers
 		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
 		authConfigCtrl := controller.NewAuthConfig()
-		woopraCtrl := controller.NewWoopra()
+		analyticsCtrl := controller.NewAnalytics()
 		signupCtrl := controller.NewSignup(srv.application)
 
 		// create the auth middleware
@@ -39,8 +39,8 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		unsecuredV1 := srv.router.Group("/api/v1")
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
-		unsecuredV1.GET("/segment-write-key", woopraCtrl.GetSandboxSegmentWriteKey)
-		unsecuredV1.GET("/devspaces-segment-write-key", woopraCtrl.GetDevSpacesSegmentWriteKey)
+		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey)
+		unsecuredV1.GET("/devspaces-segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)
 
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")

@@ -98,8 +98,6 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20230519194615-a232ef147925 h1:cCJg42QUKQu2fD3Ni4mMZ1cBhBYLxbfCLiVhYxLAo5M=
-github.com/codeready-toolchain/api v0.0.0-20230519194615-a232ef147925/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -363,8 +361,10 @@ github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:
 github.com/prometheus/client_model v0.2.0 h1:uq5h0d+GuxiXLJLNABMgp2qUWDPiLvgCzz2dUR+/W/M=
 github.com/prometheus/common v0.32.1 h1:hWIdL3N2HoUx3B8j3YN9mWor0qhY/NlEKZEaXxuIRh4=
 github.com/prometheus/procfs v0.7.3 h1:4jVXhlkAyzOScmCkXBTOLRLTz8EeU+eyjrwB/EPq0VU=
-github.com/ranakan19/toolchain-common v0.0.0-20230519200605-30d4de3b07c8 h1:t2CgG92QwI9dnJqH4VZ4ViYdP0cSrkNIr94OykMmHjM=
-github.com/ranakan19/toolchain-common v0.0.0-20230519200605-30d4de3b07c8/go.mod h1:cwf+Ff9/Sk5ims76qXSXgBflr6w3tIIVZiIvYZ3oaNg=
+github.com/ranakan19/api v0.0.0-20230525171416-2effb7b92cb3 h1:Y0dlc6paU27RhTnSCNj8qRUmrBtsqkPuptx/t79P0SY=
+github.com/ranakan19/api v0.0.0-20230525171416-2effb7b92cb3/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
+github.com/ranakan19/toolchain-common v0.0.0-20230525180055-f75a15d67e5a h1:pA24NfcLLYOofsAk+vtujf2FadaQ3Utyl0LARXMPjCA=
+github.com/ranakan19/toolchain-common v0.0.0-20230525180055-f75a15d67e5a/go.mod h1:RnCFbTaJ/e/5pMN5nFjxbJm0xMer/3+P2xQIMTh7Uh8=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=

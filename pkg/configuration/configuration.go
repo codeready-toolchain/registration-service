@@ -153,10 +153,6 @@ type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }
 
-func (r AnalyticsConfig) DevSpacesWoopraDomain() string {
-	return commonconfig.GetString(r.c.DevSpaces.WoopraDomain, "")
-}
-
 func (r AnalyticsConfig) SegmentWriteKey() string {
 	return commonconfig.GetString(r.c.SegmentWriteKey, "")
 }

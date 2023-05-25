@@ -39,7 +39,6 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		unsecuredV1 := srv.router.Group("/api/v1")
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
-		unsecuredV1.GET("/woopra-domain", woopraCtrl.GetDevSpacesWoopraDomain)
 		unsecuredV1.GET("/segment-write-key", woopraCtrl.GetSandboxSegmentWriteKey)
 		unsecuredV1.GET("/devspaces-segment-write-key", woopraCtrl.GetDevSpacesSegmentWriteKey)
 

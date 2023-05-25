@@ -17,13 +17,6 @@ func NewWoopra() *Woopra {
 	return &Woopra{}
 }
 
-// GetHandler returns the woopra-domain for DevSpaces.
-func (w *Woopra) GetDevSpacesWoopraDomain(ctx *gin.Context) {
-	cfg := configuration.GetRegistrationServiceConfig()
-	domain := cfg.Analytics().DevSpacesWoopraDomain()
-	ctx.String(http.StatusOK, domain)
-}
-
 // GetSandboxSegmentWriteKey returns segment-write-key content for UI.
 func (w *Woopra) GetSandboxSegmentWriteKey(ctx *gin.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()

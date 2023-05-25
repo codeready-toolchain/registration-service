@@ -32,40 +32,6 @@ func (s *TestWoopraSuite) TestWoopraHandler() {
 
 	woopraCtrl := NewWoopra()
 
-	s.Run("valid woopra json", func() {
-
-		// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-		// pass 'nil' as the third parameter.
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/woopra-domain", nil)
-		require.NoError(s.T(), err)
-
-		handler := gin.HandlerFunc(woopraCtrl.GetDevSpacesWoopraDomain)
-
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
-		s.OverrideApplicationDefault(testconfig.RegistrationService().
-			Analytics().DevSpacesWoopraDomain("testing woopra domain"))
-
-		cfg := configuration.GetRegistrationServiceConfig()
-
-		assert.Equal(s.T(), "testing woopra domain", cfg.Analytics().DevSpacesWoopraDomain())
-		handler(ctx)
-
-		// Check the status code is what we expect.
-		require.Equal(s.T(), http.StatusOK, rr.Code)
-
-		// Check the response body is what we expect.
-		// get config values from endpoint response
-		dataEnvelope := rr.Body.String()
-		require.NoError(s.T(), err)
-
-		s.Run("envelope woopra domain name", func() {
-			assert.Equal(s.T(), cfg.Analytics().DevSpacesWoopraDomain(), dataEnvelope, "wrong 'woopra domain name' in woopra response")
-		})
-	})
-
 	s.Run("valid sandbox segment write key json", func() {
 
 		// Create a request to pass to our handler. We don't have any query parameters for now, so we'll

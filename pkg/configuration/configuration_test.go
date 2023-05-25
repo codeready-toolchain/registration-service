@@ -44,7 +44,6 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "info", regServiceCfg.LogLevel())
 		assert.Equal(t, "https://registration.crt-placeholder.com", regServiceCfg.RegistrationServiceURL())
 		assert.Empty(t, regServiceCfg.Analytics().SegmentWriteKey())
-		assert.Empty(t, regServiceCfg.Analytics().DevSpacesWoopraDomain())
 		assert.Empty(t, regServiceCfg.Analytics().DevSpacesSegmentWriteKey())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/json; charset=utf-8", regServiceCfg.Auth().AuthClientConfigContentType())
@@ -73,7 +72,6 @@ func TestRegistrationService(t *testing.T) {
 			LogLevel("debug").
 			RegistrationServiceURL("www.crtregservice.com").
 			Analytics().SegmentWriteKey("keyabc").
-			Analytics().DevSpacesWoopraDomain("woopra.com").
 			Auth().AuthClientLibraryURL("https://sso.openshift.com/auth/js/keycloak.js").
 			Auth().AuthClientConfigContentType("application/xml").
 			Auth().AuthClientConfigRaw(`{"realm": "toolchain-private"}`).
@@ -117,7 +115,6 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "debug", regServiceCfg.LogLevel())
 		assert.Equal(t, "www.crtregservice.com", regServiceCfg.RegistrationServiceURL())
 		assert.Equal(t, "keyabc", regServiceCfg.Analytics().SegmentWriteKey())
-		assert.Equal(t, "woopra.com", regServiceCfg.Analytics().DevSpacesWoopraDomain())
 		assert.Equal(t, "https://sso.openshift.com/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/xml", regServiceCfg.Auth().AuthClientConfigContentType())
 		assert.Equal(t, `{"realm": "toolchain-private"}`, regServiceCfg.Auth().AuthClientConfigRaw())

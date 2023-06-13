@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -392,6 +393,27 @@ func (s *TestProxySuite) TestProxy() {
 						ExpectedAPIServerRequestHeaders: map[string][]string{
 							"Authorization":    {"Bearer clusterSAToken"},
 							"Impersonate-User": {"smith2"},
+						},
+						ExpectedProxyResponseHeaders: map[string][]string{
+							"Access-Control-Allow-Origin":      {"*"},
+							"Access-Control-Allow-Credentials": {"true"},
+							"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+							"Vary":                             {"Origin"},
+						},
+						ExpectedProxyResponseStatus: http.StatusOK,
+					},
+					"plain http upgrade POST request": {
+						ProxyRequestMethod: "POST",
+						ProxyRequestHeaders: map[string][]string{
+							"Authorization": {"Bearer " + s.token(userID)},
+							"Connection":    {"Upgrade"},
+							"Upgrade":       {"SPDY/3.1"},
+						},
+						ExpectedAPIServerRequestHeaders: map[string][]string{
+							"Authorization":    {"Bearer clusterSAToken"},
+							"Impersonate-User": {"smith2"},
+							"Connection":       {"Upgrade"},
+							"Upgrade":          {"SPDY/3.1"},
 						},
 						ExpectedProxyResponseHeaders: map[string][]string{
 							"Access-Control-Allow-Origin":      {"*"},
@@ -921,6 +943,75 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 			}
 		})
 	}
+}
+
+func (s *TestProxySuite) TestGetTransport() {
+
+	s.T().Run("when not prod", func(t *testing.T) {
+		for _, envName := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev} {
+			s.T().Run("env "+string(envName), func(t *testing.T) {
+				// given
+				env := s.DefaultConfig().Environment()
+				defer s.SetConfig(testconfig.RegistrationService().
+					Environment(env))
+				s.SetConfig(testconfig.RegistrationService().
+					Environment(string(envName)))
+
+				// when
+				transport := getTransport(map[string][]string{})
+
+				// then
+				expectedTransport := &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true, // nolint:gosec
+					},
+				}
+				assert.Equal(t, expectedTransport, transport)
+			})
+		}
+	})
+
+	s.T().Run("for prod", func(t *testing.T) {
+		// given
+		env := s.DefaultConfig().Environment()
+		defer s.SetConfig(testconfig.RegistrationService().
+			Environment(env))
+		s.SetConfig(testconfig.RegistrationService().
+			Environment(string(testconfig.Prod)))
+
+		s.T().Run("upgrade header is set to 'SPDY/3.1'", func(t *testing.T) {
+			// when
+			transport := getTransport(map[string][]string{
+				"Connection": {"Upgrade"},
+				"Upgrade":    {"SPDY/3.1"},
+			})
+
+			// then
+			tr := transport.(*http.Transport)
+			assert.Equal(t, []string{"http/1.1"}, tr.TLSClientConfig.NextProtos)
+			assert.False(t, tr.ForceAttemptHTTP2)
+			assert.NotEqual(t, http.DefaultTransport, transport)
+		})
+
+		s.T().Run("upgrade header is set to 'websocket'", func(t *testing.T) {
+			// when
+			transport := getTransport(map[string][]string{
+				"Connection": {"Upgrade"},
+				"Upgrade":    {"websocket"},
+			})
+
+			// then
+			assert.Equal(t, http.DefaultTransport, transport)
+		})
+
+		s.T().Run("no upgrade header is set", func(t *testing.T) {
+			// when
+			transport := getTransport(map[string][]string{})
+
+			// then
+			assert.Equal(t, http.DefaultTransport, transport)
+		})
+	})
 }
 
 func (s *TestProxySuite) request() *http.Request {

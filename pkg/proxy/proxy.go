@@ -24,12 +24,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	"github.com/labstack/echo/v4"
-
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
@@ -339,14 +339,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 		// Set impersonation header
 		req.Header.Set("Impersonate-User", target.Username())
 	}
-	transport := http.DefaultTransport
-	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
-		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, // nolint:gosec
-			},
-		}
-	}
+	transport := getTransport(req.Header)
 	m := &responseModifier{req.Header.Get("Origin")}
 	return &httputil.ReverseProxy{
 		Director:       director,
@@ -354,6 +347,27 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 		FlushInterval:  -1,
 		ModifyResponse: m.addCorsToResponse,
 	}
+}
+
+func getTransport(reqHeader http.Header) http.RoundTripper {
+	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
+		return &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // nolint:gosec
+			},
+		}
+	}
+	// for exec and rsh command we cannot use h2 because it doesn't support "Upgrade: SPDY/3.1" header https://github.com/kubernetes/kubernetes/issues/7452
+	if strings.HasPrefix(strings.ToLower(reqHeader.Get(httpstream.HeaderUpgrade)), "spdy/") {
+		// thus, we need to switch to http/1.1
+		transport := http.DefaultTransport.(interface {
+			Clone() *http.Transport
+		}).Clone()
+		transport.ForceAttemptHTTP2 = false
+		transport.TLSClientConfig.NextProtos = []string{"http/1.1"}
+		return transport
+	}
+	return http.DefaultTransport
 }
 
 func singleJoiningSlash(a, b string) string {

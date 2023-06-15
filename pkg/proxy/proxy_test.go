@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -961,12 +962,11 @@ func (s *TestProxySuite) TestGetTransport() {
 				transport := getTransport(map[string][]string{})
 
 				// then
-				expectedTransport := &http.Transport{
-					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true, // nolint:gosec
-					},
+				expectedTransport := noTimeoutDefaultTransport()
+				expectedTransport.TLSClientConfig = &tls.Config{
+					InsecureSkipVerify: true, // nolint:gosec
 				}
-				assert.Equal(t, expectedTransport, transport)
+				assertTransport(t, expectedTransport, transport)
 			})
 		}
 	})
@@ -987,10 +987,11 @@ func (s *TestProxySuite) TestGetTransport() {
 			})
 
 			// then
-			tr := transport.(*http.Transport)
-			assert.Equal(t, []string{"http/1.1"}, tr.TLSClientConfig.NextProtos)
-			assert.False(t, tr.ForceAttemptHTTP2)
-			assert.NotEqual(t, http.DefaultTransport, transport)
+			expectedTransport := noTimeoutDefaultTransport().Clone()
+			expectedTransport.TLSClientConfig.NextProtos = []string{"http/1.1"}
+			expectedTransport.ForceAttemptHTTP2 = false
+
+			assertTransport(t, expectedTransport, transport)
 		})
 
 		s.T().Run("upgrade header is set to 'websocket'", func(t *testing.T) {
@@ -1001,7 +1002,7 @@ func (s *TestProxySuite) TestGetTransport() {
 			})
 
 			// then
-			assert.Equal(t, http.DefaultTransport, transport)
+			assertTransport(t, noTimeoutDefaultTransport(), transport)
 		})
 
 		s.T().Run("no upgrade header is set", func(t *testing.T) {
@@ -1009,9 +1010,40 @@ func (s *TestProxySuite) TestGetTransport() {
 			transport := getTransport(map[string][]string{})
 
 			// then
-			assert.Equal(t, http.DefaultTransport, transport)
+			assertTransport(t, noTimeoutDefaultTransport(), transport)
 		})
 	})
+
+	s.T().Run("default transport should be same except for DailContext", func(t *testing.T) {
+		// when
+		transport := http.DefaultTransport.(interface {
+			Clone() *http.Transport
+		}).Clone()
+		transport.DialContext = noTimeoutDialerProxy
+
+		// then
+		assertTransport(t, noTimeoutDefaultTransport().Clone(), transport)
+	})
+}
+
+func assertTransport(t *testing.T, expected, actual *http.Transport) {
+	// we need to assert TLSClientConfig directly since it's a pointer
+	assert.Equal(t, expected.TLSClientConfig, actual.TLSClientConfig)
+	// and now set it to nil so the different pointer address doesn't cause failures in the last assertion
+	expected.TLSClientConfig = nil
+	actual.TLSClientConfig = nil
+
+	// it's not possible to use assert.Equal for comparing functions, so let's use reflect to get the pointer
+	// and then set them to nil as well
+	assert.Equal(t, reflect.ValueOf(expected.DialContext).Pointer(), reflect.ValueOf(actual.DialContext).Pointer())
+	expected.DialContext = nil
+	actual.DialContext = nil
+	assert.Equal(t, reflect.ValueOf(expected.Proxy).Pointer(), reflect.ValueOf(actual.Proxy).Pointer())
+	expected.Proxy = nil
+	actual.Proxy = nil
+
+	// do final comparison of the rest of the comparable params
+	assert.Equal(t, expected, actual)
 }
 
 func (s *TestProxySuite) request() *http.Request {

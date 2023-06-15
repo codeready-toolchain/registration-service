@@ -1,11 +1,13 @@
 package proxy
 
 import (
+	gocontext "context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
@@ -44,8 +46,6 @@ const (
 	proxyHealthEndpoint = "/proxyhealth"
 
 	pluginsEndpoint = "/plugins/"
-
-	workspaceCtxKey = "workspace"
 )
 
 type Proxy struct {
@@ -95,6 +95,17 @@ func (p *Proxy) StartProxy() *http.Server {
 		middleware.RemoveTrailingSlash(),
 		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
+
+		// log request information before routing
+		func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(ctx echo.Context) error {
+				if ctx.Request().URL.Path == proxyHealthEndpoint { // skip for health endpoint
+					return next(ctx)
+				}
+				log.InfoEchof(ctx, "request received")
+				return next(ctx)
+			}
+		},
 	)
 
 	// middleware after routing
@@ -107,11 +118,7 @@ func (p *Proxy) StartProxy() *http.Server {
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
-				userID, _ := ctx.Get(context.SubKey).(string)
-				username, _ := ctx.Get(context.UsernameKey).(string)
-				workspace, _ := ctx.Get(workspaceCtxKey).(string)
-
-				fmt.Printf("REQUEST: method: %v, uri: %v, workspace: %v, userID: %v, username: %v\n", v.Method, v.URI, workspace, userID, username)
+				log.InfoEchof(ctx, "request routed")
 				return nil
 			},
 		}),
@@ -155,7 +162,7 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	if err != nil {
 		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
-	ctx.Set(workspaceCtxKey, workspace) // set workspace context for logging
+	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyPluginName)
 	if err != nil {
@@ -319,7 +326,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 			// route on the member cluster
 			req.Host = target.APIURL().Host
 		}
-		ctx.Logger().Info(fmt.Sprintf("forwarding %s to %s", origin, req.URL.String()))
+		log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {
@@ -349,25 +356,47 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 	}
 }
 
-func getTransport(reqHeader http.Header) http.RoundTripper {
+// TODO: use transport from the cached ToolchainCluster instance
+func noTimeoutDefaultTransport() *http.Transport {
+	return &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           noTimeoutDialerProxy,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
+var noTimeoutDialerProxy = func(ctx gocontext.Context, network, addr string) (net.Conn, error) {
+	dialer := &net.Dialer{
+		Timeout:   0,
+		KeepAlive: 0,
+	}
+	return dialer.DialContext(ctx, network, addr)
+}
+
+func getTransport(reqHeader http.Header) *http.Transport {
+	// TODO: use transport from the cached ToolchainCluster instance
+	transport := noTimeoutDefaultTransport()
+
 	if !configuration.GetRegistrationServiceConfig().IsProdEnvironment() {
-		return &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, // nolint:gosec
-			},
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, // nolint:gosec
 		}
 	}
+
 	// for exec and rsh command we cannot use h2 because it doesn't support "Upgrade: SPDY/3.1" header https://github.com/kubernetes/kubernetes/issues/7452
 	if strings.HasPrefix(strings.ToLower(reqHeader.Get(httpstream.HeaderUpgrade)), "spdy/") {
 		// thus, we need to switch to http/1.1
-		transport := http.DefaultTransport.(interface {
-			Clone() *http.Transport
-		}).Clone()
 		transport.ForceAttemptHTTP2 = false
-		transport.TLSClientConfig.NextProtos = []string{"http/1.1"}
-		return transport
+		transport.TLSClientConfig = &tls.Config{
+			NextProtos: []string{"http/1.1"},
+		}
 	}
-	return http.DefaultTransport
+
+	return transport
 }
 
 func singleJoiningSlash(a, b string) string {

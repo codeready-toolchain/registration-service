@@ -12,6 +12,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/labstack/echo/v4"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
@@ -100,6 +101,11 @@ func Infof(ctx *gin.Context, msg string, args ...string) {
 	logger.Infof(ctx, msg, args...)
 }
 
+// InfoEchof logs a non-error formatted message for echo events.
+func InfoEchof(ctx echo.Context, msg string, args ...string) {
+	logger.InfoEchof(ctx, msg, args...)
+}
+
 // Error logs the error with the given message.
 func Error(ctx *gin.Context, err error, msg string) {
 	logger.Error(ctx, err, msg)
@@ -124,14 +130,37 @@ func (l *Logger) Info(ctx *gin.Context, msg string) {
 // Infof logs a non-error formatted message.
 func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
+	l.infof(ctxInfo, msg, args...)
+}
+
+// InfoEchof logs a non-error formatted message for echo events.
+func (l *Logger) InfoEchof(ctx echo.Context, msg string, args ...string) {
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
+	ctxFields := genericContext(userID, username)
+
+	workspace, _ := ctx.Get(context.WorkspaceKey).(string)
+	ctxFields = append(ctxFields, "workspace")
+	ctxFields = append(ctxFields, workspace)
+
+	ctxFields = append(ctxFields, "method")
+	ctxFields = append(ctxFields, ctx.Request().Method)
+
+	ctxFields = append(ctxFields, "url")
+	ctxFields = append(ctxFields, ctx.Request().URL)
+
+	l.infof(ctxFields, msg, args...)
+}
+
+func (l *Logger) infof(ctx []interface{}, msg string, args ...string) {
 	arguments := make([]interface{}, len(args))
 	for i, arg := range args {
 		arguments[i] = arg
 	}
 	if len(arguments) > 0 {
-		l.logr.Info(fmt.Sprintf(msg, arguments...), ctxInfo...)
+		l.logr.Info(fmt.Sprintf(msg, arguments...), ctx...)
 	} else {
-		l.logr.Info(msg, ctxInfo...)
+		l.logr.Info(msg, ctx...)
 	}
 }
 
@@ -177,11 +206,27 @@ func slice(keysAndValues map[string]interface{}) []interface{} {
 // addContextInfo adds fields extracted from the context to the info/error
 // log messages.
 func addContextInfo(ctx *gin.Context) []interface{} {
+	if ctx != nil {
+		subject := ctx.GetString(context.SubKey)
+		username := ctx.GetString(context.UsernameKey)
+		fields := genericContext(subject, username)
+		if ctx.Request != nil {
+			fields = append(fields, addRequestInfo(ctx.Request)...)
+		}
+		return fields
+	}
+
+	return genericContext("", "")
+}
+
+func genericContext(subject, username string) []interface{} {
 	var fields []interface{}
 
+	// TODO: we probably don't need the timestamp as it is automatically added to the log by the logger
 	currentTime := time.Now()
 	fields = append(fields, "timestamp")
 	fields = append(fields, currentTime.Format(time.RFC1123Z))
+	// TODO: we can drop the commit as well - printing out the commit for every single line is a kind of overkill
 	fields = append(fields, "commit")
 	if len(configuration.Commit) > 7 {
 		fields = append(fields, configuration.Commit[0:7])
@@ -189,21 +234,13 @@ func addContextInfo(ctx *gin.Context) []interface{} {
 		fields = append(fields, configuration.Commit)
 	}
 
-	if ctx != nil {
-		subject := ctx.GetString(context.SubKey)
-		if subject != "" {
-			fields = append(fields, "user_id")
-			fields = append(fields, subject)
-		}
-		username := ctx.GetString(context.UsernameKey)
-		if username != "" {
-			fields = append(fields, context.UsernameKey)
-			fields = append(fields, username)
-		}
-
-		if ctx.Request != nil {
-			fields = append(fields, addRequestInfo(ctx.Request)...)
-		}
+	if subject != "" {
+		fields = append(fields, "user_id")
+		fields = append(fields, subject)
+	}
+	if username != "" {
+		fields = append(fields, context.UsernameKey)
+		fields = append(fields, username)
 	}
 
 	return fields

@@ -38,7 +38,7 @@ const (
 	NoSpaceKey = "no-space"
 )
 
-var annotationsToRetain []string = []string{
+var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
 	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
 }

@@ -116,7 +116,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 
 	// then
 	require.NoError(s.T(), err)
-	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the annotation is not set
+	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the activation counter annotation is not set
+	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // at this point, the last target cluster annotation is not set
 	require.Equal(s.T(), "original-sub-value", userSignup.Spec.OriginalSub)
 
 	gvr, existing := assertUserSignupExists(userSignup, "jsmith")
@@ -124,7 +125,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.Run("deactivate and reactivate again", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
-		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2" // assume the user was activated 2 times already
+		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2"        // assume the user was activated 2 times already
+		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey] = "member-3" // assume the user was targeted to member-3
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
@@ -137,7 +139,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		assertUserSignupExists(deactivatedUS, "jsmith")
 		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
-		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // value was preserved
+		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey])        // value was preserved
+		assert.Equal(s.T(), "member-3", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // value was preserved
 	})
 
 	s.Run("deactivate and reactivate with missing annotation", func() {
@@ -147,6 +150,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS.Status.Conditions = deactivated()
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
+		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey)
 		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
 		require.NoError(s.T(), err)
 
@@ -158,6 +162,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		assertUserSignupExists(userSignup, "jsmith")
 		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // was initially missing, and was not set
 	})
 
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {

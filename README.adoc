@@ -5,7 +5,7 @@ image:https://godoc.org/github.com/codeready-toolchain/registration-service?stat
 image:https://codecov.io/gh/codeready-toolchain/registration-service/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/codeready-toolchain/registration-service"]
 image:https://github.com/codeready-toolchain/registration-service/actions/workflows/operator-cd.yml/badge.svg[Operator CD,link="https://github.com/codeready-toolchain/registration-service/actions/workflows/operator-cd.yml"]
 
-This is the CodeReady Toolchain Registration Service repository. It implements the registration flow for the Toolchain SaaS.
+This is the Developer Sandbox Registration Service repository. It implements the registration flow for the Toolchain SaaS.
 
 == Build
 

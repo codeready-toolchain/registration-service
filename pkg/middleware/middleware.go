@@ -2,12 +2,12 @@ package middleware
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -69,7 +69,7 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		}
 
 		if token.UserID == "" || token.AccountID == "" {
-			logrus.Infof("Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
+			log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
 				token.UserID, token.AccountID, token.PreferredUsername, token.Subject)
 		}
 

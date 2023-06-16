@@ -7,6 +7,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -66,6 +67,12 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
+
+		if token.UserID == "" || token.AccountID == "" {
+			log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
+				token.UserID, token.AccountID, token.PreferredUsername, token.Subject)
+		}
+
 		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(context.UserIDKey, token.UserID)

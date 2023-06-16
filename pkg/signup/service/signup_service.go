@@ -75,6 +75,11 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	userID := ctx.GetString(context.UserIDKey)
 	accountID := ctx.GetString(context.AccountIDKey)
 
+	if userID == "" || accountID == "" {
+		log.Infof(ctx, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
+			userID, accountID, username, ctx.GetString(context.SubKey))
+	}
+
 	if isCRTAdmin(username) {
 		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
 		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))

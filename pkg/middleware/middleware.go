@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 
@@ -66,6 +67,12 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 			m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
+
+		if token.UserID == "" || token.AccountID == "" {
+			logrus.Infof("Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
+				token.UserID, token.AccountID, token.PreferredUsername, token.Subject)
+		}
+
 		// all checks done, add username, subject and email to the context.
 		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(context.UserIDKey, token.UserID)

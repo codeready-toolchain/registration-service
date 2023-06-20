@@ -38,6 +38,11 @@ const (
 	NoSpaceKey = "no-space"
 )
 
+var annotationsToRetain = []string{
+	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
+	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
+}
+
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
@@ -69,6 +74,11 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userID := ctx.GetString(context.UserIDKey)
 	accountID := ctx.GetString(context.AccountIDKey)
+
+	if userID == "" || accountID == "" {
+		log.Infof(ctx, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
+			userID, accountID, username, ctx.GetString(context.SubKey))
+	}
 
 	if isCRTAdmin(username) {
 		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
@@ -306,10 +316,13 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	log.WithValues(map[string]interface{}{toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]}).
 		Info(ctx, "reactivating user")
 
-	// (don't override) the `toolchain.dev.openshift.com/activation-counter` if it is already set in the existing UserSignup
-	if c, exists := existing.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; exists {
-		newUserSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = c
+	// don't override any of the annotations that need to be retained if they are already set in the existing UserSignup
+	for _, a := range annotationsToRetain {
+		if c, exists := existing.Annotations[a]; exists {
+			newUserSignup.Annotations[a] = c
+		}
 	}
+
 	existing.Annotations = newUserSignup.Annotations
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec

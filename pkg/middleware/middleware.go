@@ -69,8 +69,18 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		}
 
 		if token.UserID == "" || token.AccountID == "" {
-			log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
-				token.UserID, token.AccountID, token.PreferredUsername, token.Subject)
+			rawClaims := ""
+
+			// Tokens consist of 3 segments; header, claims and signature
+			parts := strings.Split(tokenStr, ".")
+
+			// Just capture the claims segment
+			if len(parts) >= 2 {
+				rawClaims = parts[1]
+			}
+
+			log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s].  Raw claims segment: [%s]",
+				token.UserID, token.AccountID, token.PreferredUsername, token.Subject, rawClaims)
 		}
 
 		// all checks done, add username, subject and email to the context.

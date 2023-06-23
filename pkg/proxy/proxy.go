@@ -358,15 +358,11 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 
 // TODO: use transport from the cached ToolchainCluster instance
 func noTimeoutDefaultTransport() *http.Transport {
-	return &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           noTimeoutDialerProxy,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
+	transport := http.DefaultTransport.(interface {
+		Clone() *http.Transport
+	}).Clone()
+	transport.DialContext = noTimeoutDialerProxy
+	return transport
 }
 
 var noTimeoutDialerProxy = func(ctx gocontext.Context, network, addr string) (net.Conn, error) {

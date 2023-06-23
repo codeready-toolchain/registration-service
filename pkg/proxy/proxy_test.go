@@ -1022,7 +1022,7 @@ func (s *TestProxySuite) TestGetTransport() {
 		transport.DialContext = noTimeoutDialerProxy
 
 		// then
-		assertTransport(t, noTimeoutDefaultTransport().Clone(), transport)
+		assertTransport(t, noTimeoutDefaultTransport(), transport)
 	})
 }
 

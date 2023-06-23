@@ -387,7 +387,7 @@ func getTransport(reqHeader http.Header) *http.Transport {
 	if strings.HasPrefix(strings.ToLower(reqHeader.Get(httpstream.HeaderUpgrade)), "spdy/") {
 		// thus, we need to switch to http/1.1
 		transport.ForceAttemptHTTP2 = false
-		transport.TLSClientConfig = &tls.Config{
+		transport.TLSClientConfig = &tls.Config{ // nolint:gosec
 			NextProtos: []string{"http/1.1"},
 		}
 	}

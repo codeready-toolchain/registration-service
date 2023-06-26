@@ -21,4 +21,6 @@ const (
 	OriginalSubKey = "originalSub"
 	// JWTClaimsKey is the context key for the claims struct
 	JWTClaimsKey = "jwtClaims"
+	// WorkspaceKey is the context key for the workspace name in echo.Context
+	WorkspaceKey = "workspace"
 )

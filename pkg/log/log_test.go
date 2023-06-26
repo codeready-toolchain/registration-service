@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -55,6 +57,28 @@ func TestLog(t *testing.T) {
 		assert.Contains(t, value, `"username":"usernametest"`)
 		assert.Contains(t, value, `"level":"info"`)
 		assert.Contains(t, value, `"timestamp":"`)
+	})
+
+	t.Run("log infoEchof", func(t *testing.T) {
+		buf.Reset()
+		req := httptest.NewRequest(http.MethodGet, "https://api-server.com/api/workspaces/path", strings.NewReader("{}"))
+		rec := httptest.NewRecorder()
+		ctx := echo.New().NewContext(req, rec)
+		ctx.Set(context.SubKey, "test")
+		ctx.Set(context.UsernameKey, "usernametest")
+		ctx.Set(context.WorkspaceKey, "coolworkspace")
+
+		InfoEchof(ctx, "test %s", "info")
+		value := buf.String()
+		assert.Contains(t, value, `"logger":"logger_tests"`)
+		assert.Contains(t, value, `"msg":"test info"`)
+		assert.Contains(t, value, `"user_id":"test"`) // subject -> user_id
+		assert.Contains(t, value, `"username":"usernametest"`)
+		assert.Contains(t, value, `"level":"info"`)
+		assert.Contains(t, value, `"timestamp":"`)
+		assert.Contains(t, value, `"workspace":"coolworkspace"`)
+		assert.Contains(t, value, `"method":"GET"`)
+		assert.Contains(t, value, `"url":"https://api-server.com/api/workspaces/path"`)
 	})
 
 	t.Run("log infof with no arguments", func(t *testing.T) {

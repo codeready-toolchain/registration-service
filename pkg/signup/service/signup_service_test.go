@@ -837,6 +837,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "", response.APIEndpoint)
 	require.Equal(s.T(), "", response.ClusterName)
 	require.Equal(s.T(), "", response.ProxyURL)
+	assert.Equal(s.T(), "", response.DefaultUserNamespace)
+	assert.Equal(s.T(), "", response.RHODSMemberURL)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -875,6 +877,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		require.Equal(s.T(), "", response.APIEndpoint)
 		require.Equal(s.T(), "", response.ClusterName)
 		require.Equal(s.T(), "", response.ProxyURL)
+		assert.Equal(s.T(), "", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "", response.RHODSMemberURL)
 	})
 }
 
@@ -947,6 +951,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Equal(s.T(), "", response.APIEndpoint)
 		require.Equal(s.T(), "", response.ClusterName)
 		require.Equal(s.T(), "", response.ProxyURL)
+		assert.Equal(s.T(), "", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "", response.RHODSMemberURL)
 
 		s.T().Run("informer", func(t *testing.T) {
 			// given
@@ -985,6 +991,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			require.Equal(s.T(), "", response.APIEndpoint)
 			require.Equal(s.T(), "", response.ClusterName)
 			require.Equal(s.T(), "", response.ProxyURL)
+			assert.Equal(s.T(), "", response.DefaultUserNamespace)
+			assert.Equal(s.T(), "", response.RHODSMemberURL)
 		})
 	}
 }
@@ -1099,6 +1107,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1145,6 +1155,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 		assert.Equal(s.T(), "member-123", response.ClusterName)
 		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
 	})
 }
 
@@ -1217,6 +1229,8 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1264,6 +1278,8 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 		assert.Equal(s.T(), "member-123", response.ClusterName)
 		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
 	})
 }
 

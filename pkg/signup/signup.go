@@ -12,7 +12,7 @@ type Signup struct {
 	// The proxy URL of the cluster
 	ProxyURL string `json:"proxyURL,omitempty"`
 	// The RHODS URL for the user's cluster
-	RHODSMemberURL string `json:"rhodsMember,omitempty"`
+	RHODSMemberURL string `json:"rhodsMemberURL,omitempty"`
 	// The server api URL of the cluster which the user was provisioned to
 	APIEndpoint string `json:"apiEndpoint,omitempty"`
 	// The name of the cluster which the user was provisioned to

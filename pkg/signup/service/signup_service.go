@@ -426,7 +426,7 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 		}
 
 		// set RHODS member URL
-		signupResponse.RHODSMemberURL = getRHODSMember(*signupResponse)
+		signupResponse.RHODSMemberURL = getRHODSMemberURL(*signupResponse)
 
 		// set default user namespace
 		signupResponse.DefaultUserNamespace = getDefaultUserNamespace(*signupResponse)
@@ -503,7 +503,7 @@ func getDefaultUserNamespace(signup signup.Signup) string {
 	return fmt.Sprintf("%s-dev", signup.CompliantUsername)
 }
 
-func getRHODSMember(signup signup.Signup) string {
+func getRHODSMemberURL(signup signup.Signup) string {
 	return getAppsURL("rhods-dashboard-redhat-ods-applications", signup)
 }
 

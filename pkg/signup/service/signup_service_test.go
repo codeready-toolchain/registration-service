@@ -1064,7 +1064,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-1.com",
+							ConsoleURL:      "https://console.apps.member-1.com",
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
 					},
@@ -1074,7 +1074,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-123.com",
+							ConsoleURL:      "https://console.apps.member-123.com",
 							CheDashboardURL: "http://che-toolchain-che.member-123.com",
 						},
 					},
@@ -1102,13 +1102,13 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 	assert.False(s.T(), response.Status.VerificationRequired)
-	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+	assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
+	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1150,13 +1150,13 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 		assert.False(s.T(), response.Status.VerificationRequired)
-		assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+		assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
 		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 		assert.Equal(s.T(), "member-123", response.ClusterName)
 		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 
@@ -1186,7 +1186,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-1.com",
+							ConsoleURL:      "https://console.apps.member-1.com",
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
 					},
@@ -1196,7 +1196,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.member-123.com",
+							ConsoleURL:      "https://console.apps.member-123.com",
 							CheDashboardURL: "http://che-toolchain-che.member-123.com",
 						},
 					},
@@ -1224,13 +1224,13 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 	assert.False(s.T(), response.Status.VerificationRequired)
-	assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+	assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
 	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 	assert.Equal(s.T(), "member-123", response.ClusterName)
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
+	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1273,13 +1273,13 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 		assert.False(s.T(), response.Status.VerificationRequired)
-		assert.Equal(s.T(), "https://console.member-123.com", response.ConsoleURL)
+		assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
 		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
 		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 		assert.Equal(s.T(), "member-123", response.ClusterName)
 		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123", response.RHODSMemberURL)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 

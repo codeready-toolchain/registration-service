@@ -511,10 +511,11 @@ func getRHODSMember(signup signup.Signup) string {
 // for example for the "devspaces" app and api server "https://api.host.openshiftapps.com:6443"
 // it will return "https://devspaces.apps.host.openshiftapps.com"
 func getAppsURL(appRouteName string, signup signup.Signup) string {
-	if signup.ConsoleURL == "" {
+	index := strings.Index(signup.ConsoleURL, ".apps.")
+	if index == -1 {
 		return ""
 	}
 	// get the appsURL eg. .apps.host.openshiftapps.com
-	appsURL := signup.ConsoleURL[strings.Index(signup.ConsoleURL, ".apps"):]
+	appsURL := signup.ConsoleURL[index:]
 	return fmt.Sprintf("https://%s%s", appRouteName, appsURL)
 }

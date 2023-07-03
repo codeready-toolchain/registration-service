@@ -409,7 +409,7 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 		VerificationRequired: states.VerificationRequired(userSignup),
 	}
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
-		// Retrieve Console and Che dashboard URLs from the status of the corresponding member cluster
+		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status, err := provider.GetToolchainStatus()
 		if err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
@@ -424,6 +424,12 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 				break
 			}
 		}
+
+		// set RHODS member URL
+		signupResponse.RHODSMemberURL = getRHODSMemberURL(*signupResponse)
+
+		// set default user namespace
+		signupResponse.DefaultUserNamespace = getDefaultUserNamespace(*signupResponse)
 	}
 
 	return signupResponse, nil
@@ -491,4 +497,25 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 	}
 
 	return nil
+}
+
+func getDefaultUserNamespace(signup signup.Signup) string {
+	return fmt.Sprintf("%s-dev", signup.CompliantUsername)
+}
+
+func getRHODSMemberURL(signup signup.Signup) string {
+	return getAppsURL("rhods-dashboard-redhat-ods-applications", signup)
+}
+
+// getAppsURL returns a URL for the specific app
+// for example for the "devspaces" app and api server "https://api.host.openshiftapps.com:6443"
+// it will return "https://devspaces.apps.host.openshiftapps.com"
+func getAppsURL(appRouteName string, signup signup.Signup) string {
+	index := strings.Index(signup.ConsoleURL, ".apps.")
+	if index == -1 {
+		return ""
+	}
+	// get the appsURL eg. .apps.host.openshiftapps.com
+	appsURL := signup.ConsoleURL[index:]
+	return fmt.Sprintf("https://%s%s", appRouteName, appsURL)
 }

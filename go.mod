@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/codeready-toolchain/api v0.0.0-20230630062406-c91909d2a37f
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20230530174133-baf8f8452b7a
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20230710095440-719b09376de3
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -17,8 +17,6 @@ require (
 	k8s.io/client-go v0.25.0
 	sigs.k8s.io/controller-runtime v0.13.0
 )
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/xcoulon/toolchain-common v0.0.0-20230705073919-61e1bfcf2148
 
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.7.0
@@ -47,7 +45,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect

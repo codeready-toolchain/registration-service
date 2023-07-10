@@ -111,7 +111,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	signupResource, err := s.app.SignupService().GetSignup(userID, username)
+	signupResource, err := s.app.SignupService().GetSignup(ctx, userID, username)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")

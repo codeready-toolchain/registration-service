@@ -333,17 +333,17 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(s.defaultProvider, userID, username)
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.defaultProvider, userID, username)
 }
 
 // GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
 // This function and the ResourceProvider abstraction can replace the original GetSignup function once it is determined to be stable.
-func (s *ServiceImpl) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(s.Services().InformerService(), userID, username)
+func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.Services().InformerService(), userID, username)
 }
 
-func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username string) (*signup.Signup, error) {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string) (*signup.Signup, error) {
 	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
 	userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
 	// If an error was returned, then return here
@@ -357,6 +357,37 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 	// Otherwise if the returned userSignup is nil, return here also
 	if userSignup == nil {
 		return nil, nil
+	}
+
+	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
+	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
+	// the resource.
+	userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
+	accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
+
+	updateUserSignup := false
+
+	if !userIDFound || userIDValue == "" {
+		userID := ctx.GetString(context.UserIDKey)
+		if userID != "" {
+			userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
+			updateUserSignup = true
+		}
+	}
+
+	if !accountIDFound || accountIDValue == "" {
+		accountID := ctx.GetString(context.AccountIDKey)
+		if accountID != "" {
+			userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
+			updateUserSignup = true
+		}
+	}
+
+	if updateUserSignup {
+		userSignup, err = s.UpdateUserSignup(userSignup)
+		if err != nil {
+			return nil, errs.Wrapf(err, "error when attempting to update UserSignup with updated userID or accountID: %s", userSignup.Status)
+		}
 	}
 
 	signupResponse := &signup.Signup{

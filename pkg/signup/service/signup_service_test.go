@@ -14,6 +14,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -33,6 +34,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
@@ -1088,6 +1090,14 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
+	spacebinding := s.newSpaceBindingForMUR(mur.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
+
+	space := s.newSpaceForMUR(mur.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
+
 	// when
 	response, err := s.Application.SignupService().GetSignup(us.Name, "")
 
@@ -1127,6 +1137,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		}
 		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
 			return toolchainStatus, nil
+		}
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
 		s.Application.MockInformerService(inf)
@@ -1171,6 +1187,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	mur := s.newProvisionedMUR()
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+	require.NoError(s.T(), err)
+
+	spacebinding := s.newSpaceBindingForMUR(mur.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
+
+	space := s.newSpaceForMUR(mur.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
 	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
@@ -1249,6 +1273,12 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		}
 		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
 			return toolchainStatus, nil
+		}
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
 		s.Application.MockInformerService(inf)
@@ -1454,6 +1484,124 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 
 		// then
 		require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
+	})
+}
+
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
+	// given
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	compliantUsername := "dave"
+
+	spacebinding := s.newSpaceBindingForMUR(compliantUsername)
+	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
+
+	space := s.newSpaceForMUR(compliantUsername)
+	err = s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
+
+	signup := signup.Signup{
+		Name:              "dave",
+		CompliantUsername: "dave",
+	}
+
+	// when
+	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+
+	// then
+	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+		}
+
+		// when
+		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+
+		// then
+		assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+	})
+}
+
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding() {
+	// given
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	compliantUsername := "dave"
+
+	space := s.newSpaceForMUR(compliantUsername)
+	err := s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
+
+	signup := signup.Signup{
+		Name:              "dave",
+		CompliantUsername: "dave",
+	}
+
+	// when
+	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+
+	// then
+	assert.Empty(s.T(), defaultUserNamespace)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return nil, apierrors.NewInternalError(fmt.Errorf("something went wrong"))
+		}
+
+		// when
+		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+
+		// then
+		assert.Empty(s.T(), defaultUserNamespace)
+	})
+}
+
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
+	// given
+	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	compliantUsername := "dave"
+
+	spacebinding := s.newSpaceBindingForMUR(compliantUsername)
+	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
+
+	signup := signup.Signup{
+		Name:              "dave",
+		CompliantUsername: "dave",
+	}
+
+	// when
+	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+
+	// then
+	assert.Empty(s.T(), defaultUserNamespace)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+		}
+
+		// when
+		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+
+		// then
+		assert.Empty(s.T(), defaultUserNamespace)
 	})
 }
 
@@ -1690,6 +1838,49 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 			UserAccounts: []toolchainv1alpha1.UserAccountStatusEmbedded{{Cluster: toolchainv1alpha1.Cluster{
 				Name: "member-123",
 			}}},
+		},
+	}
+}
+
+func (s *TestSignupServiceSuite) newSpaceForMUR(murName string) *toolchainv1alpha1.Space {
+	return &toolchainv1alpha1.Space{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      murName,
+			Namespace: TestNamespace,
+		},
+		Spec: toolchainv1alpha1.SpaceSpec{
+			TargetCluster:      "member-123",
+			TargetClusterRoles: []string{"cluster-role.toolchain.dev.openshift.com/tenant"},
+			TierName:           "base1ns",
+		},
+		Status: toolchainv1alpha1.SpaceStatus{
+			TargetCluster: "member-123",
+			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
+				{
+					Name: fmt.Sprintf("%s-dev", murName),
+					Type: "default",
+				},
+			},
+		},
+	}
+}
+
+func (s *TestSignupServiceSuite) newSpaceBindingForMUR(murName string) *toolchainv1alpha1.SpaceBinding {
+	return &toolchainv1alpha1.SpaceBinding{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      murName,
+			Namespace: TestNamespace,
+			Labels: map[string]string{
+				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            murName,
+				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName,
+			},
+		},
+		Spec: toolchainv1alpha1.SpaceBindingSpec{
+			MasterUserRecord: murName,
+			Space:            murName,
+			SpaceRole:        "admin",
 		},
 	}
 }

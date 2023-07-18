@@ -80,7 +80,7 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 	return s.workspacesFromSpaceBindings(signup.Name, spaceBindings), nil
 }
 
-func (s *SpaceLister) listSpaceBindingsForUser(ctx echo.Context, murName string) ([]*toolchainv1alpha1.SpaceBinding, error) {
+func (s *SpaceLister) listSpaceBindingsForUser(ctx echo.Context, murName string) ([]toolchainv1alpha1.SpaceBinding, error) {
 
 	workspaceName := ctx.Param("workspace")
 	doGetWorkspace := len(workspaceName) > 0
@@ -104,7 +104,7 @@ func (s *SpaceLister) listSpaceBindingsForUser(ctx echo.Context, murName string)
 	return s.GetInformerServiceFunc().ListSpaceBindings(requirements...)
 }
 
-func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []*toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
+func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
 	workspaces := []toolchainv1alpha1.Workspace{}
 	for _, spaceBinding := range spaceBindings {
 

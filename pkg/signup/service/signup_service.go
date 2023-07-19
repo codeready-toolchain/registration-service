@@ -345,6 +345,8 @@ func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username s
 
 func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string) (*signup.Signup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
+	var err error
+
 	attempts := 0
 
 	for {
@@ -356,7 +358,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		}
 
 		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-		userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
+		userSignup, err = s.DoGetUserSignupFromIdentifier(provider, userID, username)
 		// If an error was returned, then return here
 		if err != nil {
 			if apierrors.IsNotFound(err) {

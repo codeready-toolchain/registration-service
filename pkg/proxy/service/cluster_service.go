@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"net/http/httptest"
 	"net/url"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -41,7 +43,9 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 }
 
 func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	signup, err := s.Services().SignupService().GetSignupFromInformer(c, userID, username)
 	if err != nil {
 		return nil, err
 	}

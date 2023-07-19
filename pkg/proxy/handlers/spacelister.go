@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
+	"net/http/httptest"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
@@ -23,7 +25,7 @@ import (
 )
 
 type SpaceLister struct {
-	GetSignupFunc          func(userID, username string) (*signup.Signup, error)
+	GetSignupFunc          func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
 	GetInformerServiceFunc func() service.InformerService
 }
 
@@ -60,7 +62,9 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	signup, err := s.GetSignupFunc(userID, username)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	signup, err := s.GetSignupFunc(c, userID, username)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error retrieving signup"))
 		return nil, err

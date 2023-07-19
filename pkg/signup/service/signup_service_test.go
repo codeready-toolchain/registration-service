@@ -39,10 +39,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-const (
-	TestNamespace = "test-namespace-123"
-)
-
 type TestSignupServiceSuite struct {
 	test.UnitTestSuite
 }
@@ -64,7 +60,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 }
 
 func (s *TestSignupServiceSuite) TestSignup() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 	// given
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -284,7 +280,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 }
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -324,7 +320,7 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 }
 
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, TestNamespace)
+	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
 
 	// captcha is enabled
 	serviceOption := func(svc *service.ServiceImpl) {
@@ -382,7 +378,7 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -459,7 +455,7 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
-	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -481,7 +477,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -493,7 +489,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
-	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -513,7 +509,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -521,7 +517,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "john@gmail.com",
 			},
@@ -543,7 +539,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -556,7 +552,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
@@ -586,7 +582,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
-	s.ServiceConfiguration(TestNamespace, true, "redhat.com", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -598,7 +594,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
@@ -620,7 +616,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -629,7 +625,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
@@ -651,7 +647,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -663,7 +659,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
 			},
@@ -687,7 +683,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, TestNamespace)
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -695,7 +691,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), TestNamespace, val.Namespace)
+	require.Equal(s.T(), configuration.Namespace(), val.Namespace)
 	require.Equal(s.T(), "jsmith", val.Name)
 	require.Equal(s.T(), "jsmith", val.Spec.Username)
 	require.Equal(s.T(), userID.String(), val.Spec.Userid)
@@ -785,7 +781,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -794,7 +790,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "bill",
@@ -886,7 +882,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	noCondition := toolchainv1alpha1.UserSignupStatus{}
 	pendingApproval := toolchainv1alpha1.UserSignupStatus{
@@ -921,7 +917,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
-				Namespace: TestNamespace,
+				Namespace: configuration.Namespace(),
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
 				Username: "bill",
@@ -1001,7 +997,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupCompleteWithReason("Deactivated")
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1043,7 +1039,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1057,7 +1053,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 		},
 		Status: toolchainv1alpha1.ToolchainStatusStatus{
 			Members: []toolchainv1alpha1.Member{
@@ -1090,12 +1086,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
-	spacebinding := s.newSpaceBindingForMUR(mur.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	space := s.newSpaceForMUR(mur.Name, us.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
-	space := s.newSpaceForMUR(mur.Name)
-	err = s.FakeSpaceClient.Tracker.Add(space)
+	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 	require.NoError(s.T(), err)
 
 	// when
@@ -1178,7 +1174,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.Username)
@@ -1189,19 +1185,19 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	spacebinding := s.newSpaceBindingForMUR(mur.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	space := s.newSpaceForMUR(mur.Name, us.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
-	space := s.newSpaceForMUR(mur.Name)
-	err = s.FakeSpaceClient.Tracker.Add(space)
+	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 	require.NoError(s.T(), err)
 
 	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 		},
 		Status: toolchainv1alpha1.ToolchainStatusStatus{
 			Members: []toolchainv1alpha1.Member{
@@ -1315,7 +1311,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1368,7 +1364,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1422,7 +1418,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 
 func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1432,7 +1428,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -1489,21 +1485,20 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
-	compliantUsername := "dave"
-
-	spacebinding := s.newSpaceBindingForMUR(compliantUsername)
-	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
-
-	space := s.newSpaceForMUR(compliantUsername)
-	err = s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	signup := signup.Signup{
-		Name:              "dave",
+		Name:              "dave#123",
 		CompliantUsername: "dave",
 	}
+
+	space := s.newSpaceForMUR(signup.CompliantUsername, signup.Name)
+	err := s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
+
+	spacebinding := s.newSpaceBinding(signup.CompliantUsername, space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
 
 	// when
 	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
@@ -1529,19 +1524,84 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	})
 }
 
-func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding() {
+// TestGetDefaultUserNamespaceMultiSpace tests that when there are multiple spaces, only the Space created by the user should be considered
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
-	compliantUsername := "dave"
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	space := s.newSpaceForMUR(compliantUsername)
-	err := s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
+	signupA := signup.Signup{
+		Name:              "trent#123",
+		CompliantUsername: "trent",
+	}
 
-	signup := signup.Signup{
-		Name:              "dave",
+	signupB := signup.Signup{
+		Name:              "dave#123",
 		CompliantUsername: "dave",
 	}
+
+	// space created by userA
+	space1 := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
+	err := s.FakeSpaceClient.Tracker.Add(space1)
+	require.NoError(s.T(), err)
+
+	// space shared with signupB
+	spacebinding1 := s.newSpaceBinding(signupB.CompliantUsername, space1.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding1)
+	require.NoError(s.T(), err)
+
+	// space created by userB
+	space2 := s.newSpaceForMUR(signupB.CompliantUsername, signupB.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space2)
+	require.NoError(s.T(), err)
+
+	// space created by userB
+	spacebinding2 := s.newSpaceBinding(signupB.CompliantUsername, space2.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding2)
+	require.NoError(s.T(), err)
+
+	// when
+	defaultUserNamespace := service.GetDefaultUserNamespace(s, signupB)
+
+	// then
+	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			switch name {
+			case space1.Name:
+				return space1, nil
+			case space2.Name:
+				return space2, nil
+			default:
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			}
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding1, *spacebinding2}, nil
+		}
+
+		// when
+		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
+
+		// then
+		assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+	})
+}
+
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding() {
+	// given
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+
+	signup := signup.Signup{
+		Name:              "dave#123",
+		CompliantUsername: "dave",
+	}
+
+	space := s.newSpaceForMUR(signup.CompliantUsername, signup.Name)
+	err := s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
 
 	// when
 	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
@@ -1569,17 +1629,16 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding()
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
-	compliantUsername := "dave"
-
-	spacebinding := s.newSpaceBindingForMUR(compliantUsername)
-	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	signup := signup.Signup{
 		Name:              "dave",
 		CompliantUsername: "dave",
 	}
+
+	spacebinding := s.newSpaceBinding(signup.CompliantUsername, signup.Name)
+	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
 
 	// when
 	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
@@ -1606,7 +1665,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	s.Run("getusersignup ok", func() {
 		us := s.newUserSignupComplete()
@@ -1638,7 +1697,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
-	s.ServiceConfiguration(TestNamespace, true, "", 5)
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1671,7 +1730,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, TestNamespace)
+	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
 
 	s.Run("phone verification is required", func() {
 		s.Run("captcha verification is disabled", func() {
@@ -1790,7 +1849,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
 			},
@@ -1821,7 +1880,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -1842,12 +1901,15 @@ func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUs
 	}
 }
 
-func (s *TestSignupServiceSuite) newSpaceForMUR(murName string) *toolchainv1alpha1.Space {
+func (s *TestSignupServiceSuite) newSpaceForMUR(murName, creator string) *toolchainv1alpha1.Space {
 	return &toolchainv1alpha1.Space{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      murName,
-			Namespace: TestNamespace,
+			Namespace: configuration.Namespace(),
+			Labels: map[string]string{
+				toolchainv1alpha1.SpaceCreatorLabelKey: creator,
+			},
 		},
 		Spec: toolchainv1alpha1.SpaceSpec{
 			TargetCluster:      "member-123",
@@ -1866,20 +1928,23 @@ func (s *TestSignupServiceSuite) newSpaceForMUR(murName string) *toolchainv1alph
 	}
 }
 
-func (s *TestSignupServiceSuite) newSpaceBindingForMUR(murName string) *toolchainv1alpha1.SpaceBinding {
+func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *toolchainv1alpha1.SpaceBinding {
+	name, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
 	return &toolchainv1alpha1.SpaceBinding{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      murName,
-			Namespace: TestNamespace,
+			Name:      name.String(),
+			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
-				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            murName,
+				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            spaceName,
 				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName,
 			},
 		},
 		Spec: toolchainv1alpha1.SpaceBindingSpec{
 			MasterUserRecord: murName,
-			Space:            murName,
+			Space:            spaceName,
 			SpaceRole:        "admin",
 		},
 	}

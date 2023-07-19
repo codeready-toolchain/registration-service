@@ -533,10 +533,12 @@ func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) st
 			continue
 		}
 
-		for _, ns := range space.Status.ProvisionedNamespaces {
-			if ns.Type == "default" {
-				defaultNamespace = ns.Name
-				break
+		if space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name {
+			for _, ns := range space.Status.ProvisionedNamespaces {
+				if ns.Type == "default" {
+					defaultNamespace = ns.Name
+					break
+				}
 			}
 		}
 	}

@@ -517,7 +517,9 @@ func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) st
 		return ""
 	}
 
+	// iterate through the SpaceBindings to find the Spaces that the user has access to, then look for the default namespace with a preference for a Space created by the user
 	var defaultNamespace string
+	var createdSpaceFound bool
 	for _, sb := range sbs {
 		spaceName := sb.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
 		if spaceName == "" { // space may not be initialized
@@ -533,13 +535,21 @@ func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) st
 			continue
 		}
 
-		if space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name {
-			for _, ns := range space.Status.ProvisionedNamespaces {
-				if ns.Type == "default" {
+		createdSpaceFound = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name
+
+		for _, ns := range space.Status.ProvisionedNamespaces {
+			if ns.Type == "default" {
+				// use this namespace if it is the first one found or if the space was created by the user
+				if defaultNamespace == "" || createdSpaceFound {
 					defaultNamespace = ns.Name
-					break
 				}
+				break
 			}
+		}
+
+		// if the space was created by the user and we have found a default namespace then we can stop looking because this is the best case scenario
+		if createdSpaceFound && defaultNamespace != "" {
+			break
 		}
 	}
 

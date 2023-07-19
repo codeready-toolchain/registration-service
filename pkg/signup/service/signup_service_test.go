@@ -1524,46 +1524,97 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	})
 }
 
-// TestGetDefaultUserNamespaceMultiSpace tests that when there are multiple spaces, only the Space created by the user should be considered
-func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
+// TestGetDefaultUserNamespaceOnlyUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created by the user.
+// This is valuable because if the creator label on a Space is missing for whatever reason, APIs that depend on this field will still work.
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	signupA := signup.Signup{
-		Name:              "trent#123",
-		CompliantUsername: "trent",
+		Name:              "userA#123",
+		CompliantUsername: "userA",
 	}
 
 	signupB := signup.Signup{
-		Name:              "dave#123",
-		CompliantUsername: "dave",
+		Name:              "userB#123",
+		CompliantUsername: "userB",
 	}
 
 	// space created by userA
-	space1 := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
-	err := s.FakeSpaceClient.Tracker.Add(space1)
+	space := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
+	err := s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
-	// space shared with signupB
-	spacebinding1 := s.newSpaceBinding(signupB.CompliantUsername, space1.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding1)
-	require.NoError(s.T(), err)
-
-	// space created by userB
-	space2 := s.newSpaceForMUR(signupB.CompliantUsername, signupB.Name)
-	err = s.FakeSpaceClient.Tracker.Add(space2)
-	require.NoError(s.T(), err)
-
-	// space created by userB
-	spacebinding2 := s.newSpaceBinding(signupB.CompliantUsername, space2.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding2)
+	// space shared with userB
+	spacebinding := s.newSpaceBinding(signupB.CompliantUsername, space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 	require.NoError(s.T(), err)
 
 	// when
 	defaultUserNamespace := service.GetDefaultUserNamespace(s, signupB)
 
 	// then
-	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+		}
+
+		// when
+		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
+
+		// then
+		assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
+	})
+}
+
+// TestGetDefaultUserNamespaceMultiSpace tests that the Space created by the user is prioritized when there are multiple spaces
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
+	// given
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+
+	signupA := signup.Signup{
+		Name:              "userA#123",
+		CompliantUsername: "userA",
+	}
+
+	signupB := signup.Signup{
+		Name:              "userB#123",
+		CompliantUsername: "userB",
+	}
+
+	// space1 created by userA
+	space1 := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
+	err := s.FakeSpaceClient.Tracker.Add(space1)
+	require.NoError(s.T(), err)
+
+	// space1 shared with userB
+	spacebinding1 := s.newSpaceBinding(signupB.CompliantUsername, space1.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding1)
+	require.NoError(s.T(), err)
+
+	// space2 created by userB
+	space2 := s.newSpaceForMUR(signupB.CompliantUsername, signupB.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space2)
+	require.NoError(s.T(), err)
+
+	// space2 shared with userB
+	spacebinding2 := s.newSpaceBinding(signupB.CompliantUsername, space2.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding2)
+	require.NoError(s.T(), err)
+
+	// when
+	// get default namespace for userB
+	defaultUserNamespace := service.GetDefaultUserNamespace(s, signupB)
+
+	// then
+	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1586,7 +1637,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
 
 		// then
-		assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+		assert.Equal(s.T(), "userB-dev", defaultUserNamespace)
 	})
 }
 

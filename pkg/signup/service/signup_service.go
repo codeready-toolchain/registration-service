@@ -344,50 +344,70 @@ func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username s
 }
 
 func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string) (*signup.Signup, error) {
-	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-	userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
-	// If an error was returned, then return here
-	if err != nil {
-		if apierrors.IsNotFound(err) {
+	var userSignup *toolchainv1alpha1.UserSignup
+	attempts := 0
+
+	for {
+		// If the loop exceeds a threshold in retry counts, then just return an error here
+		if attempts > 5 {
+			return nil, errs.New(fmt.Sprintf("failed to update UserSignup [%s] with updated userID or accountID: %s",
+				userSignup.Name,
+				userSignup.Status))
+		}
+
+		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
+		userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
+		// If an error was returned, then return here
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		// Otherwise if the returned userSignup is nil, return here also
+		if userSignup == nil {
 			return nil, nil
 		}
-		return nil, err
-	}
 
-	// Otherwise if the returned userSignup is nil, return here also
-	if userSignup == nil {
-		return nil, nil
-	}
+		// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
+		// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
+		// the resource.
+		userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
+		accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
 
-	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
-	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
-	// the resource.
-	userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
-	accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
+		updateUserSignup := false
 
-	updateUserSignup := false
-
-	if !userIDFound || userIDValue == "" {
-		userID := ctx.GetString(context.UserIDKey)
-		if userID != "" {
-			userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
-			updateUserSignup = true
+		if !userIDFound || userIDValue == "" {
+			userID := ctx.GetString(context.UserIDKey)
+			if userID != "" {
+				userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
+				updateUserSignup = true
+			}
 		}
-	}
 
-	if !accountIDFound || accountIDValue == "" {
-		accountID := ctx.GetString(context.AccountIDKey)
-		if accountID != "" {
-			userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
-			updateUserSignup = true
+		if !accountIDFound || accountIDValue == "" {
+			accountID := ctx.GetString(context.AccountIDKey)
+			if accountID != "" {
+				userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
+				updateUserSignup = true
+			}
 		}
-	}
 
-	if updateUserSignup {
+		// If there is no need to update the UserSignup then break out of the loop here
+		if !updateUserSignup {
+			break
+		}
+
 		userSignup, err = s.UpdateUserSignup(userSignup)
-		if err != nil {
-			return nil, errs.Wrapf(err, "error when attempting to update UserSignup with updated userID or accountID: %s", userSignup.Status)
+		if err == nil {
+			// If there was no error during update, then break out of the loop here
+			break
 		}
+
+		// If we've reached this point, it means there was an error while attempting to update the UserSignup.  The
+		// attempts counter will be incremented and the for-loop will repeat
+		attempts++
 	}
 
 	signupResponse := &signup.Signup{

@@ -140,7 +140,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
 					inf := fake.NewFakeInformer()
-					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 						return nil, fmt.Errorf("list spacebindings error")
 					}
 					return inf
@@ -241,18 +241,14 @@ func getFakeInformerService(fakeClient client.Client) func() service.InformerSer
 			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name}, space)
 			return space, err
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			labelMatch := client.MatchingLabels{}
 			for _, r := range reqs {
 				labelMatch[r.Key()] = r.Values().List()[0]
 			}
 			sbList := &toolchainv1alpha1.SpaceBindingList{}
 			err := fakeClient.List(context.TODO(), sbList, labelMatch)
-			sbs := []*toolchainv1alpha1.SpaceBinding{}
-			for _, sb := range sbList.Items {
-				sbs = append(sbs, sb.DeepCopy())
-			}
-			return sbs, err
+			return sbList.Items, err
 		}
 		return inf
 	}

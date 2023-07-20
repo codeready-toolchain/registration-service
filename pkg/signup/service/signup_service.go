@@ -25,7 +25,9 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 const (
@@ -54,6 +56,7 @@ type SignupServiceOption func(svc *ServiceImpl)
 
 // NewSignupService creates a service object for performing user signup-related activities.
 func NewSignupService(context servicecontext.ServiceContext, opts ...SignupServiceOption) service.SignupService {
+
 	s := &ServiceImpl{
 		BaseService:     base.NewBaseService(context),
 		defaultProvider: crtClientProvider{context.CRTClient()},
@@ -429,7 +432,7 @@ func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username st
 		signupResponse.RHODSMemberURL = getRHODSMemberURL(*signupResponse)
 
 		// set default user namespace
-		signupResponse.DefaultUserNamespace = getDefaultUserNamespace(*signupResponse)
+		signupResponse.DefaultUserNamespace = GetDefaultUserNamespace(provider, *signupResponse)
 	}
 
 	return signupResponse, nil
@@ -499,8 +502,58 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 	return nil
 }
 
-func getDefaultUserNamespace(signup signup.Signup) string {
-	return fmt.Sprintf("%s-dev", signup.CompliantUsername)
+func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) string {
+	sbSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{signup.CompliantUsername})
+	if err != nil {
+		log.Errorf(nil, err, "unable to create spacebindings selector for signup %s", signup.Name)
+		return ""
+	}
+
+	requirements := []labels.Requirement{*sbSelector}
+
+	sbs, err := provider.ListSpaceBindings(requirements...)
+	if err != nil {
+		log.Errorf(nil, err, "unable to list spacebindings for signup %s", signup.Name)
+		return ""
+	}
+
+	// iterate through the SpaceBindings to find the Spaces that the user has access to, then look for the default namespace with a preference for a Space created by the user
+	var defaultNamespace string
+	var createdSpaceFound bool
+	for _, sb := range sbs {
+		spaceName := sb.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
+		if spaceName == "" { // space may not be initialized
+			// log error and continue so that the api behaves in a best effort manner
+			log.Errorf(nil, fmt.Errorf("spacebinding has no '%s' label", toolchainv1alpha1.SpaceBindingSpaceLabelKey), "unable to get space '%s'", spaceName)
+			continue
+		}
+		space, err := provider.GetSpace(spaceName)
+		if err != nil {
+			// log error and continue so that the api behaves in a best effort manner
+			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
+			log.Errorf(nil, err, "unable to get space '%s'", spaceName)
+			continue
+		}
+
+		createdSpaceFound = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name
+
+		for _, ns := range space.Status.ProvisionedNamespaces {
+			if ns.Type == "default" {
+				// use this namespace if it is the first one found or if the space was created by the user
+				if defaultNamespace == "" || createdSpaceFound {
+					defaultNamespace = ns.Name
+				}
+				break
+			}
+		}
+
+		// if the space was created by the user and we have found a default namespace then we can stop looking because this is the best case scenario
+		if createdSpaceFound && defaultNamespace != "" {
+			break
+		}
+	}
+
+	return defaultNamespace
 }
 
 func getRHODSMemberURL(signup signup.Signup) string {

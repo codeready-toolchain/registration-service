@@ -551,12 +551,12 @@ func (s *TestProxySuite) TestProxy() {
 												}
 												return nil, fmt.Errorf("space not found error")
 											}
-											inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+											inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 												// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
-												spaceBindings := []*toolchainv1alpha1.SpaceBinding{}
+												spaceBindings := []toolchainv1alpha1.SpaceBinding{}
 												for _, req := range reqs {
 													if req.Values().List()[0] == "smith2" {
-														spaceBindings = append(spaceBindings, fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
+														spaceBindings = append(spaceBindings, *fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
 													}
 												}
 												return spaceBindings, nil

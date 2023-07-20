@@ -4,10 +4,7 @@ import (
 	"context"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-)
-
-const (
-	masterUserRecordResourcePlural = "masteruserrecords"
+	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 )
 
 type masterUserRecordClient struct {
@@ -23,7 +20,7 @@ func (c *masterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, err
 	result := &crtapi.MasterUserRecord{}
 	err := c.client.Get().
 		Namespace(c.ns).
-		Resource(masterUserRecordResourcePlural).
+		Resource(resources.MurResourcePlural).
 		Name(name).
 		Do(context.TODO()).
 		Into(result)

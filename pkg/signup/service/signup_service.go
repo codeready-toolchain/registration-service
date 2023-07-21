@@ -538,7 +538,7 @@ func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) st
 		createdSpaceFound = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name
 
 		for _, ns := range space.Status.ProvisionedNamespaces {
-			if ns.Type == "default" {
+			if ns.Type == toolchainv1alpha1.NamespaceTypeDefault {
 				// use this namespace if it is the first one found or if the space was created by the user
 				if defaultNamespace == "" || createdSpaceFound {
 					defaultNamespace = ns.Name

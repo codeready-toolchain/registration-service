@@ -353,12 +353,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	attempts := 0
 
 	for {
-		// If the loop exceeds a threshold in retry counts, then just return an error here
-		if attempts > 5 {
-			return nil, errs.New(fmt.Sprintf("failed to update UserSignup [%s] with updated userID or accountID: %s",
-				userSignup.Name,
-				userSignup.Status))
-		}
+		attempts++
 
 		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
 		userSignup, err = s.DoGetUserSignupFromIdentifier(provider, userID, username)
@@ -404,15 +399,21 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 			break
 		}
 
-		userSignup, err = s.UpdateUserSignup(userSignup)
-		if err == nil {
+		userSignup, updateErr := s.UpdateUserSignup(userSignup)
+		if updateErr != nil {
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing update for UserSignup [%s], attempt #%d",
+				userSignup.Name, attempts))
+		} else {
 			// If there was no error during update, then break out of the loop here
 			break
 		}
 
-		// If we've reached this point, it means there was an error while attempting to update the UserSignup.  The
-		// attempts counter will be incremented and the for-loop will repeat
-		attempts++
+		// If the loop exceeds a threshold in retry counts, then just return an error here
+		if attempts > 5 {
+			return nil, errs.New(fmt.Sprintf("failed to update UserSignup [%s] with updated userID or accountID: %s",
+				userSignup.Name,
+				userSignup.Status))
+		}
 	}
 
 	signupResponse := &signup.Signup{

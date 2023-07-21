@@ -81,7 +81,7 @@ func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.
 			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
 				{
 					Name: "john-dev",
-					Type: toolchainv1alpha1.NamespaceTypeDefault,
+					Type: "default",
 				},
 				{
 					Name: "john-stage",

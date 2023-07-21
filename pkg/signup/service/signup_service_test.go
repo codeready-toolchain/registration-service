@@ -1972,7 +1972,7 @@ func (s *TestSignupServiceSuite) newSpaceForMUR(murName, creator string) *toolch
 			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
 				{
 					Name: fmt.Sprintf("%s-dev", murName),
-					Type: toolchainv1alpha1.NamespaceTypeDefault,
+					Type: "default",
 				},
 			},
 		},

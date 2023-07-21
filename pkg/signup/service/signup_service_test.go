@@ -1200,6 +1200,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
+	space := s.newSpaceForMUR(mur.Name, us.Name)
+	err = s.FakeSpaceClient.Tracker.Add(space)
+	require.NoError(s.T(), err)
+
+	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	require.NoError(s.T(), err)
+
 	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{

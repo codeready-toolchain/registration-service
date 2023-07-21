@@ -17,7 +17,7 @@ type Informer struct {
 	GetSpaceFunc             func(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatusFunc   func() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
-	ListSpaceBindingFunc     func(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
+	ListSpaceBindingFunc     func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 }
 
@@ -56,7 +56,7 @@ func (f Informer) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, err
 	panic("not supposed to call GetUserSignup")
 }
 
-func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 	if f.ListSpaceBindingFunc != nil {
 		return f.ListSpaceBindingFunc(req...)
 	}

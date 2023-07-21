@@ -19,6 +19,8 @@ type V1Alpha1 interface {
 	BannedUsers() BannedUserInterface
 	ToolchainStatuses() ToolchainStatusInterface
 	SocialEvents() SocialEventInterface
+	Spaces() SpaceInterface
+	SpaceBindings() SpaceBindingInterface
 }
 
 // NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
@@ -64,6 +66,10 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.BannedUserList{},
 		&crtapi.ToolchainStatus{},
 		&crtapi.ToolchainStatusList{},
+		&crtapi.Space{},
+		&crtapi.SpaceList{},
+		&crtapi.SpaceBinding{},
+		&crtapi.SpaceBindingList{},
 	}
 }
 
@@ -139,6 +145,32 @@ func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 // SocialEvents returns an interface which may be used to perform CRUD operations for SocialEvent resources
 func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 	return &socialeventClient{
+		crtClient: crtClient{
+			client:   c.client.RestClient,
+			informer: c.client.Informer,
+			ns:       c.client.NS,
+			cfg:      c.client.Config,
+			scheme:   c.client.Scheme,
+		},
+	}
+}
+
+// Spaces returns an interface which may be used to perform CRUD operations for Space resources
+func (c *V1Alpha1REST) Spaces() SpaceInterface {
+	return &spaceClient{
+		crtClient: crtClient{
+			client:   c.client.RestClient,
+			informer: c.client.Informer,
+			ns:       c.client.NS,
+			cfg:      c.client.Config,
+			scheme:   c.client.Scheme,
+		},
+	}
+}
+
+// SpaceBindings returns an interface which may be used to perform CRUD operations for SpaceBinding resources
+func (c *V1Alpha1REST) SpaceBindings() SpaceBindingInterface {
+	return &spaceBindingClient{
 		crtClient: crtClient{
 			client:   c.client.RestClient,
 			informer: c.client.Informer,

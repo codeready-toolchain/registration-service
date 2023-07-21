@@ -20,6 +20,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -33,6 +34,8 @@ type UnitTestSuite struct {
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
 	FakeSocialEventClient      *fake.FakeSocialEventClient
+	FakeSpaceClient            *fake.FakeSpaceClient
+	FakeSpaceBindingClient     *fake.FakeSpaceBindingClient
 	factoryOptions             []factory.Option
 }
 
@@ -56,6 +59,8 @@ func (s *UnitTestSuite) SetupDefaultApplication() {
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
 	s.FakeSocialEventClient = fake.NewFakeSocialEventClient(s.T(), configuration.Namespace())
+	s.FakeSpaceClient = fake.NewFakeSpaceClient(s.T(), configuration.Namespace())
+	s.FakeSpaceBindingClient = fake.NewFakeSpaceBindingClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
@@ -65,6 +70,7 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
 	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
 	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
+	s.FakeSpaceBindingClient = fake.NewFakeSpaceBindingClient(s.T(), configuration.Namespace())
 	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
@@ -137,6 +143,8 @@ func (s *UnitTestSuite) TearDownSuite() {
 	s.FakeMasterUserRecordClient = nil
 	s.FakeBannedUserClient = nil
 	s.FakeToolchainStatusClient = nil
+	s.FakeSpaceClient = nil
+	s.FakeSpaceBindingClient = nil
 }
 
 func (s *UnitTestSuite) V1Alpha1() kubeclient.V1Alpha1 {
@@ -161,4 +169,32 @@ func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface 
 
 func (s *UnitTestSuite) SocialEvents() kubeclient.SocialEventInterface {
 	return s.FakeSocialEventClient
+}
+
+func (s *UnitTestSuite) Spaces() kubeclient.SpaceInterface {
+	return s.FakeSpaceClient
+}
+
+func (s *UnitTestSuite) SpaceBindings() kubeclient.SpaceBindingInterface {
+	return s.FakeSpaceBindingClient
+}
+
+func (s *UnitTestSuite) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+	return s.MasterUserRecords().Get(name)
+}
+
+func (s *UnitTestSuite) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
+	return s.ToolchainStatuses().Get()
+}
+
+func (s *UnitTestSuite) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
+	return s.UserSignups().Get(name)
+}
+
+func (s *UnitTestSuite) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
+	return s.Spaces().Get(name)
+}
+
+func (s *UnitTestSuite) ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+	return s.SpaceBindings().ListSpaceBindings(reqs...)
 }

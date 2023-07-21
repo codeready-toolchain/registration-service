@@ -13,7 +13,7 @@ type InformerService interface {
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
-	ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error)
+	ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 }
 

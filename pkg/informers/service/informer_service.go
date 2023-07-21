@@ -111,14 +111,14 @@ func (s *ServiceImpl) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup,
 	return us, err
 }
 
-func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchainv1alpha1.SpaceBinding, error) {
+func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 	selector := labels.NewSelector().Add(reqs...)
 	objs, err := s.informer.SpaceBinding.ByNamespace(configuration.Namespace()).List(selector)
 	if err != nil {
 		return nil, err
 	}
 
-	sbs := []*toolchainv1alpha1.SpaceBinding{}
+	sbs := []toolchainv1alpha1.SpaceBinding{}
 	for _, obj := range objs {
 		unobj := obj.(*unstructured.Unstructured)
 		sb := &toolchainv1alpha1.SpaceBinding{}
@@ -126,7 +126,7 @@ func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]*toolchai
 			log.Errorf(nil, err, "failed to list SpaceBindings")
 			return nil, err
 		}
-		sbs = append(sbs, sb)
+		sbs = append(sbs, *sb)
 	}
 	return sbs, err
 }

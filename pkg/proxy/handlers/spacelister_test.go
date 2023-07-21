@@ -297,7 +297,7 @@ func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isH
 		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
 			{
 				Name: "john-dev",
-				Type: "default",
+				Type: toolchainv1alpha1.NamespaceTypeDefault,
 			},
 			{
 				Name: "john-stage",

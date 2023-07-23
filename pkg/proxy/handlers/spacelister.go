@@ -3,10 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"net/http"
-	"net/http/httptest"
-
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -14,6 +10,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
+	"github.com/gin-gonic/gin"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -62,9 +60,7 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
-	signup, err := s.GetSignupFunc(c, userID, username)
+	signup, err := s.GetSignupFunc(nil, userID, username)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error retrieving signup"))
 		return nil, err

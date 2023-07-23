@@ -363,7 +363,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		}
 
 		// Otherwise if the returned userSignup is nil, return here also
-		if userSignup == nil {
+		if userSignup == nil || ctx == nil {
 			return nil
 		}
 

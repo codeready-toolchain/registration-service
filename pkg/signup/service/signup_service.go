@@ -350,24 +350,21 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	var userSignup *toolchainv1alpha1.UserSignup
 	var err error
 
-	attempts := 0
-
-	for {
-		attempts++
-
+	err = pollUpdateSignup(ctx, func() error {
 		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-		userSignup, err = s.DoGetUserSignupFromIdentifier(provider, userID, username)
+		var getError error
+		userSignup, getError = s.DoGetUserSignupFromIdentifier(provider, userID, username)
 		// If an error was returned, then return here
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return nil, nil
+		if getError != nil {
+			if apierrors.IsNotFound(getError) {
+				return nil
 			}
-			return nil, err
+			return getError
 		}
 
 		// Otherwise if the returned userSignup is nil, return here also
 		if userSignup == nil {
-			return nil, nil
+			return nil
 		}
 
 		// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
@@ -395,25 +392,23 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		}
 
 		// If there is no need to update the UserSignup then break out of the loop here
-		if !updateUserSignup {
-			break
+		if updateUserSignup {
+			var updateErr error
+			userSignup, updateErr = s.UpdateUserSignup(userSignup)
+			if updateErr != nil {
+				return updateErr
+			}
 		}
 
-		userSignup, updateErr := s.UpdateUserSignup(userSignup)
-		if updateErr != nil {
-			log.Error(ctx, updateErr, fmt.Sprintf("error while executing update for UserSignup [%s], attempt #%d",
-				userSignup.Name, attempts))
-		} else {
-			// If there was no error during update, then break out of the loop here
-			break
-		}
+		return nil
+	})
 
-		// If the loop exceeds a threshold in retry counts, then just return an error here
-		if attempts > 5 {
-			return nil, errs.New(fmt.Sprintf("failed to update UserSignup [%s] with updated userID or accountID: %s",
-				userSignup.Name,
-				userSignup.Status))
-		}
+	if err != nil {
+		return nil, err
+	}
+
+	if userSignup == nil {
+		return nil, nil
 	}
 
 	signupResponse := &signup.Signup{
@@ -625,4 +620,31 @@ func getAppsURL(appRouteName string, signup signup.Signup) string {
 	// get the appsURL eg. .apps.host.openshiftapps.com
 	appsURL := signup.ConsoleURL[index:]
 	return fmt.Sprintf("https://%s%s", appRouteName, appsURL)
+}
+
+func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
+	// Attempt to execute an update function, retrying a number of times if the update fails
+	attempts := 0
+	for {
+		attempts++
+
+		// Attempt the update
+		updateErr := updater()
+
+		// If there was an error, then only log it for now
+		if updateErr != nil {
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
+		} else {
+			// Otherwise if there was no error executing the update, then break here
+			break
+		}
+
+		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
+		// error to the user here, as we've already logged it
+		if attempts > 4 {
+			return updateErr
+		}
+	}
+
+	return nil
 }

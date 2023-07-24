@@ -43,9 +43,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 }
 
 func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
-	signup, err := s.Services().SignupService().GetSignupFromInformer(c, userID, username)
+	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username)
 	if err != nil {
 		return nil, err
 	}

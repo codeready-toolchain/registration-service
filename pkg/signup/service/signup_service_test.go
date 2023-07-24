@@ -1910,6 +1910,99 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
+
+	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
+
+	// Create a new UserSignup, set its UserID and AccountID annotations
+	userSignup := s.newUserSignupComplete()
+
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
+
+	mur := &toolchainv1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userSignup.Status.CompliantUsername,
+			Namespace: configuration.Namespace(),
+		},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
+				{
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
+					Status: "true",
+				},
+			},
+		},
+	}
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+	require.NoError(s.T(), err)
+
+	s.Run("confirm nothing changed when context empty", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOUserIDAnnotationKey)
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
+	})
+
+	s.Run("userID annotation updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.UserIDKey, "888888")
+		//c.Set(context.AccountIDKey, "1234567890")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
+	})
+
+	s.Run("accountID annotation updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		// Set the userID context value to empty string
+		c.Set(context.UserIDKey, "")
+		c.Set(context.AccountIDKey, "1234567890")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		// Confirm that the userID annotation wasn't updated
+		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+	})
+
+	s.Run("userID and accountID annotations not overridden when already set and context values different", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		// Set the userID context value to empty string
+		c.Set(context.UserIDKey, "7777777")
+		c.Set(context.AccountIDKey, "0987654321")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		// Confirm that both annotations are updated
+		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+	})
+}
+
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }

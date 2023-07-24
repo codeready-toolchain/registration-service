@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"net/http/httptest"
 	"net/url"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"

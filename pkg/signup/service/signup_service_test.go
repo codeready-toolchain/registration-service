@@ -1941,6 +1941,17 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
+	s.Run("confirm nothing changed when context nil", func() {
+		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOUserIDAnnotationKey)
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
+	})
+
 	s.Run("confirm nothing changed when context empty", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
@@ -1956,7 +1967,6 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 	s.Run("userID annotation updated when set in context", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set(context.UserIDKey, "888888")
-		//c.Set(context.AccountIDKey, "1234567890")
 
 		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
 		require.NoError(s.T(), err)
@@ -1968,7 +1978,20 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
 	})
 
-	s.Run("accountID annotation updated when set in context", func() {
+	s.Run("accountID annotation updated when set in context and some update attempts fail", func() {
+		counter := 0
+		s.FakeUserSignupClient.MockUpdate = func(value *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
+			counter++
+			if counter < 3 {
+				s.FakeUserSignupClient.MockUpdate = nil
+				return s.FakeUserSignupClient.Update(value)
+			}
+			return value, nil
+		}
+		defer func() {
+			s.FakeUserSignupClient.MockUpdate = nil
+		}()
+
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		// Set the userID context value to empty string
 		c.Set(context.UserIDKey, "")
@@ -1987,7 +2010,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 
 	s.Run("userID and accountID annotations not overridden when already set and context values different", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		// Set the userID context value to empty string
+		// Set the userID and accountID context values to different values
 		c.Set(context.UserIDKey, "7777777")
 		c.Set(context.AccountIDKey, "0987654321")
 
@@ -1997,7 +2020,24 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
 
-		// Confirm that both annotations are updated
+		// Confirm that both annotations are NOT updated
+		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+	})
+
+	s.Run("userID and accountID annotations not overridden when already set and context values are the same", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		// Set the userID and accountID context values to same values
+		c.Set(context.UserIDKey, "888888")
+		c.Set(context.AccountIDKey, "1234567890")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		// Confirm that both annotations are still not updated
 		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
 		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
 	})

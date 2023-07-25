@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	signup2 "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"net/http"
 	"strconv"
 	"time"
@@ -184,7 +185,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		return nil
 	}
 
-	updateErr := pollUpdateSignup(ctx, doUpdate)
+	updateErr := signup2.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
 		return updateErr
 	}
@@ -311,7 +312,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		return nil
 	}
 
-	updateErr := pollUpdateSignup(ctx, doUpdate)
+	updateErr := signup2.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
 		return updateErr
 	}
@@ -366,7 +367,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 
 			return nil
 		}
-		if err := pollUpdateSignup(ctx, doUpdate); err != nil {
+		if err := signup2.PollUpdateSignup(ctx, doUpdate); err != nil {
 			log.Errorf(ctx, err, "unable to update user signup after validating activation code")
 		}
 	}()
@@ -421,33 +422,4 @@ func checkAttempts(signup *toolchainv1alpha1.UserSignup) (int, error) {
 		return attemptsMade, crterrors.NewTooManyRequestsError("too many verification attempts", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
 	}
 	return attemptsMade, nil
-}
-
-func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
-	// Attempt to execute an update function, retrying a number of times if the update fails
-	attempts := 0
-	for {
-		attempts++
-
-		// Attempt the update
-		updateErr := updater()
-
-		// If there was an error, then only log it for now
-		if updateErr != nil {
-			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
-		} else {
-			// Otherwise if there was no error executing the update, then break here
-			break
-		}
-
-		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
-		// error to the user here, as we've already logged it
-		if attempts > 4 {
-			return crterrors.NewInternalError(errors.New("there was an error while updating your account - please wait a moment before trying again."+
-				" If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for assistance"),
-				"error while verifying phone code")
-		}
-	}
-
-	return nil
 }

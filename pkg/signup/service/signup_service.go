@@ -350,7 +350,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	var userSignup *toolchainv1alpha1.UserSignup
 	var err error
 
-	err = pollUpdateSignup(ctx, func() error {
+	err = signup.PollUpdateSignup(ctx, func() error {
 		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
 		var getError error
 		userSignup, getError = s.DoGetUserSignupFromIdentifier(provider, userID, username)
@@ -620,31 +620,4 @@ func getAppsURL(appRouteName string, signup signup.Signup) string {
 	// get the appsURL eg. .apps.host.openshiftapps.com
 	appsURL := signup.ConsoleURL[index:]
 	return fmt.Sprintf("https://%s%s", appRouteName, appsURL)
-}
-
-func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
-	// Attempt to execute an update function, retrying a number of times if the update fails
-	attempts := 0
-	for {
-		attempts++
-
-		// Attempt the update
-		updateErr := updater()
-
-		// If there was an error, then only log it for now
-		if updateErr != nil {
-			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
-		} else {
-			// Otherwise if there was no error executing the update, then break here
-			break
-		}
-
-		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
-		// error to the user here, as we've already logged it
-		if attempts > 4 {
-			return updateErr
-		}
-	}
-
-	return nil
 }

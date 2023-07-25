@@ -204,7 +204,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetSignup = func(id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
 			if id == userID {
 				return expected, nil
 			}
@@ -231,7 +231,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
 			return nil, nil
 		}
 
@@ -248,7 +248,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")
 		}
 
@@ -900,20 +900,20 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 }
 
 type FakeSignupService struct {
-	MockGetSignup                   func(userID, username string) (*signup.Signup, error)
-	MockGetSignupFromInformer       func(userID, username string) (*signup.Signup, error)
+	MockGetSignup                   func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
+	MockGetSignupFromInformer       func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
 	MockSignup                      func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignupFromIdentifier func(userID, username string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup            func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockPhoneNumberAlreadyInUse     func(userID, username, value string) error
 }
 
-func (m *FakeSignupService) GetSignup(userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignup(userID, username)
+func (m *FakeSignupService) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return m.MockGetSignup(ctx, userID, username)
 }
 
-func (m *FakeSignupService) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignupFromInformer(userID, username)
+func (m *FakeSignupService) GetSignupFromInformer(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return m.MockGetSignupFromInformer(ctx, userID, username)
 }
 
 func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {

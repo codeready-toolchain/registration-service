@@ -336,28 +336,77 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(s.defaultProvider, userID, username)
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.defaultProvider, userID, username)
 }
 
 // GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
 // This function and the ResourceProvider abstraction can replace the original GetSignup function once it is determined to be stable.
-func (s *ServiceImpl) GetSignupFromInformer(userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(s.Services().InformerService(), userID, username)
+func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.Services().InformerService(), userID, username)
 }
 
-func (s *ServiceImpl) DoGetSignup(provider ResourceProvider, userID, username string) (*signup.Signup, error) {
-	// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-	userSignup, err := s.DoGetUserSignupFromIdentifier(provider, userID, username)
-	// If an error was returned, then return here
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string) (*signup.Signup, error) {
+	var userSignup *toolchainv1alpha1.UserSignup
+	var err error
+
+	err = pollUpdateSignup(ctx, func() error {
+		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
+		var getError error
+		userSignup, getError = s.DoGetUserSignupFromIdentifier(provider, userID, username)
+		// If an error was returned, then return here
+		if getError != nil {
+			if apierrors.IsNotFound(getError) {
+				return nil
+			}
+			return getError
 		}
+
+		// Otherwise if the returned userSignup is nil, return here also
+		if userSignup == nil || ctx == nil {
+			return nil
+		}
+
+		// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
+		// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
+		// the resource.
+		userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
+		accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
+
+		updateUserSignup := false
+
+		if !userIDFound || userIDValue == "" {
+			userID := ctx.GetString(context.UserIDKey)
+			if userID != "" {
+				userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
+				updateUserSignup = true
+			}
+		}
+
+		if !accountIDFound || accountIDValue == "" {
+			accountID := ctx.GetString(context.AccountIDKey)
+			if accountID != "" {
+				userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
+				updateUserSignup = true
+			}
+		}
+
+		// If there is no need to update the UserSignup then break out of the loop here
+		if updateUserSignup {
+			var updateErr error
+			userSignup, updateErr = s.UpdateUserSignup(userSignup)
+			if updateErr != nil {
+				return updateErr
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Otherwise if the returned userSignup is nil, return here also
 	if userSignup == nil {
 		return nil, nil
 	}
@@ -571,4 +620,31 @@ func getAppsURL(appRouteName string, signup signup.Signup) string {
 	// get the appsURL eg. .apps.host.openshiftapps.com
 	appsURL := signup.ConsoleURL[index:]
 	return fmt.Sprintf("https://%s%s", appRouteName, appsURL)
+}
+
+func pollUpdateSignup(ctx *gin.Context, updater func() error) error {
+	// Attempt to execute an update function, retrying a number of times if the update fails
+	attempts := 0
+	for {
+		attempts++
+
+		// Attempt the update
+		updateErr := updater()
+
+		// If there was an error, then only log it for now
+		if updateErr != nil {
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
+		} else {
+			// Otherwise if there was no error executing the update, then break here
+			break
+		}
+
+		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
+		// error to the user here, as we've already logged it
+		if attempts > 4 {
+			return updateErr
+		}
+	}
+
+	return nil
 }

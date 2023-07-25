@@ -41,7 +41,7 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 }
 
 func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().SignupService().GetSignupFromInformer(userID, username)
+	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username)
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	signup2 "github.com/codeready-toolchain/registration-service/pkg/signup"
+	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"net/http"
 	"strconv"
 	"time"
@@ -185,7 +185,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		return nil
 	}
 
-	updateErr := signup2.PollUpdateSignup(ctx, doUpdate)
+	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
 		return updateErr
 	}
@@ -312,7 +312,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		return nil
 	}
 
-	updateErr := signup2.PollUpdateSignup(ctx, doUpdate)
+	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
 		return updateErr
 	}
@@ -367,7 +367,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 
 			return nil
 		}
-		if err := signup2.PollUpdateSignup(ctx, doUpdate); err != nil {
+		if err := signuppkg.PollUpdateSignup(ctx, doUpdate); err != nil {
 			log.Errorf(ctx, err, "unable to update user signup after validating activation code")
 		}
 	}()

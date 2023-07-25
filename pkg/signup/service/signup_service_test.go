@@ -1941,17 +1941,6 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	s.Run("confirm nothing changed when context nil", func() {
-		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
-
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOUserIDAnnotationKey)
-		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
-	})
-
 	s.Run("confirm nothing changed when context empty", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
@@ -1969,6 +1958,17 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c.Set(context.UserIDKey, "888888")
 
 		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+		require.NotContains(s.T(), modified.Annotations, toolchainv1alpha1.SSOAccountIDAnnotationKey)
+	})
+
+	s.Run("confirm nothing changed when context nil", func() {
+		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)

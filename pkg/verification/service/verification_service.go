@@ -187,7 +187,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 
 	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
-		return updateErr
+		log.Error(ctx, updateErr, "error updating UserSignup")
+		return errors.New("there was an error while updating your account - please wait a moment before " +
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
+			"assistance: error while verifying phone code")
 	}
 
 	return initError
@@ -314,7 +317,10 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)
 	if updateErr != nil {
-		return updateErr
+		log.Error(ctx, updateErr, "error updating UserSignup")
+		return errors.New("there was an error while updating your account - please wait a moment before " +
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
+			"assistance: error while verifying phone code")
 	}
 
 	return

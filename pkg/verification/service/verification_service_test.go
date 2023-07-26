@@ -317,7 +317,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		// Cause the client UPDATE call to fail always
 		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-			return nil, errors.New("update failed")
+			return nil, errors.New("there was an error while updating your account - please wait a moment before trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com \"+\n\t\t\t\"for assistance: error while verifying phone code")
 		}
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 

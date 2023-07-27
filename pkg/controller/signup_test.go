@@ -608,7 +608,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
 			"assistance: error while verifying phone code", bodyParams["message"])
-		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
+		require.Equal(s.T(), "unexpected error while verifying phone code", bodyParams["details"])
 	})
 
 	s.Run("verifycode returns status error", func() {

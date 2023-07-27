@@ -594,7 +594,8 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "555555",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification/555555")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet,
+			"/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)

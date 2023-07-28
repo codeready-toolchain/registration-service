@@ -1,5 +1,11 @@
 package signup
 
+import (
+	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/gin-gonic/gin"
+)
+
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
 // and the corresponding MasterUserRecord resources.
 type Signup struct {
@@ -48,4 +54,33 @@ type Status struct {
 	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
 	// Default value is false.
 	VerificationRequired bool `json:"verificationRequired"`
+}
+
+// PollUpdateSignup will attempt to execute the provided updater function, and if it fails
+// will reattempt the update for a limited number of retries
+func PollUpdateSignup(ctx *gin.Context, updater func() error) error {
+	// Attempt to execute an update function, retrying a number of times if the update fails
+	attempts := 0
+	for {
+		attempts++
+
+		// Attempt the update
+		updateErr := updater()
+
+		// If there was an error, then only log it for now
+		if updateErr != nil {
+			log.Error(ctx, updateErr, fmt.Sprintf("error while executing updating, attempt #%d", attempts))
+		} else {
+			// Otherwise if there was no error executing the update, then break here
+			break
+		}
+
+		// If we've exceeded the number of attempts, then return a useful error to the user.  We won't return the actual
+		// error to the user here, as we've already logged it
+		if attempts > 4 {
+			return updateErr
+		}
+	}
+
+	return nil
 }

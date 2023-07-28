@@ -594,7 +594,8 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "555555",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification/555555")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet,
+			"/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -608,7 +609,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
 			"assistance: error while verifying phone code", bodyParams["message"])
-		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
+		require.Equal(s.T(), "unexpected error while verifying phone code", bodyParams["details"])
 	})
 
 	s.Run("verifycode returns status error", func() {

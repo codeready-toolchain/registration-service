@@ -9,7 +9,7 @@ import (
 )
 
 type NotificationSender interface {
-	SendNotification(ctx *gin.Context, content, phoneNumber string) error
+	SendNotification(ctx *gin.Context, content, phoneNumber, countryCode string) error
 }
 
 type NotificationSenderOption = func()

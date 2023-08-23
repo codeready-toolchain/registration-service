@@ -60,7 +60,7 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 // InitVerification sends a verification message to the specified user, using the Twilio service.  If successful,
 // the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
 // to manage the phone verification process and protect against system abuse.
-func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error {
+func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber, countryCode string) error {
 	signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -152,7 +152,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		// Generate the verification message with the new verification code
 		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
 
-		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber)
+		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
 		if err != nil {
 			log.Error(ctx, err, "error while sending notification")
 

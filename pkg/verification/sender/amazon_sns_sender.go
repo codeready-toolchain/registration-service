@@ -27,7 +27,7 @@ func NewAmazonSNSSender(cfg AWSSenderConfiguration) NotificationSender {
 	}
 }
 
-func (s *AmazonSNSSender) SendNotification(_ *gin.Context, content, phoneNumber, countryCode string) error {
+func (s *AmazonSNSSender) SendNotification(_ *gin.Context, content, phoneNumber, _ string) error {
 	awsAccessKeyID := s.Config.AWSAccessKeyID()
 	awsSecretAccessKey := s.Config.AWSSecretAccessKey()
 

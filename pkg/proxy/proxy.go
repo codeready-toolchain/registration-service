@@ -22,6 +22,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -89,7 +90,6 @@ func (p *Proxy) StartProxy() *http.Server {
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
 	router.HTTPErrorHandler = customHTTPErrorHandler
-
 	// middleware before routing
 	router.Pre(
 		middleware.RemoveTrailingSlash(),
@@ -118,6 +118,7 @@ func (p *Proxy) StartProxy() *http.Server {
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
+
 				log.InfoEchof(ctx, "request routed")
 				return nil
 			},
@@ -155,6 +156,7 @@ func (p *Proxy) health(ctx echo.Context) error {
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
+	startTime := time.Now()
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
@@ -180,8 +182,11 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 		return crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
+	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
+	routeTime := time.Since(startTime)
+	metrics.RegistrationServiceProxyRoute.WithLabelValues(cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0).ServeHTTP(ctx.Response().Writer, ctx.Request())
+	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 

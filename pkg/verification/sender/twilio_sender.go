@@ -2,23 +2,30 @@ package sender
 
 import (
 	"fmt"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"net/http"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/gin-gonic/gin"
 	"github.com/kevinburke/twilio-go"
 )
 
+type TwilioConfig interface {
+	TwilioAccountSID() string
+	TwilioAuthToken() string
+	TwilioFromNumber() string
+	TwilioSenderConfigs() []toolchainv1alpha1.TwilioSenderConfig
+}
+
 type TwilioNotificationSender struct {
-	Config     configuration.RegistrationServiceConfig
+	Config     TwilioConfig
 	HTTPClient *http.Client
 
 	//SenderIDs is a map containing country codes (key) and associated sender id (value)
 	SenderIDs map[string]string
 }
 
-func NewTwilioSender(cfg configuration.RegistrationServiceConfig, httpClient *http.Client) NotificationSender {
+func NewTwilioSender(cfg TwilioConfig, httpClient *http.Client) NotificationSender {
 	sender := &TwilioNotificationSender{
 		Config:     cfg,
 		HTTPClient: httpClient,
@@ -28,7 +35,7 @@ func NewTwilioSender(cfg configuration.RegistrationServiceConfig, httpClient *ht
 	sender.SenderIDs = make(map[string]string)
 
 	// Populate the SenderIDs map with the configured sender IDs
-	for _, senderConfig := range cfg.Verification().TwilioSenderConfigs() {
+	for _, senderConfig := range cfg.TwilioSenderConfigs() {
 		for _, countryCode := range senderConfig.CountryCodes {
 			sender.SenderIDs[countryCode] = senderConfig.SenderID
 		}
@@ -38,10 +45,10 @@ func NewTwilioSender(cfg configuration.RegistrationServiceConfig, httpClient *ht
 }
 
 func (s *TwilioNotificationSender) SendNotification(ctx *gin.Context, content, phoneNumber, countryCode string) error {
-	client := twilio.NewClient(s.Config.Verification().TwilioAccountSID(), s.Config.Verification().TwilioAuthToken(), s.HTTPClient)
+	client := twilio.NewClient(s.Config.TwilioAccountSID(), s.Config.TwilioAuthToken(), s.HTTPClient)
 	from, ok := s.SenderIDs[countryCode]
 	if !ok {
-		from = s.Config.Verification().TwilioFromNumber()
+		from = s.Config.TwilioFromNumber()
 	}
 
 	msg, err := client.Messages.SendMessage(from, phoneNumber, content, nil)

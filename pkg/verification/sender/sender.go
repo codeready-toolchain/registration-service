@@ -20,5 +20,5 @@ func CreateNotificationSender(httpClient *http.Client) NotificationSender {
 		return NewAmazonSNSSender(cfg.Verification())
 	}
 
-	return NewTwilioSender(cfg, httpClient)
+	return NewTwilioSender(cfg.Verification(), httpClient)
 }

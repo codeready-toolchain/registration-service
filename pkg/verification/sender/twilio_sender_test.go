@@ -51,7 +51,10 @@ func TestTwilioSenderIDs(t *testing.T) {
 	var reqBody io.ReadCloser
 	obs := func(request *http.Request, mock gock.Mock) {
 		reqBody = request.Body
-		defer request.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			require.NoError(t, err)
+		}(request.Body)
 	}
 
 	gock.Observe(obs)
@@ -63,7 +66,7 @@ func TestTwilioSenderIDs(t *testing.T) {
 		AuthToken:  "AUTH_TOKEN_VALUE",
 		FromNumber: "+13334445555",
 		SenderConfigs: []toolchainv1alpha1.TwilioSenderConfig{
-			toolchainv1alpha1.TwilioSenderConfig{
+			{
 				SenderID:     "RED HAT",
 				CountryCodes: []string{"44"},
 			},

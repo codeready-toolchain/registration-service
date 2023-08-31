@@ -37,29 +37,7 @@ func (c *MockTwilioConfig) TwilioSenderConfigs() []toolchainv1alpha1.TwilioSende
 	return c.SenderConfigs
 }
 
-func TestTwilioSenderIDConfigFound(t *testing.T) {
-
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
-
-	defer gock.Off()
-
-	gock.New("https://api.twilio.com").
-		Reply(http.StatusNoContent).
-		BodyString("")
-
-	var reqBody io.ReadCloser
-	obs := func(request *http.Request, mock gock.Mock) {
-		reqBody = request.Body
-		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			require.NoError(t, err)
-		}(request.Body)
-	}
-
-	gock.Observe(obs)
-
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+func TestTwilioSenderID(t *testing.T) {
 
 	cfg := &MockTwilioConfig{
 		AccountSID: "TWILIO_SID_VALUE",
@@ -73,74 +51,63 @@ func TestTwilioSenderIDConfigFound(t *testing.T) {
 		},
 	}
 
-	sender := sender2.NewTwilioSender(cfg, httpClient)
+	setupGockAndSendRequest := func(executeSend func(sender sender2.NotificationSender) error) string {
+		httpClient := &http.Client{Transport: &http.Transport{}}
+		gock.InterceptClient(httpClient)
 
-	err := sender.SendNotification(ctx, "Test Message", "+440000000000", "44")
-	require.NoError(t, err)
+		defer gock.Off()
 
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(reqBody)
-	require.NoError(t, err)
-	reqValue := buf.String()
+		gock.New("https://api.twilio.com").
+			Reply(http.StatusNoContent).
+			BodyString("")
 
-	v, err := url.ParseQuery(reqValue)
-	require.NoError(t, err)
+		var reqBody io.ReadCloser
+		obs := func(request *http.Request, mock gock.Mock) {
+			reqBody = request.Body
+			defer func(Body io.ReadCloser) {
+				err := Body.Close()
+				require.NoError(t, err)
+			}(request.Body)
+		}
 
-	require.Equal(t, "Test Message", v.Get("Body"))
-	require.Equal(t, "RED HAT", v.Get("From"))
-	require.Equal(t, "+440000000000", v.Get("To"))
-}
+		gock.Observe(obs)
 
-func TestTwilioSenderIDCountryNotConfigured(t *testing.T) {
+		sender := sender2.NewTwilioSender(cfg, httpClient)
 
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
+		err := executeSend(sender)
+		require.NoError(t, err)
 
-	defer gock.Off()
-
-	gock.New("https://api.twilio.com").
-		Reply(http.StatusNoContent).
-		BodyString("")
-
-	var reqBody io.ReadCloser
-	obs := func(request *http.Request, mock gock.Mock) {
-		reqBody = request.Body
-		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			require.NoError(t, err)
-		}(request.Body)
+		buf := new(bytes.Buffer)
+		_, err = buf.ReadFrom(reqBody)
+		require.NoError(t, err)
+		return buf.String()
 	}
 
-	gock.Observe(obs)
+	t.Run("test country code in config", func(t *testing.T) {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		reqValue := setupGockAndSendRequest(func(sender sender2.NotificationSender) error {
+			return sender.SendNotification(ctx, "Test Message", "+440000000000", "44")
+		})
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		v, err := url.ParseQuery(reqValue)
+		require.NoError(t, err)
 
-	cfg := &MockTwilioConfig{
-		AccountSID: "TWILIO_SID_VALUE",
-		AuthToken:  "AUTH_TOKEN_VALUE",
-		FromNumber: "+13334445555",
-		SenderConfigs: []toolchainv1alpha1.TwilioSenderConfig{
-			{
-				SenderID:     "RED HAT",
-				CountryCodes: []string{"44"},
-			},
-		},
-	}
+		require.Equal(t, "Test Message", v.Get("Body"))
+		require.Equal(t, "RED HAT", v.Get("From"))
+		require.Equal(t, "+440000000000", v.Get("To"))
+	})
 
-	sender := sender2.NewTwilioSender(cfg, httpClient)
+	t.Run("test country code not in config", func(t *testing.T) {
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		reqValue := setupGockAndSendRequest(func(sender sender2.NotificationSender) error {
+			return sender.SendNotification(ctx, "Test Message", "+611234567890", "61")
+		})
 
-	err := sender.SendNotification(ctx, "Test Message", "+611234567890", "61")
-	require.NoError(t, err)
+		v, err := url.ParseQuery(reqValue)
+		require.NoError(t, err)
 
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(reqBody)
-	require.NoError(t, err)
-	reqValue := buf.String()
-
-	v, err := url.ParseQuery(reqValue)
-	require.NoError(t, err)
-
-	require.Equal(t, "Test Message", v.Get("Body"))
-	require.Equal(t, "+13334445555", v.Get("From"))
-	require.Equal(t, "+611234567890", v.Get("To"))
+		require.Equal(t, "Test Message", v.Get("Body"))
+		require.Equal(t, "+13334445555", v.Get("From"))
+		require.Equal(t, "+611234567890", v.Get("To"))
+	})
 }

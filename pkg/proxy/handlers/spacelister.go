@@ -8,10 +8,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -35,9 +37,10 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 }
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
-
+	startTime := time.Now()
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
+		metrics.RegistrationServiceProxyResponse.WithLabelValues("ListUserWorkspacesError").Observe(time.Since(startTime).Seconds())
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 
@@ -48,11 +51,13 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		if len(workspaces) != 1 {
 			// not found
 			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
+			metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspacesError").Observe(time.Since(startTime).Seconds())
 			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
 		}
+		metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspaceResponse").Observe(time.Since(startTime).Seconds())
 		return getWorkspaceResponse(ctx, workspaces[0])
 	}
-
+	metrics.RegistrationServiceProxyResponse.WithLabelValues("ListWorkspaceResponse").Observe(time.Since(startTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 

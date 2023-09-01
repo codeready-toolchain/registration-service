@@ -9,7 +9,7 @@ import (
 )
 
 type NotificationSender interface {
-	SendNotification(ctx *gin.Context, content, phoneNumber string) error
+	SendNotification(ctx *gin.Context, content, phoneNumber, countryCode string) error
 }
 
 type NotificationSenderOption = func()
@@ -20,5 +20,5 @@ func CreateNotificationSender(httpClient *http.Client) NotificationSender {
 		return NewAmazonSNSSender(cfg.Verification())
 	}
 
-	return NewTwilioSender(cfg, httpClient)
+	return NewTwilioSender(cfg.Verification(), httpClient)
 }

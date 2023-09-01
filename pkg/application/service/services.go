@@ -31,7 +31,7 @@ type SocialEventService interface {
 }
 
 type VerificationService interface {
-	InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber string) error
+	InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber, countryCode string) error
 	VerifyPhoneCode(ctx *gin.Context, userID, username, code string) error
 	VerifyActivationCode(ctx *gin.Context, userID, username, code string) error
 }

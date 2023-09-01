@@ -8,6 +8,11 @@ import (
 var log = logf.Log.WithName("registration_metrics")
 var Reg *prometheus.Registry
 
+const (
+	ResponseMetricLabelApprove = "Approve"
+	ResponseMetricLabelReject  = "Reject"
+)
+
 // histogram with labels
 var (
 	// RegServProxyRouteHistogramVec measures the time taken by proxy before forwarding the request

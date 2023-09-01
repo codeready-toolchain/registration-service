@@ -12,10 +12,8 @@ func NewMetrics() *Metrics {
 	return &Metrics{}
 }
 
-func (m *Metrics) PrometheusHandler() gin.HandlerFunc {
+func (m *Metrics) PrometheusHandler(c *gin.Context) {
 	h := promhttp.HandlerFor(metrics.Reg, promhttp.HandlerOpts{Registry: metrics.Reg})
-
-	return func(c *gin.Context) {
-		h.ServeHTTP(c.Writer, c.Request)
-	}
+	c.Writer.Header().Set("content-Type", "text/plain")
+	h.ServeHTTP(c.Writer, c.Request)
 }

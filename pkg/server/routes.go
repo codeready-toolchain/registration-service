@@ -41,7 +41,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey) //expose the devspaces segment key
-		unsecuredV1.GET("/metrics", metricsCtrl.PrometheusHandler())
+		unsecuredV1.GET("/metrics", metricsCtrl.PrometheusHandler)
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(authMiddleware.HandlerFunc())

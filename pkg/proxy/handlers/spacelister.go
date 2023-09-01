@@ -40,7 +40,7 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	startTime := time.Now()
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("ListUserWorkspacesError").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("ListUserWorkspacesError").Observe(time.Since(startTime).Seconds())
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 
@@ -51,13 +51,13 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		if len(workspaces) != 1 {
 			// not found
 			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspacesError").Observe(time.Since(startTime).Seconds())
+			metrics.RegServProxyResponseHistogramVec.WithLabelValues("WorkspacesError").Observe(time.Since(startTime).Seconds())
 			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
 		}
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspaceResponse").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("WorkspaceResponse").Observe(time.Since(startTime).Seconds())
 		return getWorkspaceResponse(ctx, workspaces[0])
 	}
-	metrics.RegistrationServiceProxyResponse.WithLabelValues("ListWorkspaceResponse").Observe(time.Since(startTime).Seconds())
+	metrics.RegServProxyResponseHistogramVec.WithLabelValues("ListWorkspaceResponse").Observe(time.Since(startTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 

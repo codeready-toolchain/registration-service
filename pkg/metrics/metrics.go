@@ -10,9 +10,10 @@ var Reg *prometheus.Registry
 
 // histogram with labels
 var (
-	// RegistrationServiceProxyRoute measures the time to route a message from proxy
-	RegistrationServiceProxyRoute    *prometheus.HistogramVec
-	RegistrationServiceProxyResponse *prometheus.HistogramVec
+	// RegServProxyRouteHistogramVec measures the time taken by proxy before forwarding the request
+	RegServProxyRouteHistogramVec *prometheus.HistogramVec
+	// RegServProxyResponseHistogramVec measures the response time for either response or error from proxy when there is no routing
+	RegServProxyResponseHistogramVec *prometheus.HistogramVec
 )
 
 // collections
@@ -24,8 +25,8 @@ const metricsPrefix = "sandbox_"
 
 func initMetrics() {
 	log.Info("initializing custom metrics")
-	RegistrationServiceProxyRoute = newHistogramVec("proxy_route_time", "time taken by proxy to route ", "routeTo")
-	RegistrationServiceProxyResponse = newHistogramVec("proxy_response_time", "time for response of a request to proxy ", "responseFor")
+	RegServProxyRouteHistogramVec = newHistogramVec("proxy_route_time", "time taken by proxy to route ", "routeTo")
+	RegServProxyResponseHistogramVec = newHistogramVec("proxy_response_time", "time for response of a request to proxy ", "responseFor")
 	log.Info("custom metrics initialized")
 }
 

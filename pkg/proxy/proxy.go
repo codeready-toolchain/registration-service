@@ -162,33 +162,33 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 
 	proxyPluginName, workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspaceContextError").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("WorkspaceContextError").Observe(time.Since(startTime).Seconds())
 		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyPluginName)
 	if err != nil {
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("TargetClusterError").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("TargetClusterError").Observe(time.Since(startTime).Seconds())
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 
 	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
 	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("WorkspaceError").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("WorkspaceError").Observe(time.Since(startTime).Seconds())
 		return crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}
 
 	requestedNamespace := namespaceFromCtx(ctx)
 	if err := validateWorkspaceRequest(workspace, requestedNamespace, workspaces); err != nil {
-		metrics.RegistrationServiceProxyResponse.WithLabelValues("InvalidWorkspaceRequest").Observe(time.Since(startTime).Seconds())
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues("InvalidWorkspaceRequest").Observe(time.Since(startTime).Seconds())
 		return crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
 	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
 	routeTime := time.Since(startTime)
-	metrics.RegistrationServiceProxyRoute.WithLabelValues(cluster.APIURL().Host).Observe(routeTime.Seconds())
+	metrics.RegServProxyRouteHistogramVec.WithLabelValues(cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil

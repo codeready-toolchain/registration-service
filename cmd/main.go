@@ -99,10 +99,6 @@ func main() {
 
 	// Register metrics
 	metrics.RegisterCustomMetrics()
-	//Start metrics server
-	//go func() {
-	//	metrics.StartMetricsServer()
-	//}()
 
 	// Start the proxy server
 	p, err := proxy.NewProxy(app)

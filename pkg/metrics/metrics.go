@@ -58,12 +58,3 @@ func RegisterCustomMetrics() {
 	}
 	log.Info("custom metrics registered")
 }
-
-//func StartMetricsServer() {
-//	// Expose metrics and custom registry via an HTTP server
-//	// using the HandleFor function. "/metrics" is the usual endpoint for that.
-//	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-//	if err := http.ListenAndServe(":8082", nil); err != nil {
-//		log.Error(err, "Could not listen on port 8082")
-//	}
-//}

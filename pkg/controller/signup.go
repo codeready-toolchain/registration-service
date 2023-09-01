@@ -87,7 +87,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
-	err = s.app.VerificationService().InitVerification(ctx, userID, username, e164Number)
+	err = s.app.VerificationService().InitVerification(ctx, userID, username, e164Number, strconv.Itoa(countryCode))
 	if err != nil {
 		log.Errorf(ctx, err, "Verification for %s could not be sent", userID)
 		e := &crterrors.Error{}

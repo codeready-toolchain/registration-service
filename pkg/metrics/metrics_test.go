@@ -3,7 +3,6 @@ package metrics
 import (
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
-	k8smetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"testing"
 )
 
@@ -31,6 +30,6 @@ func TestRegisterCustomMetrics(t *testing.T) {
 	// then
 	// verify all metrics were registered successfully
 	for _, m := range allHistogramVecs {
-		assert.True(t, k8smetrics.Registry.Unregister(m))
+		assert.True(t, reg.Unregister(m))
 	}
 }

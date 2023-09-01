@@ -26,6 +26,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
@@ -95,7 +96,7 @@ func (p *Proxy) StartProxy() *http.Server {
 		middleware.RemoveTrailingSlash(),
 		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
-
+		echoprometheus.NewMiddleware("registration_service_metrics"),
 		// log request information before routing
 		func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(ctx echo.Context) error {

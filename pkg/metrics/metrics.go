@@ -3,10 +3,10 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	k8smetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var log = logf.Log.WithName("toolchain_metrics")
+var log = logf.Log.WithName("registration_metrics")
+var Reg *prometheus.Registry
 
 // histogram with labels
 var (
@@ -19,10 +19,6 @@ var (
 var (
 	allHistogramVecs = []*prometheus.HistogramVec{}
 )
-
-func init() {
-	initMetrics()
-}
 
 const metricsPrefix = "sandbox_"
 
@@ -51,9 +47,22 @@ func newHistogramVec(name, help string, labels ...string) *prometheus.HistogramV
 
 // RegisterCustomMetrics registers the custom metrics
 func RegisterCustomMetrics() {
+	initMetrics()
+	Reg = prometheus.NewRegistry()
 	// register metrics
 	for _, v := range allHistogramVecs {
-		k8smetrics.Registry.MustRegister(v)
+		if err := Reg.Register(v); err != nil {
+			log.Error(err, "failed to register histogramVec", "Histogram Name:", v)
+		}
 	}
 	log.Info("custom metrics registered")
 }
+
+//func StartMetricsServer() {
+//	// Expose metrics and custom registry via an HTTP server
+//	// using the HandleFor function. "/metrics" is the usual endpoint for that.
+//	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
+//	if err := http.ListenAndServe(":8082", nil); err != nil {
+//		log.Error(err, "Could not listen on port 8082")
+//	}
+//}

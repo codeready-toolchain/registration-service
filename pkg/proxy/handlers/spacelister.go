@@ -37,7 +37,7 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 }
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
-	startTime := time.Now()
+	startTime := ctx.Get(context.StartTime).(time.Time)
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
 		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelReject).Observe(time.Since(startTime).Seconds())

@@ -92,6 +92,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.HTTPErrorHandler = customHTTPErrorHandler
 	// middleware before routing
 	router.Pre(
+		p.addStartTime(),
 		middleware.RemoveTrailingSlash(),
 		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
@@ -156,7 +157,7 @@ func (p *Proxy) health(ctx echo.Context) error {
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	startTime := time.Now()
+	startTime := ctx.Get(context.StartTime).(time.Time)
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
@@ -285,6 +286,18 @@ func (p *Proxy) stripInvalidHeaders() echo.MiddlewareFunc {
 					ctx.Request().Header.Del(header)
 				}
 			}
+			return next(ctx)
+		}
+	}
+}
+
+func (p *Proxy) addStartTime() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
+				return next(ctx)
+			}
+			ctx.Set(context.StartTime, time.Now())
 			return next(ctx)
 		}
 	}

@@ -46,7 +46,9 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginN
 		return nil, err
 	}
 	if signup == nil || !signup.Status.Ready {
-		return nil, errs.New("user is not provisioned (yet)")
+		cause := errs.New("user is not provisioned (yet)")
+		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
+		return nil, cause
 	}
 
 	// if workspace is not provided then return the default space access

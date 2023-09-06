@@ -423,6 +423,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
 	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is pending approval", userSignup.GetName()))
 		signupResponse.Status = signup.Status{
 			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: states.VerificationRequired(userSignup),
@@ -432,6 +433,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 	if completeCondition.Status != apiv1.ConditionTrue {
 		// UserSignup is not complete
+		log.Info(nil, fmt.Sprintf("usersignup: %s is not complete", userSignup.GetName()))
 		signupResponse.Status = signup.Status{
 			Reason:               completeCondition.Reason,
 			Message:              completeCondition.Message,
@@ -439,6 +441,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		}
 		return signupResponse, nil
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
 		// UserSignup is deactivated. Treat it as non-existent.
 		return nil, nil
 	}
@@ -454,6 +457,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	if err != nil {
 		return nil, errs.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
 	}
+	log.Info(nil, fmt.Sprintf("mur ready condition is: %t", ready))
 	signupResponse.Status = signup.Status{
 		Ready:                ready,
 		Reason:               murCondition.Reason,

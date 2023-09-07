@@ -45,7 +45,8 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginN
 	if err != nil {
 		return nil, err
 	}
-	if signup == nil || !signup.Status.Ready {
+	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
+	if signup == nil || signup.CompliantUsername == "" {
 		cause := errs.New("user is not provisioned (yet)")
 		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
 		return nil, cause

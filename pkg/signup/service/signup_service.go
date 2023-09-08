@@ -431,7 +431,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		return signupResponse, nil
 	}
 
-	// in proxy, we don't care if the usersignup is completed, since sometimes it might be transitioning from compelte to provisioning
+	// in proxy, we don't care if the usersignup is completed, since sometimes it might be transitioning from complete to provisioning
 	// which cases issues with some proxy calls.
 	if completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted {
 		// UserSignup is not complete

@@ -19,7 +19,7 @@ type InformerService interface {
 
 type SignupService interface {
 	Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error)
-	GetSignup(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+	GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error)
 	GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 	GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error)
 	UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error)

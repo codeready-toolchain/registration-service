@@ -336,8 +336,8 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.defaultProvider, userID, username, checkUserSignupCompleted)
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.defaultProvider, userID, username, true)
 }
 
 // GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.

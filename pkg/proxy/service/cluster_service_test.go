@@ -45,7 +45,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			Ready: true,
 		},
 	}), fake.Signup("456-not-ready", &signup.Signup{
-		CompliantUsername: "john",
+		CompliantUsername: "",
 		Username:          "john@",
 		Status: signup.Status{
 			Ready: false,

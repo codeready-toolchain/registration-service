@@ -250,7 +250,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	_, err := s.Application.SignupService().GetSignup(c, "000", "abc")
+	_, err := s.Application.SignupService().GetSignup(c, "000", "abc", true)
 
 	// then
 	require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
@@ -274,7 +274,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, "000", "abc")
+		_, err := svc.GetSignupFromInformer(c, "000", "abc", true)
 
 		// then
 		require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
@@ -718,7 +718,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	}
 
 	// when
-	_, err := s.Application.SignupService().GetSignup(c, "", username)
+	_, err := s.Application.SignupService().GetSignup(c, "", username, true)
 
 	// then
 	require.EqualError(s.T(), err, "an error occurred")
@@ -742,7 +742,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc")
+		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc", true)
 
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
@@ -755,7 +755,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	signup, err := s.Application.SignupService().GetSignup(c, userID.String(), "")
+	signup, err := s.Application.SignupService().GetSignup(c, userID.String(), "", true)
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
 
@@ -776,7 +776,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 		)
 
 		// when
-		signup, err := svc.GetSignupFromInformer(c, userID.String(), "")
+		signup, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
 		require.Nil(s.T(), signup)
@@ -824,7 +824,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.NoError(s.T(), err)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, userID.String(), "")
+	response, err := s.Application.SignupService().GetSignup(c, userID.String(), "", true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -864,7 +864,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, userID.String(), "")
+		response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -940,7 +940,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.NoError(s.T(), err)
 
 		// when
-		response, err := s.Application.SignupService().GetSignup(c, userID.String(), "")
+		response, err := s.Application.SignupService().GetSignup(c, userID.String(), "", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -980,7 +980,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			)
 
 			// when
-			response, err := svc.GetSignupFromInformer(c, userID.String(), "")
+			response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 			// then
 			require.NoError(s.T(), err)
@@ -1015,7 +1015,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	signup, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+	signup, err := s.Application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.Nil(s.T(), signup)
@@ -1040,7 +1040,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 		)
 
 		// when
-		signup, err := svc.GetSignupFromInformer(c, us.Name, "")
+		signup, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.Nil(s.T(), signup)
@@ -1108,7 +1108,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	require.NoError(s.T(), err)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+	response, err := s.Application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -1163,7 +1163,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, us.Name, "")
+		response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1246,7 +1246,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NoError(s.T(), err)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, "foo", us.Spec.Username)
+	response, err := s.Application.SignupService().GetSignup(c, "foo", us.Spec.Username, true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -1301,7 +1301,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.Username)
+		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.Username, true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1339,7 +1339,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	require.NoError(s.T(), err)
 
 	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	_, err = s.Application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
@@ -1372,7 +1372,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
@@ -1398,7 +1398,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	}
 
 	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	_, err = s.Application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
@@ -1428,7 +1428,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
@@ -1467,7 +1467,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	require.NoError(s.T(), err)
 
 	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	_, err = s.Application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
@@ -1497,7 +1497,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
@@ -1943,7 +1943,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 
 	s.Run("confirm nothing changed when context empty", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -1957,7 +1957,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set(context.UserIDKey, "888888")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -1968,7 +1968,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 	})
 
 	s.Run("confirm nothing changed when context nil", func() {
-		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -1997,7 +1997,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c.Set(context.UserIDKey, "")
 		c.Set(context.AccountIDKey, "1234567890")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2014,7 +2014,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c.Set(context.UserIDKey, "7777777")
 		c.Set(context.AccountIDKey, "0987654321")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2031,7 +2031,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c.Set(context.UserIDKey, "888888")
 		c.Set(context.AccountIDKey, "1234567890")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username, true)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)

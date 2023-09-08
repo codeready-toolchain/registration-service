@@ -3,11 +3,12 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -67,7 +68,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			expectedErr          string
 			expectedErrCode      int
 			expectedWorkspace    string
-			overrideSignupFunc   func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
+			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 			overrideInformerFunc func() service.InformerService
 		}{
 			"dancelover lists spaces": {
@@ -152,7 +153,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
-				overrideSignupFunc: func(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
 			},

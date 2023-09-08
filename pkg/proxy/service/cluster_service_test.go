@@ -109,7 +109,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("signup service returns error", func() {
-			sc.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
+			sc.MockGetSignup = func(userID, username string, checkSignupCompleted bool) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 

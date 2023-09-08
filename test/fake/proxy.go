@@ -81,12 +81,12 @@ func (m *SignupService) addSignup(identifier string, userSignup *signup.Signup) 
 }
 
 type SignupService struct {
-	MockGetSignup func(userID, username string) (*signup.Signup, error)
+	MockGetSignup func(userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 	userSignups   map[string]*signup.Signup
 }
 
-func (m *SignupService) DefaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
-	return func(userID, username string) (userSignup *signup.Signup, e error) {
+func (m *SignupService) DefaultMockGetSignup() func(userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	return func(userID, username string, checkUserSignupCompleted bool) (userSignup *signup.Signup, e error) {
 		us := m.userSignups[userID]
 		if us != nil {
 			return us, nil
@@ -100,12 +100,12 @@ func (m *SignupService) DefaultMockGetSignup() func(userID, username string) (*s
 	}
 }
 
-func (m *SignupService) GetSignup(_ *gin.Context, userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignup(userID, username)
+func (m *SignupService) GetSignup(_ *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	return m.MockGetSignup(userID, username, checkUserSignupCompleted)
 }
 
-func (m *SignupService) GetSignupFromInformer(_ *gin.Context, userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignup(userID, username)
+func (m *SignupService) GetSignupFromInformer(_ *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	return m.MockGetSignup(userID, username, checkUserSignupCompleted)
 }
 
 func (m *SignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {

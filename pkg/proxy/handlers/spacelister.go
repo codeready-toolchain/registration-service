@@ -67,7 +67,7 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 		return nil, err
 	}
 	if signup == nil || signup.CompliantUsername == "" {
-		// account exists but is not ready so return an empty list
+		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet, so return an empty list
 		return []toolchainv1alpha1.Workspace{}, nil
 	}
 

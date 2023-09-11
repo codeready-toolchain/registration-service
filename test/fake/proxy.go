@@ -104,7 +104,7 @@ func (m *SignupService) GetSignup(_ *gin.Context, userID, username string) (*sig
 	return m.MockGetSignup(userID, username)
 }
 
-func (m *SignupService) GetSignupFromInformer(_ *gin.Context, userID, username string) (*signup.Signup, error) {
+func (m *SignupService) GetSignupFromInformer(_ *gin.Context, userID, username string, _ bool) (*signup.Signup, error) {
 	return m.MockGetSignup(userID, username)
 }
 

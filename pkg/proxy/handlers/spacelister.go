@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -11,7 +13,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/gin-gonic/gin"
-	"net/http"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -23,7 +24,7 @@ import (
 )
 
 type SpaceLister struct {
-	GetSignupFunc          func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
+	GetSignupFunc          func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 	GetInformerServiceFunc func() service.InformerService
 }
 
@@ -60,7 +61,7 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	signup, err := s.GetSignupFunc(nil, userID, username)
+	signup, err := s.GetSignupFunc(nil, userID, username, true)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error retrieving signup"))
 		return nil, err

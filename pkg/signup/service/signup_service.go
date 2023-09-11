@@ -337,16 +337,18 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.defaultProvider, userID, username)
+	return s.DoGetSignup(ctx, s.defaultProvider, userID, username, true)
 }
 
 // GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
 // This function and the ResourceProvider abstraction can replace the original GetSignup function once it is determined to be stable.
-func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.Services().InformerService(), userID, username)
+// The checkUserSignupCompleted was introduced in order to avoid checking the readiness of the complete condition on the UserSignup in certain situations,
+// such as proxy calls for example.
+func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.Services().InformerService(), userID, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string) (*signup.Signup, error) {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 	var err error
 
@@ -431,7 +433,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		return signupResponse, nil
 	}
 
-	if completeCondition.Status != apiv1.ConditionTrue {
+	// in proxy, we don't care if the UserSignup is completed, since sometimes it might be transitioning from complete to provisioning
+	// which cases issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
+	// See Jira: https://issues.redhat.com/browse/SANDBOX-375
+	if completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted {
 		// UserSignup is not complete
 		log.Info(nil, fmt.Sprintf("usersignup: %s is not complete", userSignup.GetName()))
 		signupResponse.Status = signup.Status{

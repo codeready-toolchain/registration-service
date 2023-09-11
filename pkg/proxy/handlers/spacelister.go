@@ -61,12 +61,12 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	signup, err := s.GetSignupFunc(nil, userID, username, true)
+	signup, err := s.GetSignupFunc(nil, userID, username, false)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error retrieving signup"))
 		return nil, err
 	}
-	if signup == nil || !signup.Status.Ready {
+	if signup == nil || signup.CompliantUsername == "" {
 		// account exists but is not ready so return an empty list
 		return []toolchainv1alpha1.Workspace{}, nil
 	}

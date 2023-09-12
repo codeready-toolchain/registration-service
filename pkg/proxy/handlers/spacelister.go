@@ -14,7 +14,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/gin-gonic/gin"
-	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"

@@ -274,7 +274,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, "000", "abc")
+		_, err := svc.GetSignupFromInformer(c, "000", "abc", true)
 
 		// then
 		require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
@@ -742,7 +742,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc")
+		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc", true)
 
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
@@ -776,7 +776,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 		)
 
 		// when
-		signup, err := svc.GetSignupFromInformer(c, userID.String(), "")
+		signup, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
 		require.Nil(s.T(), signup)
@@ -793,7 +793,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	userSignup := toolchainv1alpha1.UserSignup{
+	userSignupNotComplete := toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
@@ -803,6 +803,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Username: "bill",
 		},
 		Status: toolchainv1alpha1.UserSignupStatus{
+			CompliantUsername: "bill",
 			Conditions: []toolchainv1alpha1.Condition{
 				{
 					Type:    toolchainv1alpha1.UserSignupComplete,
@@ -818,9 +819,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			},
 		},
 	}
-	states.SetVerificationRequired(&userSignup, true)
+	states.SetVerificationRequired(&userSignupNotComplete, true)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
+	err = s.FakeUserSignupClient.Tracker.Add(&userSignupNotComplete)
 	require.NoError(s.T(), err)
 
 	// when
@@ -832,7 +833,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 	require.Equal(s.T(), userID.String(), response.Name)
 	require.Equal(s.T(), "bill", response.Username)
-	require.Equal(s.T(), "", response.CompliantUsername)
+	require.Equal(s.T(), "bill", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
 	require.Equal(s.T(), response.Status.Reason, "test_reason")
 	require.Equal(s.T(), response.Status.Message, "test_message")
@@ -845,12 +846,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	assert.Equal(s.T(), "", response.DefaultUserNamespace)
 	assert.Equal(s.T(), "", response.RHODSMemberURL)
 
-	s.T().Run("informer", func(t *testing.T) {
+	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
 		inf := fake.NewFakeInformer()
 		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 			if name == userID.String() {
-				return &userSignup, nil
+				return &userSignupNotComplete, nil
 			}
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 		}
@@ -864,7 +865,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, userID.String(), "")
+		response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -872,7 +873,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 		require.Equal(s.T(), userID.String(), response.Name)
 		require.Equal(s.T(), "bill", response.Username)
-		require.Equal(s.T(), "", response.CompliantUsername)
+		require.Equal(s.T(), "bill", response.CompliantUsername)
 		require.False(s.T(), response.Status.Ready)
 		require.Equal(s.T(), response.Status.Reason, "test_reason")
 		require.Equal(s.T(), response.Status.Message, "test_message")
@@ -884,6 +885,79 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		require.Equal(s.T(), "", response.ProxyURL)
 		assert.Equal(s.T(), "", response.DefaultUserNamespace)
 		assert.Equal(s.T(), "", response.RHODSMemberURL)
+	})
+
+	s.T().Run("informer - with no check for UserSignup complete condition", func(t *testing.T) {
+		// given
+		states.SetVerificationRequired(&userSignupNotComplete, false)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+		mur := s.newProvisionedMUR("bill")
+		err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+		require.NoError(s.T(), err)
+
+		space := s.newSpaceForMUR(mur.Name, userSignupNotComplete.Name)
+		err = s.FakeSpaceClient.Tracker.Add(space)
+		require.NoError(s.T(), err)
+
+		spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+		err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+		require.NoError(s.T(), err)
+
+		toolchainStatus := s.newToolchainStatus()
+		err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
+		require.NoError(s.T(), err)
+
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == userID.String() {
+				return &userSignupNotComplete, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			return space, nil
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+		}
+		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+			return toolchainStatus, nil
+		}
+		s.Application.MockInformerService(inf)
+
+		// when
+		// we set checkUserSignupCompleted to false
+		response, err := svc.GetSignupFromInformer(c, userID.String(), userSignupNotComplete.Spec.Username, false)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+
+		require.Equal(s.T(), userID.String(), response.Name)
+		require.Equal(s.T(), "bill", response.Username)
+		require.Equal(s.T(), "bill", response.CompliantUsername)
+		require.True(s.T(), response.Status.Ready)
+		require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
+		require.Equal(s.T(), response.Status.Message, "mur_ready_message")
+		require.False(s.T(), response.Status.VerificationRequired)
+		require.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
+		require.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		require.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+		require.Equal(s.T(), "member-123", response.ClusterName)
+		require.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(s.T(), "bill-dev", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 
@@ -980,7 +1054,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			)
 
 			// when
-			response, err := svc.GetSignupFromInformer(c, userID.String(), "")
+			response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 			// then
 			require.NoError(s.T(), err)
@@ -1040,7 +1114,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 		)
 
 		// when
-		signup, err := svc.GetSignupFromInformer(c, us.Name, "")
+		signup, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.Nil(s.T(), signup)
@@ -1056,46 +1130,13 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	mur := s.newProvisionedMUR()
+	mur := s.newProvisionedMUR("ted")
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "toolchain-status",
-			Namespace: configuration.Namespace(),
-		},
-		Status: toolchainv1alpha1.ToolchainStatusStatus{
-			Members: []toolchainv1alpha1.Member{
-				{
-					ClusterName: "member-1",
-					APIEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
-						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-1.com",
-							CheDashboardURL: "http://che-toolchain-che.member-1.com",
-						},
-					},
-				},
-				{
-					ClusterName: "member-123",
-					APIEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
-						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-123.com",
-							CheDashboardURL: "http://che-toolchain-che.member-123.com",
-						},
-					},
-				},
-			},
-			HostRoutes: toolchainv1alpha1.HostRoutes{
-				ProxyURL: "https://proxy-url.com",
-			},
-		},
-	}
+	toolchainStatus := s.newToolchainStatus()
 	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
@@ -1163,7 +1204,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, us.Name, "")
+		response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1194,7 +1235,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	mur := s.newProvisionedMUR()
+	mur := s.newProvisionedMUR("ted")
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
@@ -1208,40 +1249,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 	require.NoError(s.T(), err)
 
-	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "toolchain-status",
-			Namespace: configuration.Namespace(),
-		},
-		Status: toolchainv1alpha1.ToolchainStatusStatus{
-			Members: []toolchainv1alpha1.Member{
-				{
-					ClusterName: "member-1",
-					APIEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
-						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-1.com",
-							CheDashboardURL: "http://che-toolchain-che.member-1.com",
-						},
-					},
-				},
-				{
-					ClusterName: "member-123",
-					APIEndpoint: "http://api.devcluster.openshift.com",
-					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
-						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-123.com",
-							CheDashboardURL: "http://che-toolchain-che.member-123.com",
-						},
-					},
-				},
-			},
-			HostRoutes: toolchainv1alpha1.HostRoutes{
-				ProxyURL: "https://proxy-url.com",
-			},
-		},
-	}
+	toolchainStatus := s.newToolchainStatus()
 	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
@@ -1301,7 +1309,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.Username)
+		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.Username, true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1324,6 +1332,44 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	})
 }
 
+func (s *TestSignupServiceSuite) newToolchainStatus() *toolchainv1alpha1.ToolchainStatus {
+	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "toolchain-status",
+			Namespace: configuration.Namespace(),
+		},
+		Status: toolchainv1alpha1.ToolchainStatusStatus{
+			Members: []toolchainv1alpha1.Member{
+				{
+					ClusterName: "member-1",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.apps.member-1.com",
+							CheDashboardURL: "http://che-toolchain-che.member-1.com",
+						},
+					},
+				},
+				{
+					ClusterName: "member-123",
+					APIEndpoint: "http://api.devcluster.openshift.com",
+					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
+						Routes: &toolchainv1alpha1.Routes{
+							ConsoleURL:      "https://console.apps.member-123.com",
+							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+						},
+					},
+				},
+			},
+			HostRoutes: toolchainv1alpha1.HostRoutes{
+				ProxyURL: "https://proxy-url.com",
+			},
+		},
+	}
+	return toolchainStatus
+}
+
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
@@ -1334,7 +1380,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	mur := s.newProvisionedMUR()
+	mur := s.newProvisionedMUR("ted")
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
@@ -1372,7 +1418,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
@@ -1428,7 +1474,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
@@ -1497,7 +1543,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 		)
 
 		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "")
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
 		require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
@@ -2080,11 +2126,11 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 	}
 }
 
-func (s *TestSignupServiceSuite) newProvisionedMUR() *toolchainv1alpha1.MasterUserRecord {
+func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alpha1.MasterUserRecord {
 	return &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "ted",
+			Name:      name,
 			Namespace: configuration.Namespace(),
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{

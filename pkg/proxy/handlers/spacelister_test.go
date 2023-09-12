@@ -3,11 +3,12 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -67,7 +68,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			expectedErr          string
 			expectedErrCode      int
 			expectedWorkspace    string
-			overrideSignupFunc   func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
+			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 			overrideInformerFunc func() service.InformerService
 		}{
 			"dancelover lists spaces": {
@@ -117,6 +118,14 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErrCode:   404,
 			},
 			"signup not ready yet": {
+				username: "movie.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "movielover", "admin", true),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "movielover",
+			},
+			"signup has no compliant username set": {
 				username:        "racing.lover",
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "",
@@ -152,7 +161,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
-				overrideSignupFunc: func(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
 			},
@@ -223,14 +232,21 @@ func TestHandleSpaceListRequest(t *testing.T) {
 }
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
-	return fake.Signup(signupName, &signup.Signup{
+	compliantUsername := signupName
+	if !ready {
+		// signup is not ready, let's set compliant username to blank
+		compliantUsername = ""
+	}
+	us := fake.Signup(signupName, &signup.Signup{
 		Name:              signupName,
-		CompliantUsername: signupName,
 		Username:          username,
+		CompliantUsername: compliantUsername,
 		Status: signup.Status{
 			Ready: ready,
 		},
 	})
+
+	return us
 }
 
 func getFakeInformerService(fakeClient client.Client) func() service.InformerService {

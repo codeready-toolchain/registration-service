@@ -41,12 +41,15 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 }
 
 func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username)
+	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false) // don't check for usersignup complete status, since it might cause the proxy blocking the request and returning an error when quick transitions from ready to provisioning are happening.
 	if err != nil {
 		return nil, err
 	}
-	if signup == nil || !signup.Status.Ready {
-		return nil, errs.New("user is not provisioned (yet)")
+	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
+	if signup == nil || signup.CompliantUsername == "" {
+		cause := errs.New("user is not provisioned (yet)")
+		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
+		return nil, cause
 	}
 
 	// if workspace is not provided then return the default space access

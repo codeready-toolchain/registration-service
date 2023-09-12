@@ -902,7 +902,7 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 
 type FakeSignupService struct {
 	MockGetSignup                   func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
-	MockGetSignupFromInformer       func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
+	MockGetSignupFromInformer       func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 	MockSignup                      func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignupFromIdentifier func(userID, username string) (*crtapi.UserSignup, error)
 	MockUpdateUserSignup            func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
@@ -913,8 +913,8 @@ func (m *FakeSignupService) GetSignup(ctx *gin.Context, userID, username string)
 	return m.MockGetSignup(ctx, userID, username)
 }
 
-func (m *FakeSignupService) GetSignupFromInformer(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignupFromInformer(ctx, userID, username)
+func (m *FakeSignupService) GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+	return m.MockGetSignupFromInformer(ctx, userID, username, checkUserSignupComplete)
 }
 
 func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {

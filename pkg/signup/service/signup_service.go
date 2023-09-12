@@ -128,6 +128,20 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			FamilyName:    ctx.GetString(context.FamilyNameKey),
 			Company:       ctx.GetString(context.CompanyKey),
 			OriginalSub:   ctx.GetString(context.OriginalSubKey),
+
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+					Sub:         ctx.GetString(context.SubKey),
+					UserID:      ctx.GetString(context.UserIDKey),
+					AccountID:   ctx.GetString(context.AccountIDKey),
+					OriginalSub: ctx.GetString(context.OriginalSubKey),
+					Email:       ctx.GetString(context.EmailKey),
+				},
+				PreferredUsername: ctx.GetString(context.UsernameKey),
+				GivenName:         ctx.GetString(context.GivenNameKey),
+				FamilyName:        ctx.GetString(context.FamilyNameKey),
+				Company:           ctx.GetString(context.CompanyKey),
+			},
 		},
 	}
 

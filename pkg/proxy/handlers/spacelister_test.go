@@ -118,6 +118,14 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErrCode:   404,
 			},
 			"signup not ready yet": {
+				username: "movie.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "movielover", "admin", true),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "movielover",
+			},
+			"signup has no compliant username set": {
 				username:        "racing.lover",
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "",
@@ -224,14 +232,21 @@ func TestHandleSpaceListRequest(t *testing.T) {
 }
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
-	return fake.Signup(signupName, &signup.Signup{
+	compliantUsername := signupName
+	if !ready {
+		// signup is not ready, let's set compliant username to blank
+		compliantUsername = ""
+	}
+	us := fake.Signup(signupName, &signup.Signup{
 		Name:              signupName,
-		CompliantUsername: signupName,
 		Username:          username,
+		CompliantUsername: compliantUsername,
 		Status: signup.Status{
 			Ready: ready,
 		},
 	})
+
+	return us
 }
 
 func getFakeInformerService(fakeClient client.Client) func() service.InformerService {

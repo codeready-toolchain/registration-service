@@ -9,8 +9,8 @@ var log = logf.Log.WithName("registration_metrics")
 var Reg *prometheus.Registry
 
 const (
-	ResponseMetricLabelApprove = "Approve"
-	ResponseMetricLabelReject  = "Reject"
+	ResponseMetricLabelRouted   = "Routed"
+	ResponseMetricLabelRejected = "Rejected"
 )
 
 // histogram with labels

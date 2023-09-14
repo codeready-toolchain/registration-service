@@ -157,7 +157,7 @@ func (p *Proxy) health(ctx echo.Context) error {
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	startTime := ctx.Get(context.StartTime).(time.Time)
+	startTime := ctx.Get(context.RequestRecievedTime).(time.Time)
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
@@ -297,7 +297,7 @@ func (p *Proxy) addStartTime() echo.MiddlewareFunc {
 			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
 				return next(ctx)
 			}
-			ctx.Set(context.StartTime, time.Now())
+			ctx.Set(context.RequestRecievedTime, time.Now())
 			return next(ctx)
 		}
 	}

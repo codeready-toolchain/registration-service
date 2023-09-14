@@ -28,6 +28,9 @@ var (
 
 const metricsPrefix = "sandbox_"
 
+func init() {
+	initMetrics()
+}
 func initMetrics() {
 	log.Info("initializing custom metrics")
 	RegServProxyRouteHistogramVec = newHistogramVec("proxy_route_time", "time taken by proxy to route ", "routeTo")
@@ -53,7 +56,6 @@ func newHistogramVec(name, help string, labels ...string) *prometheus.HistogramV
 
 // RegisterCustomMetrics registers the custom metrics
 func RegisterCustomMetrics() {
-	initMetrics()
 	Reg = prometheus.NewRegistry()
 	// register metrics
 	for _, v := range allHistogramVecs {

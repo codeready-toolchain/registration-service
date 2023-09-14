@@ -94,6 +94,17 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
 
+		// Confirm all the IdentityClaims have been correctly set
+		require.Equal(s.T(), username, val.Spec.IdentityClaims.PreferredUsername)
+		require.Equal(s.T(), "jane", val.Spec.IdentityClaims.GivenName)
+		require.Equal(s.T(), "doe", val.Spec.IdentityClaims.FamilyName)
+		require.Equal(s.T(), "red hat", val.Spec.IdentityClaims.Company)
+		require.Equal(s.T(), userID.String(), val.Spec.IdentityClaims.Sub)
+		require.Equal(s.T(), "13349822", val.Spec.IdentityClaims.UserID)
+		require.Equal(s.T(), "45983711", val.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "original-sub-value", val.Spec.IdentityClaims.OriginalSub)
+		require.Equal(s.T(), "jsmith@gmail.com", val.Spec.IdentityClaims.Email)
+
 		return gvr, val
 	}
 

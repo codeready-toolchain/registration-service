@@ -155,41 +155,44 @@ func (p *Proxy) health(ctx echo.Context) error {
 	return err
 }
 
-func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	startTime := ctx.Get(context.RequestRecievedTime).(time.Time)
+func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
-
 	proxyPluginName, workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(startTime).Seconds())
-		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
+		return "", nil, crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
-	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 
+	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyPluginName)
 	if err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(startTime).Seconds())
-		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		return "", nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 
 	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
 	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(startTime).Seconds())
-		return crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+		return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}
 
 	requestedNamespace := namespaceFromCtx(ctx)
 	if err := validateWorkspaceRequest(workspace, requestedNamespace, workspaces); err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(startTime).Seconds())
-		return crterrors.NewForbiddenError("invalid workspace request", err.Error())
+		return "", nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
+	return proxyPluginName, cluster, nil
+}
 
+func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
+	requestRecievedTime := ctx.Get(context.RequestRecievedTime).(time.Time)
+	proxyPluginName, cluster, err := p.processRequest(ctx)
+	if err != nil {
+		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(requestRecievedTime).Seconds())
+		return err
+	}
 	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
-	routeTime := time.Since(startTime)
+	routeTime := time.Since(requestRecievedTime)
 	metrics.RegServProxyRouteHistogramVec.WithLabelValues(cluster.APIURL().Host).Observe(routeTime.Seconds())
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
+	// Note that ServeHttp is non-blocking and uses a go routine under the hood
 	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }

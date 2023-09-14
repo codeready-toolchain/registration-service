@@ -96,7 +96,6 @@ func (p *Proxy) StartProxy() *http.Server {
 		middleware.RemoveTrailingSlash(),
 		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
-		//echoprometheus.NewMiddleware("registration_service_metrics"),
 		// log request information before routing
 		func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(ctx echo.Context) error {

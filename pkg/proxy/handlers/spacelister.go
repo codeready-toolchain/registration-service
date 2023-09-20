@@ -56,10 +56,9 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
 			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
 
-		} else {
-			// return empty workspace list
-			return listWorkspaceResponse(ctx, []toolchainv1alpha1.Workspace{})
 		}
+		// return empty workspace list
+		return listWorkspaceResponse(ctx, []toolchainv1alpha1.Workspace{})
 	}
 
 	// get specific workspace
@@ -179,17 +178,18 @@ func (s *SpaceLister) listSpaceBindingForUserAndSpace(ctx echo.Context, murName 
 	return &spaceBindings[0], nil
 }
 
-func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding, wsAdditionalOptions ...commonproxy.WorkspaceOption) []toolchainv1alpha1.Workspace {
+func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
 	workspaces := []toolchainv1alpha1.Workspace{}
-	for _, spaceBinding := range spaceBindings {
-		space, err := s.getSpace(&spaceBinding)
+	for i := range spaceBindings {
+		spacebinding := &spaceBindings[i]
+		space, err := s.getSpace(spacebinding)
 		if err != nil {
 			// log error and continue so that the api behaves in a best effort manner
 			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
-			log.Errorf(nil, err, "unable to get space", "space", spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey])
+			log.Errorf(nil, err, "unable to get space", "space", spacebinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey])
 			continue
 		}
-		workspace := createCommonWorkspace(signupName, space, &spaceBinding)
+		workspace := createCommonWorkspace(signupName, space, spacebinding)
 		workspaces = append(workspaces, *workspace)
 	}
 	return workspaces

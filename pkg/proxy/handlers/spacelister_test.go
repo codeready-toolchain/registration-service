@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -41,6 +42,10 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		newSignup("racinglover", "racing.lover", false),
 	)
 
+	fakeNsTemplateTierService := fake.NewNSTemplateTierService(
+		newBase1NSTemplateTier(),
+	)
+
 	t.Run("HandleSpaceListRequest", func(t *testing.T) {
 		// given
 
@@ -63,13 +68,14 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		)
 
 		tests := map[string]struct {
-			username             string
-			expectedWs           []toolchainv1alpha1.Workspace
-			expectedErr          string
-			expectedErrCode      int
-			expectedWorkspace    string
-			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-			overrideInformerFunc func() service.InformerService
+			username                       string
+			expectedWs                     []toolchainv1alpha1.Workspace
+			expectedErr                    string
+			expectedErrCode                int
+			expectedWorkspace              string
+			overrideSignupFunc             func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+			overrideNSTemplateTierProvider func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error)
+			overrideInformerFunc           func() service.InformerService
 		}{
 			"dancelover lists spaces": {
 				username: "dance.lover",
@@ -89,7 +95,12 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			"dancelover gets dancelover space": {
 				username: "dance.lover",
 				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "dancelover", "admin", true),
+					workspaceFor(t, fakeClient, "dancelover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						},
+						),
+					),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "dancelover",
@@ -97,7 +108,10 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			"dancelover gets movielover space": {
 				username: "dance.lover",
 				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "other", false),
+					workspaceFor(t, fakeClient, "movielover", "other", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						})),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
@@ -105,7 +119,10 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			"movielover gets movielover space": {
 				username: "movie.lover",
 				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true),
+					workspaceFor(t, fakeClient, "movielover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						})),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
@@ -120,7 +137,10 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			"signup not ready yet": {
 				username: "movie.lover",
 				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true),
+					workspaceFor(t, fakeClient, "movielover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						})),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
@@ -165,6 +185,16 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					return nil, fmt.Errorf("signup error")
 				},
 			},
+			"get nstemplatetier error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "nstemplatetier error",
+				expectedErrCode: 500,
+				overrideNSTemplateTierProvider: func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+					return nil, fmt.Errorf("nstemplatetier error")
+				},
+				expectedWorkspace: "dancelover",
+			},
 		}
 
 		for k, tc := range tests {
@@ -175,6 +205,11 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					signupProvider = tc.overrideSignupFunc
 				}
 
+				nsTemplateTierProvider := fakeNsTemplateTierService.GetNSTemplateTierFromInformer
+				if tc.overrideNSTemplateTierProvider != nil {
+					nsTemplateTierProvider = tc.overrideNSTemplateTierProvider
+				}
+
 				informerFunc := getFakeInformerService(fakeClient)
 				if tc.overrideInformerFunc != nil {
 					informerFunc = tc.overrideInformerFunc
@@ -183,6 +218,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				s := &handlers.SpaceLister{
 					GetSignupFunc:          signupProvider,
 					GetInformerServiceFunc: informerFunc,
+					GetNSTemplateTierFunc:  nsTemplateTierProvider,
 				}
 
 				e := echo.New()
@@ -228,6 +264,36 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func newBase1NSTemplateTier() fake.NSTemplateTierDef {
+	return fake.NSTemplateTier("base1ns", &toolchainv1alpha1.NSTemplateTier{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "toolchain-host-operator",
+			Name:      "base1ns",
+		},
+		Spec: toolchainv1alpha1.NSTemplateTierSpec{
+			ClusterResources: &toolchainv1alpha1.NSTemplateTierClusterResources{
+				TemplateRef: "basic-clusterresources-123456new",
+			},
+			Namespaces: []toolchainv1alpha1.NSTemplateTierNamespace{
+				{
+					TemplateRef: "basic-dev-123456new",
+				},
+				{
+					TemplateRef: "basic-stage-123456new",
+				},
+			},
+			SpaceRoles: map[string]toolchainv1alpha1.NSTemplateTierSpaceRole{
+				"admin": {
+					TemplateRef: "basic-admin-123456new",
+				},
+				"viewer": {
+					TemplateRef: "basic-viewer-123456new",
+				},
+			},
+		},
 	})
 }
 
@@ -302,14 +368,14 @@ func decodeResponseToWorkspaceList(data []byte) (*toolchainv1alpha1.WorkspaceLis
 	return obj, nil
 }
 
-func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool) toolchainv1alpha1.Workspace {
+func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool, additionalWSOptions ...commonproxy.WorkspaceOption) toolchainv1alpha1.Workspace {
 	// get the space for the user
 	space := &toolchainv1alpha1.Space{}
 	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, space)
 	require.NoError(t, err)
 
 	// create the workspace based on the space
-	ws := commonproxy.NewWorkspace(name,
+	commonWSoptions := []commonproxy.WorkspaceOption{
 		commonproxy.WithObjectMetaFrom(space.ObjectMeta),
 		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
 			{
@@ -322,6 +388,9 @@ func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isH
 		}),
 		commonproxy.WithOwner(name),
 		commonproxy.WithRole(role),
+	}
+	ws := commonproxy.NewWorkspace(name,
+		append(commonWSoptions, additionalWSOptions...)...,
 	)
 	// if the user is the same as the one who created the workspace, then expect type should be "home"
 	if isHomeWorkspace {

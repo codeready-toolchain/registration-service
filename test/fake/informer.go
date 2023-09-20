@@ -19,6 +19,7 @@ type Informer struct {
 	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
 	ListSpaceBindingFunc     func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
+	GetNSTemplateTierFunc    func(name string) (*toolchainv1alpha1.NSTemplateTier, error)
 }
 
 func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
@@ -61,6 +62,13 @@ func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]toolchainv1alp
 		return f.ListSpaceBindingFunc(req...)
 	}
 	panic("not supposed to call ListSpaceBindings")
+}
+
+func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	if f.GetNSTemplateTierFunc != nil {
+		return f.GetNSTemplateTierFunc(tier)
+	}
+	panic("not supposed to call GetNSTemplateTierFunc")
 }
 
 func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.Space {

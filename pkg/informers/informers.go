@@ -22,6 +22,7 @@ type Informer struct {
 	ToolchainStatus   cache.GenericLister
 	UserSignup        cache.GenericLister
 	ProxyPluginConfig cache.GenericLister
+	NSTemplateTier    cache.GenericLister
 }
 
 func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {

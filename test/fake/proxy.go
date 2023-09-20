@@ -49,6 +49,56 @@ func (f *fakeClusterService) GetClusterAccess(userID, _, _, _ string) (*access.C
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
 }
 
+type NSTemplateTierDef func() (string, *toolchainv1alpha1.NSTemplateTier)
+
+func NSTemplateTier(identifier string, nsTemplateTier *toolchainv1alpha1.NSTemplateTier) NSTemplateTierDef {
+	return func() (string, *toolchainv1alpha1.NSTemplateTier) {
+		return identifier, nsTemplateTier
+	}
+}
+
+func NewNSTemplateTierService(nsTemplateTierDefs ...NSTemplateTierDef) *NSTemplateTierService {
+	sc := newFakeNSTemplateTierService()
+	for _, nsTemplateTierDef := range nsTemplateTierDefs {
+		identifier, nstemplatetier := nsTemplateTierDef()
+		sc.addNSTemplateTier(identifier, nstemplatetier)
+	}
+	return sc
+}
+
+func newFakeNSTemplateTierService() *NSTemplateTierService {
+	f := &NSTemplateTierService{}
+	f.MockGetNsTemplateTier = f.DefaultMockGetNSTemplateTier()
+	return f
+}
+
+func (n *NSTemplateTierService) addNSTemplateTier(identifier string, nsTemplateTier *toolchainv1alpha1.NSTemplateTier) *NSTemplateTierService {
+	if n.tiers == nil {
+		n.tiers = make(map[string]*toolchainv1alpha1.NSTemplateTier)
+	}
+	n.tiers[identifier] = nsTemplateTier
+	return n
+}
+
+type NSTemplateTierService struct {
+	MockGetNsTemplateTier func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error)
+	tiers                 map[string]*toolchainv1alpha1.NSTemplateTier
+}
+
+func (n *NSTemplateTierService) DefaultMockGetNSTemplateTier() func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	return func(tierName string) (nsTemplateTier *toolchainv1alpha1.NSTemplateTier, e error) {
+		tier := n.tiers[tierName]
+		if tier != nil {
+			return tier, nil
+		}
+		return nil, nil
+	}
+}
+
+func (n *NSTemplateTierService) GetNSTemplateTierFromInformer(_ *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	return n.MockGetNsTemplateTier(tierName)
+}
+
 type SignupDef func() (string, *signup.Signup)
 
 func Signup(identifier string, userSignup *signup.Signup) SignupDef {

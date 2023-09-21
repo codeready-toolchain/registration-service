@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func TestHandleSpaceListRequest(t *testing.T) {
+func TestSpaceLister(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("dancelover", "dance.lover", true),
@@ -46,36 +46,34 @@ func TestHandleSpaceListRequest(t *testing.T) {
 		newBase1NSTemplateTier(),
 	)
 
+	// space that is not provisioned yet
+	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
+	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
+
+	fakeClient := initFakeClient(t,
+		// spaces
+		fake.NewSpace("dancelover", "member-1", "dancelover"),
+		fake.NewSpace("movielover", "member-1", "movielover"),
+		fake.NewSpace("racinglover", "member-2", "racinglover"),
+		spaceNotProvisionedYet,
+
+		//spacebindings
+		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
+		fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
+		fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
+		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
+	)
+
 	t.Run("HandleSpaceListRequest", func(t *testing.T) {
 		// given
-
-		// space that is not provisioned yet
-		spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
-		spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
-
-		fakeClient := initFakeClient(t,
-			// spaces
-			fake.NewSpace("dancelover", "member-1", "dancelover"),
-			fake.NewSpace("movielover", "member-1", "movielover"),
-			fake.NewSpace("racinglover", "member-2", "racinglover"),
-			spaceNotProvisionedYet,
-
-			//spacebindings
-			fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
-			fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
-			fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
-			fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
-		)
-
 		tests := map[string]struct {
-			username                       string
-			expectedWs                     []toolchainv1alpha1.Workspace
-			expectedErr                    string
-			expectedErrCode                int
-			expectedWorkspace              string
-			overrideSignupFunc             func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-			overrideNSTemplateTierProvider func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error)
-			overrideInformerFunc           func() service.InformerService
+			username             string
+			expectedWs           []toolchainv1alpha1.Workspace
+			expectedErr          string
+			expectedErrCode      int
+			expectedWorkspace    string
+			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+			overrideInformerFunc func() service.InformerService
 		}{
 			"dancelover lists spaces": {
 				username: "dance.lover",
@@ -92,6 +90,105 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				},
 				expectedErr: "",
 			},
+			"signup has no compliant username set": {
+				username:        "racing.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "",
+				expectedErrCode: 200,
+			},
+			"space not initialized yet": {
+				username:        "panda.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "",
+				expectedErrCode: 200,
+			},
+			"no spaces found": {
+				username:        "user.nospace",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "",
+				expectedErrCode: 200,
+			},
+			"informer error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "list spacebindings error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					inf := fake.NewFakeInformer()
+					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+						return nil, fmt.Errorf("list spacebindings error")
+					}
+					return inf
+				},
+			},
+			"get signup error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "signup error",
+				expectedErrCode: 500,
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+					return nil, fmt.Errorf("signup error")
+				},
+			},
+		}
+
+		for k, tc := range tests {
+			t.Run(k, func(t *testing.T) {
+				// given
+				signupProvider := fakeSignupService.GetSignupFromInformer
+				if tc.overrideSignupFunc != nil {
+					signupProvider = tc.overrideSignupFunc
+				}
+
+				informerFunc := getFakeInformerService(fakeClient)
+				if tc.overrideInformerFunc != nil {
+					informerFunc = tc.overrideInformerFunc
+				}
+
+				s := &handlers.SpaceLister{
+					GetSignupFunc:          signupProvider,
+					GetInformerServiceFunc: informerFunc,
+				}
+
+				e := echo.New()
+				req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+				rec := httptest.NewRecorder()
+				ctx := e.NewContext(req, rec)
+				ctx.Set(rcontext.UsernameKey, tc.username)
+
+				// when
+				err := s.HandleSpaceListRequest(ctx)
+
+				// then
+				if tc.expectedErr != "" {
+					// error case
+					require.Equal(t, tc.expectedErrCode, rec.Code)
+					require.Contains(t, rec.Body.String(), tc.expectedErr)
+				} else {
+					require.NoError(t, err)
+					// list workspace case
+					workspaceList, decodeErr := decodeResponseToWorkspaceList(rec.Body.Bytes())
+					require.NoError(t, decodeErr)
+					require.Equal(t, len(tc.expectedWs), len(workspaceList.Items))
+					for i := range tc.expectedWs {
+						assert.Equal(t, tc.expectedWs[i].Name, workspaceList.Items[i].Name)
+						assert.Equal(t, tc.expectedWs[i].Status, workspaceList.Items[i].Status)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("HandleSpaceGetRequest", func(t *testing.T) {
+		// given
+		tests := map[string]struct {
+			username                       string
+			expectedWs                     []toolchainv1alpha1.Workspace
+			expectedErr                    string
+			expectedErrCode                int
+			expectedWorkspace              string
+			overrideNSTemplateTierProvider func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error)
+		}{
 			"dancelover gets dancelover space": {
 				username: "dance.lover",
 				expectedWs: []toolchainv1alpha1.Workspace{
@@ -145,46 +242,6 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
 			},
-			"signup has no compliant username set": {
-				username:        "racing.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "",
-				expectedErrCode: 200,
-			},
-			"space not initialized yet": {
-				username:        "panda.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "",
-				expectedErrCode: 200,
-			},
-			"no spaces found": {
-				username:        "user.nospace",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "",
-				expectedErrCode: 200,
-			},
-			"informer error": {
-				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "list spacebindings error",
-				expectedErrCode: 500,
-				overrideInformerFunc: func() service.InformerService {
-					inf := fake.NewFakeInformer()
-					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-						return nil, fmt.Errorf("list spacebindings error")
-					}
-					return inf
-				},
-			},
-			"get signup error": {
-				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "signup error",
-				expectedErrCode: 500,
-				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
-					return nil, fmt.Errorf("signup error")
-				},
-			},
 			"get nstemplatetier error": {
 				username:        "dance.lover",
 				expectedWs:      []toolchainv1alpha1.Workspace{},
@@ -201,9 +258,6 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			t.Run(k, func(t *testing.T) {
 				// given
 				signupProvider := fakeSignupService.GetSignupFromInformer
-				if tc.overrideSignupFunc != nil {
-					signupProvider = tc.overrideSignupFunc
-				}
 
 				nsTemplateTierProvider := fakeNsTemplateTierService.GetNSTemplateTierFromInformer
 				if tc.overrideNSTemplateTierProvider != nil {
@@ -211,10 +265,6 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				}
 
 				informerFunc := getFakeInformerService(fakeClient)
-				if tc.overrideInformerFunc != nil {
-					informerFunc = tc.overrideInformerFunc
-				}
-
 				s := &handlers.SpaceLister{
 					GetSignupFunc:          signupProvider,
 					GetInformerServiceFunc: informerFunc,
@@ -226,14 +276,11 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				rec := httptest.NewRecorder()
 				ctx := e.NewContext(req, rec)
 				ctx.Set(rcontext.UsernameKey, tc.username)
-
-				if tc.expectedWorkspace != "" {
-					ctx.SetParamNames("workspace")
-					ctx.SetParamValues(tc.expectedWorkspace)
-				}
+				ctx.SetParamNames("workspace")
+				ctx.SetParamValues(tc.expectedWorkspace)
 
 				// when
-				err := s.HandleSpaceListRequest(ctx)
+				err := s.HandleSpaceGetRequest(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -242,24 +289,13 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					require.Contains(t, rec.Body.String(), tc.expectedErr)
 				} else {
 					require.NoError(t, err)
-					if tc.expectedWorkspace != "" {
-						// get workspace case
-						workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
-						require.NoError(t, decodeErr)
-						require.Equal(t, 1, len(tc.expectedWs), "test case should have exactly one expected item since it's a get request")
-						for i := range tc.expectedWs {
-							assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
-							assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
-						}
-					} else {
-						// list workspace case
-						workspaceList, decodeErr := decodeResponseToWorkspaceList(rec.Body.Bytes())
-						require.NoError(t, decodeErr)
-						require.Equal(t, len(tc.expectedWs), len(workspaceList.Items))
-						for i := range tc.expectedWs {
-							assert.Equal(t, tc.expectedWs[i].Name, workspaceList.Items[i].Name)
-							assert.Equal(t, tc.expectedWs[i].Status, workspaceList.Items[i].Status)
-						}
+					// get workspace case
+					workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
+					require.NoError(t, decodeErr)
+					require.Equal(t, 1, len(tc.expectedWs), "test case should have exactly one expected item since it's a get request")
+					for i := range tc.expectedWs {
+						assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
+						assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
 					}
 				}
 			})

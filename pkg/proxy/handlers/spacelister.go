@@ -38,11 +38,8 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 }
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
-
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
-	workspaceName := ctx.Param("workspace")
-	doGetWorkspace := len(workspaceName) > 0
 
 	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
 	if err != nil {
@@ -51,28 +48,8 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	}
 	if userSignup == nil || userSignup.CompliantUsername == "" {
 		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet
-		if doGetWorkspace {
-			// return not found response when specific workspace request was issued
-			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
-
-		}
 		// return empty workspace list
 		return listWorkspaceResponse(ctx, []toolchainv1alpha1.Workspace{})
-	}
-
-	// get specific workspace
-	if doGetWorkspace {
-		workspace, err := s.GetUserWorkspace(ctx, userSignup)
-		if err != nil {
-			return errorResponse(ctx, apierrors.NewInternalError(err))
-		}
-		if workspace == nil {
-			// not found
-			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
-		}
-		return getWorkspaceResponse(ctx, workspace)
 	}
 
 	// list all user workspaces
@@ -81,6 +58,37 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 	return listWorkspaceResponse(ctx, workspaces)
+}
+
+func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
+	workspaceName := ctx.Param("workspace")
+
+	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
+	if err != nil {
+		ctx.Logger().Error(errs.Wrap(err, "error retrieving userSignup"))
+		return errorResponse(ctx, apierrors.NewInternalError(err))
+	}
+	if userSignup == nil || userSignup.CompliantUsername == "" {
+		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet
+		// return not found response when specific workspace request was issued
+		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
+		return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
+
+	}
+
+	// get specific workspace
+	workspace, err := s.GetUserWorkspace(ctx, userSignup)
+	if err != nil {
+		return errorResponse(ctx, apierrors.NewInternalError(err))
+	}
+	if workspace == nil {
+		// not found
+		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
+		return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
+	}
+	return getWorkspaceResponse(ctx, workspace)
 }
 
 func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, signup *signup.Signup) (*toolchainv1alpha1.Workspace, error) {

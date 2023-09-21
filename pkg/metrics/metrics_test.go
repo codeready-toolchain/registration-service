@@ -17,11 +17,14 @@ func TestHistogramVec(t *testing.T) {
 	m.WithLabelValues("routed").Observe((5 * time.Second).Seconds())
 	m.WithLabelValues("rejected").Observe((3 * time.Second).Seconds())
 
-	// then
+	//then
 	assert.Equal(t, 2, promtestutil.CollectAndCount(m, "sandbox_test_histogram_vec"))
-
 	err := promtestutil.CollectAndCompare(m, strings.NewReader(expectedResponseMetadata+expectedResponse), "sandbox_test_histogram_vec")
 	require.NoError(t, err)
+	//metricCollector, er := m.MetricVec.CurryWith(prometheus.Labels{"responseFor": "routed"})
+	//require.NoError(t, er)
+	//count := promtestutil.ToFloat64(m.MetricVec.Collect(m.))
+	//require.Equal(t, 1, count)
 }
 
 func TestRegisterCustomMetrics(t *testing.T) {

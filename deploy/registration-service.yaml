@@ -1,8 +1,3 @@
-####################################################################################################
-# NOTE: after modifying this file remember to:
-# 1) run make copy-reg-service-template (which will update the copy of this file at : https://github.com/codeready-toolchain/host-operator/blob/master/deploy/registration-service/registration-service.yaml)
-# 2) open a PR in host-operator with that change before merging the changes in registration-service
-####################################################################################################
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:

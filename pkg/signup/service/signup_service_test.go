@@ -919,7 +919,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 		require.NoError(s.T(), err)
 
-		toolchainStatus := s.newToolchainStatus()
+		toolchainStatus := s.newToolchainStatus(".apps.")
 		err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 		require.NoError(s.T(), err)
 
@@ -1135,106 +1135,111 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	for _, appsSubDomain := range []string{".apps.", ".apps-"} {
+		s.SetupTest()
+		s.T().Run("for apps subdomain: "+appsSubDomain, func(t *testing.T) {
+			s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	us := s.newUserSignupComplete()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
+			us := s.newUserSignupComplete()
+			err := s.FakeUserSignupClient.Tracker.Add(us)
+			require.NoError(s.T(), err)
 
-	mur := s.newProvisionedMUR("ted")
-	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-	require.NoError(s.T(), err)
+			mur := s.newProvisionedMUR("ted")
+			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+			require.NoError(s.T(), err)
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	toolchainStatus := s.newToolchainStatus()
-	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-	require.NoError(s.T(), err)
+			toolchainStatus := s.newToolchainStatus(appsSubDomain)
+			err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
+			require.NoError(s.T(), err)
 
-	space := s.newSpaceForMUR(mur.Name, us.Name)
-	err = s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
+			space := s.newSpaceForMUR(mur.Name, us.Name)
+			err = s.FakeSpaceClient.Tracker.Add(space)
+			require.NoError(s.T(), err)
 
-	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
+			spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+			err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+			require.NoError(s.T(), err)
 
-	// when
-	response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+			// when
+			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
 
-	// then
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), response)
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), response)
 
-	require.Equal(s.T(), us.Name, response.Name)
-	require.Equal(s.T(), "ted@domain.com", response.Username)
-	require.Equal(s.T(), "ted", response.CompliantUsername)
-	assert.True(s.T(), response.Status.Ready)
-	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
-	assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
-	assert.False(s.T(), response.Status.VerificationRequired)
-	assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
-	assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-	assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-	assert.Equal(s.T(), "member-123", response.ClusterName)
-	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
+			require.Equal(s.T(), us.Name, response.Name)
+			require.Equal(s.T(), "ted@domain.com", response.Username)
+			require.Equal(s.T(), "ted", response.CompliantUsername)
+			assert.True(s.T(), response.Status.Ready)
+			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+			assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+			assert.False(s.T(), response.Status.VerificationRequired)
+			assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
+			assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+			assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+			assert.Equal(s.T(), "member-123", response.ClusterName)
+			assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+			assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+			assert.Equal(s.T(), fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
 
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return toolchainStatus, nil
-		}
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
+			s.T().Run("informer", func(t *testing.T) {
+				// given
+				inf := fake.NewFakeInformer()
+				inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+					if name == us.Name {
+						return us, nil
+					}
+					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+				}
+				inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+					if name == mur.Name {
+						return mur, nil
+					}
+					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+				}
+				inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+					return toolchainStatus, nil
+				}
+				inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+					return space, nil
+				}
+				inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+					return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+				}
 
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
+				s.Application.MockInformerService(inf)
+				svc := service.NewSignupService(
+					fake.MemberClusterServiceContext{
+						Client: s,
+						Svcs:   s.Application,
+					},
+				)
 
-		// when
-		response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
+				// when
+				response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
-		// then
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), response)
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), response)
 
-		require.Equal(s.T(), "ted@domain.com", response.Username)
-		require.Equal(s.T(), "ted", response.CompliantUsername)
-		assert.True(s.T(), response.Status.Ready)
-		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
-		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
-		assert.False(s.T(), response.Status.VerificationRequired)
-		assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
-		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-		assert.Equal(s.T(), "member-123", response.ClusterName)
-		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
-	})
+				require.Equal(s.T(), "ted@domain.com", response.Username)
+				require.Equal(s.T(), "ted", response.CompliantUsername)
+				assert.True(s.T(), response.Status.Ready)
+				assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+				assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+				assert.False(s.T(), response.Status.VerificationRequired)
+				assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
+				assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+				assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+				assert.Equal(s.T(), "member-123", response.ClusterName)
+				assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+				assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+				assert.Equal(s.T(), fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
+			})
+		})
+	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
@@ -1260,7 +1265,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
 	require.NoError(s.T(), err)
 
-	toolchainStatus := s.newToolchainStatus()
+	toolchainStatus := s.newToolchainStatus(".apps.")
 	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
@@ -1343,7 +1348,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	})
 }
 
-func (s *TestSignupServiceSuite) newToolchainStatus() *toolchainv1alpha1.ToolchainStatus {
+func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolchainv1alpha1.ToolchainStatus {
 	toolchainStatus := &toolchainv1alpha1.ToolchainStatus{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -1357,7 +1362,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus() *toolchainv1alpha1.Toolcha
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-1.com",
+							ConsoleURL:      fmt.Sprintf("https://console%smember-1.com", appsSubDomain),
 							CheDashboardURL: "http://che-toolchain-che.member-1.com",
 						},
 					},
@@ -1367,7 +1372,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus() *toolchainv1alpha1.Toolcha
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      "https://console.apps.member-123.com",
+							ConsoleURL:      fmt.Sprintf("https://console%smember-123.com", appsSubDomain),
 							CheDashboardURL: "http://che-toolchain-che.member-123.com",
 						},
 					},

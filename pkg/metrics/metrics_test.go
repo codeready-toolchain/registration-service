@@ -47,7 +47,6 @@ var expectedResponse = `
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="0.25"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="0.5"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="1"} 0
-		sandbox_test_histogram_vec_bucket{responseFor="routed",le="2"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="5"} 1
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="10"} 1
 		sandbox_test_histogram_vec_bucket{responseFor="routed",le="+Inf"} 1
@@ -58,7 +57,6 @@ var expectedResponse = `
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="0.25"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="0.5"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="1"} 0
-		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="2"} 0
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="5"} 1
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="10"} 1
 		sandbox_test_histogram_vec_bucket{responseFor="rejected",le="+Inf"} 1

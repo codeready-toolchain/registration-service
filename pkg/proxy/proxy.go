@@ -188,7 +188,7 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	requestRecievedTime := ctx.Get(context.RequestRecievedTime).(time.Time)
 	proxyPluginName, cluster, err := p.processRequest(ctx)
 	if err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.ResponseMetricLabelRejected).Observe(time.Since(requestRecievedTime).Seconds())
+		metrics.RegServProxyRouteHistogramVec.WithLabelValues(metrics.MetricLabelRejected).Observe(time.Since(requestRecievedTime).Seconds())
 		return err
 	}
 	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)

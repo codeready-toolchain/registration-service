@@ -9,8 +9,9 @@ var log = logf.Log.WithName("registration_metrics")
 var Reg *prometheus.Registry
 
 const (
-	ResponseMetricLabelRouted   = "Routed"
-	ResponseMetricLabelRejected = "Rejected"
+	MetricLabelRouted   = "Routed"
+	MetricLabelRejected = "Rejected"
+	MetricLabelListed   = "Listed"
 )
 
 // histogram with labels
@@ -48,7 +49,7 @@ func newHistogramVec(name, help string, labels ...string) *prometheus.HistogramV
 	v := prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    metricsPrefix + name,
 		Help:    help,
-		Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10},
+		Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 5, 10},
 	}, labels)
 	allHistogramVecs = append(allHistogramVecs, v)
 	return v
@@ -59,9 +60,7 @@ func RegisterCustomMetrics() {
 	Reg = prometheus.NewRegistry()
 	// register metrics
 	for _, v := range allHistogramVecs {
-		if err := Reg.Register(v); err != nil {
-			log.Error(err, "failed to register histogramVec", "Histogram Name:", v)
-		}
+		Reg.MustRegister(v)
 	}
 	log.Info("custom metrics registered")
 }

@@ -235,10 +235,8 @@ func (s *SpaceLister) getSpace(spaceBinding *toolchainv1alpha1.SpaceBinding) (*t
 
 func getRolesFromNSTemplateTier(nstemplatetier *toolchainv1alpha1.NSTemplateTier) []string {
 	roles := make([]string, len(nstemplatetier.Spec.SpaceRoles))
-	i := 0
-	for k := range nstemplatetier.Spec.SpaceRoles {
+	for i, k := range nstemplatetier.Spec.SpaceRoles {
 		roles[i] = k
-		i++
 	}
 	sort.Strings(roles)
 	return roles

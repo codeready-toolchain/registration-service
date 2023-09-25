@@ -12,8 +12,7 @@ func NewMetrics() *Metrics {
 	return &Metrics{}
 }
 
-func (m *Metrics) PrometheusHandler(ctx echo.Context) error {
+func (m *Metrics) PrometheusHandler(ctx echo.Context) {
 	h := promhttp.HandlerFor(metrics.Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: metrics.Reg})
 	h.ServeHTTP(ctx.Response().Writer, ctx.Request())
-	return nil
 }

@@ -123,7 +123,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, signup *signup.Signup) 
 	}
 	getOnlyWSOptions := commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier))
 
-	return createCommonWorkspace(signup.Name, space, spaceBinding, getOnlyWSOptions), nil
+	return createWorkspaceObject(signup.Name, space, spaceBinding, getOnlyWSOptions), nil
 }
 
 func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.Workspace, error) {
@@ -197,13 +197,13 @@ func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindin
 			log.Errorf(nil, err, "unable to get space", "space", spacebinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey])
 			continue
 		}
-		workspace := createCommonWorkspace(signupName, space, spacebinding)
+		workspace := createWorkspaceObject(signupName, space, spacebinding)
 		workspaces = append(workspaces, *workspace)
 	}
 	return workspaces
 }
 
-func createCommonWorkspace(signupName string, space *toolchainv1alpha1.Space, spaceBinding *toolchainv1alpha1.SpaceBinding, wsAdditionalOptions ...commonproxy.WorkspaceOption) *toolchainv1alpha1.Workspace {
+func createWorkspaceObject(signupName string, space *toolchainv1alpha1.Space, spaceBinding *toolchainv1alpha1.SpaceBinding, wsAdditionalOptions ...commonproxy.WorkspaceOption) *toolchainv1alpha1.Workspace {
 	// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
 	ownerName := space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
 
@@ -235,8 +235,10 @@ func (s *SpaceLister) getSpace(spaceBinding *toolchainv1alpha1.SpaceBinding) (*t
 
 func getRolesFromNSTemplateTier(nstemplatetier *toolchainv1alpha1.NSTemplateTier) []string {
 	roles := make([]string, len(nstemplatetier.Spec.SpaceRoles))
-	for i, k := range nstemplatetier.Spec.SpaceRoles {
+	i := 0
+	for k := range nstemplatetier.Spec.SpaceRoles {
 		roles[i] = k
+		i++
 	}
 	sort.Strings(roles)
 	return roles

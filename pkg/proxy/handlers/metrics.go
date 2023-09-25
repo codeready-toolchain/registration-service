@@ -14,9 +14,6 @@ func NewMetrics() *Metrics {
 
 func (m *Metrics) PrometheusHandler(ctx echo.Context) error {
 	h := promhttp.HandlerFor(metrics.Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: metrics.Reg})
-	ctx.Response().Writer.Header().Set("Content-Type", "text/plain")
-	//c.Writer.Header().Set("content-Type", "text/plain")
-	//c.Request.Header.Set("content-Type", "text/plain")
 	h.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }

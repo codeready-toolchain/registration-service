@@ -23,6 +23,6 @@ const (
 	JWTClaimsKey = "jwtClaims"
 	// WorkspaceKey is the context key for the workspace name in echo.Context
 	WorkspaceKey = "workspace"
-	// RequestRecievedTime is the context key for the starting time of a request made
-	RequestRecievedTime = "requestRecievedTime"
+	// RequestReceivedTime is the context key for the starting time of a request made
+	RequestReceivedTime = "requestReceivedTime"
 )

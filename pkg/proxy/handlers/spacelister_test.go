@@ -191,7 +191,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				rec := httptest.NewRecorder()
 				ctx := e.NewContext(req, rec)
 				ctx.Set(rcontext.UsernameKey, tc.username)
-				ctx.Set(rcontext.RequestRecievedTime, time.Now())
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 
 				if tc.expectedWorkspace != "" {
 					ctx.SetParamNames("workspace")

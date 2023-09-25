@@ -185,7 +185,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	requestRecievedTime := ctx.Get(context.RequestRecievedTime).(time.Time)
+	requestRecievedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	proxyPluginName, cluster, err := p.processRequest(ctx)
 	if err != nil {
 		metrics.RegServProxyRouteHistogramVec.WithLabelValues(metrics.MetricLabelRejected).Observe(time.Since(requestRecievedTime).Seconds())
@@ -301,7 +301,7 @@ func (p *Proxy) addStartTime() echo.MiddlewareFunc {
 			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
 				return next(ctx)
 			}
-			ctx.Set(context.RequestRecievedTime, time.Now())
+			ctx.Set(context.RequestReceivedTime, time.Now())
 			return next(ctx)
 		}
 	}

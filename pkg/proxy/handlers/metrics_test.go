@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"net/http"
@@ -27,9 +25,6 @@ func (s *TestMetricsSuite) TestMetricsHandler() {
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	require.NoError(s.T(), err)
 
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-
 	// Create handler instance.
 	metricsCtrl := NewMetrics()
 	metrics.RegisterCustomMetrics()
@@ -47,6 +42,5 @@ func (s *TestMetricsSuite) TestMetricsHandler() {
 
 		// check response content-type.
 		require.Equal(s.T(), "text/plain; version=0.0.4; charset=utf-8", rec.Header().Get("Content-Type"))
-
 	})
 }

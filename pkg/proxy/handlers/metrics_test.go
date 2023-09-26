@@ -26,8 +26,8 @@ func TestMetricsHandler(t *testing.T) {
 		ctx := e.NewContext(req, rec)
 
 		//when
-		metricsCtrl.PrometheusHandler(ctx)
-
+		err := metricsCtrl.PrometheusHandler(ctx)
+		require.NoError(t, err)
 		// then
 		// check the status code is what we expect.
 		require.Equal(t, http.StatusOK, rec.Code)

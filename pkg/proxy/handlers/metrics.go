@@ -12,7 +12,9 @@ func NewMetrics() *Metrics {
 	return &Metrics{}
 }
 
-func (m *Metrics) PrometheusHandler(ctx echo.Context) {
+//nolint:unparam
+func (m *Metrics) PrometheusHandler(ctx echo.Context) error {
 	h := promhttp.HandlerFor(metrics.Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: metrics.Reg})
 	h.ServeHTTP(ctx.Response().Writer, ctx.Request())
+	return nil
 }

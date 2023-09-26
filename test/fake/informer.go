@@ -114,3 +114,33 @@ func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolcha
 		},
 	}
 }
+
+func NewBase1NSTemplateTier() *toolchainv1alpha1.NSTemplateTier {
+	return &toolchainv1alpha1.NSTemplateTier{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: configuration.Namespace(),
+			Name:      "base1ns",
+		},
+		Spec: toolchainv1alpha1.NSTemplateTierSpec{
+			ClusterResources: &toolchainv1alpha1.NSTemplateTierClusterResources{
+				TemplateRef: "basic-clusterresources-123456new",
+			},
+			Namespaces: []toolchainv1alpha1.NSTemplateTierNamespace{
+				{
+					TemplateRef: "basic-dev-123456new",
+				},
+				{
+					TemplateRef: "basic-stage-123456new",
+				},
+			},
+			SpaceRoles: map[string]toolchainv1alpha1.NSTemplateTierSpaceRole{
+				"admin": {
+					TemplateRef: "basic-admin-123456new",
+				},
+				"viewer": {
+					TemplateRef: "basic-viewer-123456new",
+				},
+			},
+		},
+	}
+}

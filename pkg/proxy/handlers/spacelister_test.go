@@ -8,15 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -42,10 +40,6 @@ func TestSpaceLister(t *testing.T) {
 		newSignup("racinglover", "racing.lover", false),
 	)
 
-	fakeNsTemplateTierService := fake.NewNSTemplateTierService(
-		newBase1NSTemplateTier(),
-	)
-
 	// space that is not provisioned yet
 	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
 	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
@@ -62,6 +56,9 @@ func TestSpaceLister(t *testing.T) {
 		fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
 		fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
 		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
+
+		//nstemplatetier
+		fake.NewBase1NSTemplateTier(),
 	)
 
 	t.Run("HandleSpaceListRequest", func(t *testing.T) {
@@ -182,12 +179,12 @@ func TestSpaceLister(t *testing.T) {
 	t.Run("HandleSpaceGetRequest", func(t *testing.T) {
 		// given
 		tests := map[string]struct {
-			username                       string
-			expectedWs                     []toolchainv1alpha1.Workspace
-			expectedErr                    string
-			expectedErrCode                int
-			expectedWorkspace              string
-			overrideNSTemplateTierProvider func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error)
+			username             string
+			expectedWs           []toolchainv1alpha1.Workspace
+			expectedErr          string
+			expectedErrCode      int
+			expectedWorkspace    string
+			overrideInformerFunc func() service.InformerService
 		}{
 			"dancelover gets dancelover space": {
 				username: "dance.lover",
@@ -247,8 +244,11 @@ func TestSpaceLister(t *testing.T) {
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "nstemplatetier error",
 				expectedErrCode: 500,
-				overrideNSTemplateTierProvider: func(ctx *gin.Context, tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
-					return nil, fmt.Errorf("nstemplatetier error")
+				overrideInformerFunc: func() service.InformerService {
+					informerFunc := getFakeInformerService(fakeClient, WithGetNSTemplateTierFunc(func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+						return nil, fmt.Errorf("nstemplatetier error")
+					}))
+					return informerFunc()
 				},
 				expectedWorkspace: "dancelover",
 			},
@@ -259,16 +259,14 @@ func TestSpaceLister(t *testing.T) {
 				// given
 				signupProvider := fakeSignupService.GetSignupFromInformer
 
-				nsTemplateTierProvider := fakeNsTemplateTierService.GetNSTemplateTierFromInformer
-				if tc.overrideNSTemplateTierProvider != nil {
-					nsTemplateTierProvider = tc.overrideNSTemplateTierProvider
+				informerFunc := getFakeInformerService(fakeClient)
+				if tc.overrideInformerFunc != nil {
+					informerFunc = tc.overrideInformerFunc
 				}
 
-				informerFunc := getFakeInformerService(fakeClient)
 				s := &handlers.SpaceLister{
 					GetSignupFunc:          signupProvider,
 					GetInformerServiceFunc: informerFunc,
-					GetNSTemplateTierFunc:  nsTemplateTierProvider,
 				}
 
 				e := echo.New()
@@ -303,36 +301,6 @@ func TestSpaceLister(t *testing.T) {
 	})
 }
 
-func newBase1NSTemplateTier() fake.NSTemplateTierDef {
-	return fake.NSTemplateTier("base1ns", &toolchainv1alpha1.NSTemplateTier{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "toolchain-host-operator",
-			Name:      "base1ns",
-		},
-		Spec: toolchainv1alpha1.NSTemplateTierSpec{
-			ClusterResources: &toolchainv1alpha1.NSTemplateTierClusterResources{
-				TemplateRef: "basic-clusterresources-123456new",
-			},
-			Namespaces: []toolchainv1alpha1.NSTemplateTierNamespace{
-				{
-					TemplateRef: "basic-dev-123456new",
-				},
-				{
-					TemplateRef: "basic-stage-123456new",
-				},
-			},
-			SpaceRoles: map[string]toolchainv1alpha1.NSTemplateTierSpaceRole{
-				"admin": {
-					TemplateRef: "basic-admin-123456new",
-				},
-				"viewer": {
-					TemplateRef: "basic-viewer-123456new",
-				},
-			},
-		},
-	})
-}
-
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	compliantUsername := signupName
 	if !ready {
@@ -351,7 +319,15 @@ func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	return us
 }
 
-func getFakeInformerService(fakeClient client.Client) func() service.InformerService {
+type InformerServiceOptions func(informer *fake.Informer)
+
+func WithGetNSTemplateTierFunc(getNsTemplateTierFunc func(tier string) (*toolchainv1alpha1.NSTemplateTier, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.GetNSTemplateTierFunc = getNsTemplateTierFunc
+	}
+}
+
+func getFakeInformerService(fakeClient client.Client, options ...InformerServiceOptions) func() service.InformerService {
 	return func() service.InformerService {
 
 		inf := fake.NewFakeInformer()
@@ -369,6 +345,16 @@ func getFakeInformerService(fakeClient client.Client) func() service.InformerSer
 			err := fakeClient.List(context.TODO(), sbList, labelMatch)
 			return sbList.Items, err
 		}
+		inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+			nsTemplateTier := &toolchainv1alpha1.NSTemplateTier{}
+			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: tier}, nsTemplateTier)
+			return nsTemplateTier, err
+		}
+
+		for _, modify := range options {
+			modify(&inf)
+		}
+
 		return inf
 	}
 }

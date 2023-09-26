@@ -26,7 +26,6 @@ import (
 
 type SpaceLister struct {
 	GetSignupFunc          func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
-	GetNSTemplateTierFunc  func(ctx *gin.Context, tier string) (*toolchainv1alpha1.NSTemplateTier, error)
 	GetInformerServiceFunc func() service.InformerService
 }
 
@@ -116,7 +115,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, signup *signup.Signup) 
 	// -------------
 
 	// add available roles, this field is populated only for the GET workspace request
-	nsTemplateTier, err := s.GetNSTemplateTierFunc(nil, space.Spec.TierName)
+	nsTemplateTier, err := s.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to get nstemplatetier"))
 		return nil, err

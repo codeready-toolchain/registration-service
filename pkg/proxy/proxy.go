@@ -185,14 +185,14 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
-	requestRecievedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	proxyPluginName, cluster, err := p.processRequest(ctx)
 	if err != nil {
-		metrics.RegServProxyApiHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestRecievedTime).Seconds())
+		metrics.RegServProxyApiHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
 		return err
 	}
 	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
-	routeTime := time.Since(requestRecievedTime)
+	routeTime := time.Since(requestReceivedTime)
 	metrics.RegServProxyApiHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non-blocking and uses a go routine under the hood
 	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())

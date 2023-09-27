@@ -38,10 +38,10 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 }
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
-	startTime := ctx.Get(context.RequestReceivedTime).(time.Time)
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(startTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 
@@ -52,13 +52,13 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		if len(workspaces) != 1 {
 			// not found
 			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(startTime).Seconds())
+			metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
 		}
-		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(startTime).Seconds())
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 		return getWorkspaceResponse(ctx, workspaces[0])
 	}
-	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(startTime).Seconds())
+	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 

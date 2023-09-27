@@ -37,20 +37,6 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 }
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
-	userID, _ := ctx.Get(context.SubKey).(string)
-	username, _ := ctx.Get(context.UsernameKey).(string)
-
-	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
-	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "error retrieving userSignup"))
-		return errorResponse(ctx, apierrors.NewInternalError(err))
-	}
-	if userSignup == nil || userSignup.CompliantUsername == "" {
-		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet
-		// return empty workspace list
-		return listWorkspaceResponse(ctx, []toolchainv1alpha1.Workspace{})
-	}
-
 	// list all user workspaces
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
@@ -60,38 +46,36 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 }
 
 func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
-	userID, _ := ctx.Get(context.SubKey).(string)
-	username, _ := ctx.Get(context.UsernameKey).(string)
-	workspaceName := ctx.Param("workspace")
-
-	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
-	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "error retrieving userSignup"))
-		return errorResponse(ctx, apierrors.NewInternalError(err))
-	}
-	if userSignup == nil || userSignup.CompliantUsername == "" {
-		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet
-		// return not found response when specific workspace request was issued
-		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-		return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
-
-	}
-
 	// get specific workspace
-	workspace, err := s.GetUserWorkspace(ctx, userSignup)
+	workspace, err := s.GetUserWorkspace(ctx)
 	if err != nil {
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 	if workspace == nil {
 		// not found
 		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-		return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
+		return errorResponse(ctx, apierrors.NewNotFound(r, ctx.Param("workspace")))
 	}
 	return getWorkspaceResponse(ctx, workspace)
 }
 
-func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, signup *signup.Signup) (*toolchainv1alpha1.Workspace, error) {
-	murName := signup.CompliantUsername
+func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Workspace, error) {
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
+
+	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
+	if err != nil {
+		cause := errs.Wrap(err, "error retrieving userSignup")
+		ctx.Logger().Error(cause)
+		return nil, cause
+	}
+	if userSignup == nil || userSignup.CompliantUsername == "" {
+		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet
+		// return not found response when specific workspace request was issued
+		return nil, nil
+
+	}
+	murName := userSignup.CompliantUsername
 	spaceBinding, err := s.listSpaceBindingForUserAndSpace(ctx, murName)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
@@ -122,7 +106,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, signup *signup.Signup) 
 	}
 	getOnlyWSOptions := commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier))
 
-	return createWorkspaceObject(signup.Name, space, spaceBinding, getOnlyWSOptions), nil
+	return createWorkspaceObject(userSignup.Name, space, spaceBinding, getOnlyWSOptions), nil
 }
 
 func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.Workspace, error) {
@@ -176,10 +160,15 @@ func (s *SpaceLister) listSpaceBindingForUserAndSpace(ctx echo.Context, murName 
 		return nil, err
 	}
 
-	//  let's only log the issue and consider this as not found
-	if len(spaceBindings) != 1 {
-		ctx.Logger().Error("expected only 1 spacebinding, got %d for user %s and workspace %s", len(spaceBindings), murName, workspaceName)
+	if len(spaceBindings) == 0 {
+		//  let's only log the issue and consider this as not found
+		ctx.Logger().Error(fmt.Sprintf("expected only 1 spacebinding, got 0 for user %s and workspace %s", murName, workspaceName))
 		return nil, nil
+	} else if len(spaceBindings) > 1 {
+		// internal server error
+		cause := fmt.Errorf("expected only 1 spacebinding, got %d for user %s and workspace %s", len(spaceBindings), murName, workspaceName)
+		ctx.Logger().Error(cause.Error())
+		return nil, cause
 	}
 
 	return &spaceBindings[0], nil

@@ -184,6 +184,7 @@ func TestSpaceLister(t *testing.T) {
 			expectedErr          string
 			expectedErrCode      int
 			expectedWorkspace    string
+			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 			overrideInformerFunc func() service.InformerService
 		}{
 			"dancelover gets dancelover space": {
@@ -252,12 +253,50 @@ func TestSpaceLister(t *testing.T) {
 				},
 				expectedWorkspace: "dancelover",
 			},
+			"too many spacebindings for user": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "Internal error occurred: expected only 1 spacebinding, got 2 for user dancelover and workspace dancelover",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					inf := fake.NewFakeInformer()
+					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+						// let's return more than 1 spacebinding to trigger the error
+						return []toolchainv1alpha1.SpaceBinding{
+							*fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
+							*fake.NewSpaceBinding("dancer-sb2", "dancelover", "dancelover", "other"),
+						}, nil
+					}
+					return inf
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"get signup error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "signup error",
+				expectedErrCode: 500,
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+					return nil, fmt.Errorf("signup error")
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"signup has no compliant username set": {
+				username:          "racing.lover",
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"racinglover\\\" not found\"",
+				expectedErrCode:   404,
+				expectedWorkspace: "racinglover",
+			},
 		}
 
 		for k, tc := range tests {
 			t.Run(k, func(t *testing.T) {
 				// given
 				signupProvider := fakeSignupService.GetSignupFromInformer
+				if tc.overrideSignupFunc != nil {
+					signupProvider = tc.overrideSignupFunc
+				}
 
 				informerFunc := getFakeInformerService(fakeClient)
 				if tc.overrideInformerFunc != nil {

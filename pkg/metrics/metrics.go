@@ -9,17 +9,17 @@ var log = logf.Log.WithName("registration_metrics")
 var Reg *prometheus.Registry
 
 const (
-	MetricLabelRouted   = "Routed"
-	MetricLabelRejected = "Rejected"
-	MetricLabelListed   = "Listed"
+	MetricLabelRejected  = "Rejected"
+	MetricsLabelVerbGet  = "Get"
+	MetricsLabelVerbList = "List"
 )
 
 // histogram with labels
 var (
-	// RegServProxyRouteHistogramVec measures the time taken by proxy before forwarding the request
-	RegServProxyRouteHistogramVec *prometheus.HistogramVec
-	// RegServProxyResponseHistogramVec measures the response time for either response or error from proxy when there is no routing
-	RegServProxyResponseHistogramVec *prometheus.HistogramVec
+	// RegServProxyApiHistogramVec measures the time taken by proxy before forwarding the request
+	RegServProxyApiHistogramVec *prometheus.HistogramVec
+	// RegServWorkspaceHistogramVec measures the response time for either response or error from proxy when there is no routing
+	RegServWorkspaceHistogramVec *prometheus.HistogramVec
 )
 
 // collections
@@ -34,8 +34,8 @@ func init() {
 }
 func initMetrics() {
 	log.Info("initializing custom metrics")
-	RegServProxyRouteHistogramVec = newHistogramVec("proxy_route_time", "time taken by proxy to route ", "routeTo")
-	RegServProxyResponseHistogramVec = newHistogramVec("proxy_response_time", "time for response of a request to proxy ", "responseFor")
+	RegServProxyApiHistogramVec = newHistogramVec("proxy_api_http_request_time", "time taken by proxy to route to a target cluster", "status_code", "route_to")
+	RegServWorkspaceHistogramVec = newHistogramVec("proxy_workspace_http_request_time", "time for response of a request to proxy ", "status_code", "kube_verb")
 	log.Info("custom metrics initialized")
 }
 

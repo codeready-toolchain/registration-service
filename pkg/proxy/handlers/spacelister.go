@@ -41,7 +41,7 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	startTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.MetricLabelRejected).Observe(time.Since(startTime).Seconds())
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(startTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 
@@ -52,13 +52,13 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 		if len(workspaces) != 1 {
 			// not found
 			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-			metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.MetricLabelRejected).Observe(time.Since(startTime).Seconds())
+			metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(startTime).Seconds())
 			return errorResponse(ctx, apierrors.NewNotFound(r, workspaceName))
 		}
-		metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.MetricLabelListed).Observe(time.Since(startTime).Seconds())
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(startTime).Seconds())
 		return getWorkspaceResponse(ctx, workspaces[0])
 	}
-	metrics.RegServProxyResponseHistogramVec.WithLabelValues(metrics.MetricLabelListed).Observe(time.Since(startTime).Seconds())
+	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(startTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 

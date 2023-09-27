@@ -111,7 +111,7 @@ var expectedResponse = `
 		`
 
 func compareLabelPairValues(t *testing.T, expected []clientmodel.LabelPair, labelPairs []*clientmodel.LabelPair) {
-	for i, _ := range labelPairs {
+	for i := range labelPairs {
 		require.Equal(t, expected[i].GetName(), labelPairs[i].GetName())
 		require.Equal(t, expected[i].GetValue(), labelPairs[i].GetValue())
 	}

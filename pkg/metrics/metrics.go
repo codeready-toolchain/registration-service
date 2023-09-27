@@ -16,8 +16,8 @@ const (
 
 // histogram with labels
 var (
-	// RegServProxyApiHistogramVec measures the time taken by proxy before forwarding the request
-	RegServProxyApiHistogramVec *prometheus.HistogramVec
+	// RegServProxyAPIHistogramVec measures the time taken by proxy before forwarding the request
+	RegServProxyAPIHistogramVec *prometheus.HistogramVec
 	// RegServWorkspaceHistogramVec measures the response time for either response or error from proxy when there is no routing
 	RegServWorkspaceHistogramVec *prometheus.HistogramVec
 )
@@ -34,7 +34,7 @@ func init() {
 }
 func initMetrics() {
 	log.Info("initializing custom metrics")
-	RegServProxyApiHistogramVec = newHistogramVec("proxy_api_http_request_time", "time taken by proxy to route to a target cluster", "status_code", "route_to")
+	RegServProxyAPIHistogramVec = newHistogramVec("proxy_api_http_request_time", "time taken by proxy to route to a target cluster", "status_code", "route_to")
 	RegServWorkspaceHistogramVec = newHistogramVec("proxy_workspace_http_request_time", "time for response of a request to proxy ", "status_code", "kube_verb")
 	log.Info("custom metrics initialized")
 }

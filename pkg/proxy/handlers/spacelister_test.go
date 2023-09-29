@@ -14,6 +14,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -37,6 +38,7 @@ func TestSpaceLister(t *testing.T) {
 		newSignup("movielover", "movie.lover", true),
 		newSignup("pandalover", "panda.lover", true),
 		newSignup("usernospace", "user.nospace", true),
+		newSignup("foodlover", "food.lover", true),
 		newSignup("racinglover", "racing.lover", false),
 	)
 
@@ -49,6 +51,7 @@ func TestSpaceLister(t *testing.T) {
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
 		fake.NewSpace("racinglover", "member-2", "racinglover"),
+		fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")),
 		spaceNotProvisionedYet,
 
 		//spacebindings
@@ -195,6 +198,13 @@ func TestSpaceLister(t *testing.T) {
 							"admin", "viewer",
 						},
 						),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+							},
+						}),
 					),
 				},
 				expectedErr:       "",
@@ -206,10 +216,42 @@ func TestSpaceLister(t *testing.T) {
 					workspaceFor(t, fakeClient, "movielover", "other", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
-						})),
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string{"update", "delete"},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+							},
+						}),
+					),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
+			},
+			"dancelover gets foodlover space": {
+				username: "dance.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "foodlover", "admin", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "admin",              // dancelover is admin since it's admin on the parent space,
+								AvailableActions: []string{"override"}, // since the binding is inherited from parent space, then it can only be overridden
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "foodlover",
 			},
 			"movielover gets movielover space": {
 				username: "movie.lover",
@@ -217,7 +259,20 @@ func TestSpaceLister(t *testing.T) {
 					workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
-						})),
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string{"update", "delete"},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+							},
+						}),
+					),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
@@ -235,7 +290,20 @@ func TestSpaceLister(t *testing.T) {
 					workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
-						})),
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string{"update", "delete"},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+							},
+						}),
+					),
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
@@ -259,15 +327,14 @@ func TestSpaceLister(t *testing.T) {
 				expectedErr:     "Internal error occurred: expected only 1 spacebinding, got 2 for user dancelover and workspace dancelover",
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
-					inf := fake.NewFakeInformer()
-					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 						// let's return more than 1 spacebinding to trigger the error
 						return []toolchainv1alpha1.SpaceBinding{
 							*fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
 							*fake.NewSpaceBinding("dancer-sb2", "dancelover", "dancelover", "other"),
 						}, nil
 					}
-					return inf
+					return getFakeInformerService(fakeClient, WithListSpaceBindingFunc(listSpaceBindingFunc))()
 				},
 				expectedWorkspace: "dancelover",
 			},
@@ -287,6 +354,50 @@ func TestSpaceLister(t *testing.T) {
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"racinglover\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWorkspace: "racinglover",
+			},
+			"list spacebindings error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "list spacebindings error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+						return nil, fmt.Errorf("list spacebindings error")
+					}
+					return getFakeInformerService(fakeClient, WithListSpaceBindingFunc(listSpaceBindingFunc))()
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"unable to get space": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
+				expectedErrCode: 404,
+				overrideInformerFunc: func() service.InformerService {
+					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+						return nil, fmt.Errorf("no space")
+					}
+					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"unable to get parent-space": {
+				username:        "food.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "Internal error occurred: unable to get parent-space: parent-space error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+						if name == "dancelover" {
+							// return the error only when trying to get the parent space
+							return nil, fmt.Errorf("parent-space error")
+						}
+						// return the foodlover space
+						return fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")), nil
+					}
+					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+				},
+				expectedWorkspace: "foodlover",
 			},
 		}
 
@@ -363,6 +474,18 @@ type InformerServiceOptions func(informer *fake.Informer)
 func WithGetNSTemplateTierFunc(getNsTemplateTierFunc func(tier string) (*toolchainv1alpha1.NSTemplateTier, error)) InformerServiceOptions {
 	return func(informer *fake.Informer) {
 		informer.GetNSTemplateTierFunc = getNsTemplateTierFunc
+	}
+}
+
+func WithListSpaceBindingFunc(listSpaceBindingFunc func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.ListSpaceBindingFunc = listSpaceBindingFunc
+	}
+}
+
+func WithGetSpaceFunc(getSpaceFunc func(name string) (*toolchainv1alpha1.Space, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.GetSpaceFunc = getSpaceFunc
 	}
 }
 

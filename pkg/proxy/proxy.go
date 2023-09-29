@@ -22,6 +22,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -53,6 +54,7 @@ type Proxy struct {
 	cl          client.Client
 	tokenParser *auth.TokenParser
 	spaceLister *handlers.SpaceLister
+	metrics     *handlers.Metrics
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -75,12 +77,13 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 
 	// init handlers
 	spaceLister := handlers.NewSpaceLister(app)
-
+	metrics := handlers.NewMetrics()
 	return &Proxy{
 		app:         app,
 		cl:          cln,
 		tokenParser: tokenParser,
 		spaceLister: spaceLister,
+		metrics:     metrics,
 	}, nil
 }
 
@@ -89,13 +92,12 @@ func (p *Proxy) StartProxy() *http.Server {
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
 	router.HTTPErrorHandler = customHTTPErrorHandler
-
 	// middleware before routing
 	router.Pre(
+		p.addStartTime(),
 		middleware.RemoveTrailingSlash(),
 		p.stripInvalidHeaders(),
 		p.addUserContext(), // get user information from token before handling request
-
 		// log request information before routing
 		func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(ctx echo.Context) error {
@@ -118,6 +120,7 @@ func (p *Proxy) StartProxy() *http.Server {
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
+
 				log.InfoEchof(ctx, "request routed")
 				return nil
 			},
@@ -128,8 +131,8 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
 	wg.GET("/:workspace", p.spaceLister.HandleSpaceGetRequest)
 	wg.GET("", p.spaceLister.HandleSpaceListRequest)
-
 	router.GET(proxyHealthEndpoint, p.health)
+	router.GET("/metrics", p.metrics.PrometheusHandler)
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
@@ -154,34 +157,45 @@ func (p *Proxy) health(ctx echo.Context) error {
 	return err
 }
 
-func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
+func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
-
 	proxyPluginName, workspace, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		return crterrors.NewBadRequest("unable to get workspace context", err.Error())
+		return "", nil, crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
-	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 
+	ctx.Set(context.WorkspaceKey, workspace) // set workspace context for logging
 	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspace, proxyPluginName)
 	if err != nil {
-		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		return "", nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 
 	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
 	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
 	if err != nil {
-		return crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+		return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}
 
 	requestedNamespace := namespaceFromCtx(ctx)
 	if err := validateWorkspaceRequest(workspace, requestedNamespace, workspaces); err != nil {
-		return crterrors.NewForbiddenError("invalid workspace request", err.Error())
+		return "", nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
+	return proxyPluginName, cluster, nil
+}
 
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0).ServeHTTP(ctx.Response().Writer, ctx.Request())
+func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
+	proxyPluginName, cluster, err := p.processRequest(ctx)
+	if err != nil {
+		metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
+		return err
+	}
+	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
+	routeTime := time.Since(requestReceivedTime)
+	metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
+	// Note that ServeHttp is non-blocking and uses a go routine under the hood
+	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 
@@ -276,6 +290,18 @@ func (p *Proxy) stripInvalidHeaders() echo.MiddlewareFunc {
 					ctx.Request().Header.Del(header)
 				}
 			}
+			return next(ctx)
+		}
+	}
+}
+
+func (p *Proxy) addStartTime() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
+				return next(ctx)
+			}
+			ctx.Set(context.RequestReceivedTime, time.Now())
 			return next(ctx)
 		}
 	}

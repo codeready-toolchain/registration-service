@@ -11,9 +11,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/gin-gonic/gin"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -38,24 +40,31 @@ func NewSpaceLister(app application.Application) *SpaceLister {
 
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	// list all user workspaces
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
+	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 
 func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
 	// get specific workspace
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspace, err := s.GetUserWorkspace(ctx)
 	if err != nil {
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 	if workspace == nil {
 		// not found
+		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
 		return errorResponse(ctx, apierrors.NewNotFound(r, ctx.Param("workspace")))
 	}
+	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 	return getWorkspaceResponse(ctx, workspace)
 }
 

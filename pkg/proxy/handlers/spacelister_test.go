@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -152,6 +153,7 @@ func TestSpaceLister(t *testing.T) {
 				rec := httptest.NewRecorder()
 				ctx := e.NewContext(req, rec)
 				ctx.Set(rcontext.UsernameKey, tc.username)
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 
 				// when
 				err := s.HandleSpaceListRequest(ctx)

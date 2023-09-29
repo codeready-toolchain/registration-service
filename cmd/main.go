@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"net/http"
 	"os"
 	"os/signal"
@@ -95,6 +96,9 @@ func main() {
 	if err != nil {
 		panic(errs.Wrap(err, "failed to init default token parser"))
 	}
+
+	// Register metrics
+	metrics.RegisterCustomMetrics()
 
 	// Start the proxy server
 	p, err := proxy.NewProxy(app)

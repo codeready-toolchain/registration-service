@@ -120,6 +120,21 @@ func (s *TestProxySuite) TestProxy() {
 				s.assertResponseBody(resp, `{"alive": true}`)
 			})
 
+			s.Run("check metrics not ok", func() {
+				req, err := http.NewRequest("GET", "http://localhost:8081/metrics", nil)
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), req)
+
+				// when
+				resp, err := http.DefaultClient.Do(req)
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), resp)
+				defer resp.Body.Close()
+				assert.Equal(s.T(), 401, resp.StatusCode)
+			})
+
 			s.Run("plain http error", func() {
 				s.Run("unauthorized if no token present", func() {
 					req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)

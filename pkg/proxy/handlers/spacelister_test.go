@@ -315,6 +315,7 @@ func TestSpaceLister(t *testing.T) {
 				rec := httptest.NewRecorder()
 				ctx := e.NewContext(req, rec)
 				ctx.Set(rcontext.UsernameKey, tc.username)
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 				ctx.SetParamNames("workspace")
 				ctx.SetParamValues(tc.expectedWorkspace)
 

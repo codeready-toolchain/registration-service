@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sort"
 
+	"time"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -16,7 +18,6 @@ import (
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/spacebinding"
 	"github.com/gin-gonic/gin"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -113,7 +114,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 		return s.GetInformerServiceFunc().GetSpace(spaceName)
 	}
 	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, getSpaceFunc)
-	allSpaceBindings, err := spaceBindingLister.RecursiveListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
+	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
 		ctx.Logger().Error(err, "failed to list space bindings")
 		return nil, err

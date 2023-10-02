@@ -22,6 +22,7 @@ type Informer struct {
 	ToolchainStatus   cache.GenericLister
 	UserSignup        cache.GenericLister
 	ProxyPluginConfig cache.GenericLister
+	NSTemplateTier    cache.GenericLister
 }
 
 func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
@@ -64,6 +65,11 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	informer.ProxyPluginConfig = proxyPluginInformer.Lister()
 	proxyPluginConfigInformer := proxyPluginInformer.Informer()
 
+	// NSTemplateTier plugins
+	genericNSTemplateTierInformer := factory.ForResource(schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: resources.NSTemplateTierPlural})
+	informer.NSTemplateTier = genericNSTemplateTierInformer.Lister()
+	nsTemplateTierInformer := genericNSTemplateTierInformer.Informer()
+
 	stopper := make(chan struct{})
 
 	log.Info(nil, "Starting proxy cache informers")
@@ -76,6 +82,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 		toolchainstatusInformer.HasSynced,
 		userSignupInformer.HasSynced,
 		proxyPluginConfigInformer.HasSynced,
+		nsTemplateTierInformer.HasSynced,
 	) {
 		err := fmt.Errorf("timed out waiting for caches to sync")
 		log.Error(nil, err, "Failed to create informers")

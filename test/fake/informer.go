@@ -19,6 +19,7 @@ type Informer struct {
 	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
 	ListSpaceBindingFunc     func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
+	GetNSTemplateTierFunc    func(name string) (*toolchainv1alpha1.NSTemplateTier, error)
 }
 
 func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
@@ -63,6 +64,13 @@ func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]toolchainv1alp
 	panic("not supposed to call ListSpaceBindings")
 }
 
+func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	if f.GetNSTemplateTierFunc != nil {
+		return f.GetNSTemplateTierFunc(tier)
+	}
+	panic("not supposed to call GetNSTemplateTierFunc")
+}
+
 func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
 	space := &toolchainv1alpha1.Space{
 		ObjectMeta: metav1.ObjectMeta{
@@ -103,6 +111,36 @@ func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolcha
 		},
 		Spec: toolchainv1alpha1.SpaceBindingSpec{
 			SpaceRole: role,
+		},
+	}
+}
+
+func NewBase1NSTemplateTier() *toolchainv1alpha1.NSTemplateTier {
+	return &toolchainv1alpha1.NSTemplateTier{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: configuration.Namespace(),
+			Name:      "base1ns",
+		},
+		Spec: toolchainv1alpha1.NSTemplateTierSpec{
+			ClusterResources: &toolchainv1alpha1.NSTemplateTierClusterResources{
+				TemplateRef: "basic-clusterresources-123456new",
+			},
+			Namespaces: []toolchainv1alpha1.NSTemplateTierNamespace{
+				{
+					TemplateRef: "basic-dev-123456new",
+				},
+				{
+					TemplateRef: "basic-stage-123456new",
+				},
+			},
+			SpaceRoles: map[string]toolchainv1alpha1.NSTemplateTierSpaceRole{
+				"admin": {
+					TemplateRef: "basic-admin-123456new",
+				},
+				"viewer": {
+					TemplateRef: "basic-viewer-123456new",
+				},
+			},
 		},
 	}
 }

@@ -107,10 +107,10 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20230912073725-4ae0201b4630 h1:Z281nLD0OLfdzbUq2tUK5/B6d2OX1hPg5oFGZSJM4RQ=
-github.com/codeready-toolchain/api v0.0.0-20230912073725-4ae0201b4630/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20230710095440-719b09376de3 h1:zPxv/JJRZsXS+OVgsrF1egFlTi45DXJ8MTPi50meujI=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20230710095440-719b09376de3/go.mod h1:vtUfWOJBDxQP1DtcIoxfjI5heBGcT8D+C8ux+PLouyg=
+github.com/codeready-toolchain/api v0.0.0-20230918195153-739e8fb09a33 h1:hxXfcFq2JgFISVxrkISg8m9DZMzpcPWRjPspx3M3Sxo=
+github.com/codeready-toolchain/api v0.0.0-20230918195153-739e8fb09a33/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20231002120847-bf3a59c8351b h1:3nk69kWcILOiu6Ul9DZZTRmx4pItVit+9uOAmjrYCfM=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20231002120847-bf3a59c8351b/go.mod h1:o/JGPWZ/9rVh/np0tcaPRXnreZ+X743o0Gxp1eP62/w=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

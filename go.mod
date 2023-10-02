@@ -4,8 +4,8 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20230912073725-4ae0201b4630
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20230710095440-719b09376de3
+	github.com/codeready-toolchain/api v0.0.0-20230918195153-739e8fb09a33
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20231002120847-bf3a59c8351b
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -31,6 +31,7 @@ require (
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
 	github.com/nyaruka/phonenumbers v1.1.1
 	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_model v0.3.0
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.21.0
 	gopkg.in/square/go-jose.v2 v2.3.0
@@ -69,7 +70,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/migueleliasweb/go-github-mock v0.0.18 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.40.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

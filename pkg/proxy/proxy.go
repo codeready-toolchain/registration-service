@@ -125,7 +125,7 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
-	wg.GET("/:workspace", p.spaceLister.HandleSpaceListRequest)
+	wg.GET("/:workspace", p.spaceLister.HandleSpaceGetRequest)
 	wg.GET("", p.spaceLister.HandleSpaceListRequest)
 	router.GET(proxyHealthEndpoint, p.health)
 	router.Any("/*", p.handleRequestAndRedirect)

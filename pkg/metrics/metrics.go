@@ -1,8 +1,13 @@
 package metrics
 
 import (
+	"github.com/labstack/echo/v4"
+	glog "github.com/labstack/gommon/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 )
 
 var log = logf.Log.WithName("registration_metrics")
@@ -12,6 +17,7 @@ const (
 	MetricLabelRejected  = "Rejected"
 	MetricsLabelVerbGet  = "Get"
 	MetricsLabelVerbList = "List"
+	MetricsPort          = "8082"
 )
 
 // histogram with labels
@@ -63,4 +69,35 @@ func RegisterCustomMetrics() {
 		Reg.MustRegister(v)
 	}
 	log.Info("custom metrics registered")
+}
+
+type Metrics struct{}
+
+func NewMetrics() *Metrics {
+	return &Metrics{}
+}
+
+//nolint:unparam
+func (m *Metrics) PrometheusHandler(ctx echo.Context) error {
+	h := promhttp.HandlerFor(Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: Reg})
+	h.ServeHTTP(ctx.Response().Writer, ctx.Request())
+	return nil
+}
+
+func (m *Metrics) StartMetricsServer() *http.Server {
+	// start server
+	router := echo.New()
+	router.Logger.SetLevel(glog.INFO)
+	router.GET("/metrics", m.PrometheusHandler)
+
+	log.Info("Starting the Registration-Service Metrics server...")
+	srv := &http.Server{Addr: ":" + MetricsPort, Handler: router, ReadHeaderTimeout: 2 * time.Second}
+	// listen concurrently to allow for graceful shutdown
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Error(err, err.Error())
+		}
+	}()
+
+	return srv
 }

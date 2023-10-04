@@ -112,6 +112,8 @@ func main() {
 		informerShutdown <- struct{}{}
 	})
 
+	metricsCtrl := metrics.NewMetrics()
+	metricsSrv := metricsCtrl.StartMetricsServer()
 	srv := server.New(app)
 
 	err = srv.SetupRoutes()
@@ -141,7 +143,7 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv)
+	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv, metricsSrv)
 }
 
 func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {

@@ -45,8 +45,7 @@ const (
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
 	proxyHealthEndpoint = "/proxyhealth"
-
-	pluginsEndpoint = "/plugins/"
+	pluginsEndpoint     = "/plugins/"
 )
 
 type Proxy struct {
@@ -54,7 +53,6 @@ type Proxy struct {
 	cl          client.Client
 	tokenParser *auth.TokenParser
 	spaceLister *handlers.SpaceLister
-	metrics     *handlers.Metrics
 }
 
 func NewProxy(app application.Application) (*Proxy, error) {
@@ -77,13 +75,11 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 
 	// init handlers
 	spaceLister := handlers.NewSpaceLister(app)
-	metrics := handlers.NewMetrics()
 	return &Proxy{
 		app:         app,
 		cl:          cln,
 		tokenParser: tokenParser,
 		spaceLister: spaceLister,
-		metrics:     metrics,
 	}, nil
 }
 
@@ -132,7 +128,6 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg.GET("/:workspace", p.spaceLister.HandleSpaceListRequest)
 	wg.GET("", p.spaceLister.HandleSpaceListRequest)
 	router.GET(proxyHealthEndpoint, p.health)
-	router.GET("/metrics", p.metrics.PrometheusHandler)
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware

@@ -438,7 +438,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	// Check UserSignup status to determine whether user signup is complete
 	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
 	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
-	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
+	if !approvedFound || !completeFound ||
+		( approvedCondition.Status != apiv1.ConditionTrue && approvedCondition.Reason != toolchainv1alpha1.UserSignupUserDeactivatedReason) {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is pending approval", userSignup.GetName()))
 		signupResponse.Status = signup.Status{
 			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,

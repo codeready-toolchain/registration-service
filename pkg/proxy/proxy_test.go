@@ -204,6 +204,22 @@ func (s *TestProxySuite) TestProxy() {
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
 					s.assertResponseBody(resp, "unable to get target cluster: some-error")
 				})
+
+				s.Run("internal error if accessing incorrect url", func() {
+					// given
+					req := s.request()
+					req.URL.Path = "http://localhost:8081/metrics"
+					require.NotNil(s.T(), req)
+
+					// when
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
+					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
+				})
 			})
 
 			s.Run("websockets error", func() {

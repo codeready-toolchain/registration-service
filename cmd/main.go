@@ -112,8 +112,9 @@ func main() {
 		informerShutdown <- struct{}{}
 	})
 
-	metricsCtrl := metrics.NewMetrics()
-	metricsSrv := metricsCtrl.StartMetricsServer()
+	// Start metrics server
+	metricsSrv := metrics.StartMetricsServer()
+
 	srv := server.New(app)
 
 	err = srv.SetupRoutes()

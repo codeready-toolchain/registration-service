@@ -64,6 +64,9 @@ func newHistogramVec(name, help string, labels ...string) *prometheus.HistogramV
 // RegisterCustomMetrics registers the custom metrics
 func RegisterCustomMetrics() {
 	Reg = prometheus.NewRegistry()
+	if len(allHistogramVecs) == 0 {
+		log.Info("No Histograms to register")
+	}
 	// register metrics
 	for _, v := range allHistogramVecs {
 		Reg.MustRegister(v)
@@ -71,24 +74,18 @@ func RegisterCustomMetrics() {
 	log.Info("custom metrics registered")
 }
 
-type Metrics struct{}
-
-func NewMetrics() *Metrics {
-	return &Metrics{}
-}
-
 //nolint:unparam
-func (m *Metrics) PrometheusHandler(ctx echo.Context) error {
+func prometheusHandler(ctx echo.Context) error {
 	h := promhttp.HandlerFor(Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: Reg})
 	h.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil
 }
 
-func (m *Metrics) StartMetricsServer() *http.Server {
+func StartMetricsServer() *http.Server {
 	// start server
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
-	router.GET("/metrics", m.PrometheusHandler)
+	router.GET("/metrics", prometheusHandler)
 
 	log.Info("Starting the Registration-Service Metrics server...")
 	srv := &http.Server{Addr: ":" + MetricsPort, Handler: router, ReadHeaderTimeout: 2 * time.Second}

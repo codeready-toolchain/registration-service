@@ -146,3 +146,5 @@ require (
 )
 
 replace github.com/codeready-toolchain/toolchain-common => github.com/mfrancisc/toolchain-common v0.0.0-20231002145157-94054ae52f2e
+
+replace github.com/codeready-toolchain/api => github.com/mfrancisc/api v0.0.0-20231009110929-3412d406675e

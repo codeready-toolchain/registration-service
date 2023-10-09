@@ -40,6 +40,8 @@ func TestSpaceLister(t *testing.T) {
 		newSignup("pandalover", "panda.lover", true),
 		newSignup("usernospace", "user.nospace", true),
 		newSignup("foodlover", "food.lover", true),
+		newSignup("animelover", "anime.lover", true),
+		newSignup("carlover", "car.lover", true),
 		newSignup("racinglover", "racing.lover", false),
 	)
 
@@ -47,12 +49,29 @@ func TestSpaceLister(t *testing.T) {
 	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
 	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
 
+	// spacebinding associated with SpaceBindingRequest
+	spaceBindingWithSBR := fake.NewSpaceBinding("foodlover-sb-from-sbr", "foodlover", "movielover", "maintainer")
+	spaceBindingWithSBR.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "foodlover-sbr"
+	spaceBindingWithSBR.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-tenant"
+
+	// spacebinding with SpaceBindingRequest but name is missing
+	spaceBindingWithInvalidSBRName := fake.NewSpaceBinding("carlover-sb-from-sbr", "carlover", "animelover", "viewer")
+	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "" // let's set the name to blank in order to trigger an error
+	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "anime-tenant"
+
+	// spacebinding with SpaceBindingRequest but namespace is missing
+	spaceBindingWithInvalidSBRNamespace := fake.NewSpaceBinding("animelover-sb-from-sbr", "animelover", "carlover", "viewer")
+	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
+	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
+
 	fakeClient := initFakeClient(t,
 		// spaces
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
 		fake.NewSpace("racinglover", "member-2", "racinglover"),
 		fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")),
+		fake.NewSpace("animelover", "member-1", "animelover"),
+		fake.NewSpace("carlover", "member-1", "carlover"),
 		spaceNotProvisionedYet,
 
 		//spacebindings
@@ -60,6 +79,11 @@ func TestSpaceLister(t *testing.T) {
 		fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
 		fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
 		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
+		fake.NewSpaceBinding("anime-sb", "animelover", "animelover", "admin"),
+		fake.NewSpaceBinding("car-sb", "carlover", "carlover", "admin"),
+		spaceBindingWithSBR,
+		spaceBindingWithInvalidSBRName,
+		spaceBindingWithInvalidSBRNamespace,
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
@@ -204,7 +228,7 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "admin",
-								AvailableActions: []string{"update", "delete"},
+								AvailableActions: []string{"override"},
 							},
 						}),
 					),
@@ -223,12 +247,21 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "foodlover",
+								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
 							},
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"update", "delete"},
+								AvailableActions: []string{"override"},
 							},
 						}),
 					),
@@ -262,16 +295,26 @@ func TestSpaceLister(t *testing.T) {
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
+						// bindings are in alphabetical order using the MUR name
 						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "foodlover",
+								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
 							},
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"update", "delete"},
+								AvailableActions: []string{"override"},
 							},
 						}),
 					),
@@ -297,12 +340,21 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "foodlover",
+								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
 							},
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"update", "delete"},
+								AvailableActions: []string{"override"},
 							},
 						}),
 					),
@@ -400,6 +452,32 @@ func TestSpaceLister(t *testing.T) {
 					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
 				},
 				expectedWorkspace: "foodlover",
+			},
+			"error spaceBinding request has no name": {
+				username: "anime.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "animelover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+					),
+				},
+				expectedErr:       "Internal error occurred: SpaceBindingRequest name not found on binding: carlover-sb-from-sbr",
+				expectedErrCode:   500,
+				expectedWorkspace: "animelover",
+			},
+			"error spaceBinding request has no namespace set": {
+				username: "car.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "carlover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+					),
+				},
+				expectedErr:       "Internal error occurred: SpaceBindingRequest namespace not found on binding: animelover-sb-from-sbr",
+				expectedErrCode:   500,
+				expectedWorkspace: "carlover",
 			},
 		}
 

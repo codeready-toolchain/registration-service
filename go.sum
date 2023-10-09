@@ -111,8 +111,6 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20230918195153-739e8fb09a33 h1:hxXfcFq2JgFISVxrkISg8m9DZMzpcPWRjPspx3M3Sxo=
-github.com/codeready-toolchain/api v0.0.0-20230918195153-739e8fb09a33/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -371,6 +369,8 @@ github.com/mattn/go-isatty v0.0.19 h1:JITubQf0MOLdlGRuRq+jtsDlekdYPia9ZFsB8h/APP
 github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zkfA9PSy5pEvNWRP0ET0TIVo=
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
+github.com/mfrancisc/api v0.0.0-20231009110929-3412d406675e h1:X7Cous9+l2Ju7t8IPEtebiOuF8OsZRmUIZlt4tvFFvc=
+github.com/mfrancisc/api v0.0.0-20231009110929-3412d406675e/go.mod h1:nn3W6eKb9PFIVwSwZW7wDeLACMBOwAV+4kddGuN+ARM=
 github.com/mfrancisc/toolchain-common v0.0.0-20231002145157-94054ae52f2e h1:P4C77qKcRLx9BJ8vnYaX6MC84SUCrz6EldhhiIazHHA=
 github.com/mfrancisc/toolchain-common v0.0.0-20231002145157-94054ae52f2e/go.mod h1:o/JGPWZ/9rVh/np0tcaPRXnreZ+X743o0Gxp1eP62/w=
 github.com/migueleliasweb/go-github-mock v0.0.18 h1:0lWt9MYmZQGnQE2rFtjlft/YtD6hzxuN6JJRFpujzEI=

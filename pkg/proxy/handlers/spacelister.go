@@ -134,7 +134,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	}
 	// build the Bindings list with the available actions
 	// this field is populated only for the GET workspace request
-	bindings, err := generateWorkspaceBindings(space, allSpaceBindings)
+	bindings, err := generateWorkspaceBindings(allSpaceBindings)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to generate bindings field"))
 		return nil, err
@@ -281,7 +281,7 @@ func filterUserSpaceBindings(username string, allSpaceBindings []toolchainv1alph
 
 // generateWorkspaceBindings generates the bindings list starting from the spacebindings found on a given space resource and an all parent spaces.
 // The Bindings list  has the available actions for each entry in the list.
-func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Binding, error) {
+func generateWorkspaceBindings(spaceBindings []toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Binding, error) {
 	var bindings []toolchainv1alpha1.Binding
 	for _, spaceBinding := range spaceBindings {
 		binding := toolchainv1alpha1.Binding{
@@ -289,16 +289,26 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 			Role:             spaceBinding.Spec.SpaceRole,
 			AvailableActions: []string{},
 		}
-		if SBRName, isSBRBinding := spaceBinding.GetLabels()[toolchainv1alpha1.SpaceBindingRequestLabelKey]; isSBRBinding {
-			if SBRName == "" {
-				// small corner case where the SBR name for some reason is not generated
+		sbrName, sbrNameFound := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey]
+		sbrNamespace, sbrNamespaceFound := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey]
+		if sbrNameFound || sbrNamespaceFound {
+			if sbrName == "" {
+				// small corner case where the SBR name for some reason is not present as labels on the sb.
 				return nil, fmt.Errorf("SpaceBindingRequest name not found on binding: %s", spaceBinding.GetName())
+			}
+			if sbrNamespace == "" {
+				// small corner case where the SBR namespace for some reason is not present as labels on the sb.
+				return nil, fmt.Errorf("SpaceBindingRequest namespace not found on binding: %s", spaceBinding.GetName())
 			}
 			// this is a binding that was created via SpaceBindingRequest, it can be updated or deleted
 			binding.AvailableActions = []string{UpdateBindingAction, DeleteBindingAction}
+			binding.BindingRequest = toolchainv1alpha1.BindingRequest{
+				Name:      sbrName,
+				Namespace: sbrNamespace,
+			}
 		} else {
 			// this is a binding that was inherited from a parent space,
-			// it can only be overridden by another spacebinding containing the same MUR but different role.
+			// it can only be overridden by another SpaceBinding containing the same MUR but different role.
 			binding.AvailableActions = []string{OverrideBindingAction}
 		}
 		bindings = append(bindings, binding)

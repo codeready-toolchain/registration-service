@@ -134,7 +134,11 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	}
 	// build the Bindings list with the available actions
 	// this field is populated only for the GET workspace request
-	bindings := generateWorkspaceBindings(space, allSpaceBindings)
+	bindings, err := generateWorkspaceBindings(space, allSpaceBindings)
+	if err != nil {
+		ctx.Logger().Error(errs.Wrap(err, "unable to generate bindings field"))
+		return nil, err
+	}
 
 	// add available roles, this field is populated only for the GET workspace request
 	nsTemplateTier, err := s.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
@@ -277,7 +281,7 @@ func filterUserSpaceBindings(username string, allSpaceBindings []toolchainv1alph
 
 // generateWorkspaceBindings generates the bindings list starting from the spacebindings found on a given space resource and an all parent spaces.
 // The Bindings list  has the available actions for each entry in the list.
-func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Binding {
+func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Binding, error) {
 	var bindings []toolchainv1alpha1.Binding
 	for _, spaceBinding := range spaceBindings {
 		binding := toolchainv1alpha1.Binding{
@@ -285,8 +289,12 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 			Role:             spaceBinding.Spec.SpaceRole,
 			AvailableActions: []string{},
 		}
-		if name, exists := spaceBinding.GetLabels()[toolchainv1alpha1.SpaceBindingSpaceLabelKey]; exists && name == space.GetName() {
-			// this is a binding that was created on the current space, it can be updated or deleted
+		if SBRName, isSBRBinding := spaceBinding.GetLabels()[toolchainv1alpha1.SpaceBindingRequestLabelKey]; isSBRBinding {
+			if SBRName == "" {
+				// small corner case where the SBR name for some reason is not generated
+				return nil, fmt.Errorf("SpaceBindingRequest name not found on binding: %s", spaceBinding.GetName())
+			}
+			// this is a binding that was created via SpaceBindingRequest, it can be updated or deleted
 			binding.AvailableActions = []string{UpdateBindingAction, DeleteBindingAction}
 		} else {
 			// this is a binding that was inherited from a parent space,
@@ -302,5 +310,5 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 		return bindings[i].MasterUserRecord < bindings[j].MasterUserRecord
 	})
 
-	return bindings
+	return bindings, nil
 }

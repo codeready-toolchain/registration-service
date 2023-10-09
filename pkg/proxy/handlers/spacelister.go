@@ -33,7 +33,7 @@ const (
 	UpdateBindingAction = "update"
 	// DeleteBindingAction specifies that the current binding can be deleted in order to revoke user access to the Space.
 	DeleteBindingAction = "delete"
-	// OverrideBindingAction specifies that the current binding can be overridden by creating a SpaceBinding containing the same MUR but different Space Role.
+	// OverrideBindingAction specifies that the current binding can be overridden by creating a SpaceBindingRequest containing the same MUR but different Space Role.
 	OverrideBindingAction = "override"
 )
 

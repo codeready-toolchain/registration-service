@@ -50,9 +50,15 @@ func TestSpaceLister(t *testing.T) {
 	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
 
 	// spacebinding associated with SpaceBindingRequest
-	spaceBindingWithSBR := fake.NewSpaceBinding("foodlover-sb-from-sbr", "foodlover", "movielover", "maintainer")
-	spaceBindingWithSBR.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "foodlover-sbr"
-	spaceBindingWithSBR.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-tenant"
+	spaceBindingWithSBRonMovieLover := fake.NewSpaceBinding("foodlover-sb-from-sbr-on-movielover", "foodlover", "movielover", "maintainer")
+	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "foodlover-sbr"
+	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-tenant"
+
+	// spacebinding associated with SpaceBindingRequest on a dancelover,
+	// which is also the parentSpace of foodlover
+	spaceBindingWithSBRonDanceLover := fake.NewSpaceBinding("animelover-sb-from-sbr-on-dancelover", "animelover", "dancelover", "viewer")
+	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "animelover-sbr"
+	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "dancelover-tenant"
 
 	// spacebinding with SpaceBindingRequest but name is missing
 	spaceBindingWithInvalidSBRName := fake.NewSpaceBinding("carlover-sb-from-sbr", "carlover", "animelover", "viewer")
@@ -81,7 +87,8 @@ func TestSpaceLister(t *testing.T) {
 		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
 		fake.NewSpaceBinding("anime-sb", "animelover", "animelover", "admin"),
 		fake.NewSpaceBinding("car-sb", "carlover", "carlover", "admin"),
-		spaceBindingWithSBR,
+		spaceBindingWithSBRonMovieLover,
+		spaceBindingWithSBRonDanceLover,
 		spaceBindingWithInvalidSBRName,
 		spaceBindingWithInvalidSBRNamespace,
 
@@ -226,9 +233,18 @@ func TestSpaceLister(t *testing.T) {
 						),
 						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
 							{
+								MasterUserRecord: "animelover",
+								Role:             "viewer",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
+									Name:      "animelover-sbr",
+									Namespace: "dancelover-tenant",
+								},
+							},
+							{
 								MasterUserRecord: "dancelover",
 								Role:             "admin",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
 					),
@@ -247,13 +263,13 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 							{
 								MasterUserRecord: "foodlover",
 								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
-								BindingRequest: toolchainv1alpha1.BindingRequest{
+								BindingRequest: toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
 									Name:      "foodlover-sbr",
 									Namespace: "movielover-tenant",
 								},
@@ -261,7 +277,7 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
 					),
@@ -277,6 +293,11 @@ func TestSpaceLister(t *testing.T) {
 							"admin", "viewer",
 						}),
 						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "animelover",
+								Role:             "viewer",             // animelover was granted access via SBR , but on the parentSpace,
+								AvailableActions: []string{"override"}, // since the binding is inherited from parent space, then it can only be overridden
+							},
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "admin",              // dancelover is admin since it's admin on the parent space,
@@ -300,7 +321,7 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 							{
 								MasterUserRecord: "foodlover",
@@ -314,7 +335,7 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
 					),
@@ -340,10 +361,10 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "other",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 							{
-								MasterUserRecord: "foodlover",
+								MasterUserRecord: "foodlover", // foodlover was granted access to movielover workspace using SpaceBindingRequest
 								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: toolchainv1alpha1.BindingRequest{
@@ -354,7 +375,7 @@ func TestSpaceLister(t *testing.T) {
 							{
 								MasterUserRecord: "movielover",
 								Role:             "admin",
-								AvailableActions: []string{"override"},
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
 					),

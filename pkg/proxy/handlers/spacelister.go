@@ -308,7 +308,7 @@ func generateWorkspaceBindings(spaceBindings []toolchainv1alpha1.SpaceBinding) (
 			}
 		} else {
 			// this is a binding that was inherited from a parent space,
-			// it can only be overridden by another SpaceBinding containing the same MUR but different role.
+			// it can only be overridden by another SpaceBindingRequest containing the same MUR but different role.
 			binding.AvailableActions = []string{OverrideBindingAction}
 		}
 		bindings = append(bindings, binding)

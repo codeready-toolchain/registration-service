@@ -396,23 +396,6 @@ func TestSpaceLister(t *testing.T) {
 				},
 				expectedWorkspace: "dancelover",
 			},
-			"too many spacebindings for user": {
-				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
-				expectedErr:     "Internal error occurred: expected only 1 spacebinding, got 2 for user dancelover and workspace dancelover",
-				expectedErrCode: 500,
-				overrideInformerFunc: func() service.InformerService {
-					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-						// let's return more than 1 spacebinding to trigger the error
-						return []toolchainv1alpha1.SpaceBinding{
-							*fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
-							*fake.NewSpaceBinding("dancer-sb2", "dancelover", "dancelover", "other"),
-						}, nil
-					}
-					return getFakeInformerService(fakeClient, WithListSpaceBindingFunc(listSpaceBindingFunc))()
-				},
-				expectedWorkspace: "dancelover",
-			},
 			"get signup error": {
 				username:        "dance.lover",
 				expectedWs:      []toolchainv1alpha1.Workspace{},

@@ -121,16 +121,11 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	}
 
 	// check if user has access to this workspace
-	userBindings := filterUserSpaceBindings(userSignup.CompliantUsername, allSpaceBindings)
-	if len(userBindings) == 0 {
+	userBinding := filterUserSpaceBinding(userSignup.CompliantUsername, allSpaceBindings)
+	if userBinding == nil {
 		//  let's only log the issue and consider this as not found
-		ctx.Logger().Error(fmt.Sprintf("expected only 1 spacebinding, got 0 for user %s and workspace %s", userSignup.CompliantUsername, workspaceName))
+		ctx.Logger().Error(fmt.Sprintf("expected 1 spacebinding, got 0 for user %s and workspace %s", userSignup.CompliantUsername, workspaceName))
 		return nil, nil
-	} else if len(userBindings) > 1 {
-		// internal server error
-		cause := fmt.Errorf("expected only 1 spacebinding, got %d for user %s and workspace %s", len(userBindings), userSignup.CompliantUsername, workspaceName)
-		ctx.Logger().Error(cause.Error())
-		return nil, cause
 	}
 	// build the Bindings list with the available actions
 	// this field is populated only for the GET workspace request
@@ -147,7 +142,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 		return nil, err
 	}
 
-	return createWorkspaceObject(userSignup.Name, space, &userBindings[0],
+	return createWorkspaceObject(userSignup.Name, space, userBinding,
 		commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier)),
 		commonproxy.WithBindings(bindings),
 	), nil
@@ -269,14 +264,14 @@ func errorResponse(ctx echo.Context, err *apierrors.StatusError) error {
 	return json.NewEncoder(ctx.Response().Writer).Encode(err.ErrStatus)
 }
 
-// filterUserSpaceBindings returns all the spacebindings for a given username
-func filterUserSpaceBindings(username string, allSpaceBindings []toolchainv1alpha1.SpaceBinding) (outputBindings []toolchainv1alpha1.SpaceBinding) {
+// filterUserSpaceBinding returns the spacebinding for a given username, or nil if not found
+func filterUserSpaceBinding(username string, allSpaceBindings []toolchainv1alpha1.SpaceBinding) *toolchainv1alpha1.SpaceBinding {
 	for _, binding := range allSpaceBindings {
 		if binding.Spec.MasterUserRecord == username {
-			outputBindings = append(outputBindings, binding)
+			return &binding
 		}
 	}
-	return outputBindings
+	return nil
 }
 
 // generateWorkspaceBindings generates the bindings list starting from the spacebindings found on a given space resource and an all parent spaces.

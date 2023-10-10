@@ -1093,7 +1093,8 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	us := s.newUserSignupCompleteWithReason("Deactivated")
+	us := s.newUserSignupComplete()
+	us.Status.Conditions = deactivated()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
@@ -2222,7 +2223,12 @@ func deactivated() []toolchainv1alpha1.Condition {
 		{
 			Type:   toolchainv1alpha1.UserSignupComplete,
 			Status: apiv1.ConditionTrue,
-			Reason: "Deactivated",
+			Reason: toolchainv1alpha1.UserSignupUserDeactivatedReason,
+		},
+		{
+			Type:   toolchainv1alpha1.UserSignupApproved,
+			Status: apiv1.ConditionFalse,
+			Reason: toolchainv1alpha1.UserSignupUserDeactivatedReason,
 		},
 	}
 }

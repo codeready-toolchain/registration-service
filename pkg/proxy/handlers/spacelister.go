@@ -121,7 +121,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	userBinding := filterUserSpaceBinding(userSignup.CompliantUsername, allSpaceBindings)
 	if userBinding == nil {
 		//  let's only log the issue and consider this as not found
-		ctx.Logger().Error(fmt.Sprintf("expected 1 spacebinding, got 0 for user %s and workspace %s", userSignup.CompliantUsername, workspaceName))
+		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
 		return nil, nil
 	}
 	// build the Bindings list with the available actions

@@ -1,8 +1,8 @@
 package usernames
 
-// Usernames represents the response of a search request done by using the MUR name or an email address.
+// Response represents the result of a search request done by using the MUR name or an email address.
 // The result will specify if a user exits in the system or not , or if there are multiple matches for the given search query
-type Usernames struct {
+type Response struct {
 	// For is the search string that was specified in the search request url. Example: /usernames/<search string>
 	For string `json:"for"`
 	// Valid can be true or false.

@@ -110,10 +110,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 		}
 		return s.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
 	}
-	getSpaceFunc := func(spaceName string) (*toolchainv1alpha1.Space, error) {
-		return s.GetInformerServiceFunc().GetSpace(spaceName)
-	}
-	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, getSpaceFunc)
+	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, s.GetInformerServiceFunc().GetSpace)
 	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
 		ctx.Logger().Error(err, "failed to list space bindings")

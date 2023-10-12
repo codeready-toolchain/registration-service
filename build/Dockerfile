@@ -16,6 +16,6 @@ COPY build/_output/bin/registration-service ${REG_SERVICE}
 
 ENTRYPOINT ["/usr/local/bin/registration-service"]
 
-EXPOSE 8080 8081
+EXPOSE 8080 8081 8082
 
 USER ${USER_UID}

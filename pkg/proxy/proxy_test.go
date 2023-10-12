@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"io"
 	"log"
 	"net/http"
@@ -69,7 +71,8 @@ func (s *TestProxySuite) TestProxy() {
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
-			p, err := newProxyWithClusterClient(fakeApp, nil)
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics)
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy()
@@ -604,6 +607,7 @@ func (s *TestProxySuite) TestProxy() {
 												GetInformerServiceFunc: func() appservice.InformerService {
 													return inf
 												},
+												ProxyMetrics: p.metrics,
 											}
 										}
 
@@ -632,7 +636,6 @@ func (s *TestProxySuite) TestProxy() {
 					})
 				}
 			})
-
 		})
 	}
 }

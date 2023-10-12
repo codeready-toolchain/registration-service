@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sort"
 
+	"time"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -14,8 +16,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
+	"github.com/codeready-toolchain/toolchain-common/pkg/spacebinding"
 	"github.com/gin-gonic/gin"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -24,6 +26,15 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+)
+
+const (
+	// UpdateBindingAction specifies that the current binding can be updated by providing a different Space Role.
+	UpdateBindingAction = "update"
+	// DeleteBindingAction specifies that the current binding can be deleted in order to revoke user access to the Space.
+	DeleteBindingAction = "delete"
+	// OverrideBindingAction specifies that the current binding can be overridden by creating a SpaceBindingRequest containing the same MUR but different Space Role.
+	OverrideBindingAction = "override"
 )
 
 type SpaceLister struct {
@@ -73,6 +84,7 @@ func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
 func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Workspace, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
+	workspaceName := ctx.Param("workspace")
 
 	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
 	if err != nil {
@@ -86,28 +98,41 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 		return nil, nil
 
 	}
-	murName := userSignup.CompliantUsername
-	spaceBinding, err := s.listSpaceBindingForUserAndSpace(ctx, murName)
+	space, err := s.GetInformerServiceFunc().GetSpace(workspaceName)
 	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
-		return nil, err
-	}
-	if spaceBinding == nil {
-		// spacebinding not found, let's return a nil workspace which causes the handler to respond with a 404 status code
+		ctx.Logger().Error(errs.Wrap(err, "unable to get space"))
 		return nil, nil
 	}
 
-	space, err := s.getSpace(spaceBinding)
+	// recursively get all the spacebindings for the current workspace
+	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
+		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{spaceName})
+		if err != nil {
+			return nil, err
+		}
+		return s.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
+	}
+	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, s.GetInformerServiceFunc().GetSpace)
+	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
-		ctx.Logger().Error(errs.Wrap(err, "unable to get space"))
+		ctx.Logger().Error(err, "failed to list space bindings")
 		return nil, err
 	}
 
-	// -------------
-	// TODO recursively get all the spacebindings for the current workspace
-	// and build the Bindings list with the available actions
+	// check if user has access to this workspace
+	userBinding := filterUserSpaceBinding(userSignup.CompliantUsername, allSpaceBindings)
+	if userBinding == nil {
+		//  let's only log the issue and consider this as not found
+		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+		return nil, nil
+	}
+	// build the Bindings list with the available actions
 	// this field is populated only for the GET workspace request
-	// -------------
+	bindings, err := generateWorkspaceBindings(space, allSpaceBindings)
+	if err != nil {
+		ctx.Logger().Error(errs.Wrap(err, "unable to generate bindings field"))
+		return nil, err
+	}
 
 	// add available roles, this field is populated only for the GET workspace request
 	nsTemplateTier, err := s.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
@@ -115,9 +140,11 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 		ctx.Logger().Error(errs.Wrap(err, "unable to get nstemplatetier"))
 		return nil, err
 	}
-	getOnlyWSOptions := commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier))
 
-	return createWorkspaceObject(userSignup.Name, space, spaceBinding, getOnlyWSOptions), nil
+	return createWorkspaceObject(userSignup.Name, space, userBinding,
+		commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier)),
+		commonproxy.WithBindings(bindings),
+	), nil
 }
 
 func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.Workspace, error) {
@@ -151,38 +178,6 @@ func (s *SpaceLister) listSpaceBindingsForUser(murName string) ([]toolchainv1alp
 	}
 	requirements := []labels.Requirement{*murSelector}
 	return s.GetInformerServiceFunc().ListSpaceBindings(requirements...)
-}
-
-func (s *SpaceLister) listSpaceBindingForUserAndSpace(ctx echo.Context, murName string) (*toolchainv1alpha1.SpaceBinding, error) {
-	workspaceName := ctx.Param("workspace")
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
-	if err != nil {
-		return nil, err
-	}
-	// specific workspace requested so add label requirement to match the space
-	spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{workspaceName})
-	if err != nil {
-		return nil, err
-	}
-	requirements := []labels.Requirement{*murSelector, *spaceSelector}
-
-	spaceBindings, err := s.GetInformerServiceFunc().ListSpaceBindings(requirements...)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(spaceBindings) == 0 {
-		//  let's only log the issue and consider this as not found
-		ctx.Logger().Error(fmt.Sprintf("expected only 1 spacebinding, got 0 for user %s and workspace %s", murName, workspaceName))
-		return nil, nil
-	} else if len(spaceBindings) > 1 {
-		// internal server error
-		cause := fmt.Errorf("expected only 1 spacebinding, got %d for user %s and workspace %s", len(spaceBindings), murName, workspaceName)
-		ctx.Logger().Error(cause.Error())
-		return nil, cause
-	}
-
-	return &spaceBindings[0], nil
 }
 
 func (s *SpaceLister) workspacesFromSpaceBindings(signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
@@ -266,4 +261,63 @@ func errorResponse(ctx echo.Context, err *apierrors.StatusError) error {
 	ctx.Response().Writer.Header().Set("Content-Type", "application/json")
 	ctx.Response().Writer.WriteHeader(int(err.ErrStatus.Code))
 	return json.NewEncoder(ctx.Response().Writer).Encode(err.ErrStatus)
+}
+
+// filterUserSpaceBinding returns the spacebinding for a given username, or nil if not found
+func filterUserSpaceBinding(username string, allSpaceBindings []toolchainv1alpha1.SpaceBinding) *toolchainv1alpha1.SpaceBinding {
+	for _, binding := range allSpaceBindings {
+		if binding.Spec.MasterUserRecord == username {
+			return &binding
+		}
+	}
+	return nil
+}
+
+// generateWorkspaceBindings generates the bindings list starting from the spacebindings found on a given space resource and an all parent spaces.
+// The Bindings list  has the available actions for each entry in the list.
+func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []toolchainv1alpha1.SpaceBinding) ([]toolchainv1alpha1.Binding, error) {
+	var bindings []toolchainv1alpha1.Binding
+	for _, spaceBinding := range spaceBindings {
+		binding := toolchainv1alpha1.Binding{
+			MasterUserRecord: spaceBinding.Spec.MasterUserRecord,
+			Role:             spaceBinding.Spec.SpaceRole,
+			AvailableActions: []string{},
+		}
+		spaceBindingSpaceName := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
+		sbrName, sbrNameFound := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey]
+		sbrNamespace, sbrNamespaceFound := spaceBinding.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey]
+		// check if spacebinding was generated from SBR on the current space and not on a parentSpace.
+		if (sbrNameFound || sbrNamespaceFound) && spaceBindingSpaceName == space.GetName() {
+			if sbrName == "" {
+				// small corner case where the SBR name for some reason is not present as labels on the sb.
+				return nil, fmt.Errorf("SpaceBindingRequest name not found on binding: %s", spaceBinding.GetName())
+			}
+			if sbrNamespace == "" {
+				// small corner case where the SBR namespace for some reason is not present as labels on the sb.
+				return nil, fmt.Errorf("SpaceBindingRequest namespace not found on binding: %s", spaceBinding.GetName())
+			}
+			// this is a binding that was created via SpaceBindingRequest, it can be updated or deleted
+			binding.AvailableActions = []string{UpdateBindingAction, DeleteBindingAction}
+			binding.BindingRequest = toolchainv1alpha1.BindingRequest{
+				Name:      sbrName,
+				Namespace: sbrNamespace,
+			}
+		} else if spaceBindingSpaceName != space.GetName() {
+			// this is a binding that was inherited from a parent space, since the name on the spacebinding label doesn't match with the current space name.
+			// It can only be overridden by another SpaceBindingRequest containing the same MUR but different role.
+			binding.AvailableActions = []string{OverrideBindingAction}
+		} else {
+			// this is a system generated SpaceBinding, so it cannot be managed by workspace users.
+			binding.AvailableActions = []string{}
+		}
+		bindings = append(bindings, binding)
+	}
+
+	// let's sort the list based on username,
+	// in order to make it deterministic
+	sort.Slice(bindings, func(i, j int) bool {
+		return bindings[i].MasterUserRecord < bindings[j].MasterUserRecord
+	})
+
+	return bindings, nil
 }

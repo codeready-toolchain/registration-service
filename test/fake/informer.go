@@ -3,6 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -71,22 +72,15 @@ func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateT
 	panic("not supposed to call GetNSTemplateTierFunc")
 }
 
-func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
-	space := &toolchainv1alpha1.Space{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.SpaceCreatorLabelKey: compliantUserName,
-			},
-		},
-		Spec: toolchainv1alpha1.SpaceSpec{
-			TargetCluster: targetCluster,
-			TierName:      "base1ns",
-		},
-		Status: toolchainv1alpha1.SpaceStatus{
-			TargetCluster: targetCluster,
-			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
+func NewSpace(name, targetCluster, compliantUserName string, spaceTestOptions ...spacetest.Option) *toolchainv1alpha1.Space {
+
+	spaceTestOptions = append(spaceTestOptions,
+		spacetest.WithLabel(toolchainv1alpha1.SpaceCreatorLabelKey, compliantUserName),
+		spacetest.WithSpecTargetCluster(targetCluster),
+		spacetest.WithStatusTargetCluster(targetCluster),
+		spacetest.WithTierName("base1ns"),
+		spacetest.WithStatusProvisionedNamespaces(
+			[]toolchainv1alpha1.SpaceNamespace{
 				{
 					Name: "john-dev",
 					Type: "default",
@@ -95,9 +89,11 @@ func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.
 					Name: "john-stage",
 				},
 			},
-		},
-	}
-	return space
+		),
+	)
+	return spacetest.NewSpace(configuration.Namespace(), name,
+		spaceTestOptions...,
+	)
 }
 
 func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolchainv1alpha1.SpaceBinding {
@@ -110,7 +106,9 @@ func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolcha
 			},
 		},
 		Spec: toolchainv1alpha1.SpaceBindingSpec{
-			SpaceRole: role,
+			SpaceRole:        role,
+			MasterUserRecord: murLabelValue,
+			Space:            spaceLabelValue,
 		},
 	}
 }

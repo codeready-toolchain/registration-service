@@ -499,14 +499,58 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 
 	updated := false
 
+	// Check each of the properties of IdentityClaimsEmbedded individually
+	if userSignup.Spec.IdentityClaims.Sub != ctx.GetString(context.SubKey) {
+		userSignup.Spec.IdentityClaims.Sub = ctx.GetString(context.SubKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.UserID != ctx.GetString(context.UserIDKey) {
+		userSignup.Spec.IdentityClaims.UserID = ctx.GetString(context.UserIDKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.AccountID != ctx.GetString(context.AccountIDKey) {
+		userSignup.Spec.IdentityClaims.AccountID = ctx.GetString(context.AccountIDKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.OriginalSub != ctx.GetString(context.OriginalSubKey) {
+		userSignup.Spec.IdentityClaims.OriginalSub = ctx.GetString(context.OriginalSubKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.Email != ctx.GetString(context.EmailKey) {
+		userSignup.Spec.IdentityClaims.Email = ctx.GetString(context.EmailKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.PreferredUsername != ctx.GetString(context.UsernameKey) {
+		userSignup.Spec.IdentityClaims.PreferredUsername = ctx.GetString(context.UsernameKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.GivenName != ctx.GetString(context.GivenNameKey) {
+		userSignup.Spec.IdentityClaims.GivenName = ctx.GetString(context.GivenNameKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.FamilyName != ctx.GetString(context.FamilyNameKey) {
+		userSignup.Spec.IdentityClaims.FamilyName = ctx.GetString(context.FamilyNameKey)
+		updated = true
+	}
+
+	if userSignup.Spec.IdentityClaims.Company != ctx.GetString(context.CompanyKey) {
+		userSignup.Spec.IdentityClaims.Company = ctx.GetString(context.CompanyKey)
+		updated = true
+	}
+
 	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
 	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
 	// the resource.
+	// FIXME the following code may be removed after all UserSignup records have their IdentityClaims property fully populated
 	userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
 	accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
-
-	// Check each of the properties of IdentityClaimsEmbedded individually
-	if userSignup.Spec.IdentityClaims.UserID !=
 
 	if !userIDFound || userIDValue == "" {
 		userID := ctx.GetString(context.UserIDKey)
@@ -523,8 +567,6 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 			updated = true
 		}
 	}
-
-
 
 	return updated
 }

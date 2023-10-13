@@ -298,7 +298,7 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 			}
 			// this is a binding that was created via SpaceBindingRequest, it can be updated or deleted
 			binding.AvailableActions = []string{UpdateBindingAction, DeleteBindingAction}
-			binding.BindingRequest = toolchainv1alpha1.BindingRequest{
+			binding.BindingRequest = &toolchainv1alpha1.BindingRequest{
 				Name:      sbrName,
 				Namespace: sbrNamespace,
 			}

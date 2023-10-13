@@ -241,7 +241,7 @@ func TestSpaceLister(t *testing.T) {
 								MasterUserRecord: "animelover",
 								Role:             "viewer",
 								AvailableActions: []string{"update", "delete"},
-								BindingRequest: toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
+								BindingRequest: &toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
 									Name:      "animelover-sbr",
 									Namespace: "dancelover-tenant",
 								},
@@ -274,7 +274,7 @@ func TestSpaceLister(t *testing.T) {
 								MasterUserRecord: "foodlover",
 								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
-								BindingRequest: toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
+								BindingRequest: &toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
 									Name:      "foodlover-sbr",
 									Namespace: "movielover-tenant",
 								},
@@ -332,7 +332,7 @@ func TestSpaceLister(t *testing.T) {
 								MasterUserRecord: "foodlover",
 								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
-								BindingRequest: toolchainv1alpha1.BindingRequest{
+								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
 									Namespace: "movielover-tenant",
 								},
@@ -372,7 +372,7 @@ func TestSpaceLister(t *testing.T) {
 								MasterUserRecord: "foodlover", // foodlover was granted access to movielover workspace using SpaceBindingRequest
 								Role:             "maintainer",
 								AvailableActions: []string{"update", "delete"},
-								BindingRequest: toolchainv1alpha1.BindingRequest{
+								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
 									Namespace: "movielover-tenant",
 								},

@@ -130,3 +130,18 @@ func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]toolchain
 	}
 	return sbs, err
 }
+
+func (s *ServiceImpl) GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	obj, err := s.informer.NSTemplateTier.ByNamespace(configuration.Namespace()).Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	unobj := obj.(*unstructured.Unstructured)
+	tier := &toolchainv1alpha1.NSTemplateTier{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), tier); err != nil {
+		log.Errorf(nil, err, "failed to get NSTemplateTier '%s'", name)
+		return nil, err
+	}
+	return tier, err
+}

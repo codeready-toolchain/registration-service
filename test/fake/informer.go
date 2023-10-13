@@ -3,6 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -19,6 +20,7 @@ type Informer struct {
 	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
 	ListSpaceBindingFunc     func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
+	GetNSTemplateTierFunc    func(name string) (*toolchainv1alpha1.NSTemplateTier, error)
 }
 
 func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
@@ -63,22 +65,22 @@ func (f Informer) ListSpaceBindings(req ...labels.Requirement) ([]toolchainv1alp
 	panic("not supposed to call ListSpaceBindings")
 }
 
-func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.Space {
-	space := &toolchainv1alpha1.Space{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.SpaceCreatorLabelKey: compliantUserName,
-			},
-		},
-		Spec: toolchainv1alpha1.SpaceSpec{
-			TargetCluster: targetCluster,
-			TierName:      "base1ns",
-		},
-		Status: toolchainv1alpha1.SpaceStatus{
-			TargetCluster: targetCluster,
-			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
+func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+	if f.GetNSTemplateTierFunc != nil {
+		return f.GetNSTemplateTierFunc(tier)
+	}
+	panic("not supposed to call GetNSTemplateTierFunc")
+}
+
+func NewSpace(name, targetCluster, compliantUserName string, spaceTestOptions ...spacetest.Option) *toolchainv1alpha1.Space {
+
+	spaceTestOptions = append(spaceTestOptions,
+		spacetest.WithLabel(toolchainv1alpha1.SpaceCreatorLabelKey, compliantUserName),
+		spacetest.WithSpecTargetCluster(targetCluster),
+		spacetest.WithStatusTargetCluster(targetCluster),
+		spacetest.WithTierName("base1ns"),
+		spacetest.WithStatusProvisionedNamespaces(
+			[]toolchainv1alpha1.SpaceNamespace{
 				{
 					Name: "john-dev",
 					Type: "default",
@@ -87,9 +89,11 @@ func NewSpace(name, targetCluster, compliantUserName string) *toolchainv1alpha1.
 					Name: "john-stage",
 				},
 			},
-		},
-	}
-	return space
+		),
+	)
+	return spacetest.NewSpace(configuration.Namespace(), name,
+		spaceTestOptions...,
+	)
 }
 
 func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolchainv1alpha1.SpaceBinding {
@@ -102,7 +106,39 @@ func NewSpaceBinding(name, murLabelValue, spaceLabelValue, role string) *toolcha
 			},
 		},
 		Spec: toolchainv1alpha1.SpaceBindingSpec{
-			SpaceRole: role,
+			SpaceRole:        role,
+			MasterUserRecord: murLabelValue,
+			Space:            spaceLabelValue,
+		},
+	}
+}
+
+func NewBase1NSTemplateTier() *toolchainv1alpha1.NSTemplateTier {
+	return &toolchainv1alpha1.NSTemplateTier{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: configuration.Namespace(),
+			Name:      "base1ns",
+		},
+		Spec: toolchainv1alpha1.NSTemplateTierSpec{
+			ClusterResources: &toolchainv1alpha1.NSTemplateTierClusterResources{
+				TemplateRef: "basic-clusterresources-123456new",
+			},
+			Namespaces: []toolchainv1alpha1.NSTemplateTierNamespace{
+				{
+					TemplateRef: "basic-dev-123456new",
+				},
+				{
+					TemplateRef: "basic-stage-123456new",
+				},
+			},
+			SpaceRoles: map[string]toolchainv1alpha1.NSTemplateTierSpaceRole{
+				"admin": {
+					TemplateRef: "basic-admin-123456new",
+				},
+				"viewer": {
+					TemplateRef: "basic-viewer-123456new",
+				},
+			},
 		},
 	}
 }

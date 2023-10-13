@@ -7,8 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/gin-gonic/gin"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -16,6 +15,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
+	"github.com/gin-gonic/gin"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -31,37 +32,72 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func TestHandleSpaceListRequest(t *testing.T) {
+func TestSpaceLister(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),
 		newSignup("pandalover", "panda.lover", true),
 		newSignup("usernospace", "user.nospace", true),
+		newSignup("foodlover", "food.lover", true),
+		newSignup("animelover", "anime.lover", true),
+		newSignup("carlover", "car.lover", true),
 		newSignup("racinglover", "racing.lover", false),
+	)
+
+	// space that is not provisioned yet
+	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
+	spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
+
+	// spacebinding associated with SpaceBindingRequest
+	spaceBindingWithSBRonMovieLover := fake.NewSpaceBinding("foodlover-sb-from-sbr-on-movielover", "foodlover", "movielover", "maintainer")
+	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "foodlover-sbr"
+	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-tenant"
+
+	// spacebinding associated with SpaceBindingRequest on a dancelover,
+	// which is also the parentSpace of foodlover
+	spaceBindingWithSBRonDanceLover := fake.NewSpaceBinding("animelover-sb-from-sbr-on-dancelover", "animelover", "dancelover", "viewer")
+	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "animelover-sbr"
+	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "dancelover-tenant"
+
+	// spacebinding with SpaceBindingRequest but name is missing
+	spaceBindingWithInvalidSBRName := fake.NewSpaceBinding("carlover-sb-from-sbr", "carlover", "animelover", "viewer")
+	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "" // let's set the name to blank in order to trigger an error
+	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "anime-tenant"
+
+	// spacebinding with SpaceBindingRequest but namespace is missing
+	spaceBindingWithInvalidSBRNamespace := fake.NewSpaceBinding("animelover-sb-from-sbr", "animelover", "carlover", "viewer")
+	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
+	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
+
+	fakeClient := initFakeClient(t,
+		// spaces
+		fake.NewSpace("dancelover", "member-1", "dancelover"),
+		fake.NewSpace("movielover", "member-1", "movielover"),
+		fake.NewSpace("racinglover", "member-2", "racinglover"),
+		fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")),
+		fake.NewSpace("animelover", "member-1", "animelover"),
+		fake.NewSpace("carlover", "member-1", "carlover"),
+		spaceNotProvisionedYet,
+
+		//spacebindings
+		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
+		fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
+		fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
+		fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
+		fake.NewSpaceBinding("anime-sb", "animelover", "animelover", "admin"),
+		fake.NewSpaceBinding("car-sb", "carlover", "carlover", "admin"),
+		spaceBindingWithSBRonMovieLover,
+		spaceBindingWithSBRonDanceLover,
+		spaceBindingWithInvalidSBRName,
+		spaceBindingWithInvalidSBRNamespace,
+
+		//nstemplatetier
+		fake.NewBase1NSTemplateTier(),
 	)
 
 	t.Run("HandleSpaceListRequest", func(t *testing.T) {
 		// given
-
-		// space that is not provisioned yet
-		spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
-		spaceNotProvisionedYet.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] = ""
-
-		fakeClient := initFakeClient(t,
-			// spaces
-			fake.NewSpace("dancelover", "member-1", "dancelover"),
-			fake.NewSpace("movielover", "member-1", "movielover"),
-			fake.NewSpace("racinglover", "member-2", "racinglover"),
-			spaceNotProvisionedYet,
-
-			//spacebindings
-			fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
-			fake.NewSpaceBinding("dancer-sb2", "dancelover", "movielover", "other"),
-			fake.NewSpaceBinding("moviegoer-sb", "movielover", "movielover", "admin"),
-			fake.NewSpaceBinding("racer-sb", "racinglover", "racinglover", "admin"),
-		)
-
 		tests := map[string]struct {
 			username             string
 			expectedWs           []toolchainv1alpha1.Workspace
@@ -85,45 +121,6 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					workspaceFor(t, fakeClient, "movielover", "admin", true),
 				},
 				expectedErr: "",
-			},
-			"dancelover gets dancelover space": {
-				username: "dance.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "dancelover", "admin", true),
-				},
-				expectedErr:       "",
-				expectedWorkspace: "dancelover",
-			},
-			"dancelover gets movielover space": {
-				username: "dance.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "other", false),
-				},
-				expectedErr:       "",
-				expectedWorkspace: "movielover",
-			},
-			"movielover gets movielover space": {
-				username: "movie.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true),
-				},
-				expectedErr:       "",
-				expectedWorkspace: "movielover",
-			},
-			"movielover cannot get dancelover space": {
-				username:          "movie.lover",
-				expectedWs:        []toolchainv1alpha1.Workspace{},
-				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
-				expectedWorkspace: "dancelover",
-				expectedErrCode:   404,
-			},
-			"signup not ready yet": {
-				username: "movie.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true),
-				},
-				expectedErr:       "",
-				expectedWorkspace: "movielover",
 			},
 			"signup has no compliant username set": {
 				username:        "racing.lover",
@@ -190,11 +187,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				rec := httptest.NewRecorder()
 				ctx := e.NewContext(req, rec)
 				ctx.Set(rcontext.UsernameKey, tc.username)
-
-				if tc.expectedWorkspace != "" {
-					ctx.SetParamNames("workspace")
-					ctx.SetParamValues(tc.expectedWorkspace)
-				}
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 
 				// when
 				err := s.HandleSpaceListRequest(ctx)
@@ -206,24 +199,336 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					require.Contains(t, rec.Body.String(), tc.expectedErr)
 				} else {
 					require.NoError(t, err)
-					if tc.expectedWorkspace != "" {
-						// get workspace case
-						workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
-						require.NoError(t, decodeErr)
-						require.Equal(t, 1, len(tc.expectedWs), "test case should have exactly one expected item since it's a get request")
-						for i := range tc.expectedWs {
-							assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
-							assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
+					// list workspace case
+					workspaceList, decodeErr := decodeResponseToWorkspaceList(rec.Body.Bytes())
+					require.NoError(t, decodeErr)
+					require.Equal(t, len(tc.expectedWs), len(workspaceList.Items))
+					for i := range tc.expectedWs {
+						assert.Equal(t, tc.expectedWs[i].Name, workspaceList.Items[i].Name)
+						assert.Equal(t, tc.expectedWs[i].Status, workspaceList.Items[i].Status)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("HandleSpaceGetRequest", func(t *testing.T) {
+		// given
+		tests := map[string]struct {
+			username             string
+			expectedWs           []toolchainv1alpha1.Workspace
+			expectedErr          string
+			expectedErrCode      int
+			expectedWorkspace    string
+			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+			overrideInformerFunc func() service.InformerService
+		}{
+			"dancelover gets dancelover space": {
+				username: "dance.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "dancelover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						},
+						),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "animelover",
+								Role:             "viewer",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
+									Name:      "animelover-sbr",
+									Namespace: "dancelover-tenant",
+								},
+							},
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "admin",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "dancelover",
+			},
+			"dancelover gets movielover space": {
+				username: "dance.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "movielover", "other", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+							{
+								MasterUserRecord: "foodlover",
+								Role:             "maintainer",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "movielover",
+			},
+			"dancelover gets foodlover space": {
+				username: "dance.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "foodlover", "admin", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "animelover",
+								Role:             "viewer",             // animelover was granted access via SBR , but on the parentSpace,
+								AvailableActions: []string{"override"}, // since the binding is inherited from parent space, then it can only be overridden
+							},
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "admin",              // dancelover is admin since it's admin on the parent space,
+								AvailableActions: []string{"override"}, // since the binding is inherited from parent space, then it can only be overridden
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "foodlover",
+			},
+			"movielover gets movielover space": {
+				username: "movie.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "movielover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						// bindings are in alphabetical order using the MUR name
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+							{
+								MasterUserRecord: "foodlover",
+								Role:             "maintainer",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "movielover",
+			},
+			"movielover cannot get dancelover space": {
+				username:          "movie.lover",
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
+				expectedWorkspace: "dancelover",
+				expectedErrCode:   404,
+			},
+			"signup not ready yet": {
+				username: "movie.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "movielover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "dancelover",
+								Role:             "other",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+							{
+								MasterUserRecord: "foodlover", // foodlover was granted access to movielover workspace using SpaceBindingRequest
+								Role:             "maintainer",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: toolchainv1alpha1.BindingRequest{
+									Name:      "foodlover-sbr",
+									Namespace: "movielover-tenant",
+								},
+							},
+							{
+								MasterUserRecord: "movielover",
+								Role:             "admin",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+						}),
+					),
+				},
+				expectedErr:       "",
+				expectedWorkspace: "movielover",
+			},
+			"get nstemplatetier error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "nstemplatetier error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					informerFunc := getFakeInformerService(fakeClient, WithGetNSTemplateTierFunc(func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+						return nil, fmt.Errorf("nstemplatetier error")
+					}))
+					return informerFunc()
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"get signup error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "signup error",
+				expectedErrCode: 500,
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+					return nil, fmt.Errorf("signup error")
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"signup has no compliant username set": {
+				username:          "racing.lover",
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"racinglover\\\" not found\"",
+				expectedErrCode:   404,
+				expectedWorkspace: "racinglover",
+			},
+			"list spacebindings error": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "list spacebindings error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+						return nil, fmt.Errorf("list spacebindings error")
+					}
+					return getFakeInformerService(fakeClient, WithListSpaceBindingFunc(listSpaceBindingFunc))()
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"unable to get space": {
+				username:        "dance.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
+				expectedErrCode: 404,
+				overrideInformerFunc: func() service.InformerService {
+					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+						return nil, fmt.Errorf("no space")
+					}
+					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+				},
+				expectedWorkspace: "dancelover",
+			},
+			"unable to get parent-space": {
+				username:        "food.lover",
+				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedErr:     "Internal error occurred: unable to get parent-space: parent-space error",
+				expectedErrCode: 500,
+				overrideInformerFunc: func() service.InformerService {
+					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+						if name == "dancelover" {
+							// return the error only when trying to get the parent space
+							return nil, fmt.Errorf("parent-space error")
 						}
-					} else {
-						// list workspace case
-						workspaceList, decodeErr := decodeResponseToWorkspaceList(rec.Body.Bytes())
-						require.NoError(t, decodeErr)
-						require.Equal(t, len(tc.expectedWs), len(workspaceList.Items))
-						for i := range tc.expectedWs {
-							assert.Equal(t, tc.expectedWs[i].Name, workspaceList.Items[i].Name)
-							assert.Equal(t, tc.expectedWs[i].Status, workspaceList.Items[i].Status)
-						}
+						// return the foodlover space
+						return fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")), nil
+					}
+					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+				},
+				expectedWorkspace: "foodlover",
+			},
+			"error spaceBinding request has no name": {
+				username: "anime.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "animelover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+					),
+				},
+				expectedErr:       "Internal error occurred: SpaceBindingRequest name not found on binding: carlover-sb-from-sbr",
+				expectedErrCode:   500,
+				expectedWorkspace: "animelover",
+			},
+			"error spaceBinding request has no namespace set": {
+				username: "car.lover",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "carlover", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+					),
+				},
+				expectedErr:       "Internal error occurred: SpaceBindingRequest namespace not found on binding: animelover-sb-from-sbr",
+				expectedErrCode:   500,
+				expectedWorkspace: "carlover",
+			},
+		}
+
+		for k, tc := range tests {
+			t.Run(k, func(t *testing.T) {
+				// given
+				signupProvider := fakeSignupService.GetSignupFromInformer
+				if tc.overrideSignupFunc != nil {
+					signupProvider = tc.overrideSignupFunc
+				}
+
+				informerFunc := getFakeInformerService(fakeClient)
+				if tc.overrideInformerFunc != nil {
+					informerFunc = tc.overrideInformerFunc
+				}
+
+				s := &handlers.SpaceLister{
+					GetSignupFunc:          signupProvider,
+					GetInformerServiceFunc: informerFunc,
+				}
+
+				e := echo.New()
+				req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+				rec := httptest.NewRecorder()
+				ctx := e.NewContext(req, rec)
+				ctx.Set(rcontext.UsernameKey, tc.username)
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
+				ctx.SetParamNames("workspace")
+				ctx.SetParamValues(tc.expectedWorkspace)
+
+				// when
+				err := s.HandleSpaceGetRequest(ctx)
+
+				// then
+				if tc.expectedErr != "" {
+					// error case
+					require.Equal(t, tc.expectedErrCode, rec.Code)
+					require.Contains(t, rec.Body.String(), tc.expectedErr)
+				} else {
+					require.NoError(t, err)
+					// get workspace case
+					workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
+					require.NoError(t, decodeErr)
+					require.Equal(t, 1, len(tc.expectedWs), "test case should have exactly one expected item since it's a get request")
+					for i := range tc.expectedWs {
+						assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
+						assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
 					}
 				}
 			})
@@ -249,7 +554,27 @@ func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	return us
 }
 
-func getFakeInformerService(fakeClient client.Client) func() service.InformerService {
+type InformerServiceOptions func(informer *fake.Informer)
+
+func WithGetNSTemplateTierFunc(getNsTemplateTierFunc func(tier string) (*toolchainv1alpha1.NSTemplateTier, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.GetNSTemplateTierFunc = getNsTemplateTierFunc
+	}
+}
+
+func WithListSpaceBindingFunc(listSpaceBindingFunc func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.ListSpaceBindingFunc = listSpaceBindingFunc
+	}
+}
+
+func WithGetSpaceFunc(getSpaceFunc func(name string) (*toolchainv1alpha1.Space, error)) InformerServiceOptions {
+	return func(informer *fake.Informer) {
+		informer.GetSpaceFunc = getSpaceFunc
+	}
+}
+
+func getFakeInformerService(fakeClient client.Client, options ...InformerServiceOptions) func() service.InformerService {
 	return func() service.InformerService {
 
 		inf := fake.NewFakeInformer()
@@ -267,6 +592,16 @@ func getFakeInformerService(fakeClient client.Client) func() service.InformerSer
 			err := fakeClient.List(context.TODO(), sbList, labelMatch)
 			return sbList.Items, err
 		}
+		inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+			nsTemplateTier := &toolchainv1alpha1.NSTemplateTier{}
+			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: tier}, nsTemplateTier)
+			return nsTemplateTier, err
+		}
+
+		for _, modify := range options {
+			modify(&inf)
+		}
+
 		return inf
 	}
 }
@@ -302,14 +637,14 @@ func decodeResponseToWorkspaceList(data []byte) (*toolchainv1alpha1.WorkspaceLis
 	return obj, nil
 }
 
-func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool) toolchainv1alpha1.Workspace {
+func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool, additionalWSOptions ...commonproxy.WorkspaceOption) toolchainv1alpha1.Workspace {
 	// get the space for the user
 	space := &toolchainv1alpha1.Space{}
 	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, space)
 	require.NoError(t, err)
 
 	// create the workspace based on the space
-	ws := commonproxy.NewWorkspace(name,
+	commonWSoptions := []commonproxy.WorkspaceOption{
 		commonproxy.WithObjectMetaFrom(space.ObjectMeta),
 		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
 			{
@@ -322,6 +657,9 @@ func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isH
 		}),
 		commonproxy.WithOwner(name),
 		commonproxy.WithRole(role),
+	}
+	ws := commonproxy.NewWorkspace(name,
+		append(commonWSoptions, additionalWSOptions...)...,
 	)
 	// if the user is the same as the one who created the workspace, then expect type should be "home"
 	if isHomeWorkspace {

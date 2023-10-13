@@ -128,6 +128,20 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			FamilyName:    ctx.GetString(context.FamilyNameKey),
 			Company:       ctx.GetString(context.CompanyKey),
 			OriginalSub:   ctx.GetString(context.OriginalSubKey),
+
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+					Sub:         ctx.GetString(context.SubKey),
+					UserID:      ctx.GetString(context.UserIDKey),
+					AccountID:   ctx.GetString(context.AccountIDKey),
+					OriginalSub: ctx.GetString(context.OriginalSubKey),
+					Email:       ctx.GetString(context.EmailKey),
+				},
+				PreferredUsername: ctx.GetString(context.UsernameKey),
+				GivenName:         ctx.GetString(context.GivenNameKey),
+				FamilyName:        ctx.GetString(context.FamilyNameKey),
+				Company:           ctx.GetString(context.CompanyKey),
+			},
 		},
 	}
 
@@ -401,10 +415,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
-	approvedCondition, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
+	_, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
 	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
-	if !approvedFound || !completeFound || approvedCondition.Status != apiv1.ConditionTrue {
+	if !approvedFound || !completeFound ||
+		condition.IsFalseWithReason(userSignup.Status.Conditions,
+			toolchainv1alpha1.UserSignupApproved, toolchainv1alpha1.UserSignupPendingApprovalReason) {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is pending approval", userSignup.GetName()))
+
 		signupResponse.Status = signup.Status{
 			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: states.VerificationRequired(userSignup),
@@ -638,7 +655,7 @@ func getRHODSMemberURL(signup signup.Signup) string {
 // for example for the "devspaces" app and api server "https://api.host.openshiftapps.com:6443"
 // it will return "https://devspaces.apps.host.openshiftapps.com"
 func getAppsURL(appRouteName string, signup signup.Signup) string {
-	index := strings.Index(signup.ConsoleURL, ".apps.")
+	index := strings.Index(signup.ConsoleURL, ".apps")
 	if index == -1 {
 		return ""
 	}

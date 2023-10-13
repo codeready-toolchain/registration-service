@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"github.com/labstack/echo/v4"
 	glog "github.com/labstack/gommon/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -59,7 +60,7 @@ func (p *ProxyMetrics) StartMetricsServer() *http.Server {
 	log.Info("Starting the Registration-Service Metrics server...")
 	// listen concurrently to allow for graceful shutdown
 	go func() {
-		if err := srv.Start(":" + MetricsPort); err != http.ErrServerClosed {
+		if err := srv.Start(":" + MetricsPort); !errors.Is(err, http.ErrServerClosed) {
 			log.Error(err, err.Error())
 		}
 	}()

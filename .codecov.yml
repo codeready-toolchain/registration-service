@@ -1,4 +1,4 @@
-      
+# Config can be validated before merging: curl -X POST --data-binary @.codecov.yml https://codecov.io/validate
 coverage:
   precision: 2
   round: down
@@ -6,7 +6,7 @@ coverage:
   status:
     project:
       default:
-        threshold: 5
+        threshold: 1%
   ignore:
     - "vendor/*"
     - "make/*"

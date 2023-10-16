@@ -1973,7 +1973,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 }
 
-func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
+func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIdentityClaims() {
 
 	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
 
@@ -2104,6 +2104,73 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
 		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
 	})
+
+	s.Run("PreferredUsername property updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.UsernameKey, "cocochanel")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+	})
+
+	s.Run("GivenName property updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.GivenNameKey, "Jonathan")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+
+		// Confirm that some other properties were not changed
+		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+		require.Equal(s.T(), "1234567890", modified.Spec.IdentityClaims.AccountID)
+	})
+
+	s.Run("FamilyName and Company properties updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.FamilyNameKey, "Smythe")
+		c.Set(context.CompanyKey, "Red Hat")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
+		require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
+	})
+
+	s.Run("Remaining properties updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.SubKey, "987654321")
+		c.Set(context.UserIDKey, "123456777")
+		c.Set(context.AccountIDKey, "777654321")
+		c.Set(context.OriginalSubKey, "jsmythe-original-sub")
+		c.Set(context.EmailKey, "jsmythe@redhat.com")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "987654321", modified.Spec.IdentityClaims.Sub)
+		require.Equal(s.T(), "123456777", modified.Spec.IdentityClaims.UserID)
+		require.Equal(s.T(), "777654321", modified.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "jsmythe-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+		require.Equal(s.T(), "jsmythe@redhat.com", modified.Spec.IdentityClaims.Email)
+	})
+
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
@@ -2124,6 +2191,19 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			Username: "ted@domain.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+					Sub:         "123456789",
+					UserID:      "54321666",
+					AccountID:   "65432111",
+					OriginalSub: "jsmith-original-sub",
+					Email:       "jsmith@redhat.com",
+				},
+				PreferredUsername: "jsmith",
+				GivenName:         "John",
+				FamilyName:        "Smith",
+				Company:           "Acme Inc",
+			},
 		},
 		Status: toolchainv1alpha1.UserSignupStatus{
 			Conditions: []toolchainv1alpha1.Condition{

@@ -499,51 +499,27 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 
 	updated := false
 
+	updateIfRequired := func(ctx *gin.Context, key, existing string, updated bool) (string, bool) {
+		if val, ok := ctx.Get(key); ok && val != nil && len(val.(string)) > 0 && val != existing {
+			return val.(string), true
+		}
+		return existing, updated
+	}
+
+	c := userSignup.Spec.IdentityClaims
+
 	// Check each of the properties of IdentityClaimsEmbedded individually
-	if userSignup.Spec.IdentityClaims.Sub != ctx.GetString(context.SubKey) {
-		userSignup.Spec.IdentityClaims.Sub = ctx.GetString(context.SubKey)
-		updated = true
-	}
+	c.Sub, updated = updateIfRequired(ctx, context.SubKey, c.Sub, updated)
+	c.UserID, updated = updateIfRequired(ctx, context.UserIDKey, c.UserID, updated)
+	c.AccountID, updated = updateIfRequired(ctx, context.AccountIDKey, c.AccountID, updated)
+	c.OriginalSub, updated = updateIfRequired(ctx, context.OriginalSubKey, c.OriginalSub, updated)
+	c.Email, updated = updateIfRequired(ctx, context.EmailKey, c.Email, updated)
+	c.PreferredUsername, updated = updateIfRequired(ctx, context.UsernameKey, c.PreferredUsername, updated)
+	c.GivenName, updated = updateIfRequired(ctx, context.GivenNameKey, c.GivenName, updated)
+	c.FamilyName, updated = updateIfRequired(ctx, context.FamilyNameKey, c.FamilyName, updated)
+	c.Company, updated = updateIfRequired(ctx, context.CompanyKey, c.Company, updated)
 
-	if userSignup.Spec.IdentityClaims.UserID != ctx.GetString(context.UserIDKey) {
-		userSignup.Spec.IdentityClaims.UserID = ctx.GetString(context.UserIDKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.AccountID != ctx.GetString(context.AccountIDKey) {
-		userSignup.Spec.IdentityClaims.AccountID = ctx.GetString(context.AccountIDKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.OriginalSub != ctx.GetString(context.OriginalSubKey) {
-		userSignup.Spec.IdentityClaims.OriginalSub = ctx.GetString(context.OriginalSubKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.Email != ctx.GetString(context.EmailKey) {
-		userSignup.Spec.IdentityClaims.Email = ctx.GetString(context.EmailKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.PreferredUsername != ctx.GetString(context.UsernameKey) {
-		userSignup.Spec.IdentityClaims.PreferredUsername = ctx.GetString(context.UsernameKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.GivenName != ctx.GetString(context.GivenNameKey) {
-		userSignup.Spec.IdentityClaims.GivenName = ctx.GetString(context.GivenNameKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.FamilyName != ctx.GetString(context.FamilyNameKey) {
-		userSignup.Spec.IdentityClaims.FamilyName = ctx.GetString(context.FamilyNameKey)
-		updated = true
-	}
-
-	if userSignup.Spec.IdentityClaims.Company != ctx.GetString(context.CompanyKey) {
-		userSignup.Spec.IdentityClaims.Company = ctx.GetString(context.CompanyKey)
-		updated = true
-	}
+	userSignup.Spec.IdentityClaims = c
 
 	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
 	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update

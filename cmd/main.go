@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"os"
 	"os/signal"
@@ -98,10 +99,12 @@ func main() {
 	}
 
 	// Register metrics
-	metrics.RegisterCustomMetrics()
+	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+	// Start metrics server
+	metricsSrv := proxyMetrics.StartMetricsServer()
 
 	// Start the proxy server
-	p, err := proxy.NewProxy(app)
+	p, err := proxy.NewProxy(app, proxyMetrics)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
@@ -141,7 +144,7 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv)
+	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv, metricsSrv)
 }
 
 func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {

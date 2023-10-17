@@ -3,6 +3,8 @@ package handlers_test
 import (
 	"context"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -177,9 +179,12 @@ func TestSpaceLister(t *testing.T) {
 					informerFunc = tc.overrideInformerFunc
 				}
 
+				proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+
 				s := &handlers.SpaceLister{
 					GetSignupFunc:          signupProvider,
 					GetInformerServiceFunc: informerFunc,
+					ProxyMetrics:           proxyMetrics,
 				}
 
 				e := echo.New()
@@ -498,9 +503,12 @@ func TestSpaceLister(t *testing.T) {
 					informerFunc = tc.overrideInformerFunc
 				}
 
+				proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+
 				s := &handlers.SpaceLister{
 					GetSignupFunc:          signupProvider,
 					GetInformerServiceFunc: informerFunc,
+					ProxyMetrics:           proxyMetrics,
 				}
 
 				e := echo.New()

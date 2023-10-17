@@ -2116,23 +2116,23 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIde
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
-	})
 
-	s.Run("GivenName property updated when set in context", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Set(context.GivenNameKey, "Jonathan")
+		s.Run("GivenName property updated when set in context", func() {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Set(context.GivenNameKey, "Jonathan")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
+			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+			require.NoError(s.T(), err)
 
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
 
-		require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+			require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
 
-		// Confirm that some other properties were not changed
-		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
-		require.Equal(s.T(), "1234567890", modified.Spec.IdentityClaims.AccountID)
+			// Confirm that some other properties were not changed
+			require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+			require.Equal(s.T(), "1234567890", modified.Spec.IdentityClaims.AccountID)
+		})
 	})
 
 	s.Run("FamilyName and Company properties updated when set in context", func() {

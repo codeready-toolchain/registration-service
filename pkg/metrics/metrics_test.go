@@ -18,7 +18,6 @@ func TestHistogramVec(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	m := newHistogramVec("test_histogram_vec", "test histogram description", "status_code", "kube_verb")
 	getSuccess, getFailure, listSuccess, listFailure := getExpectedLabelPairs()
-	//RegisterCustomMetrics()
 	reg.MustRegister(m)
 
 	// when

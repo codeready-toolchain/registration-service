@@ -1,10 +1,13 @@
 package metrics
 
 import (
+	"bytes"
+	"github.com/prometheus/client_golang/prometheus"
 	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	clientmodel "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -12,9 +15,10 @@ import (
 
 func TestHistogramVec(t *testing.T) {
 	// given
+	reg := prometheus.NewRegistry()
 	m := newHistogramVec("test_histogram_vec", "test histogram description", "status_code", "kube_verb")
 	getSuccess, getFailure, listSuccess, listFailure := getExpectedLabelPairs()
-	RegisterCustomMetrics()
+	reg.MustRegister(m)
 
 	// when
 	m.WithLabelValues("200", "get").Observe((5 * time.Second).Seconds())
@@ -28,7 +32,7 @@ func TestHistogramVec(t *testing.T) {
 	err := promtestutil.CollectAndCompare(m, strings.NewReader(expectedResponseMetadata+expectedResponse), "sandbox_test_histogram_vec")
 	require.NoError(t, err)
 
-	g, er := Reg.Gather()
+	g, er := reg.Gather()
 	require.NoError(t, er)
 	require.Equal(t, 1, len(g))
 	require.Equal(t, "sandbox_test_histogram_vec", g[0].GetName())
@@ -51,17 +55,33 @@ func TestHistogramVec(t *testing.T) {
 	require.Equal(t, 2, len(g[0].Metric[3].Label))
 	compareLabelPairValues(t, listFailure, g[0].GetMetric()[3].GetLabel())
 	require.Equal(t, uint64(2), *g[0].Metric[3].Histogram.SampleCount)
+
 }
 
-func TestRegisterCustomMetrics(t *testing.T) {
-	// when
-	RegisterCustomMetrics()
+func TestMetricsServer(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	testMetrics := NewProxyMetrics(reg)
+	server := testMetrics.StartMetricsServer()
+	require.NotNil(t, server)
+	defer func() {
+		_ = server.Close()
+	}()
 
-	// then
-	// verify all metrics were registered successfully
-	for _, m := range allHistogramVecs {
-		assert.True(t, Reg.Unregister(m))
-	}
+	req, err := http.NewRequest("GET", "http://localhost:8082/metrics", nil)
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "text/plain; version=0.0.4; charset=utf-8", resp.Header.Get("Content-Type"))
+	// compare the body of the response as well
+	defer resp.Body.Close()
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, expectedServerBlankResponse, buf.String())
+
 }
 
 var expectedResponseMetadata = `
@@ -109,6 +129,11 @@ var expectedResponse = `
 		sandbox_test_histogram_vec_sum{kube_verb="list",status_code="500"} 3.001
 		sandbox_test_histogram_vec_count{kube_verb="list",status_code="500"} 2
 		`
+var expectedServerBlankResponse = `# HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.
+# TYPE promhttp_metric_handler_errors_total counter
+promhttp_metric_handler_errors_total{cause="encoding"} 0
+promhttp_metric_handler_errors_total{cause="gathering"} 0
+`
 
 func compareLabelPairValues(t *testing.T, expected []clientmodel.LabelPair, labelPairs []*clientmodel.LabelPair) {
 	for i := range labelPairs {

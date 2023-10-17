@@ -40,12 +40,14 @@ const (
 type SpaceLister struct {
 	GetSignupFunc          func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 	GetInformerServiceFunc func() service.InformerService
+	ProxyMetrics           *metrics.ProxyMetrics
 }
 
-func NewSpaceLister(app application.Application) *SpaceLister {
+func NewSpaceLister(app application.Application, proxyMetrics *metrics.ProxyMetrics) *SpaceLister {
 	return &SpaceLister{
 		GetSignupFunc:          app.SignupService().GetSignupFromInformer,
 		GetInformerServiceFunc: app.InformerService,
+		ProxyMetrics:           proxyMetrics,
 	}
 }
 
@@ -54,10 +56,10 @@ func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspaces, err := s.ListUserWorkspaces(ctx)
 	if err != nil {
-		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
+		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
-	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds())
+	s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds())
 	return listWorkspaceResponse(ctx, workspaces)
 }
 
@@ -66,16 +68,16 @@ func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	workspace, err := s.GetUserWorkspace(ctx)
 	if err != nil {
-		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
+		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
 	}
 	if workspace == nil {
 		// not found
-		metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
+		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
 		return errorResponse(ctx, apierrors.NewNotFound(r, ctx.Param("workspace")))
 	}
-	metrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
+	s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
 	return getWorkspaceResponse(ctx, workspace)
 }
 

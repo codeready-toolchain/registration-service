@@ -45,8 +45,7 @@ const (
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
 	proxyHealthEndpoint = "/proxyhealth"
-
-	pluginsEndpoint = "/plugins/"
+	pluginsEndpoint     = "/plugins/"
 )
 
 type Proxy struct {
@@ -54,18 +53,18 @@ type Proxy struct {
 	cl          client.Client
 	tokenParser *auth.TokenParser
 	spaceLister *handlers.SpaceLister
-	metrics     *handlers.Metrics
+	metrics     *metrics.ProxyMetrics
 }
 
-func NewProxy(app application.Application) (*Proxy, error) {
+func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
 	}
-	return newProxyWithClusterClient(app, cl)
+	return newProxyWithClusterClient(app, cl, proxyMetrics)
 }
 
-func newProxyWithClusterClient(app application.Application, cln client.Client) (*Proxy, error) {
+func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics) (*Proxy, error) {
 	// Initiate toolchain cluster cache service
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cln, cacheLog, configuration.Namespace(), 5*time.Second)
@@ -76,14 +75,13 @@ func newProxyWithClusterClient(app application.Application, cln client.Client) (
 	}
 
 	// init handlers
-	spaceLister := handlers.NewSpaceLister(app)
-	metrics := handlers.NewMetrics()
+	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
 	return &Proxy{
 		app:         app,
 		cl:          cln,
 		tokenParser: tokenParser,
 		spaceLister: spaceLister,
-		metrics:     metrics,
+		metrics:     proxyMetrics,
 	}, nil
 }
 
@@ -132,7 +130,6 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg.GET("/:workspace", p.spaceLister.HandleSpaceGetRequest)
 	wg.GET("", p.spaceLister.HandleSpaceListRequest)
 	router.GET(proxyHealthEndpoint, p.health)
-	router.GET("/metrics", p.metrics.PrometheusHandler)
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
@@ -188,12 +185,12 @@ func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
 	proxyPluginName, cluster, err := p.processRequest(ctx)
 	if err != nil {
-		metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
+		p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
 		return err
 	}
 	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
 	routeTime := time.Since(requestReceivedTime)
-	metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
+	p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non-blocking and uses a go routine under the hood
 	reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 	return nil

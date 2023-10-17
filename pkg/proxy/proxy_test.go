@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"io"
 	"log"
 	"net/http"
@@ -69,7 +71,8 @@ func (s *TestProxySuite) TestProxy() {
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
-			p, err := newProxyWithClusterClient(fakeApp, nil)
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics)
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy()
@@ -118,21 +121,6 @@ func (s *TestProxySuite) TestProxy() {
 				defer resp.Body.Close()
 				assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 				s.assertResponseBody(resp, `{"alive": true}`)
-			})
-
-			s.Run("check metrics not ok", func() {
-				req, err := http.NewRequest("GET", "http://localhost:8081/metrics", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-
-				// when
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				defer resp.Body.Close()
-				assert.Equal(s.T(), 401, resp.StatusCode)
 			})
 
 			s.Run("plain http error", func() {
@@ -218,6 +206,22 @@ func (s *TestProxySuite) TestProxy() {
 					defer resp.Body.Close()
 					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
 					s.assertResponseBody(resp, "unable to get target cluster: some-error")
+				})
+
+				s.Run("internal error if accessing incorrect url", func() {
+					// given
+					req := s.request()
+					req.URL.Path = "http://localhost:8081/metrics"
+					require.NotNil(s.T(), req)
+
+					// when
+					resp, err := http.DefaultClient.Do(req)
+
+					// then
+					require.NoError(s.T(), err)
+					require.NotNil(s.T(), resp)
+					defer resp.Body.Close()
+					assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
 				})
 			})
 
@@ -603,6 +607,7 @@ func (s *TestProxySuite) TestProxy() {
 												GetInformerServiceFunc: func() appservice.InformerService {
 													return inf
 												},
+												ProxyMetrics: p.metrics,
 											}
 										}
 
@@ -631,7 +636,6 @@ func (s *TestProxySuite) TestProxy() {
 					})
 				}
 			})
-
 		})
 	}
 }

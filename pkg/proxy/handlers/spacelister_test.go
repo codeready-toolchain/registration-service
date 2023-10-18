@@ -23,7 +23,6 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
-	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,7 +71,7 @@ func TestSpaceLister(t *testing.T) {
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
 
-	fakeClient := initFakeClient(t,
+	fakeClient := fake.InitClient(t,
 		// spaces
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
@@ -174,7 +173,7 @@ func TestSpaceLister(t *testing.T) {
 					signupProvider = tc.overrideSignupFunc
 				}
 
-				informerFunc := getFakeInformerService(fakeClient)
+				informerFunc := fake.GetInformerService(fakeClient)
 				if tc.overrideInformerFunc != nil {
 					informerFunc = tc.overrideInformerFunc
 				}
@@ -394,7 +393,7 @@ func TestSpaceLister(t *testing.T) {
 				expectedErr:     "nstemplatetier error",
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
-					informerFunc := getFakeInformerService(fakeClient, WithGetNSTemplateTierFunc(func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
+					informerFunc := fake.GetInformerService(fakeClient, fake.WithGetNSTemplateTierFunc(func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
 						return nil, fmt.Errorf("nstemplatetier error")
 					}))
 					return informerFunc()
@@ -427,7 +426,7 @@ func TestSpaceLister(t *testing.T) {
 					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 						return nil, fmt.Errorf("list spacebindings error")
 					}
-					return getFakeInformerService(fakeClient, WithListSpaceBindingFunc(listSpaceBindingFunc))()
+					return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
 				},
 				expectedWorkspace: "dancelover",
 			},
@@ -440,7 +439,7 @@ func TestSpaceLister(t *testing.T) {
 					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
 						return nil, fmt.Errorf("no space")
 					}
-					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+					return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 				},
 				expectedWorkspace: "dancelover",
 			},
@@ -458,7 +457,7 @@ func TestSpaceLister(t *testing.T) {
 						// return the foodlover space
 						return fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")), nil
 					}
-					return getFakeInformerService(fakeClient, WithGetSpaceFunc(getSpaceFunc))()
+					return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 				},
 				expectedWorkspace: "foodlover",
 			},
@@ -498,7 +497,7 @@ func TestSpaceLister(t *testing.T) {
 					signupProvider = tc.overrideSignupFunc
 				}
 
-				informerFunc := getFakeInformerService(fakeClient)
+				informerFunc := fake.GetInformerService(fakeClient)
 				if tc.overrideInformerFunc != nil {
 					informerFunc = tc.overrideInformerFunc
 				}
@@ -560,69 +559,6 @@ func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	})
 
 	return us
-}
-
-type InformerServiceOptions func(informer *fake.Informer)
-
-func WithGetNSTemplateTierFunc(getNsTemplateTierFunc func(tier string) (*toolchainv1alpha1.NSTemplateTier, error)) InformerServiceOptions {
-	return func(informer *fake.Informer) {
-		informer.GetNSTemplateTierFunc = getNsTemplateTierFunc
-	}
-}
-
-func WithListSpaceBindingFunc(listSpaceBindingFunc func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)) InformerServiceOptions {
-	return func(informer *fake.Informer) {
-		informer.ListSpaceBindingFunc = listSpaceBindingFunc
-	}
-}
-
-func WithGetSpaceFunc(getSpaceFunc func(name string) (*toolchainv1alpha1.Space, error)) InformerServiceOptions {
-	return func(informer *fake.Informer) {
-		informer.GetSpaceFunc = getSpaceFunc
-	}
-}
-
-func getFakeInformerService(fakeClient client.Client, options ...InformerServiceOptions) func() service.InformerService {
-	return func() service.InformerService {
-
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			space := &toolchainv1alpha1.Space{}
-			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name}, space)
-			return space, err
-		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			labelMatch := client.MatchingLabels{}
-			for _, r := range reqs {
-				labelMatch[r.Key()] = r.Values().List()[0]
-			}
-			sbList := &toolchainv1alpha1.SpaceBindingList{}
-			err := fakeClient.List(context.TODO(), sbList, labelMatch)
-			return sbList.Items, err
-		}
-		inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
-			nsTemplateTier := &toolchainv1alpha1.NSTemplateTier{}
-			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: tier}, nsTemplateTier)
-			return nsTemplateTier, err
-		}
-
-		for _, modify := range options {
-			modify(&inf)
-		}
-
-		return inf
-	}
-}
-
-func initFakeClient(t *testing.T, initObjs ...runtime.Object) *test.FakeClient {
-	scheme := runtime.NewScheme()
-	var AddToSchemes runtime.SchemeBuilder
-	addToSchemes := append(AddToSchemes,
-		toolchainv1alpha1.AddToScheme)
-	err := addToSchemes.AddToScheme(scheme)
-	require.NoError(t, err)
-	cl := test.NewFakeClient(t, initObjs...)
-	return cl
 }
 
 func decodeResponseToWorkspace(data []byte) (*toolchainv1alpha1.Workspace, error) {

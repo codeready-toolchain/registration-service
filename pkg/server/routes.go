@@ -26,6 +26,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		authConfigCtrl := controller.NewAuthConfig()
 		analyticsCtrl := controller.NewAnalytics()
 		signupCtrl := controller.NewSignup(srv.application)
+		usernamesCtrl := controller.NewUsernames(srv.application)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
@@ -49,6 +50,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 		securedV1.GET("/signup", signupCtrl.GetHandler)
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler) // TODO: also provide a `POST /signup/verification/phone-code` +deprecate this one + migrate UI?
 		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
+		securedV1.GET("/usernames/:username", usernamesCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if configuration.IsTestingMode() {

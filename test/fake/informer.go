@@ -1,9 +1,18 @@
 package fake
 
 import (
+	"context"
+	"testing"
+
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -141,4 +150,99 @@ func NewBase1NSTemplateTier() *toolchainv1alpha1.NSTemplateTier {
 			},
 		},
 	}
+}
+
+func NewMasterUserRecord(name string) *toolchainv1alpha1.MasterUserRecord {
+	return &toolchainv1alpha1.MasterUserRecord{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: configuration.Namespace(),
+		},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
+				{
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
+					Status: "blah-blah-blah",
+				},
+			},
+		},
+	}
+}
+
+type InformerServiceOptions func(informer *Informer)
+
+func WithGetNSTemplateTierFunc(getNsTemplateTierFunc func(tier string) (*toolchainv1alpha1.NSTemplateTier, error)) InformerServiceOptions {
+	return func(informer *Informer) {
+		informer.GetNSTemplateTierFunc = getNsTemplateTierFunc
+	}
+}
+
+func WithListSpaceBindingFunc(listSpaceBindingFunc func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)) InformerServiceOptions {
+	return func(informer *Informer) {
+		informer.ListSpaceBindingFunc = listSpaceBindingFunc
+	}
+}
+
+func WithGetSpaceFunc(getSpaceFunc func(name string) (*toolchainv1alpha1.Space, error)) InformerServiceOptions {
+	return func(informer *Informer) {
+		informer.GetSpaceFunc = getSpaceFunc
+	}
+}
+
+func WithGetMurFunc(getMurFunc func(name string) (*toolchainv1alpha1.MasterUserRecord, error)) InformerServiceOptions {
+	return func(informer *Informer) {
+		informer.GetMurFunc = getMurFunc
+	}
+}
+
+func GetInformerService(fakeClient client.Client, options ...InformerServiceOptions) func() service.InformerService {
+	return func() service.InformerService {
+
+		inf := NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			space := &toolchainv1alpha1.Space{}
+			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, space)
+			return space, err
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			labelMatch := client.MatchingLabels{}
+			for _, r := range reqs {
+				labelMatch[r.Key()] = r.Values().List()[0]
+			}
+			sbList := &toolchainv1alpha1.SpaceBindingList{}
+			err := fakeClient.List(context.TODO(), sbList, labelMatch)
+			return sbList.Items, err
+		}
+		inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+			nsTemplateTier := &toolchainv1alpha1.NSTemplateTier{}
+			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: tier, Namespace: configuration.Namespace()}, nsTemplateTier)
+			return nsTemplateTier, err
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			mur := &toolchainv1alpha1.MasterUserRecord{}
+			err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, mur)
+			return mur, err
+		}
+
+		for _, modify := range options {
+			modify(&inf)
+		}
+
+		return inf
+	}
+}
+
+func InitClient(t *testing.T, initObjs ...runtime.Object) *test.FakeClient {
+	scheme := runtime.NewScheme()
+	var AddToSchemes runtime.SchemeBuilder
+	addToSchemes := append(AddToSchemes,
+		toolchainv1alpha1.AddToScheme)
+	err := addToSchemes.AddToScheme(scheme)
+	require.NoError(t, err)
+	cl := test.NewFakeClient(t, initObjs...)
+	return cl
 }

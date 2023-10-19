@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -83,6 +84,9 @@ func New(application application.Application) *RegistrationServer {
 		ReadTimeout:  configuration.HTTPReadTimeout,
 		IdleTimeout:  configuration.HTTPIdleTimeout,
 		Handler:      srv.router,
+		TLSConfig: &tls.Config{
+			NextProtos: []string{"http/1.1"}, // disable HTTP/2 for now
+		},
 	}
 	if configuration.HTTPCompressResponses {
 		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))

@@ -85,6 +85,7 @@ func New(application application.Application) *RegistrationServer {
 		IdleTimeout:  configuration.HTTPIdleTimeout,
 		Handler:      srv.router,
 		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			NextProtos: []string{"http/1.1"}, // disable HTTP/2 for now
 		},
 	}

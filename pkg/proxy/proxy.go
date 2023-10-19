@@ -141,6 +141,7 @@ func (p *Proxy) StartProxy() *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: 2 * time.Second,
 		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			NextProtos: []string{"http/1.1"}, // disable HTTP/2 for now
 		},
 	}

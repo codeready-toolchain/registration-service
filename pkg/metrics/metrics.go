@@ -2,11 +2,12 @@ package metrics
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	glog "github.com/labstack/gommon/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -56,6 +57,7 @@ func (p *ProxyMetrics) StartMetricsServer() *http.Server {
 	srv := echo.New()
 	srv.Logger.SetLevel(glog.INFO)
 	srv.GET("/metrics", echo.WrapHandler(promhttp.HandlerFor(p.Reg, promhttp.HandlerOpts{DisableCompression: true, Registry: p.Reg})))
+	srv.DisableHTTP2 = true // disable HTTP/2 for now
 
 	log.Info("Starting the Registration-Service Metrics server...")
 	// listen concurrently to allow for graceful shutdown

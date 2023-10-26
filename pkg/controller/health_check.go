@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -84,9 +83,5 @@ func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
 		return false
 	}
 	defer resp.Body.Close()
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error(ctx, err, "failed to read API Proxy health check body")
-	}
 	return resp.StatusCode == http.StatusOK
 }

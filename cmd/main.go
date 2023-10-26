@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/prometheus/client_golang/prometheus"
+	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -92,6 +95,13 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+	// HACK
+	// Initiate toolchain cluster cache service
+	// let's cache the member clusters before we start the services
+	// this will speed up the first request
+	cacheLog := controllerlog.Log.WithName("registration-service")
+	cluster.NewToolchainClusterService(cl, cacheLog, configuration.Namespace(), 5*time.Second)
+	cluster.GetMemberClusters()
 
 	_, err = auth.InitializeDefaultTokenParser()
 	if err != nil {

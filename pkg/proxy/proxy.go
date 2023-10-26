@@ -25,7 +25,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
-	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
@@ -37,7 +36,6 @@ import (
 	"k8s.io/apiserver/pkg/util/wsstream"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -65,10 +63,6 @@ func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics) (
 }
 
 func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics) (*Proxy, error) {
-	// Initiate toolchain cluster cache service
-	cacheLog := controllerlog.Log.WithName("registration-service")
-	cluster.NewToolchainClusterService(cln, cacheLog, configuration.Namespace(), 5*time.Second)
-
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err

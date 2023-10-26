@@ -95,9 +95,8 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	// HACK
-	// Initiate toolchain cluster cache service
-	// let's cache the member clusters before we start the services
+	// Initialize toolchain cluster cache service
+	// let's cache the member clusters before we start the services,
 	// this will speed up the first request
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cl, cacheLog, configuration.Namespace(), 5*time.Second)

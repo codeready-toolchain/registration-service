@@ -130,7 +130,15 @@ func (p *Proxy) StartProxy() *http.Server {
 	handler := corsPreflightHandler(router)
 
 	log.Info(nil, "Starting the Proxy server...")
-	srv := &http.Server{Addr: ":" + ProxyPort, Handler: handler, ReadHeaderTimeout: 2 * time.Second}
+	srv := &http.Server{
+		Addr:              ":" + ProxyPort,
+		Handler:           handler,
+		ReadHeaderTimeout: 2 * time.Second,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			NextProtos: []string{"http/1.1"}, // disable HTTP/2 for now
+		},
+	}
 	// listen concurrently to allow for graceful shutdown
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {

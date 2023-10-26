@@ -383,32 +383,11 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 			return nil
 		}
 
-		// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
-		// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
-		// the resource.
-		userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
-		accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
+		updated := s.auditUserSignupAgainstClaims(ctx, userSignup)
 
-		updateUserSignup := false
-
-		if !userIDFound || userIDValue == "" {
-			userID := ctx.GetString(context.UserIDKey)
-			if userID != "" {
-				userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
-				updateUserSignup = true
-			}
-		}
-
-		if !accountIDFound || accountIDValue == "" {
-			accountID := ctx.GetString(context.AccountIDKey)
-			if accountID != "" {
-				userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
-				updateUserSignup = true
-			}
-		}
-
-		// If there is no need to update the UserSignup then break out of the loop here
-		if updateUserSignup {
+		// If there is no need to update the UserSignup then break out of the loop here (by returning nil)
+		// otherwise update the UserSignup
+		if updated {
 			var updateErr error
 			userSignup, updateErr = s.UpdateUserSignup(userSignup)
 			if updateErr != nil {
@@ -511,6 +490,61 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	return signupResponse, nil
+}
+
+// auditUserSignupAgainstClaims compares the properties of the specified UserSignup against the claims contained in the
+// user's access token and updates the UserSignup if necessary.  If updates were made, the function returns true
+// otherwise it returns false.
+func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup *toolchainv1alpha1.UserSignup) bool {
+
+	updated := false
+
+	updateIfRequired := func(ctx *gin.Context, key, existing string, updated bool) (string, bool) {
+		if val, ok := ctx.Get(key); ok && val != nil && len(val.(string)) > 0 && val != existing {
+			return val.(string), true
+		}
+		return existing, updated
+	}
+
+	c := userSignup.Spec.IdentityClaims
+
+	// Check each of the properties of IdentityClaimsEmbedded individually
+	c.Sub, updated = updateIfRequired(ctx, context.SubKey, c.Sub, updated)
+	c.UserID, updated = updateIfRequired(ctx, context.UserIDKey, c.UserID, updated)
+	c.AccountID, updated = updateIfRequired(ctx, context.AccountIDKey, c.AccountID, updated)
+	c.OriginalSub, updated = updateIfRequired(ctx, context.OriginalSubKey, c.OriginalSub, updated)
+	c.Email, updated = updateIfRequired(ctx, context.EmailKey, c.Email, updated)
+	c.PreferredUsername, updated = updateIfRequired(ctx, context.UsernameKey, c.PreferredUsername, updated)
+	c.GivenName, updated = updateIfRequired(ctx, context.GivenNameKey, c.GivenName, updated)
+	c.FamilyName, updated = updateIfRequired(ctx, context.FamilyNameKey, c.FamilyName, updated)
+	c.Company, updated = updateIfRequired(ctx, context.CompanyKey, c.Company, updated)
+
+	userSignup.Spec.IdentityClaims = c
+
+	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
+	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
+	// the resource.
+	// FIXME the following code may be removed after all UserSignup records have their IdentityClaims property fully populated
+	userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
+	accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
+
+	if !userIDFound || userIDValue == "" {
+		userID := ctx.GetString(context.UserIDKey)
+		if userID != "" {
+			userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
+			updated = true
+		}
+	}
+
+	if !accountIDFound || accountIDValue == "" {
+		accountID := ctx.GetString(context.AccountIDKey)
+		if accountID != "" {
+			userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
+			updated = true
+		}
+	}
+
+	return updated
 }
 
 // GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO

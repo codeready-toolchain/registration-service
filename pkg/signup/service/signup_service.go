@@ -474,9 +474,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
 		for _, member := range status.Status.Members {
 			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
-				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
-				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
-				signupResponse.APIEndpoint = member.APIEndpoint
 				signupResponse.ClusterName = member.ClusterName
 				break
 			}

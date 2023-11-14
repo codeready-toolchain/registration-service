@@ -171,7 +171,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	}
 
 	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
-	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx)
+	workspaces, err := p.spaceLister.ListUserWorkspaces(ctx, workspace)
 	if err != nil {
 		return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}

@@ -54,7 +54,7 @@ func NewSpaceLister(app application.Application, proxyMetrics *metrics.ProxyMetr
 func (s *SpaceLister) HandleSpaceListRequest(ctx echo.Context) error {
 	// list all user workspaces
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-	workspaces, err := s.ListUserWorkspaces(ctx)
+	workspaces, err := s.ListUserWorkspaces(ctx, "")
 	if err != nil {
 		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 		return errorResponse(ctx, apierrors.NewInternalError(err))
@@ -147,7 +147,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	), nil
 }
 
-func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.Workspace, error) {
+func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
@@ -160,15 +160,53 @@ func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context) ([]toolchainv1alpha1.
 		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet, so return an empty list
 		return []toolchainv1alpha1.Workspace{}, nil
 	}
-
 	murName := signup.CompliantUsername
+
+	if workspaceName != "" {
+		// if a workspace was provided
+		// recursively get all the spacebindings, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
+		return s.hierarchicalWorkspaceSearch(ctx, workspaceName, signup)
+	}
+
+	// get all spacebindings with given mur since no workspace was provided
 	spaceBindings, err := s.listSpaceBindingsForUser(murName)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
 		return nil, err
 	}
-
 	return s.workspacesFromSpaceBindings(signup.Name, spaceBindings), nil
+}
+
+// hierarchicalWorkspaceSearch lists all spacebindings starting from a space and going to it's parentSpaces
+// if any of those spaces contains a SpaceBinding for the given user, then a workspace object will be returned with the found role.
+func (s *SpaceLister) hierarchicalWorkspaceSearch(ctx echo.Context, workspaceName string, signup *signup.Signup) ([]toolchainv1alpha1.Workspace, error) {
+	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
+		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{spaceName})
+		if err != nil {
+			return nil, err
+		}
+		return s.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
+	}
+	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, s.GetInformerServiceFunc().GetSpace)
+	space, err := s.GetInformerServiceFunc().GetSpace(workspaceName)
+	if err != nil {
+		ctx.Logger().Error(err, "failed to get space")
+		return nil, err
+	}
+	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
+	if err != nil {
+		ctx.Logger().Error(err, "failed to list space bindings")
+		return nil, err
+	}
+	// check if user has access to this workspace
+	murName := signup.CompliantUsername
+	userBinding := filterUserSpaceBinding(murName, allSpaceBindings)
+	if userBinding == nil {
+		//  let's only log the issue and consider this as not found
+		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", murName, workspaceName))
+		return nil, nil
+	}
+	return []toolchainv1alpha1.Workspace{*createWorkspaceObject(signup.Name, space, userBinding)}, nil
 }
 
 func (s *SpaceLister) listSpaceBindingsForUser(murName string) ([]toolchainv1alpha1.SpaceBinding, error) {

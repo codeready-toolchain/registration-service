@@ -3,13 +3,14 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -162,6 +163,15 @@ func TestSpaceLister(t *testing.T) {
 				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
+			},
+			"parent lists spaces": {
+				username: "parentspace",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "parentspace", "admin", true),
+					workspaceFor(t, fakeClient, "childspace", "admin", false),
+					workspaceFor(t, fakeClient, "grandchildspace", "admin", false),
+				},
+				expectedErr: "",
 			},
 		}
 
@@ -541,6 +551,143 @@ func TestSpaceLister(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestListUserWorkspaces(t *testing.T) {
+	fakeSignupService := fake.NewSignupService(
+		newSignup("parentspace", "parent.space", true),
+		newSignup("childspace", "child.space", true),
+		newSignup("grandchildspace", "grandchild.space", true),
+	)
+
+	fakeClient := fake.InitClient(t,
+		// spaces
+		fake.NewSpace("parentspace", "member-1", "parentspace"),
+		fake.NewSpace("childspace", "member-1", "childspace", spacetest.WithSpecParentSpace("parentspace")),
+		fake.NewSpace("grandchildspace", "member-1", "grandchildspace", spacetest.WithSpecParentSpace("childspace")),
+		// noise space, user will have a different role here , just to make sure this is not returned anywhere in the tests
+		fake.NewSpace("otherspace", "member-1", "otherspace", spacetest.WithSpecParentSpace("otherspace")),
+
+		//spacebindings
+		fake.NewSpaceBinding("parent-sb1", "parentspace", "parentspace", "admin"),
+		fake.NewSpaceBinding("child-sb1", "childspace", "childspace", "admin"),
+		fake.NewSpaceBinding("grandchild-sb1", "grandchildspace", "grandchildspace", "admin"),
+		// noise spacebinding, just to make sure this is not returned anywhere in the tests
+		fake.NewSpaceBinding("parent-sb2", "parentspace", "otherspace", "contributor"),
+
+		//nstemplatetier
+		fake.NewBase1NSTemplateTier(),
+	)
+
+	// given
+	tests := map[string]struct {
+		username             string
+		expectedWs           []toolchainv1alpha1.Workspace
+		forWorkspace         string
+		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+		overrideInformerFunc func() service.InformerService
+	}{
+		"parent can list parentspace": {
+			username: "parent.space",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "parentspace", "admin", true),
+			},
+			forWorkspace: "parentspace",
+		},
+		"parent can list childspace": {
+			username: "parent.space",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "childspace", "admin", false),
+			},
+			forWorkspace: "childspace",
+		},
+		"parent can list grandchildspace": {
+			username: "parent.space",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "grandchildspace", "admin", false),
+			},
+			forWorkspace: "grandchildspace",
+		},
+		"child cannot list parentspace": {
+			username:     "child.space",
+			expectedWs:   []toolchainv1alpha1.Workspace{},
+			forWorkspace: "parentspace",
+		},
+		"child can list childspace": {
+			username:     "child.space",
+			forWorkspace: "childspace",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "childspace", "admin", true),
+			},
+		},
+		"child can list grandchildspace": {
+			username:     "child.space",
+			forWorkspace: "grandchildspace",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "grandchildspace", "admin", false),
+			},
+		},
+		"grandchild can list grandchildspace": {
+			username:     "grandchild.space",
+			forWorkspace: "grandchildspace",
+			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "grandchildspace", "admin", true),
+			},
+		},
+		"grandchild cannot list parentspace": {
+			username:     "grandchild.space",
+			forWorkspace: "parentspace",
+			expectedWs:   []toolchainv1alpha1.Workspace{},
+		},
+		"grandchild cannot list childspace": {
+			username:     "grandchild.space",
+			forWorkspace: "childspace",
+			expectedWs:   []toolchainv1alpha1.Workspace{},
+		},
+	}
+
+	for k, tc := range tests {
+		t.Run(k, func(t *testing.T) {
+			// given
+			signupProvider := fakeSignupService.GetSignupFromInformer
+			if tc.overrideSignupFunc != nil {
+				signupProvider = tc.overrideSignupFunc
+			}
+
+			informerFunc := fake.GetInformerService(fakeClient)
+			if tc.overrideInformerFunc != nil {
+				informerFunc = tc.overrideInformerFunc
+			}
+
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+
+			s := &handlers.SpaceLister{
+				GetSignupFunc:          signupProvider,
+				GetInformerServiceFunc: informerFunc,
+				ProxyMetrics:           proxyMetrics,
+			}
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+			ctx.Set(rcontext.UsernameKey, tc.username)
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+
+			// when
+			workspaceList, err := s.ListUserWorkspaces(ctx, tc.forWorkspace)
+
+			// then
+			require.NoError(t, err)
+			// list workspace case
+			require.Equal(t, len(tc.expectedWs), len(workspaceList))
+			for i := range tc.expectedWs {
+				assert.Equal(t, tc.expectedWs[i].Name, workspaceList[i].Name)
+				assert.Equal(t, tc.expectedWs[i].Status, workspaceList[i].Status)
+			}
+		})
+	}
+
 }
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {

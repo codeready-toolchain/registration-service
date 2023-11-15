@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 	"github.com/prometheus/client_golang/prometheus"
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -496,7 +495,6 @@ func (s *TestProxySuite) TestProxy() {
 								for workspaceContext, reqPath := range map[string]string{
 									"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
 									"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-									"subworkspace context": "http://localhost:8081/workspaces/mycoolsubworkspace/api/mycoolsubworkspace/pods",
 									"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
 								} {
 									s.Run(workspaceContext, func() {
@@ -570,8 +568,6 @@ func (s *TestProxySuite) TestProxy() {
 												switch name {
 												case "mycoolworkspace":
 													return fake.NewSpace("mycoolworkspace", "member-2", "smith2"), nil
-												case "mycoolsubworkspace":
-													return fake.NewSpace("mycoolsubworkspace", "member-2", "smith2", spacetest.WithSpecParentSpace("mycoolworkspace")), nil
 												}
 												return nil, fmt.Errorf("space not found error")
 											}

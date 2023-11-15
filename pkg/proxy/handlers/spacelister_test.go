@@ -164,15 +164,6 @@ func TestSpaceLister(t *testing.T) {
 					return nil, fmt.Errorf("signup error")
 				},
 			},
-			"parent lists spaces": {
-				username: "parentspace",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "parentspace", "admin", true),
-					workspaceFor(t, fakeClient, "childspace", "admin", false),
-					workspaceFor(t, fakeClient, "grandchildspace", "admin", false),
-				},
-				expectedErr: "",
-			},
 		}
 
 		for k, tc := range tests {

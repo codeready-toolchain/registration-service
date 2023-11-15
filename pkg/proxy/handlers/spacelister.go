@@ -147,6 +147,9 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context) (*toolchainv1alpha1.Wor
 	), nil
 }
 
+// ListUserWorkspaces returns a list of Workspaces for the current user.
+// If a workspaceName is provided, it means the request was made for a specific workspace, the function will check if the user has access to that workspace, if not it will return 404 Unauthorized.
+// If no workspaceName is provided, the function will list all SpaceBindings for the user and return all the workspaces found from this list.
 func (s *SpaceLister) ListUserWorkspaces(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)

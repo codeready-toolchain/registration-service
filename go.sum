@@ -381,8 +381,8 @@ github.com/migueleliasweb/go-github-mock v0.0.18 h1:0lWt9MYmZQGnQE2rFtjlft/YtD6h
 github.com/migueleliasweb/go-github-mock v0.0.18/go.mod h1:CcgXcbMoRnf3rRVHqGssuBquZDIcaplxL2W6G+xs7kM=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=
 github.com/mitchellh/reflectwalk v1.0.0 h1:9D+8oIskB4VJBN5SFlmc27fSlIBZaov1Wpk/IfikLNY=
-github.com/mmulholla/toolchain-common v0.0.0-20231113172419-7984c8ddb116 h1:BZdI/TtmgnrIpfsaTK/hLtbpyZLrOK5n01J+3LU6y0E=
-github.com/mmulholla/toolchain-common v0.0.0-20231113172419-7984c8ddb116/go.mod h1:tW7JJUb5SnFb6tOZ4vrRkbbukUR+mcBqQfwzchzNAsU=
+github.com/mmulholla/toolchain-common v0.0.0-20231114204821-a47c1ba84b34 h1:hmKol8GnRHKBEh43ipN7cJQQzXRIagqp8qD2nkfpKU4=
+github.com/mmulholla/toolchain-common v0.0.0-20231114204821-a47c1ba84b34/go.mod h1:W+JXS7K1wG8dbkrq9qnLgcvutap83mFe5+Xa0k5Yr1U=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=

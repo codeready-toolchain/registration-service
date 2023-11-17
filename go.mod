@@ -2,7 +2,7 @@ module github.com/codeready-toolchain/registration-service
 
 go 1.19
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/mmulholla/toolchain-common v0.0.0-20231113172419-7984c8ddb116
+replace github.com/codeready-toolchain/toolchain-common => github.com/mmulholla/toolchain-common v0.0.0-20231114204821-a47c1ba84b34
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100

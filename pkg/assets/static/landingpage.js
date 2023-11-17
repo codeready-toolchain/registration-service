@@ -384,24 +384,24 @@ getJSON('GET', configURL, null, function(err, data) {
       console.log('client library load success!')
       var clientConfig = JSON.parse(data['auth-client-config']);
       console.log('using client configuration: ' + JSON.stringify(clientConfig))
-      keycloak = Keycloak(clientConfig);
+      keycloak = new Keycloak(clientConfig);
       keycloak.init({
         onLoad: 'check-sso',
         silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-      }).success(function(authenticated) {
+      }).then(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');
           // start 15s interval token refresh.
           intervalRefRefresh = setInterval(refreshToken, 15000);
           keycloak.loadUserInfo()
-            .success(function(data) {
+            .then(function(data) {
               console.log('retrieved user info..');
               idToken = keycloak.idToken
               showUser(data.preferred_username, data.sub, data.original_sub)
               // now check the signup state of the user.
               updateSignupState();
             })
-            .error(function() {
+            .catch(function() {
               console.log('Failed to pull in user data');
               showError('Failed to pull in user data.');
             });
@@ -412,7 +412,7 @@ getJSON('GET', configURL, null, function(err, data) {
           idToken = null
           show('state-getstarted');
         }
-      }).error(function() {
+      }).catch(function() {
         console.log('Failed to initialize authorization');
         showError('Failed to initialize authorization.');
       });

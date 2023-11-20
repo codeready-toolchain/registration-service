@@ -109,7 +109,10 @@ func startFakeProxy(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/proxyhealth", fakehealth)
 
-	srv := &http.Server{Addr: ":8091", Handler: mux, ReadHeaderTimeout: 2 * time.Second}
+	// use an unique port for proxy to avoid collisions with `pkg/proxy`
+	// that's using the default one from pkg/proxy (i.e. proxy.ProxyPort 8081)
+	altProxyPort := "8091"
+	srv := &http.Server{Addr: ":" + altProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		err := srv.ListenAndServe()
 		require.NoError(t, err)

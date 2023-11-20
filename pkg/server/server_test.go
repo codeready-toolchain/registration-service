@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -105,17 +106,20 @@ func (s *TestServerSuite) TestServer() {
 	})
 }
 
-func startFakeProxy(t *testing.T) *http.Server {
+func startFakeProxy(t *testing.T) {
 	// start server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/proxyhealth", fakehealth)
 
 	srv := &http.Server{Addr: ":" + proxy.ProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
-		err := srv.ListenAndServe()
-		require.NoError(t, err)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			require.NoError(t, err)
+		}
 	}()
-	return srv
+	t.Cleanup(func() {
+		require.NoError(t, srv.Close())
+	})
 }
 
 func fakehealth(res http.ResponseWriter, _ *http.Request) {

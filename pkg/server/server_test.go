@@ -109,8 +109,8 @@ func startFakeProxy(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/proxyhealth", fakehealth)
 
-	// use an unique port for proxy to avoid collisions with `pkg/proxy`
-	// that's using the default one from pkg/proxy (i.e. proxy.ProxyPort 8081)
+	// use an unique port for proxy to avoid collisions with tests in `pkg/proxy`
+	// that are using the pkg/proxy's default port (i.e. proxy.ProxyPort 8081)
 	altProxyPort := "8091"
 	srv := &http.Server{Addr: ":" + altProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {

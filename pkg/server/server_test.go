@@ -10,7 +10,6 @@ import (
 	"gopkg.in/h2non/gock.v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -110,7 +109,7 @@ func startFakeProxy(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/proxyhealth", fakehealth)
 
-	srv := &http.Server{Addr: ":" + proxy.ProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
+	srv := &http.Server{Addr: ":8091", Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		err := srv.ListenAndServe()
 		require.NoError(t, err)

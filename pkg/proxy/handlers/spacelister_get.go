@@ -41,9 +41,7 @@ func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
 func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
 	userSignup, err := s.GetProvisionedUserSignup(ctx)
 	if err != nil {
-		cause := errs.Wrap(err, "error retrieving userSignup")
-		ctx.Logger().Error(cause)
-		return nil, cause
+		return nil, err
 	}
 	// signup is not ready
 	if userSignup == nil {

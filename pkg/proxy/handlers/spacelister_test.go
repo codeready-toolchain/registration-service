@@ -208,7 +208,7 @@ func TestSpaceLister(t *testing.T) {
 				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 
 				// when
-				err := s.HandleSpaceListRequest(ctx)
+				err := handlers.HandleSpaceListRequest(s)(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -703,7 +703,7 @@ func TestSpaceLister(t *testing.T) {
 				ctx.SetParamValues(tc.expectedWorkspace)
 
 				// when
-				err := s.HandleSpaceGetRequest(ctx)
+				err := handlers.HandleSpaceGetRequest(s)(ctx)
 
 				// then
 				if tc.expectedErr != "" {

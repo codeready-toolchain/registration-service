@@ -121,8 +121,8 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
-	wg.GET("/:workspace", p.spaceLister.HandleSpaceGetRequest)
-	wg.GET("", p.spaceLister.HandleSpaceListRequest)
+	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister))
+	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
 	router.GET(proxyHealthEndpoint, p.health)
 	router.Any("/*", p.handleRequestAndRedirect)
 
@@ -175,7 +175,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	if workspaceName != "" {
 		// when a workspace name was provided
 		// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
-		workspace, err := p.spaceLister.GetUserWorkspace(ctx, workspaceName)
+		workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName)
 		if err != nil {
 			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}
@@ -187,7 +187,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 		workspaces = []toolchainv1alpha1.Workspace{*workspace}
 	} else {
 		// list all workspaces
-		workspaces, err = p.spaceLister.ListUserWorkspaces(ctx)
+		workspaces, err = handlers.ListUserWorkspaces(ctx, p.spaceLister)
 		if err != nil {
 			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}

@@ -20,26 +20,28 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
-func (s *SpaceLister) HandleSpaceGetRequest(ctx echo.Context) error {
+func HandleSpaceGetRequest(spaceLister *SpaceLister) echo.HandlerFunc {
 	// get specific workspace
-	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-	workspace, err := s.GetUserWorkspace(ctx, ctx.Param("workspace"))
-	if err != nil {
-		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
-		return errorResponse(ctx, apierrors.NewInternalError(err))
+	return func(ctx echo.Context) error {
+		requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
+		workspace, err := GetUserWorkspace(ctx, spaceLister, ctx.Param("workspace"))
+		if err != nil {
+			spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
+			return errorResponse(ctx, apierrors.NewInternalError(err))
+		}
+		if workspace == nil {
+			// not found
+			spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
+			r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
+			return errorResponse(ctx, apierrors.NewNotFound(r, ctx.Param("workspace")))
+		}
+		spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
+		return getWorkspaceResponse(ctx, workspace)
 	}
-	if workspace == nil {
-		// not found
-		s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotFound), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
-		r := schema.GroupResource{Group: "toolchain.dev.openshift.com", Resource: "workspaces"}
-		return errorResponse(ctx, apierrors.NewNotFound(r, ctx.Param("workspace")))
-	}
-	s.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusOK), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds())
-	return getWorkspaceResponse(ctx, workspace)
 }
 
-func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
-	userSignup, err := s.GetProvisionedUserSignup(ctx)
+func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
+	userSignup, err := spaceLister.GetProvisionedUserSignup(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +49,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, workspaceName string) (
 	if userSignup == nil {
 		return nil, nil
 	}
-	space, err := s.GetInformerServiceFunc().GetSpace(workspaceName)
+	space, err := spaceLister.GetInformerServiceFunc().GetSpace(workspaceName)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to get space"))
 		return nil, nil
@@ -59,9 +61,9 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, workspaceName string) (
 		if err != nil {
 			return nil, err
 		}
-		return s.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
+		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
 	}
-	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, s.GetInformerServiceFunc().GetSpace)
+	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
 	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
 		ctx.Logger().Error(err, "failed to list space bindings")
@@ -84,7 +86,7 @@ func (s *SpaceLister) GetUserWorkspace(ctx echo.Context, workspaceName string) (
 	}
 
 	// add available roles, this field is populated only for the GET workspace request
-	nsTemplateTier, err := s.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
+	nsTemplateTier, err := spaceLister.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to get nstemplatetier"))
 		return nil, err

@@ -582,6 +582,45 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.Empty(s.T(), bravoUserSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
+func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCaptchaScoreBelowAutomaticVerificationThreshold() {
+	// Setup gock to intercept calls made to the Twilio API
+	s.SetHTTPClientFactoryOption()
+
+	defer gock.Off()
+	// call override config to ensure the factory option takes effect
+	s.OverrideApplicationDefault()
+
+	now := time.Now()
+
+	userSignup := &toolchainv1alpha1.UserSignup{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "123",
+			Namespace: configuration.Namespace(),
+			Annotations: map[string]string{
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
+				toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:            "0",
+				toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:              "0.5",
+				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
+			},
+			Labels: map[string]string{
+				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+			},
+		},
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			Username: "sbryzak@redhat.com",
+		},
+	}
+	states.SetVerificationRequired(userSignup, true)
+
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
+
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+	require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+}
+
 func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUseByDeactivatedUserSignup() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()

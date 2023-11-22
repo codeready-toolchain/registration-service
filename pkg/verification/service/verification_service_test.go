@@ -582,45 +582,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.Empty(s.T(), bravoUserSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
 
-func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCaptchaScoreBelowAutomaticVerificationThreshold() {
-	// Setup gock to intercept calls made to the Twilio API
-	s.SetHTTPClientFactoryOption()
-
-	defer gock.Off()
-	// call override config to ensure the factory option takes effect
-	s.OverrideApplicationDefault()
-
-	now := time.Now()
-
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
-				toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:            "0",
-				toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:              "0.5",
-				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
-			},
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
-		},
-	}
-	states.SetVerificationRequired(userSignup, true)
-
-	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-	require.NoError(s.T(), err)
-
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
-	require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
-}
-
 func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUseByDeactivatedUserSignup() {
 	// Setup gock to intercept calls made to the Twilio API
 	s.SetHTTPClientFactoryOption()
@@ -704,6 +665,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.8",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
@@ -739,6 +701,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "employee085@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.7",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
@@ -931,6 +894,43 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
+	})
+
+	s.T().Run("when captcha score below automatic verification threshold", func(t *testing.T) {
+
+		userSignup := &toolchainv1alpha1.UserSignup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "123",
+				Namespace: configuration.Namespace(),
+				Annotations: map[string]string{
+					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.5",
+					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+				},
+				Labels: map[string]string{
+					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				},
+			},
+			Spec: toolchainv1alpha1.UserSignupSpec{
+				Username: "sbryzak@redhat.com",
+			},
+		}
+		states.SetVerificationRequired(userSignup, true)
+
+		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+		require.NoError(s.T(), err)
+
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+		require.NoError(s.T(), err)
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+
+		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
 	})
 }
 

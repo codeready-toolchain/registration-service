@@ -929,7 +929,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
 
-		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+		_, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(s.T(), err)
 	})
 }

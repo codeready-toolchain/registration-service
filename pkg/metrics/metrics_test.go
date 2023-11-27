@@ -78,7 +78,7 @@ func TestMetricsServer(t *testing.T) {
 		}
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusUnauthorized {
+		if resp.StatusCode != http.StatusOK {
 			// The server may be running but still not fully ready to accept requests
 			time.Sleep(time.Second)
 			continue

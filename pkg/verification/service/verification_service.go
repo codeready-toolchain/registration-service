@@ -4,11 +4,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"net/http"
 	"strconv"
 	"time"
-
-	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 
@@ -71,7 +70,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		log.Error(ctx, err, "error retrieving usersignup")
 		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
-
 	labelValues := map[string]string{}
 	annotationValues := map[string]string{}
 
@@ -226,14 +224,6 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		}
 		log.Error(ctx, lookupErr, "error retrieving usersignup")
 		return crterrors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
-	}
-
-	// require manual approval if captcha score below automatic verification threshold
-	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
-	fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
-	if found && parseErr == nil && fscore < 0.6 {
-		log.Error(ctx, errors.New("captcha score too low"), "automatic verification disabled, manual approval required for user")
-		return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
 	}
 
 	annotationValues := map[string]string{}

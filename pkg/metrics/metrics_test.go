@@ -7,6 +7,7 @@ import (
 	clientmodel "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -63,6 +64,30 @@ func TestMetricsServer(t *testing.T) {
 	testMetrics := NewProxyMetrics(reg)
 	server := testMetrics.StartMetricsServer()
 	require.NotNil(t, server)
+	// Wait up to N seconds for the Metrics server to start
+	ready := false
+	sec := 10
+	for i := 0; i < sec; i++ {
+		req, err := http.NewRequest("GET", "http://localhost:8082/metrics", nil)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			// The server may be running but still not fully ready to accept requests
+			time.Sleep(time.Second)
+			continue
+		}
+		// Server is up and running!
+		ready = true
+		break
+	}
+	require.True(t, ready, "Metrics Server is not ready after %d seconds", sec)
 	defer func() {
 		_ = server.Close()
 	}()

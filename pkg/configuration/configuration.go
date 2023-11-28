@@ -281,6 +281,20 @@ func (r VerificationConfig) CaptchaScoreThreshold() float32 {
 	return float32(thresholdFloat)
 }
 
+func (r VerificationConfig) AutomaticVerificationThreshold() float32 {
+	const defaultAutomaticVerificationThreshold float32 = 0.6
+	threshold := commonconfig.GetString(r.c.Captcha.AutomaticVerificationThreshold, "0.6")
+	thresholdFloat, err := strconv.ParseFloat(threshold, 32)
+	if err != nil {
+
+		if threshold != "" {
+			log.Error(nil, err, fmt.Sprintf("unable to parse automatic verification threshold, using default value '%.1f'", defaultAutomaticVerificationThreshold))
+		}
+		return defaultAutomaticVerificationThreshold
+	}
+	return float32(thresholdFloat)
+}
+
 func (r VerificationConfig) CaptchaSiteKey() string {
 	return commonconfig.GetString(r.c.Captcha.SiteKey, "")
 }

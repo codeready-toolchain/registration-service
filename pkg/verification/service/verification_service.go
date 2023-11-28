@@ -231,7 +231,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	// require manual approval if captcha score below automatic verification threshold
 	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
 	fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
-	if found && parseErr == nil && fscore < 0.6 {
+	if found && parseErr == nil && float32(fscore) < cfg.Verification().AutomaticVerificationThreshold() {
 		log.Error(ctx, errors.New("captcha score too low"), "automatic verification disabled, manual approval required for user")
 		return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
 	}

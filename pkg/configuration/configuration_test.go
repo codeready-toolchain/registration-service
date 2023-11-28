@@ -63,6 +63,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().CaptchaProjectID())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaSiteKey())
 		assert.Equal(t, float32(0.9), regServiceCfg.Verification().CaptchaScoreThreshold())
+		assert.Equal(t, float32(0.6), regServiceCfg.Verification().AutomaticVerificationThreshold())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 	})
 	t.Run("non-default", func(t *testing.T) {
@@ -89,6 +90,7 @@ func TestRegistrationService(t *testing.T) {
 			Verification().CaptchaProjectID("test-project").
 			Verification().CaptchaSiteKey("site-key").
 			Verification().CaptchaScoreThreshold("0.7").
+			Verification().AutomaticVerificationThreshold("0.5").
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
@@ -138,6 +140,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "test-project", regServiceCfg.Verification().CaptchaProjectID())
 		assert.Equal(t, "site-key", regServiceCfg.Verification().CaptchaSiteKey())
 		assert.Equal(t, float32(0.7), regServiceCfg.Verification().CaptchaScoreThreshold())
+		assert.Equal(t, float32(0.5), regServiceCfg.Verification().AutomaticVerificationThreshold())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 	})
 }

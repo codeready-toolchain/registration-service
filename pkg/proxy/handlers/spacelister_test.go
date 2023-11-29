@@ -3,13 +3,14 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -44,6 +45,9 @@ func TestSpaceLister(t *testing.T) {
 		newSignup("animelover", "anime.lover", true),
 		newSignup("carlover", "car.lover", true),
 		newSignup("racinglover", "racing.lover", false),
+		newSignup("parentspace", "parent.space", true),
+		newSignup("childspace", "child.space", true),
+		newSignup("grandchildspace", "grandchild.space", true),
 	)
 
 	// space that is not provisioned yet
@@ -80,6 +84,11 @@ func TestSpaceLister(t *testing.T) {
 		fake.NewSpace("animelover", "member-1", "animelover"),
 		fake.NewSpace("carlover", "member-1", "carlover"),
 		spaceNotProvisionedYet,
+		fake.NewSpace("parentspace", "member-1", "parentspace"),
+		fake.NewSpace("childspace", "member-1", "childspace", spacetest.WithSpecParentSpace("parentspace")),
+		fake.NewSpace("grandchildspace", "member-1", "grandchildspace", spacetest.WithSpecParentSpace("childspace")),
+		// noise space, user will have a different role here , just to make sure this is not returned anywhere in the tests
+		fake.NewSpace("otherspace", "member-1", "otherspace", spacetest.WithSpecParentSpace("otherspace")),
 
 		//spacebindings
 		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
@@ -92,6 +101,11 @@ func TestSpaceLister(t *testing.T) {
 		spaceBindingWithSBRonDanceLover,
 		spaceBindingWithInvalidSBRName,
 		spaceBindingWithInvalidSBRNamespace,
+		fake.NewSpaceBinding("parent-sb1", "parentspace", "parentspace", "admin"),
+		fake.NewSpaceBinding("child-sb1", "childspace", "childspace", "admin"),
+		fake.NewSpaceBinding("grandchild-sb1", "grandchildspace", "grandchildspace", "admin"),
+		// noise spacebinding, just to make sure this is not returned anywhere in the tests
+		fake.NewSpaceBinding("parent-sb2", "parentspace", "otherspace", "contributor"),
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
@@ -194,7 +208,7 @@ func TestSpaceLister(t *testing.T) {
 				ctx.Set(rcontext.RequestReceivedTime, time.Now())
 
 				// when
-				err := s.HandleSpaceListRequest(ctx)
+				err := handlers.HandleSpaceListRequest(s)(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -487,6 +501,175 @@ func TestSpaceLister(t *testing.T) {
 				expectedErrCode:   500,
 				expectedWorkspace: "carlover",
 			},
+			"parent can list parentspace": {
+				username: "parent.space",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "parentspace", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+						}),
+					),
+				},
+				expectedWorkspace: "parentspace",
+			},
+			"parent can list childspace": {
+				username: "parent.space",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "childspace", "admin", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "childspace",
+								Role:             "admin",
+								AvailableActions: []string(nil),
+							},
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+						}),
+					),
+				},
+				expectedWorkspace: "childspace",
+			},
+			"parent can list grandchildspace": {
+				username: "parent.space",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "childspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "grandchildspace",
+								Role:             "admin",
+								AvailableActions: []string(nil),
+							},
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+						}),
+					),
+				},
+				expectedWorkspace: "grandchildspace",
+			},
+			"child cannot list parentspace": {
+				username:          "child.space",
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
+				expectedErrCode:   404,
+				expectedWorkspace: "parentspace",
+			},
+			"child can list childspace": {
+				username:          "child.space",
+				expectedWorkspace: "childspace",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "childspace", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "childspace",
+								Role:             "admin",
+								AvailableActions: []string(nil),
+							},
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+						}),
+					),
+				},
+			},
+			"child can list grandchildspace": {
+				username:          "child.space",
+				expectedWorkspace: "grandchildspace",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "childspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "grandchildspace",
+								Role:             "admin",
+								AvailableActions: []string(nil),
+							},
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+						}),
+					),
+				},
+			},
+			"grandchild can list grandchildspace": {
+				username: "grandchild.space",
+				expectedWs: []toolchainv1alpha1.Workspace{
+					workspaceFor(t, fakeClient, "grandchildspace", "admin", true,
+						commonproxy.WithAvailableRoles([]string{
+							"admin", "viewer",
+						}),
+						commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+							{
+								MasterUserRecord: "childspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+							{
+								MasterUserRecord: "grandchildspace",
+								Role:             "admin",
+								AvailableActions: []string(nil),
+							},
+							{
+								MasterUserRecord: "parentspace",
+								Role:             "admin",
+								AvailableActions: []string{"override"},
+							},
+						}),
+					),
+				},
+				expectedWorkspace: "grandchildspace",
+			},
+			"grandchild cannot list parentspace": {
+				username:          "grandchild.space",
+				expectedWorkspace: "parentspace",
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
+				expectedErrCode:   404,
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+			},
+			"grandchild cannot list childspace": {
+				username:          "grandchild.space",
+				expectedWorkspace: "childspace",
+				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"childspace\\\" not found\"",
+				expectedErrCode:   404,
+				expectedWs:        []toolchainv1alpha1.Workspace{},
+			},
 		}
 
 		for k, tc := range tests {
@@ -520,7 +703,7 @@ func TestSpaceLister(t *testing.T) {
 				ctx.SetParamValues(tc.expectedWorkspace)
 
 				// when
-				err := s.HandleSpaceGetRequest(ctx)
+				err := handlers.HandleSpaceGetRequest(s)(ctx)
 
 				// then
 				if tc.expectedErr != "" {

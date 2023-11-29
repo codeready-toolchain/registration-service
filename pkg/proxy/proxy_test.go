@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"io"
 	"log"
 	"net/http"
@@ -21,12 +19,14 @@ import (
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/prometheus/client_golang/prometheus"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -574,7 +574,7 @@ func (s *TestProxySuite) TestProxy() {
 												// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
 												spaceBindings := []toolchainv1alpha1.SpaceBinding{}
 												for _, req := range reqs {
-													if req.Values().List()[0] == "smith2" {
+													if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
 														spaceBindings = append(spaceBindings, *fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
 													}
 												}
@@ -598,6 +598,9 @@ func (s *TestProxySuite) TestProxy() {
 													}, nil
 												}
 												return nil, fmt.Errorf("proxy plugin not found")
+											}
+											inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+												return fake.NewBase1NSTemplateTier(), nil
 											}
 											s.Application.MockInformerService(inf)
 											fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)

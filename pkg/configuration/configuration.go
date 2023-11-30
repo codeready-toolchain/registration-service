@@ -281,9 +281,9 @@ func (r VerificationConfig) CaptchaScoreThreshold() float32 {
 	return float32(thresholdFloat)
 }
 
-func (r VerificationConfig) AutomaticVerificationThreshold() float32 {
+func (r VerificationConfig) CaptchaRequiredScore() float32 {
 	const defaultAutomaticVerificationThreshold float32 = 0.6
-	threshold := commonconfig.GetString(r.c.Captcha.AutomaticVerificationThreshold, "0.6")
+	threshold := commonconfig.GetString(r.c.Captcha.RequiredScore, "0.6")
 	thresholdFloat, err := strconv.ParseFloat(threshold, 32)
 	if err != nil {
 
@@ -293,6 +293,10 @@ func (r VerificationConfig) AutomaticVerificationThreshold() float32 {
 		return defaultAutomaticVerificationThreshold
 	}
 	return float32(thresholdFloat)
+}
+
+func (r VerificationConfig) CaptchaAllowLowScoreReactivation() bool {
+	return commonconfig.GetBool(r.c.Captcha.AllowLowScoreReactivation, true)
 }
 
 func (r VerificationConfig) CaptchaSiteKey() string {

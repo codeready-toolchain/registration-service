@@ -896,41 +896,279 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 
-	s.T().Run("when captcha score below automatic verification threshold", func(t *testing.T) {
+	s.T().Run("when allow low score configuration is enabled", func(t *testing.T) {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.5",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+		t.Run("captcha score below required score but it's a reactivation", func(t *testing.T) {
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "2", // user is reactivating
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Minute).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
 				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
 				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
-			},
-		}
-		states.SetVerificationRequired(userSignup, true)
+			}
+			states.SetVerificationRequired(userSignup, true)
 
-		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
 
-		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
-		require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.NoError(s.T(), err)
 
-		_, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+			userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+
+			require.False(s.T(), states.VerificationRequired(userSignup))
+		})
+
+		t.Run("captcha score below required score but it's not a reactivation", func(t *testing.T) {
+
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "1", // first time user
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
+
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+
+			_, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+		})
+
+		t.Run("activation counter is invalid and captcha score is low", func(t *testing.T) {
+
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happend
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
+
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+
+			_, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+		})
+
+		t.Run("activation counter is invalid and captcha score is ok", func(t *testing.T) {
+
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happend
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.6", // and captcha score is ok
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
+
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.NoError(s.T(), err)
+
+			userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+
+			require.False(s.T(), states.VerificationRequired(userSignup))
+		})
+	})
+
+	s.T().Run("when allow low score configuration is disabled", func(t *testing.T) {
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(false),
+		)
+
+		t.Run("captcha score below required score and it's a reactivation", func(t *testing.T) {
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "2", // user is reactivating
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+
+			_, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+		})
+
+		t.Run("captcha score below required score and it's not a reactivation", func(t *testing.T) {
+
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "1", // first time user
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
+
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.EqualError(s.T(), err, "verification failed: verification is not available at this time")
+
+			_, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+		})
+
+		t.Run("captcha score is ok", func(t *testing.T) {
+			userSignup := &toolchainv1alpha1.UserSignup{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "123",
+					Namespace: configuration.Namespace(),
+					Annotations: map[string]string{
+						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "1", // first time user
+						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
+						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.6", // and captcha score is ok
+						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
+						toolchainv1alpha1.UserVerificationExpiryAnnotationKey:      now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
+					},
+					Labels: map[string]string{
+						toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+					},
+				},
+				Spec: toolchainv1alpha1.UserSignupSpec{
+					Username: "sbryzak@redhat.com",
+				},
+			}
+			states.SetVerificationRequired(userSignup, true)
+
+			err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+			require.NoError(s.T(), err)
+
+			err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+			require.NoError(s.T(), err)
+
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+			require.NoError(s.T(), err)
+
+			userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+
+			require.False(s.T(), states.VerificationRequired(userSignup))
+		})
 	})
 }
 

@@ -228,12 +228,27 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		return crterrors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 
-	// require manual approval if captcha score below automatic verification threshold
-	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
-	fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
-	if found && parseErr == nil && float32(fscore) < cfg.Verification().AutomaticVerificationThreshold() {
-		log.Error(ctx, errors.New("captcha score too low"), "automatic verification disabled, manual approval required for user")
-		return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
+	// check if it's a reactivation
+	if activationCounterString, foundActivationCounter := signup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; foundActivationCounter && cfg.Verification().CaptchaAllowLowScoreReactivation() {
+		activationCounter, err := strconv.Atoi(activationCounterString)
+		if err != nil {
+			log.Error(ctx, err, "activation counter is not an integer value, checking required captcha score")
+			// require manual approval if captcha score below automatic verification threshold
+			if err = checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+				return err
+			}
+		} else if activationCounter == 1 {
+			// check required captcha score if it's not a reactivation
+			if err = checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+				return err
+			}
+		}
+	} else {
+		// when allowLowScoreReactivation is not enabled
+		// require manual approval if captcha score below automatic verification threshold for all users
+		if err := checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+			return err
+		}
 	}
 
 	annotationValues := map[string]string{}
@@ -334,6 +349,16 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	}
 
 	return
+}
+
+func checkRequiredCaptchaScore(ctx *gin.Context, signup *toolchainv1alpha1.UserSignup, cfg configuration.RegistrationServiceConfig) error {
+	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
+	fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
+	if found && parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {
+		log.Error(ctx, errors.New("captcha score too low"), "automatic verification disabled, manual approval required for user")
+		return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
+	}
+	return nil
 }
 
 // VerifyActivationCode verifies the activation code:

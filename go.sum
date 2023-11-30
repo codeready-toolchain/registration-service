@@ -377,8 +377,8 @@ github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWE
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zkfA9PSy5pEvNWRP0ET0TIVo=
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
-github.com/mfrancisc/toolchain-common v0.0.0-20231129203450-dc2ae3576268 h1:5uWab0qSXG0PnEABfG6A8Is3WTUgX+T1qywbS57BW/4=
-github.com/mfrancisc/toolchain-common v0.0.0-20231129203450-dc2ae3576268/go.mod h1:p26SbkWy2Fo8/YUQcvElRDE2VIthvqCoy7ia6EDcN1M=
+github.com/mfrancisc/toolchain-common v0.0.0-20231130092744-3a55662f5fe9 h1:ucPVk1V/cf99Bb70U1W5MYcDBeaeZR+ilcPAgI/raWw=
+github.com/mfrancisc/toolchain-common v0.0.0-20231130092744-3a55662f5fe9/go.mod h1:cEkJH2jz88KIZt5W8wSnK3Gz6OfszzXv74OIndbTlRE=
 github.com/migueleliasweb/go-github-mock v0.0.18 h1:0lWt9MYmZQGnQE2rFtjlft/YtD6hzxuN6JJRFpujzEI=
 github.com/migueleliasweb/go-github-mock v0.0.18/go.mod h1:CcgXcbMoRnf3rRVHqGssuBquZDIcaplxL2W6G+xs7kM=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=

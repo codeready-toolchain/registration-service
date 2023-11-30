@@ -983,7 +983,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 					Namespace: configuration.Namespace(),
 					Annotations: map[string]string{
 						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
-						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happend
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happened
 						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
 						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.5", // and captcha score is low
 						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",
@@ -1021,7 +1021,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 					Namespace: configuration.Namespace(),
 					Annotations: map[string]string{
 						toolchainv1alpha1.UserSignupUserEmailAnnotationKey:         "sbryzak@redhat.com",
-						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happend
+						toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: "x", // something wrong happened
 						toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:    "0",
 						toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:      "0.6", // and captcha score is ok
 						toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:  "123456",

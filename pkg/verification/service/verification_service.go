@@ -353,10 +353,12 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 func checkRequiredCaptchaScore(ctx *gin.Context, signup *toolchainv1alpha1.UserSignup, cfg configuration.RegistrationServiceConfig) error {
 	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
-	fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
-	if found && parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {
-		log.Error(ctx, errors.New("captcha score too low"), "automatic verification disabled, manual approval required for user")
-		return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
+	if found {
+		fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
+		if parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {
+			log.Info(ctx, "captcha score %v is too low, automatic verification disabled, manual approval required for user", float32(fscore))
+			return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
+		}
 	}
 	return nil
 }

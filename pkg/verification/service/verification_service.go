@@ -244,7 +244,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 			}
 		}
 	} else {
-		// when allowLowScoreReactivation is not enabled
+		// when allowLowScoreReactivation is not enabled or no activation counter found
 		// require manual approval if captcha score below automatic verification threshold for all users
 		if err := checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
 			return err

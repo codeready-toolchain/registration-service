@@ -356,7 +356,7 @@ func checkRequiredCaptchaScore(ctx *gin.Context, signup *toolchainv1alpha1.UserS
 	if found {
 		fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
 		if parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {
-			log.Info(ctx, "captcha score %v is too low, automatic verification disabled, manual approval required for user", float32(fscore))
+			log.Info(ctx, fmt.Sprintf("captcha score %v is too low, automatic verification disabled, manual approval required for user", float32(fscore)))
 			return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
 		}
 	}

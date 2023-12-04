@@ -234,19 +234,19 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		if err != nil {
 			log.Error(ctx, err, "activation counter is not an integer value, checking required captcha score")
 			// require manual approval if captcha score below automatic verification threshold
-			if err = checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+			if err = checkRequiredManualApproval(ctx, signup, cfg); err != nil {
 				return err
 			}
 		} else if activationCounter == 1 {
 			// check required captcha score if it's not a reactivation
-			if err = checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+			if err = checkRequiredManualApproval(ctx, signup, cfg); err != nil {
 				return err
 			}
 		}
 	} else {
 		// when allowLowScoreReactivation is not enabled or no activation counter found
 		// require manual approval if captcha score below automatic verification threshold for all users
-		if err := checkRequiredCaptchaScore(ctx, signup, cfg); err != nil {
+		if err := checkRequiredManualApproval(ctx, signup, cfg); err != nil {
 			return err
 		}
 	}
@@ -351,7 +351,9 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	return
 }
 
-func checkRequiredCaptchaScore(ctx *gin.Context, signup *toolchainv1alpha1.UserSignup, cfg configuration.RegistrationServiceConfig) error {
+// checkRequiredManualApproval compares the user captcha score with the configured required captcha score.
+// When the user score is lower than the required score an error is returned meaning that the user is considered "suspicious" and manual approval of the signup is required.
+func checkRequiredManualApproval(ctx *gin.Context, signup *toolchainv1alpha1.UserSignup, cfg configuration.RegistrationServiceConfig) error {
 	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
 	if found {
 		fscore, parseErr := strconv.ParseFloat(captchaScore, 32)

@@ -357,7 +357,7 @@ func checkRequiredCaptchaScore(ctx *gin.Context, signup *toolchainv1alpha1.UserS
 		fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
 		if parseErr != nil {
 			// let's just log the parsing error and return
-			log.Error(ctx, parseErr, fmt.Sprintf("error while parsing captchaScore"))
+			log.Error(ctx, parseErr, "error while parsing captchaScore")
 			return nil
 		}
 		if parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {

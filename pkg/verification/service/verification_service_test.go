@@ -959,6 +959,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 			t.Run(k, func(t *testing.T) {
 				// when
 				s.OverrideApplicationDefault(
+					testconfig.RegistrationService().Verification().CaptchaRequiredScore("0.6"),
 					testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(tc.allowLowScoreConfiguration),
 				)
 				userSignup := &toolchainv1alpha1.UserSignup{

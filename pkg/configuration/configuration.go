@@ -282,8 +282,8 @@ func (r VerificationConfig) CaptchaScoreThreshold() float32 {
 }
 
 func (r VerificationConfig) CaptchaRequiredScore() float32 {
-	const defaultAutomaticVerificationThreshold float32 = 0.6
-	threshold := commonconfig.GetString(r.c.Captcha.RequiredScore, "0.6")
+	const defaultAutomaticVerificationThreshold float32 = 0
+	threshold := commonconfig.GetString(r.c.Captcha.RequiredScore, "0")
 	thresholdFloat, err := strconv.ParseFloat(threshold, 32)
 	if err != nil {
 

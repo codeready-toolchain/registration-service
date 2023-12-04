@@ -63,7 +63,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().CaptchaProjectID())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaSiteKey())
 		assert.Equal(t, float32(0.9), regServiceCfg.Verification().CaptchaScoreThreshold())
-		assert.Equal(t, float32(0.6), regServiceCfg.Verification().CaptchaRequiredScore())
+		assert.Equal(t, float32(0), regServiceCfg.Verification().CaptchaRequiredScore())
 		assert.Equal(t, true, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 	})

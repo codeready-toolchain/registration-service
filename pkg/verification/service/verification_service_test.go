@@ -898,61 +898,67 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.T().Run("captcha configuration ", func(t *testing.T) {
 		tests := map[string]struct {
-			activationCounterAnnotationValue string
-			captchaScoreAnnotationValue      string
-			allowLowScoreConfiguration       bool
-			expectedErr                      string
+			activationCounterAnnotationValue       string
+			captchaScoreAnnotationValue            string
+			allowLowScoreReactivationConfiguration bool
+			expectedErr                            string
 		}{
 			"captcha score below required score but it's a reactivation": {
-				activationCounterAnnotationValue: "2",   // user is reactivating
-				captchaScoreAnnotationValue:      "0.5", // and captcha score is low
-				allowLowScoreConfiguration:       true,
+				activationCounterAnnotationValue:       "2",   // user is reactivating
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
 			},
 			"captcha score below required score but it's not a reactivation": {
-				activationCounterAnnotationValue: "1",   // first time user
-				captchaScoreAnnotationValue:      "0.5", // and captcha score is low
-				allowLowScoreConfiguration:       true,
-				expectedErr:                      "verification failed: verification is not available at this time",
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
 			},
 			"activation counter is invalid and captcha score is low": {
-				activationCounterAnnotationValue: "x",   // something wrong happened
-				captchaScoreAnnotationValue:      "0.5", // and captcha score is low
-				allowLowScoreConfiguration:       true,
-				expectedErr:                      "verification failed: verification is not available at this time",
+				activationCounterAnnotationValue:       "x",   // something wrong happened
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
 			},
 			"activation counter is invalid and captcha score is ok": {
-				activationCounterAnnotationValue: "x",   // something wrong happened
-				captchaScoreAnnotationValue:      "0.6", // but captcha score is ok
-				allowLowScoreConfiguration:       true,
+				activationCounterAnnotationValue:       "x",   // something wrong happened
+				captchaScoreAnnotationValue:            "0.6", // but captcha score is ok
+				allowLowScoreReactivationConfiguration: true,
 			},
-			"allow low score disabled - captcha score below required score and it's a reactivation": {
-				activationCounterAnnotationValue: "2",   // user is reactivating
-				captchaScoreAnnotationValue:      "0.5", //  captcha score is low
-				allowLowScoreConfiguration:       false,
-				expectedErr:                      "verification failed: verification is not available at this time",
+			"allow low score reactivation disabled - captcha score below required score and it's a reactivation": {
+				activationCounterAnnotationValue:       "2",   // user is reactivating
+				captchaScoreAnnotationValue:            "0.5", //  captcha score is low
+				allowLowScoreReactivationConfiguration: false,
+				expectedErr:                            "verification failed: verification is not available at this time",
 			},
-			"allow low score disabled - captcha score below required score and it's not a reactivation": {
-				activationCounterAnnotationValue: "1",   // first time user
-				captchaScoreAnnotationValue:      "0.5", //  captcha score is low
-				allowLowScoreConfiguration:       false,
-				expectedErr:                      "verification failed: verification is not available at this time",
+			"allow low score reactivation disabled - captcha score below required score and it's not a reactivation": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.5", //  captcha score is low
+				allowLowScoreReactivationConfiguration: false,
+				expectedErr:                            "verification failed: verification is not available at this time",
 			},
-			"allow low score disabled - captcha score ok": {
-				activationCounterAnnotationValue: "1",   // first time user
-				captchaScoreAnnotationValue:      "0.6", //  captcha score is ok
-				allowLowScoreConfiguration:       false,
+			"allow low score reactivation disabled - captcha score ok": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.6", //  captcha score is ok
+				allowLowScoreReactivationConfiguration: false,
 			},
 			"no score annotation": {
-				activationCounterAnnotationValue: "1", // first time user
-				captchaScoreAnnotationValue:      "",  // score annotation is missing
-				allowLowScoreConfiguration:       true,
+				activationCounterAnnotationValue:       "1", // first time user
+				captchaScoreAnnotationValue:            "",  // score annotation is missing
+				allowLowScoreReactivationConfiguration: true,
 				// no error is expected in this case and the verification should proceed
 			},
 			"score annotation is invalid": {
-				activationCounterAnnotationValue: "1",   // first time user
-				captchaScoreAnnotationValue:      "xxx", // score annotation is invalid
-				allowLowScoreConfiguration:       true,
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "xxx", // score annotation is invalid
+				allowLowScoreReactivationConfiguration: true,
 				// no error is expected in this case and the verification should proceed
+			},
+			"no activation counter annotation": {
+				activationCounterAnnotationValue:       "",    // activation counter is missing thus required score will be compared with captcha score
+				captchaScoreAnnotationValue:            "0.5", // score is low thus verification will fail
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
 			},
 		}
 		for k, tc := range tests {
@@ -960,7 +966,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				// when
 				s.OverrideApplicationDefault(
 					testconfig.RegistrationService().Verification().CaptchaRequiredScore("0.6"),
-					testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(tc.allowLowScoreConfiguration),
+					testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(tc.allowLowScoreReactivationConfiguration),
 				)
 				userSignup := &toolchainv1alpha1.UserSignup{
 					ObjectMeta: metav1.ObjectMeta{
@@ -980,7 +986,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 						Username: "sbryzak@redhat.com",
 					},
 				}
-				userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = tc.activationCounterAnnotationValue
+				if tc.activationCounterAnnotationValue != "" {
+					userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = tc.activationCounterAnnotationValue
+				}
 				if tc.captchaScoreAnnotationValue != "" {
 					userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = tc.captchaScoreAnnotationValue
 				}

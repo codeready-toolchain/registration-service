@@ -954,11 +954,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				allowLowScoreReactivationConfiguration: true,
 				// no error is expected in this case and the verification should proceed
 			},
-			"no activation counter annotation": {
+			"no activation counter annotation and low captcha score": {
 				activationCounterAnnotationValue:       "",    // activation counter is missing thus required score will be compared with captcha score
 				captchaScoreAnnotationValue:            "0.5", // score is low thus verification will fail
 				allowLowScoreReactivationConfiguration: true,
 				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"no activation counter annotation and captcha score ok": {
+				activationCounterAnnotationValue:       "",    // activation counter is missing thus required score will be compared with captcha score
+				captchaScoreAnnotationValue:            "0.6", // score is ok thus verification will succeed
+				allowLowScoreReactivationConfiguration: true,
 			},
 		}
 		for k, tc := range tests {

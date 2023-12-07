@@ -117,8 +117,6 @@ github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01 h1:Pl8UIl/m2/n9C4pXzaR6A3vxRFX+4QRw90x8RDhCdXw=
 github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56 h1:W/VrNwL++P6TRw6BqhPfnzaq3YmytBIvestbLDvVv1E=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56/go.mod h1:cEkJH2jz88KIZt5W8wSnK3Gz6OfszzXv74OIndbTlRE=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -383,8 +381,8 @@ github.com/migueleliasweb/go-github-mock v0.0.18 h1:0lWt9MYmZQGnQE2rFtjlft/YtD6h
 github.com/migueleliasweb/go-github-mock v0.0.18/go.mod h1:CcgXcbMoRnf3rRVHqGssuBquZDIcaplxL2W6G+xs7kM=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=
 github.com/mitchellh/reflectwalk v1.0.0 h1:9D+8oIskB4VJBN5SFlmc27fSlIBZaov1Wpk/IfikLNY=
-github.com/mmulholla/toolchain-common v0.0.0-20231117181038-9cf4637bc49e h1:dAHGNCsGT7eExrDfST9KhwJhhzg03ues/Y2cXpixVL0=
-github.com/mmulholla/toolchain-common v0.0.0-20231117181038-9cf4637bc49e/go.mod h1:W+JXS7K1wG8dbkrq9qnLgcvutap83mFe5+Xa0k5Yr1U=
+github.com/mmulholla/toolchain-common v0.0.0-20231127184049-1a45dcc89997 h1:qm+snv7cUBYDAw7ylo/5br8FtNFHPlCxCiguB6kqNAQ=
+github.com/mmulholla/toolchain-common v0.0.0-20231127184049-1a45dcc89997/go.mod h1:SonFn2Nu9p70l4gYaf4+XUzCn9dQdpFfpqQ+E4MVILU=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=

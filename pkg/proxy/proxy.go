@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
+	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -43,8 +44,16 @@ const (
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
 	proxyHealthEndpoint = "/proxyhealth"
-	pluginsEndpoint     = "/plugins/"
+	authEndpoint        = "/auth/"
+	motdEndpoint        = "/api/v1/namespaces/openshift/configmaps/motd" // MOTD (Message of the day). Points to te optional message showed to users after login.
+	//ssoTargetURL        = "https://sso.devsandbox.dev"
+	ssoTargetURL = "https://sso.stage.redhat.com"
+	//ssoRealm = "sandbox-dev"
+	ssoRealm        = "redhat-external"
+	pluginsEndpoint = "/plugins/"
 )
+
+var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
 
 type Proxy struct {
 	app         application.Application
@@ -106,7 +115,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.Use(
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 			Skipper: func(ctx echo.Context) bool {
-				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check so it doesn't pollute the logs
+				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check, so it doesn't pollute the logs
 			},
 			LogMethod: true,
 			LogStatus: true,
@@ -124,6 +133,9 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg.GET("/:workspace", p.spaceLister.HandleSpaceGetRequest)
 	wg.GET("", p.spaceLister.HandleSpaceListRequest)
 	router.GET(proxyHealthEndpoint, p.health)
+	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
+	router.Any(motdEndpoint, p.motd)
+	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
@@ -147,6 +159,81 @@ func (p *Proxy) StartProxy() *http.Server {
 	}()
 
 	return srv
+}
+
+// unsecured returns true if the request does not require authentication
+func unsecured(ctx echo.Context) bool {
+	uri := ctx.Request().URL.RequestURI()
+	if strings.HasPrefix(uri, motdEndpoint) {
+		// if it's a request to the MOTD configmap then treat it as unsecured only if there is no token in the request
+		// The reason for that is that we want to return 403 Forbidden instead 401 Unauthorized and actually proceed with the request if there is a token.
+		_, ok := ctx.Get(context.SubKey).(string)
+		return !ok
+	}
+	return uri == proxyHealthEndpoint || uri == "/.well-known/oauth-authorization-server" || strings.HasPrefix(uri, authEndpoint)
+}
+
+func (p *Proxy) motd(ctx echo.Context) error {
+	if unsecured(ctx) {
+		// If there is no token in the request then return 403 instead of 401 to emulate what the actual cluster would return
+		return crterrors.NewForbiddenError("invalid workspace request", "")
+	}
+	// Otherwise treat it as a regular proxy request.
+	return p.handleRequestAndRedirect(ctx)
+}
+
+func (p *Proxy) auth(ctx echo.Context) error {
+	req := ctx.Request()
+	targetURL, err := url.Parse(ssoTargetURL)
+	if err != nil {
+		return err
+	}
+	targetURL.Path = req.URL.Path
+
+	targetURL.RawQuery = req.URL.RawQuery
+	//targetURL.RawQuery = strings.Replace(req.URL.RawQuery, "client_id=openshift-cli-client", "client_id=sandbox-public", -1)
+
+	return p.handleSSORequest(targetURL)(ctx)
+}
+
+// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
+func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
+	//targetURL, err := url.Parse(ssoWellKnown)
+	//if err != nil {
+	//	return err
+	//}
+	//return p.handleSSORequest(targetURL)(ctx)
+	return p.redirectTo(ctx, ssoWellKnown)
+}
+
+func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
+	http.Redirect(ctx.Response().Writer, ctx.Request(), to, http.StatusSeeOther)
+	return nil
+}
+
+// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
+func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		req := ctx.Request()
+		director := func(req *http.Request) {
+			origin := req.URL.String()
+			req.URL.Scheme = targetURL.Scheme
+			req.URL.Host = targetURL.Host
+			req.URL.Path = targetURL.Path
+			req.URL.RawQuery = targetURL.RawQuery
+			log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
+		}
+		transport := getTransport(req.Header)
+		reverseProxy := &httputil.ReverseProxy{
+			Director:      director,
+			Transport:     transport,
+			FlushInterval: -1,
+		}
+
+		// Note that ServeHttp is non-blocking and uses a go routine under the hood
+		reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
+		return nil
+	}
 }
 
 func (p *Proxy) health(ctx echo.Context) error {
@@ -263,7 +350,8 @@ func customHTTPErrorHandler(cause error, ctx echo.Context) {
 func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
+			//log.InfoEchof(ctx, "Extracting user context...")
+			if unsecured(ctx) { // skip only for unsecured endpoints
 				return next(ctx)
 			}
 

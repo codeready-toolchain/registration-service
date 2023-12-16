@@ -665,6 +665,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.8",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
@@ -700,6 +701,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Annotations: map[string]string{
 					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "employee085@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.7",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
 				},
@@ -892,6 +894,137 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
+	})
+
+	s.T().Run("captcha configuration ", func(t *testing.T) {
+		tests := map[string]struct {
+			activationCounterAnnotationValue       string
+			captchaScoreAnnotationValue            string
+			allowLowScoreReactivationConfiguration bool
+			expectedErr                            string
+		}{
+			"captcha score below required score but it's a reactivation": {
+				activationCounterAnnotationValue:       "2",   // user is reactivating
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
+			},
+			"captcha score below required score but it's not a reactivation": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"activation counter is invalid and captcha score is low": {
+				activationCounterAnnotationValue:       "x",   // something wrong happened
+				captchaScoreAnnotationValue:            "0.5", // and captcha score is low
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"activation counter is invalid and captcha score is ok": {
+				activationCounterAnnotationValue:       "x",   // something wrong happened
+				captchaScoreAnnotationValue:            "0.6", // but captcha score is ok
+				allowLowScoreReactivationConfiguration: true,
+			},
+			"allow low score reactivation disabled - captcha score below required score and it's a reactivation": {
+				activationCounterAnnotationValue:       "2",   // user is reactivating
+				captchaScoreAnnotationValue:            "0.5", //  captcha score is low
+				allowLowScoreReactivationConfiguration: false,
+				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"allow low score reactivation disabled - captcha score below required score and it's not a reactivation": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.5", //  captcha score is low
+				allowLowScoreReactivationConfiguration: false,
+				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"allow low score reactivation disabled - captcha score ok": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "0.6", //  captcha score is ok
+				allowLowScoreReactivationConfiguration: false,
+			},
+			"no score annotation": {
+				activationCounterAnnotationValue:       "1", // first time user
+				captchaScoreAnnotationValue:            "",  // score annotation is missing
+				allowLowScoreReactivationConfiguration: true,
+				// no error is expected in this case and the verification should proceed
+			},
+			"score annotation is invalid": {
+				activationCounterAnnotationValue:       "1",   // first time user
+				captchaScoreAnnotationValue:            "xxx", // score annotation is invalid
+				allowLowScoreReactivationConfiguration: true,
+				// no error is expected in this case and the verification should proceed
+			},
+			"no activation counter annotation and low captcha score": {
+				activationCounterAnnotationValue:       "",    // activation counter is missing thus required score will be compared with captcha score
+				captchaScoreAnnotationValue:            "0.5", // score is low thus verification will fail
+				allowLowScoreReactivationConfiguration: true,
+				expectedErr:                            "verification failed: verification is not available at this time",
+			},
+			"no activation counter annotation and captcha score ok": {
+				activationCounterAnnotationValue:       "",    // activation counter is missing thus required score will be compared with captcha score
+				captchaScoreAnnotationValue:            "0.6", // score is ok thus verification will succeed
+				allowLowScoreReactivationConfiguration: true,
+			},
+		}
+		for k, tc := range tests {
+			t.Run(k, func(t *testing.T) {
+				// when
+				s.OverrideApplicationDefault(
+					testconfig.RegistrationService().Verification().CaptchaRequiredScore("0.6"),
+					testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(tc.allowLowScoreReactivationConfiguration),
+				)
+				userSignup := &toolchainv1alpha1.UserSignup{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "123",
+						Namespace: configuration.Namespace(),
+						Annotations: map[string]string{
+							toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
+							toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
+							toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
+							toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Minute).Format(verificationservice.TimestampLayout),
+						},
+						Labels: map[string]string{
+							toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
+						},
+					},
+					Spec: toolchainv1alpha1.UserSignupSpec{
+						Username: "sbryzak@redhat.com",
+					},
+				}
+				if tc.activationCounterAnnotationValue != "" {
+					userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = tc.activationCounterAnnotationValue
+				}
+				if tc.captchaScoreAnnotationValue != "" {
+					userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = tc.captchaScoreAnnotationValue
+				}
+				states.SetVerificationRequired(userSignup, true)
+
+				_, err := s.FakeUserSignupClient.Get(userSignup.Name)
+				if err == nil {
+					// delete the usersignup, if exists, before adding the new one
+					err = s.FakeUserSignupClient.Delete(userSignup.Name, nil)
+					require.NoError(s.T(), err)
+				}
+
+				err = s.FakeUserSignupClient.Tracker.Add(userSignup)
+				require.NoError(s.T(), err)
+
+				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+				err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+
+				// then
+				if tc.expectedErr != "" {
+					require.EqualError(s.T(), err, tc.expectedErr)
+					_, err = s.FakeUserSignupClient.Get(userSignup.Name)
+					require.NoError(s.T(), err)
+				} else {
+					require.NoError(s.T(), err)
+					userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
+					require.NoError(s.T(), err)
+					require.False(s.T(), states.VerificationRequired(userSignup))
+				}
+			})
+		}
 	})
 }
 

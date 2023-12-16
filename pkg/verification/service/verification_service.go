@@ -4,10 +4,11 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"net/http"
 	"strconv"
 	"time"
+
+	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 
@@ -70,6 +71,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		log.Error(ctx, err, "error retrieving usersignup")
 		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
+
 	labelValues := map[string]string{}
 	annotationValues := map[string]string{}
 
@@ -226,6 +228,29 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		return crterrors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
 	}
 
+	// check if it's a reactivation
+	if activationCounterString, foundActivationCounter := signup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; foundActivationCounter && cfg.Verification().CaptchaAllowLowScoreReactivation() {
+		activationCounter, err := strconv.Atoi(activationCounterString)
+		if err != nil {
+			log.Error(ctx, err, "activation counter is not an integer value, checking required captcha score")
+			// require manual approval if captcha score below automatic verification threshold
+			if err = checkRequiredManualApproval(ctx, signup, cfg); err != nil {
+				return err
+			}
+		} else if activationCounter == 1 {
+			// check required captcha score if it's not a reactivation
+			if err = checkRequiredManualApproval(ctx, signup, cfg); err != nil {
+				return err
+			}
+		}
+	} else {
+		// when allowLowScoreReactivation is not enabled or no activation counter found
+		// require manual approval if captcha score below automatic verification threshold for all users
+		if err := checkRequiredManualApproval(ctx, signup, cfg); err != nil {
+			return err
+		}
+	}
+
 	annotationValues := map[string]string{}
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
@@ -324,6 +349,25 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	}
 
 	return
+}
+
+// checkRequiredManualApproval compares the user captcha score with the configured required captcha score.
+// When the user score is lower than the required score an error is returned meaning that the user is considered "suspicious" and manual approval of the signup is required.
+func checkRequiredManualApproval(ctx *gin.Context, signup *toolchainv1alpha1.UserSignup, cfg configuration.RegistrationServiceConfig) error {
+	captchaScore, found := signup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey]
+	if found {
+		fscore, parseErr := strconv.ParseFloat(captchaScore, 32)
+		if parseErr != nil {
+			// let's just log the parsing error and return
+			log.Error(ctx, parseErr, "error while parsing captchaScore")
+			return nil
+		}
+		if parseErr == nil && float32(fscore) < cfg.Verification().CaptchaRequiredScore() {
+			log.Info(ctx, fmt.Sprintf("captcha score %v is too low, automatic verification disabled, manual approval required for user", float32(fscore)))
+			return crterrors.NewForbiddenError("verification failed", "verification is not available at this time")
+		}
+	}
+	return nil
 }
 
 // VerifyActivationCode verifies the activation code:

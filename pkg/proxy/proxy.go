@@ -55,6 +55,10 @@ const (
 
 var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
 
+//var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/oauth-authorization-server", ssoTargetURL, ssoRealm)
+
+//https://api.sandbox-m4.g2pi.p1.openshiftapps.com:6443/.well-known/oauth-authorization-server
+
 type Proxy struct {
 	app         application.Application
 	cl          client.Client
@@ -198,12 +202,12 @@ func (p *Proxy) auth(ctx echo.Context) error {
 
 // oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
 func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
-	//targetURL, err := url.Parse(ssoWellKnown)
-	//if err != nil {
-	//	return err
-	//}
-	//return p.handleSSORequest(targetURL)(ctx)
-	return p.redirectTo(ctx, ssoWellKnown)
+	targetURL, err := url.Parse(ssoWellKnown)
+	if err != nil {
+		return err
+	}
+	return p.handleSSORequest(targetURL)(ctx)
+	//	return p.redirectTo(ctx, ssoWellKnown)
 }
 
 func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
@@ -221,7 +225,9 @@ func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 			req.URL.Host = targetURL.Host
 			req.URL.Path = targetURL.Path
 			req.URL.RawQuery = targetURL.RawQuery
-			log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
+			req.Host = targetURL.Host
+			log.InfoEchof(ctx, "forwarding %s to %s\r\nRequest from director: %s", origin, req.URL.String(), dumpRequest(req))
+			printRequest(req)
 		}
 		transport := getTransport(req.Header)
 		reverseProxy := &httputil.ReverseProxy{
@@ -231,9 +237,30 @@ func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 		}
 
 		// Note that ServeHttp is non-blocking and uses a go routine under the hood
+		log.InfoEchof(ctx, "Original Request: %s", dumpRequest(ctx.Request()))
 		reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 		return nil
 	}
+}
+
+func dumpRequest(req *http.Request) string {
+	o, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		return err.Error()
+	}
+	return string(o)
+}
+
+func printRequest(req *http.Request) {
+	fmt.Println("------Request------")
+	fmt.Printf("Method: %s\n", req.Method)
+	fmt.Printf("URL: %s\n", req.URL.String())
+	fmt.Printf("Headers: %v\n", req.Header)
+	fmt.Printf("Content Length: %d\n", req.ContentLength)
+	fmt.Printf("Remote Address: %s\n", req.RemoteAddr)
+	fmt.Printf("Host: %s\n", req.Host)
+	fmt.Printf("Proto: %s\n", req.Proto)
+	fmt.Println("--------End--------")
 }
 
 func (p *Proxy) health(ctx echo.Context) error {

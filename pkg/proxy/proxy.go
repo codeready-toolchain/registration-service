@@ -53,7 +53,12 @@ const (
 	pluginsEndpoint = "/plugins/"
 )
 
-var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
+var ssoWellKnownTarget = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
+
+var openidAuthEndpoint = fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", ssoRealm)
+
+// authorization_endpoint": "https://sso.stage.redhat.com/auth/realms/redhat-external/protocol/openid-connect/auth",
+var authorizationEndpointTarget = fmt.Sprintf("%s%s", ssoTargetURL, openidAuthEndpoint)
 
 //var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/oauth-authorization-server", ssoTargetURL, ssoRealm)
 
@@ -139,6 +144,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.GET(proxyHealthEndpoint, p.health)
 	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
 	router.Any(motdEndpoint, p.motd)
+	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint), p.openidAuth)
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
 	router.Any("/*", p.handleRequestAndRedirect)
 
@@ -202,7 +208,7 @@ func (p *Proxy) auth(ctx echo.Context) error {
 
 // oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
 func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
-	targetURL, err := url.Parse(ssoWellKnown)
+	targetURL, err := url.Parse(ssoWellKnownTarget)
 	if err != nil {
 		return err
 	}
@@ -210,7 +216,20 @@ func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
 	//	return p.redirectTo(ctx, ssoWellKnown)
 }
 
+// openidAuth handles requests to the openID Connect authentication endpoint
+func (p *Proxy) openidAuth(ctx echo.Context) error {
+	targetURL, err := url.Parse(authorizationEndpointTarget)
+	if err != nil {
+		return err
+	}
+	targetURL.Path = ctx.Request().URL.Path
+	targetURL.RawQuery = ctx.Request().URL.RawQuery
+
+	return p.redirectTo(ctx, targetURL.String())
+}
+
 func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
+	log.InfoEchof(ctx, "redirecting %s to %s\r\nOriginal Request: %s", ctx.Request().URL.String(), to, dumpRequest(ctx.Request()))
 	http.Redirect(ctx.Response().Writer, ctx.Request(), to, http.StatusSeeOther)
 	return nil
 }

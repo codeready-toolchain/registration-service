@@ -46,9 +46,14 @@ const (
 	proxyHealthEndpoint = "/proxyhealth"
 	authEndpoint        = "/auth/"
 	motdEndpoint        = "/api/v1/namespaces/openshift/configmaps/motd" // MOTD (Message of the day). Points to te optional message showed to users after login.
-	ssoTargetURL        = "https://sso.stage.redhat.com"
-	ssoRealm            = "redhat-external"
-	pluginsEndpoint     = "/plugins/"
+
+	// TODO:
+	// 1. move ssoTargetURL and ssoRealm to configuration
+	// 2. tests
+	ssoTargetURL = "https://sso.stage.redhat.com"
+	ssoRealm     = "redhat-external"
+
+	pluginsEndpoint = "/plugins/"
 )
 
 var ssoWellKnownTarget = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
@@ -129,13 +134,16 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
+	// Space lister routes
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
 	router.GET(proxyHealthEndpoint, p.health)
+	// SSO routes
 	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
 	router.Any(motdEndpoint, p.motd)
 	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint), p.openidAuth)
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
+	// The main proxy route
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware

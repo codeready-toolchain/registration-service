@@ -46,23 +46,14 @@ const (
 	proxyHealthEndpoint = "/proxyhealth"
 	authEndpoint        = "/auth/"
 	motdEndpoint        = "/api/v1/namespaces/openshift/configmaps/motd" // MOTD (Message of the day). Points to te optional message showed to users after login.
-	//ssoTargetURL        = "https://sso.devsandbox.dev"
-	ssoTargetURL = "https://sso.stage.redhat.com"
-	//ssoRealm = "sandbox-dev"
-	ssoRealm        = "redhat-external"
-	pluginsEndpoint = "/plugins/"
+	ssoTargetURL        = "https://sso.stage.redhat.com"
+	ssoRealm            = "redhat-external"
+	pluginsEndpoint     = "/plugins/"
 )
 
 var ssoWellKnownTarget = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
-
 var openidAuthEndpoint = fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", ssoRealm)
-
-// authorization_endpoint": "https://sso.stage.redhat.com/auth/realms/redhat-external/protocol/openid-connect/auth",
 var authorizationEndpointTarget = fmt.Sprintf("%s%s", ssoTargetURL, openidAuthEndpoint)
-
-//var ssoWellKnown = fmt.Sprintf("%s/auth/realms/%s/.well-known/oauth-authorization-server", ssoTargetURL, ssoRealm)
-
-//https://api.sandbox-m4.g2pi.p1.openshiftapps.com:6443/.well-known/oauth-authorization-server
 
 type Proxy struct {
 	app         application.Application
@@ -130,7 +121,6 @@ func (p *Proxy) StartProxy() *http.Server {
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
-
 				log.InfoEchof(ctx, "request routed")
 				return nil
 			},
@@ -199,9 +189,7 @@ func (p *Proxy) auth(ctx echo.Context) error {
 		return err
 	}
 	targetURL.Path = req.URL.Path
-
 	targetURL.RawQuery = req.URL.RawQuery
-	//targetURL.RawQuery = strings.Replace(req.URL.RawQuery, "client_id=openshift-cli-client", "client_id=sandbox-public", -1)
 
 	return p.handleSSORequest(targetURL)(ctx)
 }
@@ -213,7 +201,6 @@ func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
 		return err
 	}
 	return p.handleSSORequest(targetURL)(ctx)
-	//	return p.redirectTo(ctx, ssoWellKnown)
 }
 
 // openidAuth handles requests to the openID Connect authentication endpoint
@@ -229,12 +216,12 @@ func (p *Proxy) openidAuth(ctx echo.Context) error {
 }
 
 func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
-	log.InfoEchof(ctx, "redirecting %s to %s\r\nOriginal Request: %s", ctx.Request().URL.String(), to, dumpRequest(ctx.Request()))
+	log.InfoEchof(ctx, "redirecting %s to %s", ctx.Request().URL.String(), to)
 	http.Redirect(ctx.Response().Writer, ctx.Request(), to, http.StatusSeeOther)
 	return nil
 }
 
-// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
+// handleSSORequest handles requests to the cluster authentication server and proxy them to SSO instead
 func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		req := ctx.Request()
@@ -245,8 +232,7 @@ func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 			req.URL.Path = targetURL.Path
 			req.URL.RawQuery = targetURL.RawQuery
 			req.Host = targetURL.Host
-			log.InfoEchof(ctx, "forwarding %s to %s\r\nRequest from director: %s", origin, req.URL.String(), dumpRequest(req))
-			printRequest(req)
+			log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
 		}
 		transport := getTransport(req.Header)
 		reverseProxy := &httputil.ReverseProxy{
@@ -256,30 +242,9 @@ func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 		}
 
 		// Note that ServeHttp is non-blocking and uses a go routine under the hood
-		log.InfoEchof(ctx, "Original Request: %s", dumpRequest(ctx.Request()))
 		reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
 		return nil
 	}
-}
-
-func dumpRequest(req *http.Request) string {
-	o, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		return err.Error()
-	}
-	return string(o)
-}
-
-func printRequest(req *http.Request) {
-	fmt.Println("------Request------")
-	fmt.Printf("Method: %s\n", req.Method)
-	fmt.Printf("URL: %s\n", req.URL.String())
-	fmt.Printf("Headers: %v\n", req.Header)
-	fmt.Printf("Content Length: %d\n", req.ContentLength)
-	fmt.Printf("Remote Address: %s\n", req.RemoteAddr)
-	fmt.Printf("Host: %s\n", req.Host)
-	fmt.Printf("Proto: %s\n", req.Proto)
-	fmt.Println("--------End--------")
 }
 
 func (p *Proxy) health(ctx echo.Context) error {

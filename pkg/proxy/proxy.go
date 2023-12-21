@@ -45,12 +45,10 @@ const (
 
 	proxyHealthEndpoint = "/proxyhealth"
 	authEndpoint        = "/auth/"
-	//motdEndpoint        = "/api/v1/namespaces/openshift/configmaps/motd" // MOTD (Message of the day). Points to te optional message showed to users after login.
 
 	// TODO:
 	// 1. move ssoTargetURL and ssoRealm to configuration
 	// 2. tests
-	//ssoTargetURL = "https://sso.stage.redhat.com"
 	ssoTargetURL = "https://sso.redhat.com"
 	ssoRealm     = "redhat-external"
 
@@ -141,7 +139,6 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.GET(proxyHealthEndpoint, p.health)
 	// SSO routes
 	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
-	//router.Any(motdEndpoint, p.motd)
 	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint), p.openidAuth)
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
 	// The main proxy route
@@ -173,23 +170,8 @@ func (p *Proxy) StartProxy() *http.Server {
 // unsecured returns true if the request does not require authentication
 func unsecured(ctx echo.Context) bool {
 	uri := ctx.Request().URL.RequestURI()
-	//if strings.HasPrefix(uri, motdEndpoint) {
-	//	// if it's a request to the MOTD configmap then treat it as unsecured only if there is no token in the request
-	//	// The reason for that is that we want to return 403 Forbidden instead 401 Unauthorized and actually proceed with the request if there is a token.
-	//	_, ok := ctx.Get(context.SubKey).(string)
-	//	return !ok
-	//}
 	return uri == proxyHealthEndpoint || uri == "/.well-known/oauth-authorization-server" || strings.HasPrefix(uri, authEndpoint)
 }
-
-//func (p *Proxy) motd(ctx echo.Context) error {
-//	if unsecured(ctx) {
-//		// If there is no token in the request then return 403 instead of 401 to emulate what the actual cluster would return
-//		return crterrors.NewForbiddenError("invalid workspace request", "")
-//	}
-//	// Otherwise treat it as a regular proxy request.
-//	return p.handleRequestAndRedirect(ctx)
-//}
 
 func (p *Proxy) auth(ctx echo.Context) error {
 	req := ctx.Request()

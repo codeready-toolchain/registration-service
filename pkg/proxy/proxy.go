@@ -140,7 +140,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.GET(proxyHealthEndpoint, p.health)
 	// SSO routes. Used by web login.
 	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
-	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint), p.openidAuth)
+	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth)
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
 	// The main proxy route
 	router.Any("/*", p.handleRequestAndRedirect)

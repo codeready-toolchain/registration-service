@@ -138,7 +138,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
 	router.GET(proxyHealthEndpoint, p.health)
-	// SSO routes
+	// SSO routes. Used by web login.
 	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
 	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint), p.openidAuth)
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
@@ -174,6 +174,7 @@ func unsecured(ctx echo.Context) bool {
 	return uri == proxyHealthEndpoint || uri == "/.well-known/oauth-authorization-server" || strings.HasPrefix(uri, authEndpoint)
 }
 
+// auth handles requests to SSO. Used by web login.
 func (p *Proxy) auth(ctx echo.Context) error {
 	req := ctx.Request()
 	targetURL, err := url.Parse(configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL())
@@ -186,7 +187,7 @@ func (p *Proxy) auth(ctx echo.Context) error {
 	return p.handleSSORequest(targetURL)(ctx)
 }
 
-// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
+// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint. Used by web login.
 func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
 	targetURL, err := url.Parse(ssoWellKnownTarget())
 	if err != nil {
@@ -195,7 +196,7 @@ func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
 	return p.handleSSORequest(targetURL)(ctx)
 }
 
-// openidAuth handles requests to the openID Connect authentication endpoint
+// openidAuth handles requests to the openID Connect authentication endpoint. Used by web login.
 func (p *Proxy) openidAuth(ctx echo.Context) error {
 	targetURL, err := url.Parse(authorizationEndpointTarget())
 	if err != nil {
@@ -213,7 +214,7 @@ func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
 	return nil
 }
 
-// handleSSORequest handles requests to the cluster authentication server and proxy them to SSO instead
+// handleSSORequest handles requests to the cluster authentication server and proxy them to SSO instead. Used by web login.
 func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		req := ctx.Request()
@@ -370,7 +371,6 @@ func customHTTPErrorHandler(cause error, ctx echo.Context) {
 func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			//log.InfoEchof(ctx, "Extracting user context...")
 			if unsecured(ctx) { // skip only for unsecured endpoints
 				return next(ctx)
 			}

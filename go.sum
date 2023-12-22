@@ -73,6 +73,10 @@ github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tN
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
+github.com/alexeykazakov/api v0.0.0-20231221235637-1bed021dbbe8 h1:x7uP5GUMHrW9SAiWosmGAL8BYz6tOFiqCgnS6oL9GFA=
+github.com/alexeykazakov/api v0.0.0-20231221235637-1bed021dbbe8/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
+github.com/alexeykazakov/toolchain-common v0.0.0-20231222004535-ba368fdad362 h1:A97eahvwJ0m/RmyUwXuJwijGYWv8BT3aoLOYXkTbOog=
+github.com/alexeykazakov/toolchain-common v0.0.0-20231222004535-ba368fdad362/go.mod h1:3JqCDPClKhnnNJIiQvmUFq5iQ/wkNyn+wizIYHByFu0=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/aws/aws-sdk-go v1.44.100 h1:7I86bWNQB+HGDT5z/dJy61J7qgbgLoZ7O51C9eL6hrA=
 github.com/aws/aws-sdk-go v1.44.100/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
@@ -115,10 +119,6 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01 h1:Pl8UIl/m2/n9C4pXzaR6A3vxRFX+4QRw90x8RDhCdXw=
-github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56 h1:W/VrNwL++P6TRw6BqhPfnzaq3YmytBIvestbLDvVv1E=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56/go.mod h1:cEkJH2jz88KIZt5W8wSnK3Gz6OfszzXv74OIndbTlRE=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

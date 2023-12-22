@@ -45,19 +45,20 @@ const (
 
 	proxyHealthEndpoint = "/proxyhealth"
 	authEndpoint        = "/auth/"
-
-	// TODO:
-	// 1. move ssoTargetURL and ssoRealm to configuration
-	// 2. tests
-	ssoTargetURL = "https://sso.redhat.com"
-	ssoRealm     = "redhat-external"
-
-	pluginsEndpoint = "/plugins/"
+	pluginsEndpoint     = "/plugins/"
 )
 
-var ssoWellKnownTarget = fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", ssoTargetURL, ssoRealm)
-var openidAuthEndpoint = fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", ssoRealm)
-var authorizationEndpointTarget = fmt.Sprintf("%s%s", ssoTargetURL, openidAuthEndpoint)
+func ssoWellKnownTarget() string {
+	return fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SsoRealm())
+}
+
+func openidAuthEndpoint() string {
+	return fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SsoRealm())
+}
+
+func authorizationEndpointTarget() string {
+	return fmt.Sprintf("%s%s", configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL(), openidAuthEndpoint())
+}
 
 type Proxy struct {
 	app         application.Application
@@ -175,7 +176,7 @@ func unsecured(ctx echo.Context) bool {
 
 func (p *Proxy) auth(ctx echo.Context) error {
 	req := ctx.Request()
-	targetURL, err := url.Parse(ssoTargetURL)
+	targetURL, err := url.Parse(configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL())
 	if err != nil {
 		return err
 	}
@@ -187,7 +188,7 @@ func (p *Proxy) auth(ctx echo.Context) error {
 
 // oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint
 func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
-	targetURL, err := url.Parse(ssoWellKnownTarget)
+	targetURL, err := url.Parse(ssoWellKnownTarget())
 	if err != nil {
 		return err
 	}
@@ -196,7 +197,7 @@ func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
 
 // openidAuth handles requests to the openID Connect authentication endpoint
 func (p *Proxy) openidAuth(ctx echo.Context) error {
-	targetURL, err := url.Parse(authorizationEndpointTarget)
+	targetURL, err := url.Parse(authorizationEndpointTarget())
 	if err != nil {
 		return err
 	}

@@ -147,6 +147,6 @@ require (
 )
 
 replace (
-	github.com/codeready-toolchain/api => github.com/alexeykazakov/api v0.0.0-20231221235637-1bed021dbbe8
-	github.com/codeready-toolchain/toolchain-common => github.com/alexeykazakov/toolchain-common v0.0.0-20231222004535-ba368fdad362
+	github.com/codeready-toolchain/api => github.com/alexeykazakov/api v0.0.0-20240102232949-0ea7c6fe93ed
+	github.com/codeready-toolchain/toolchain-common => github.com/alexeykazakov/toolchain-common v0.0.0-20240102233949-93769b32c2b0
 )

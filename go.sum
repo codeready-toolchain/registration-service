@@ -73,10 +73,10 @@ github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tN
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/alexeykazakov/api v0.0.0-20231221235637-1bed021dbbe8 h1:x7uP5GUMHrW9SAiWosmGAL8BYz6tOFiqCgnS6oL9GFA=
-github.com/alexeykazakov/api v0.0.0-20231221235637-1bed021dbbe8/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
-github.com/alexeykazakov/toolchain-common v0.0.0-20231222004535-ba368fdad362 h1:A97eahvwJ0m/RmyUwXuJwijGYWv8BT3aoLOYXkTbOog=
-github.com/alexeykazakov/toolchain-common v0.0.0-20231222004535-ba368fdad362/go.mod h1:3JqCDPClKhnnNJIiQvmUFq5iQ/wkNyn+wizIYHByFu0=
+github.com/alexeykazakov/api v0.0.0-20240102232949-0ea7c6fe93ed h1:ozjPULoY14vxolx2DCCioM6pz/FWLOh3aMI/WI1Bolg=
+github.com/alexeykazakov/api v0.0.0-20240102232949-0ea7c6fe93ed/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
+github.com/alexeykazakov/toolchain-common v0.0.0-20240102233949-93769b32c2b0 h1:LAk1MW8vr+yXHPC0MBK3hO8yjA+U9+UavjDQePQemoo=
+github.com/alexeykazakov/toolchain-common v0.0.0-20240102233949-93769b32c2b0/go.mod h1:jNKtOAIX4y3FSekyFp2IzZi8z39nKa99Dr3nt44yKiA=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/aws/aws-sdk-go v1.44.100 h1:7I86bWNQB+HGDT5z/dJy61J7qgbgLoZ7O51C9eL6hrA=
 github.com/aws/aws-sdk-go v1.44.100/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=

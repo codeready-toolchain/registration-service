@@ -49,15 +49,15 @@ const (
 )
 
 func ssoWellKnownTarget() string {
-	return fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SsoRealm())
+	return fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SSORealm())
 }
 
 func openidAuthEndpoint() string {
-	return fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SsoRealm())
+	return fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SSORealm())
 }
 
 func authorizationEndpointTarget() string {
-	return fmt.Sprintf("%s%s", configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL(), openidAuthEndpoint())
+	return fmt.Sprintf("%s%s", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), openidAuthEndpoint())
 }
 
 type Proxy struct {
@@ -177,7 +177,7 @@ func unsecured(ctx echo.Context) bool {
 // auth handles requests to SSO. Used by web login.
 func (p *Proxy) auth(ctx echo.Context) error {
 	req := ctx.Request()
-	targetURL, err := url.Parse(configuration.GetRegistrationServiceConfig().Auth().SsoBaseURL())
+	targetURL, err := url.Parse(configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL())
 	if err != nil {
 		return err
 	}

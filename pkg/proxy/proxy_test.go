@@ -345,7 +345,7 @@ func (s *TestProxySuite) TestProxy() {
 					s.Run(k, func() {
 						client := &http.Client{
 							CheckRedirect: func(req *http.Request, via []*http.Request) error {
-								return http.ErrUseLastResponse
+								return http.ErrUseLastResponse // Do not follow redirects, so we can check the actual response from the proxy
 							}}
 
 						// when

@@ -294,6 +294,80 @@ func (s *TestProxySuite) TestProxy() {
 				}
 			})
 
+			s.Run("web login", func() {
+				// use a mock sso server
+				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					switch p := r.URL.Path; p {
+					case "/auth/realms/sandbox-dev/.well-known/openid-configuration":
+						_, err := w.Write([]byte("mock SSO configuration"))
+						require.NoError(s.T(), err)
+					case "/auth/anything":
+						_, err := w.Write([]byte("mock auth"))
+						require.NoError(s.T(), err)
+					default:
+						_, err := w.Write([]byte("unknown"))
+						require.NoError(s.T(), err)
+					}
+				}))
+				defer testServer.Close()
+
+				ssoBaseURL := s.DefaultConfig().Auth().SSOBaseURL()
+				defer s.SetConfig(testconfig.RegistrationService().Auth().SSOBaseURL(ssoBaseURL))
+				s.SetConfig(testconfig.RegistrationService().Auth().SSOBaseURL(testServer.URL))
+
+				tests := map[string]struct {
+					RequestURL         string
+					ExpectedStatusCode int
+					ExpectedHeaders    map[string]string
+					ExpectedResponse   string
+				}{
+					"well-known configuration request": {
+						RequestURL:         "http://localhost:8081/.well-known/oauth-authorization-server",
+						ExpectedStatusCode: http.StatusOK,
+						ExpectedResponse:   "mock SSO configuration",
+					},
+					"oidc": {
+						RequestURL:         "http://localhost:8081/auth/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
+						ExpectedStatusCode: http.StatusSeeOther,
+						ExpectedHeaders: map[string]string{
+							"Location": testServer.URL + "/auth/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
+						},
+					},
+					"other auth requests": {
+						RequestURL:         "http://localhost:8081/auth/anything",
+						ExpectedStatusCode: http.StatusOK,
+						ExpectedResponse:   "mock auth",
+					},
+				}
+				for k, tc := range tests {
+					s.Run(k, func() {
+						client := &http.Client{
+							CheckRedirect: func(req *http.Request, via []*http.Request) error {
+								return http.ErrUseLastResponse
+							}}
+
+						// when
+						resp, err := client.Get(tc.RequestURL)
+
+						// then
+						require.NoError(s.T(), err)
+						require.NotNil(s.T(), resp)
+						defer resp.Body.Close()
+						assert.Equal(s.T(), tc.ExpectedStatusCode, resp.StatusCode)
+						if tc.ExpectedResponse != "" {
+							s.assertResponseBody(resp, tc.ExpectedResponse)
+						}
+						if len(tc.ExpectedHeaders) > 0 {
+							for h, v := range tc.ExpectedHeaders {
+								assert.Equal(s.T(), v, resp.Header.Get(h))
+							}
+						}
+					})
+				}
+			})
+
 			s.Run("successfully proxy", func() {
 				userID, err := uuid.NewV4()
 				require.NoError(s.T(), err)

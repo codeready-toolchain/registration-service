@@ -115,10 +115,6 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01 h1:Pl8UIl/m2/n9C4pXzaR6A3vxRFX+4QRw90x8RDhCdXw=
-github.com/codeready-toolchain/api v0.0.0-20231129193441-f6c9b7feee01/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56 h1:W/VrNwL++P6TRw6BqhPfnzaq3YmytBIvestbLDvVv1E=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20231206125932-41dd47e8aa56/go.mod h1:cEkJH2jz88KIZt5W8wSnK3Gz6OfszzXv74OIndbTlRE=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -428,6 +424,10 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.0/go.mod h1:WmiCO8CzOY8rg0OYDC4/i/2WRWAB6poM+XZ2dLUbcbE=
 github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
+github.com/sbryzak/api v0.0.0-20240102042357-82134b76d69e h1:1p4jHPdkwSARcFuJw2o2uQgfZExsm84kuzr+fb9wCLg=
+github.com/sbryzak/api v0.0.0-20240102042357-82134b76d69e/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
+github.com/sbryzak/toolchain-common v0.0.0-20231231220541-48116bc60abd h1:R43Igwo/4HFk87gTvUgLbXz+OYLfrgHHxJfvBCNdQEk=
+github.com/sbryzak/toolchain-common v0.0.0-20231231220541-48116bc60abd/go.mod h1:YW7uwt6yxnN0Nt+fOL2syHjpU7BhCDXiXojkmvnE8qg=
 github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.2.2/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=

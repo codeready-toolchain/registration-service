@@ -111,10 +111,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:           userEmail,
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
-				toolchainv1alpha1.SSOUserIDAnnotationKey:                     userID,
-				toolchainv1alpha1.SSOAccountIDAnnotationKey:                  accountID,
 			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
@@ -122,11 +119,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			TargetCluster: "",
-			Userid:        ctx.GetString(context.SubKey),
-			Username:      ctx.GetString(context.UsernameKey),
-			GivenName:     ctx.GetString(context.GivenNameKey),
-			FamilyName:    ctx.GetString(context.FamilyNameKey),
-			Company:       ctx.GetString(context.CompanyKey),
 			OriginalSub:   ctx.GetString(context.OriginalSubKey),
 
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
@@ -408,7 +400,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 	signupResponse := &signup.Signup{
 		Name:     userSignup.GetName(),
-		Username: userSignup.Spec.Username,
+		Username: userSignup.Spec.IdentityClaims.PreferredUsername,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername
@@ -521,29 +513,6 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 
 	userSignup.Spec.IdentityClaims = c
 
-	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
-	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
-	// the resource.
-	// FIXME the following code may be removed after all UserSignup records have their IdentityClaims property fully populated
-	userIDValue, userIDFound := userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey]
-	accountIDValue, accountIDFound := userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey]
-
-	if !userIDFound || userIDValue == "" {
-		userID := ctx.GetString(context.UserIDKey)
-		if userID != "" {
-			userSignup.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey] = userID
-			updated = true
-		}
-	}
-
-	if !accountIDFound || accountIDValue == "" {
-		accountID := ctx.GetString(context.AccountIDKey)
-		if accountID != "" {
-			userSignup.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey] = accountID
-			updated = true
-		}
-	}
-
 	return updated
 }
 
@@ -602,7 +571,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 		return errors.NewInternalError(err, "failed listing userSignups")
 	}
 	for _, signup := range userSignups {
-		if signup.Spec.Userid != userID && signup.Spec.Username != username && !states.Deactivated(signup) { // nolint:gosec
+		if signup.Spec.IdentityClaims.Sub != userID && signup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(signup) { // nolint:gosec
 			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

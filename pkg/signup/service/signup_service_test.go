@@ -1973,7 +1973,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 }
 
-func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIdentityClaims() {
+func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 
 	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
 
@@ -2069,41 +2069,73 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIde
 		// Confirm that the userID annotation wasn't updated
 		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
 		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+
+		s.Run("userID and accountID annotations not overridden when already set and context values different", func() {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			// Set the userID and accountID context values to different values
+			c.Set(context.UserIDKey, "7777777")
+			c.Set(context.AccountIDKey, "0987654321")
+
+			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+			require.NoError(s.T(), err)
+
+			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+
+			// Confirm that both annotations are NOT updated
+			require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+			require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+
+			s.Run("userID and accountID annotations not overridden when already set and context values are the same", func() {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				// Set the userID and accountID context values to same values
+				c.Set(context.UserIDKey, "888888")
+				c.Set(context.AccountIDKey, "1234567890")
+
+				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+				require.NoError(s.T(), err)
+
+				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+				require.NoError(s.T(), err)
+
+				// Confirm that both annotations are still not updated
+				require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
+				require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
+			})
+		})
 	})
+}
 
-	s.Run("userID and accountID annotations not overridden when already set and context values different", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		// Set the userID and accountID context values to different values
-		c.Set(context.UserIDKey, "7777777")
-		c.Set(context.AccountIDKey, "0987654321")
+func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() {
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
+	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
 
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+	// Create a new UserSignup, set its UserID and AccountID annotations
+	userSignup := s.newUserSignupComplete()
 
-		// Confirm that both annotations are NOT updated
-		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
-		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
-	})
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
 
-	s.Run("userID and accountID annotations not overridden when already set and context values are the same", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		// Set the userID and accountID context values to same values
-		c.Set(context.UserIDKey, "888888")
-		c.Set(context.AccountIDKey, "1234567890")
-
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
-
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		// Confirm that both annotations are still not updated
-		require.Equal(s.T(), "888888", modified.Annotations[toolchainv1alpha1.SSOUserIDAnnotationKey])
-		require.Equal(s.T(), "1234567890", modified.Annotations[toolchainv1alpha1.SSOAccountIDAnnotationKey])
-	})
+	mur := &toolchainv1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userSignup.Status.CompliantUsername,
+			Namespace: configuration.Namespace(),
+		},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
+				{
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
+					Status: "true",
+				},
+			},
+		},
+	}
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+	require.NoError(s.T(), err)
 
 	s.Run("PreferredUsername property updated when set in context", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -2116,6 +2148,16 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIde
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+		require.Equal(s.T(), "John", modified.Spec.IdentityClaims.GivenName)
+		require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
+		require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+
+		require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+		require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+		require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+		require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+		require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 		s.Run("GivenName property updated when set in context", func() {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -2131,46 +2173,69 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotationsAndIde
 
 			// Confirm that some other properties were not changed
 			require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
-			require.Equal(s.T(), "1234567890", modified.Spec.IdentityClaims.AccountID)
+			require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
+			require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+
+			require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+			require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+			require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+			require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+			require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+			require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+			s.Run("FamilyName and Company properties updated when set in context", func() {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Set(context.FamilyNameKey, "Smythe")
+				c.Set(context.CompanyKey, "Red Hat")
+
+				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+				require.NoError(s.T(), err)
+
+				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+				require.NoError(s.T(), err)
+
+				require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
+				require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
+
+				require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+				require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+
+				require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+				require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+				require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+				require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+				require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+				require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+				s.Run("Remaining properties updated when set in context", func() {
+					c, _ := gin.CreateTestContext(httptest.NewRecorder())
+					c.Set(context.SubKey, "987654321")
+					c.Set(context.UserIDKey, "123456777")
+					c.Set(context.AccountIDKey, "777654321")
+					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
+					c.Set(context.EmailKey, "jsmythe@redhat.com")
+
+					_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+					require.NoError(s.T(), err)
+
+					modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+					require.NoError(s.T(), err)
+
+					require.Equal(s.T(), "987654321", modified.Spec.IdentityClaims.Sub)
+					require.Equal(s.T(), "123456777", modified.Spec.IdentityClaims.UserID)
+					require.Equal(s.T(), "777654321", modified.Spec.IdentityClaims.AccountID)
+					require.Equal(s.T(), "jsmythe-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+					require.Equal(s.T(), "jsmythe@redhat.com", modified.Spec.IdentityClaims.Email)
+					require.Equal(s.T(), "7cd294acda3a75773834df81d6e8ed7c", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+					require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
+					require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
+					require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+					require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+				})
+			})
 		})
 	})
-
-	s.Run("FamilyName and Company properties updated when set in context", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Set(context.FamilyNameKey, "Smythe")
-		c.Set(context.CompanyKey, "Red Hat")
-
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
-
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
-		require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
-	})
-
-	s.Run("Remaining properties updated when set in context", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		c.Set(context.SubKey, "987654321")
-		c.Set(context.UserIDKey, "123456777")
-		c.Set(context.AccountIDKey, "777654321")
-		c.Set(context.OriginalSubKey, "jsmythe-original-sub")
-		c.Set(context.EmailKey, "jsmythe@redhat.com")
-
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
-		require.NoError(s.T(), err)
-
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
-
-		require.Equal(s.T(), "987654321", modified.Spec.IdentityClaims.Sub)
-		require.Equal(s.T(), "123456777", modified.Spec.IdentityClaims.UserID)
-		require.Equal(s.T(), "777654321", modified.Spec.IdentityClaims.AccountID)
-		require.Equal(s.T(), "jsmythe-original-sub", modified.Spec.IdentityClaims.OriginalSub)
-		require.Equal(s.T(), "jsmythe@redhat.com", modified.Spec.IdentityClaims.Email)
-	})
-
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
@@ -2186,7 +2251,8 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 			Name:      userID.String(),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "ted@domain.com",
+				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey:  "90cb861692508c36933b85dfe43f5369",
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{

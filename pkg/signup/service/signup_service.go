@@ -521,6 +521,21 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 
 	userSignup.Spec.IdentityClaims = c
 
+	// make sure that labels and annotations are initiated
+	if userSignup.Labels == nil {
+		userSignup.Labels = map[string]string{}
+	}
+	if userSignup.Annotations == nil {
+		userSignup.Annotations = map[string]string{}
+	}
+
+	// make sure that he email hash matches the email
+	emailHash := hash.EncodeString(c.Email)
+	if userSignup.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey] != emailHash {
+		userSignup.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey] = emailHash
+		updated = true
+	}
+
 	// Check the user_id and account_id annotations in the retrieved UserSignup.  If either of them are empty, but the
 	// values exist within the claims of the current user's Access Token then set the values in the UserSignup and update
 	// the resource.

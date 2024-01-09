@@ -113,7 +113,7 @@ func main() {
 	metricsSrv := proxyMetrics.StartMetricsServer()
 
 	// Start the proxy server
-	p, err := proxy.NewProxy(app, proxyMetrics)
+	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
+	spacebindingrequesttest "github.com/codeready-toolchain/toolchain-common/pkg/test/spacebindingrequest"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -57,18 +59,18 @@ func TestSpaceLister(t *testing.T) {
 	// spacebinding associated with SpaceBindingRequest
 	spaceBindingWithSBRonMovieLover := fake.NewSpaceBinding("foodlover-sb-from-sbr-on-movielover", "foodlover", "movielover", "maintainer")
 	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "foodlover-sbr"
-	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-tenant"
+	spaceBindingWithSBRonMovieLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "movielover-dev"
 
 	// spacebinding associated with SpaceBindingRequest on a dancelover,
 	// which is also the parentSpace of foodlover
 	spaceBindingWithSBRonDanceLover := fake.NewSpaceBinding("animelover-sb-from-sbr-on-dancelover", "animelover", "dancelover", "viewer")
 	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "animelover-sbr"
-	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "dancelover-tenant"
+	spaceBindingWithSBRonDanceLover.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "dancelover-dev"
 
 	// spacebinding with SpaceBindingRequest but name is missing
 	spaceBindingWithInvalidSBRName := fake.NewSpaceBinding("carlover-sb-from-sbr", "carlover", "animelover", "viewer")
 	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "" // let's set the name to blank in order to trigger an error
-	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "anime-tenant"
+	spaceBindingWithInvalidSBRName.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "anime-dev"
 
 	// spacebinding with SpaceBindingRequest but namespace is missing
 	spaceBindingWithInvalidSBRNamespace := fake.NewSpaceBinding("animelover-sb-from-sbr", "animelover", "carlover", "viewer")
@@ -230,6 +232,20 @@ func TestSpaceLister(t *testing.T) {
 		}
 	})
 
+	memberFakeClient := fake.InitClient(t,
+		// spacebinding requests
+		spacebindingrequesttest.NewSpaceBindingRequest("animelover-sbr", "dancelover-dev",
+			spacebindingrequesttest.WithSpaceRole("viewer"),
+			spacebindingrequesttest.WithMUR("animelover"),
+			spacebindingrequesttest.WithCondition(spacebindingrequesttest.Ready()),
+		),
+		spacebindingrequesttest.NewSpaceBindingRequest("failing-sbr", "dancelover-dev",
+			spacebindingrequesttest.WithSpaceRole("admin"),
+			spacebindingrequesttest.WithMUR("someuser"),
+			spacebindingrequesttest.WithCondition(spacebindingrequesttest.UnableToCreateSpaceBinding("unable to find user 'someuser'")),
+		),
+	)
+
 	t.Run("HandleSpaceGetRequest", func(t *testing.T) {
 		// given
 		tests := map[string]struct {
@@ -256,13 +272,22 @@ func TestSpaceLister(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
 									Name:      "animelover-sbr",
-									Namespace: "dancelover-tenant",
+									Namespace: "dancelover-dev",
 								},
 							},
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "admin",
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+							{
+								MasterUserRecord: "someuser",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: &toolchainv1alpha1.BindingRequest{ // this SBR should show in the list even if it doesn't have a SpaceBinding associated
+									Name:      "failing-sbr",
+									Namespace: "dancelover-dev",
+								},
 							},
 						}),
 					),
@@ -289,7 +314,7 @@ func TestSpaceLister(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -347,7 +372,7 @@ func TestSpaceLister(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -387,7 +412,7 @@ func TestSpaceLister(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -703,7 +728,7 @@ func TestSpaceLister(t *testing.T) {
 				ctx.SetParamValues(tc.expectedWorkspace)
 
 				// when
-				err := handlers.HandleSpaceGetRequest(s)(ctx)
+				err := handlers.HandleSpaceGetRequest(s, proxytest.NewGetMembersFunc(memberFakeClient))(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -775,11 +800,11 @@ func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isH
 		commonproxy.WithObjectMetaFrom(space.ObjectMeta),
 		commonproxy.WithNamespaces([]toolchainv1alpha1.SpaceNamespace{
 			{
-				Name: "john-dev",
+				Name: name + "-dev",
 				Type: "default",
 			},
 			{
-				Name: "john-stage",
+				Name: name + "-stage",
 			},
 		}),
 		commonproxy.WithOwner(name),

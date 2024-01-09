@@ -23,6 +23,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
+	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -72,7 +73,7 @@ func (s *TestProxySuite) TestProxy() {
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics)
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy()

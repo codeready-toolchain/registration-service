@@ -199,9 +199,8 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 		binding := toolchainv1alpha1.Binding{
 			MasterUserRecord: sbr.Spec.MasterUserRecord,
 			Role:             sbr.Spec.SpaceRole,
-			AvailableActions: []string{},
+			AvailableActions: []string{UpdateBindingAction, DeleteBindingAction},
 		}
-		binding.AvailableActions = []string{UpdateBindingAction, DeleteBindingAction}
 		binding.BindingRequest = &toolchainv1alpha1.BindingRequest{
 			Name:      sbr.Name,
 			Namespace: sbr.Namespace,

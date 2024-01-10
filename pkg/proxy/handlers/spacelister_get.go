@@ -189,9 +189,10 @@ func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []t
 	}
 
 	// add also all the spacebinding requests
-	for _, sbr := range spacebindingRequests {
+	for i := range spacebindingRequests {
 		// add to binding list only if it was not added already by the SpaceBinding search above
-		if alreadyInBindingList(bindings, &sbr) {
+		sbr := &spacebindingRequests[i]
+		if alreadyInBindingList(bindings, sbr) {
 			continue
 		}
 

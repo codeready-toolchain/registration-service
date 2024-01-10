@@ -109,7 +109,7 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 }
 
 // listSpaceBindingRequestsForSpace searches for the SpaceBindingRequests in all the provisioned namespaces for the given Space
-func listSpaceBindingRequestsForSpace(GetMembersFunc cluster.GetMemberClustersFunc, space *toolchainv1alpha1.Space) ([]toolchainv1alpha1.SpaceBindingRequest, error) {
+func listSpaceBindingRequestsForSpace(ctx echo.Context, GetMembersFunc cluster.GetMemberClustersFunc, space *toolchainv1alpha1.Space) ([]toolchainv1alpha1.SpaceBindingRequest, error) {
 	members := GetMembersFunc()
 	if len(members) == 0 {
 		return nil, errs.New("no member clusters found")
@@ -120,7 +120,7 @@ func listSpaceBindingRequestsForSpace(GetMembersFunc cluster.GetMemberClustersFu
 			// list sbrs in all namespaces for the current space
 			for _, namespace := range space.Status.ProvisionedNamespaces {
 				sbrs := &toolchainv1alpha1.SpaceBindingRequestList{}
-				if err := member.Client.List(context.Background(), sbrs, runtimeclient.InNamespace(namespace.Name)); err != nil {
+				if err := member.Client.List(ctx, sbrs, runtimeclient.InNamespace(namespace.Name)); err != nil {
 					return nil, err
 				}
 				allSbrs = append(allSbrs, sbrs.Items...)

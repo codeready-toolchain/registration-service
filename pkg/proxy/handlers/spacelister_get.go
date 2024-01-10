@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -82,7 +81,7 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 	}
 
 	// list all SpaceBindingRequests , just in case there might be some failing to create a SpaceBinding resource.
-	allSpaceBindingRequests, err := listSpaceBindingRequestsForSpace(GetMembersFunc, space)
+	allSpaceBindingRequests, err := listSpaceBindingRequestsForSpace(ctx, GetMembersFunc, space)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ func listSpaceBindingRequestsForSpace(ctx echo.Context, GetMembersFunc cluster.G
 			// list sbrs in all namespaces for the current space
 			for _, namespace := range space.Status.ProvisionedNamespaces {
 				sbrs := &toolchainv1alpha1.SpaceBindingRequestList{}
-				if err := member.Client.List(ctx, sbrs, runtimeclient.InNamespace(namespace.Name)); err != nil {
+				if err := member.Client.List(ctx.Request().Context(), sbrs, runtimeclient.InNamespace(namespace.Name)); err != nil {
 					return nil, err
 				}
 				allSbrs = append(allSbrs, sbrs.Items...)

@@ -126,6 +126,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 
 // VerifyPhoneCodeHandler validates the phone verification code passed in by the user
 func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
+	log.Info(ctx, "Verifying phone code")
 	code := ctx.Param("code")
 	if code == "" {
 		log.Error(ctx, nil, "no phone code provided in the request")
@@ -149,6 +150,7 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 		return
 	}
 	ctx.Status(http.StatusOK)
+	log.Info(ctx, "Verified phone code")
 }
 
 // VerifyActivationCodeHandler validates the activation code passed in by the user as a form value

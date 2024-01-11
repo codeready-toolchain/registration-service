@@ -50,6 +50,8 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`,
 			regServiceCfg.Auth().AuthClientConfigRaw())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
+		assert.Equal(t, "https://sso.devsandbox.dev", regServiceCfg.Auth().SSOBaseURL())
+		assert.Equal(t, "sandbox-dev", regServiceCfg.Auth().SSORealm())
 		assert.False(t, regServiceCfg.Verification().Enabled())
 		assert.Equal(t, 5, regServiceCfg.Verification().DailyLimit())
 		assert.Equal(t, 3, regServiceCfg.Verification().AttemptsAllowed())
@@ -78,6 +80,8 @@ func TestRegistrationService(t *testing.T) {
 			Auth().AuthClientConfigContentType("application/xml").
 			Auth().AuthClientConfigRaw(`{"realm": "toolchain-private"}`).
 			Auth().AuthClientPublicKeysURL("https://sso.openshift.com/certs").
+			Auth().SSOBaseURL("https://sso.test.org").
+			Auth().SSORealm("my-realm").
 			Verification().Enabled(true).
 			Verification().DailyLimit(15).
 			Verification().AttemptsAllowed(13).
@@ -123,6 +127,8 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "application/xml", regServiceCfg.Auth().AuthClientConfigContentType())
 		assert.Equal(t, `{"realm": "toolchain-private"}`, regServiceCfg.Auth().AuthClientConfigRaw())
 		assert.Equal(t, "https://sso.openshift.com/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
+		assert.Equal(t, "https://sso.test.org", regServiceCfg.Auth().SSOBaseURL())
+		assert.Equal(t, "my-realm", regServiceCfg.Auth().SSORealm())
 
 		assert.True(t, regServiceCfg.Verification().Enabled())
 		assert.Equal(t, 15, regServiceCfg.Verification().DailyLimit())

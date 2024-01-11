@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
+	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -42,9 +43,23 @@ const (
 	ProxyPort            = "8081"
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
-	proxyHealthEndpoint = "/proxyhealth"
-	pluginsEndpoint     = "/plugins/"
+	proxyHealthEndpoint          = "/proxyhealth"
+	authEndpoint                 = "/auth/"
+	wellKnownOauthConfigEndpoint = "/.well-known/oauth-authorization-server"
+	pluginsEndpoint              = "/plugins/"
 )
+
+func ssoWellKnownTarget() string {
+	return fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SSORealm())
+}
+
+func openidAuthEndpoint() string {
+	return fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SSORealm())
+}
+
+func authorizationEndpointTarget() string {
+	return fmt.Sprintf("%s%s", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), openidAuthEndpoint())
+}
 
 type Proxy struct {
 	app         application.Application
@@ -106,13 +121,12 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.Use(
 		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 			Skipper: func(ctx echo.Context) bool {
-				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check so it doesn't pollute the logs
+				return ctx.Request().URL.RequestURI() == proxyHealthEndpoint // skip logging for health check, so it doesn't pollute the logs
 			},
 			LogMethod: true,
 			LogStatus: true,
 			LogURI:    true,
 			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
-
 				log.InfoEchof(ctx, "request routed")
 				return nil
 			},
@@ -121,9 +135,25 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
+	// Space lister routes
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
 	router.GET(proxyHealthEndpoint, p.health)
+	// SSO routes. Used by web login (oc login -w).
+	// Here is the expected flow for the "oc login -w" command:
+	// 1. "oc login -w <proxy_url>"
+	// 2. oc calls <proxy_url>/.well-known/oauth-authorization-server (wellKnownOauthConfigEndpoint endpoint)
+	// 3. proxy forwards it to <sso_url>/auth/realms/<sso_realm>/.well-known/openid-configuration
+	// 4. oc starts an OAuth flow by opening a browser for <proxy_url>/auth/realms/<realm>/protocol/openid-connect/auth
+	// 5. proxy redirects (the request is not proxied but redirected via 403 See Others response!) the request
+	//    to <sso_url>/auth/realms/<realm>/protocol/openid-connect/auth
+	//    Note: oc uses this hardcoded public (no secret) oauth client name: "openshift-cli-client" which has to exist in SSO to make this flow work.
+	// 6. user provides the login credentials in the sso login page
+	// 7. all following oc requests (<proxy_url>/auth/*) go to the proxy and forwarded to SSO as is. This is used to obtain the generated token by oc.
+	router.Any(wellKnownOauthConfigEndpoint, p.oauthConfiguration)     // <- this is the step 2 in the flow above
+	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth) // <- this is the step 5 in the flow above
+	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)               // <- this is the step 7.
+	// The main proxy route
 	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
@@ -147,6 +177,80 @@ func (p *Proxy) StartProxy() *http.Server {
 	}()
 
 	return srv
+}
+
+// unsecured returns true if the request does not require authentication
+func unsecured(ctx echo.Context) bool {
+	uri := ctx.Request().URL.RequestURI()
+	return uri == proxyHealthEndpoint || uri == wellKnownOauthConfigEndpoint || strings.HasPrefix(uri, authEndpoint)
+}
+
+// auth handles requests to SSO. Used by web login.
+func (p *Proxy) auth(ctx echo.Context) error {
+	req := ctx.Request()
+	targetURL, err := url.Parse(configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL())
+	if err != nil {
+		return err
+	}
+	targetURL.Path = req.URL.Path
+	targetURL.RawQuery = req.URL.RawQuery
+
+	return p.handleSSORequest(targetURL)(ctx)
+}
+
+// oauthConfiguration handles requests to oauth configuration and proxies them to the corresponding SSO endpoint. Used by web login.
+func (p *Proxy) oauthConfiguration(ctx echo.Context) error {
+	targetURL, err := url.Parse(ssoWellKnownTarget())
+	if err != nil {
+		return err
+	}
+	return p.handleSSORequest(targetURL)(ctx)
+}
+
+// openidAuth handles requests to the openID Connect authentication endpoint. Used by web login.
+func (p *Proxy) openidAuth(ctx echo.Context) error {
+	targetURL, err := url.Parse(authorizationEndpointTarget())
+	if err != nil {
+		return err
+	}
+	targetURL.Path = ctx.Request().URL.Path
+	targetURL.RawQuery = ctx.Request().URL.RawQuery
+
+	// Let's redirect the browser's request to the SSO authentication page instead of proxying it
+	// in order to avoid passing the user's login credentials through our proxy.
+	return p.redirectTo(ctx, targetURL.String())
+}
+
+func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
+	log.InfoEchof(ctx, "redirecting %s to %s", ctx.Request().URL.String(), to)
+	http.Redirect(ctx.Response().Writer, ctx.Request(), to, http.StatusSeeOther)
+	return nil
+}
+
+// handleSSORequest handles requests to the cluster authentication server and proxy them to SSO instead. Used by web login.
+func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		req := ctx.Request()
+		director := func(req *http.Request) {
+			origin := req.URL.String()
+			req.URL.Scheme = targetURL.Scheme
+			req.URL.Host = targetURL.Host
+			req.URL.Path = targetURL.Path
+			req.URL.RawQuery = targetURL.RawQuery
+			req.Host = targetURL.Host
+			log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
+		}
+		transport := getTransport(req.Header)
+		reverseProxy := &httputil.ReverseProxy{
+			Director:      director,
+			Transport:     transport,
+			FlushInterval: -1,
+		}
+
+		// Note that ServeHttp is non-blocking and uses a go routine under the hood
+		reverseProxy.ServeHTTP(ctx.Response().Writer, ctx.Request())
+		return nil
+	}
 }
 
 func (p *Proxy) health(ctx echo.Context) error {
@@ -280,7 +384,7 @@ func customHTTPErrorHandler(cause error, ctx echo.Context) {
 func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			if ctx.Request().URL.Path == proxyHealthEndpoint { // skip only for health endpoint
+			if unsecured(ctx) { // skip only for unsecured endpoints
 				return next(ctx)
 			}
 

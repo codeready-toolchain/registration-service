@@ -43,9 +43,10 @@ const (
 	ProxyPort            = "8081"
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
-	proxyHealthEndpoint = "/proxyhealth"
-	authEndpoint        = "/auth/"
-	pluginsEndpoint     = "/plugins/"
+	proxyHealthEndpoint          = "/proxyhealth"
+	authEndpoint                 = "/auth/"
+	wellKnownOauthConfigEndpoint = "/.well-known/oauth-authorization-server"
+	pluginsEndpoint              = "/plugins/"
 )
 
 func ssoWellKnownTarget() string {
@@ -138,10 +139,20 @@ func (p *Proxy) StartProxy() *http.Server {
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
 	router.GET(proxyHealthEndpoint, p.health)
-	// SSO routes. Used by web login.
-	router.Any("/.well-known/oauth-authorization-server", p.oauthConfiguration)
-	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth)
-	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)
+	// SSO routes. Used by web login (oc login -w).
+	// Here is the expected flow for the "oc login -w" command:
+	// 1. "oc login -w <proxy_url>"
+	// 2. oc calls <proxy_url>/.well-known/oauth-authorization-server (wellKnownOauthConfigEndpoint endpoint)
+	// 3. proxy forwards it to <sso_url>/auth/realms/<sso_realm>/.well-known/openid-configuration
+	// 4. oc starts an OAuth flow by opening a browser for <proxy_url>/auth/realms/<realm>/protocol/openid-connect/auth
+	// 5. proxy redirects (the request is not proxied but redirected via 403 See Others response!) the request
+	//    to <sso_url>/auth/realms/<realm>/protocol/openid-connect/auth
+	//    Note: oc uses this hardcoded public (no secret) oauth client name: "openshift-cli-client" which has to exist in SSO to make this flow work.
+	// 6. user provides the login credentials in the sso login page
+	// 7. all following oc requests (<proxy_url>/auth/*) go to the proxy and forwarded to SSO as is. This is used to obtain the generated token by oc.
+	router.Any(wellKnownOauthConfigEndpoint, p.oauthConfiguration)     // <- this is the step 2 in the flow above
+	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth) // <- this is the step 5 in the flow above
+	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)               // <- this is the step 7.
 	// The main proxy route
 	router.Any("/*", p.handleRequestAndRedirect)
 
@@ -171,7 +182,7 @@ func (p *Proxy) StartProxy() *http.Server {
 // unsecured returns true if the request does not require authentication
 func unsecured(ctx echo.Context) bool {
 	uri := ctx.Request().URL.RequestURI()
-	return uri == proxyHealthEndpoint || uri == "/.well-known/oauth-authorization-server" || strings.HasPrefix(uri, authEndpoint)
+	return uri == proxyHealthEndpoint || uri == wellKnownOauthConfigEndpoint || strings.HasPrefix(uri, authEndpoint)
 }
 
 // auth handles requests to SSO. Used by web login.
@@ -205,6 +216,8 @@ func (p *Proxy) openidAuth(ctx echo.Context) error {
 	targetURL.Path = ctx.Request().URL.Path
 	targetURL.RawQuery = ctx.Request().URL.RawQuery
 
+	// Let's redirect the browser's request to the SSO authentication page instead of proxying it
+	// in order to avoid passing the user's login credentials through our proxy.
 	return p.redirectTo(ctx, targetURL.String())
 }
 

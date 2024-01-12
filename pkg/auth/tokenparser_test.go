@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -320,5 +320,40 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		require.Equal(s.T(), identity0.Username, claims.PreferredUsername)
 		require.Equal(s.T(), email0, claims.Email)
 		require.Equal(s.T(), "OriginalSubValue:1234-ABCD", claims.OriginalSub)
+	})
+
+	s.Run("parse valid token with aud claim", func() {
+		username0 := uuid.Must(uuid.NewV4()).String()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.Must(uuid.NewV4()),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+
+		tests := map[string]struct {
+			aud []string
+		}{
+			"single string": {
+				aud: []string{"aud-claim-1"},
+			},
+			"multiple strings": {
+				aud: []string{"aud-claim-1", "aud-claim-2"},
+			},
+		}
+
+		for k, tc := range tests {
+			s.T().Run(k, func(t *testing.T) {
+				// generate non-serialized token
+				jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithAudClaim(tc.aud))
+
+				// serialize
+				jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
+				require.NoError(s.T(), err)
+				// validate token
+				parsed, err := tokenParser.FromString(jwt0string)
+				require.NoError(s.T(), err)
+				require.Equal(s.T(), jwt.ClaimStrings(tc.aud), parsed.Audience)
+			})
+		}
 	})
 }

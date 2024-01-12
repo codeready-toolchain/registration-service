@@ -141,7 +141,7 @@ func (p *Proxy) StartProxy() *http.Server {
 	router.GET(proxyHealthEndpoint, p.health)
 	// SSO routes. Used by web login (oc login -w).
 	// Here is the expected flow for the "oc login -w" command:
-	// 1. "oc login -w <proxy_url>"
+	// 1. "oc login -w --server=<proxy_url>"
 	// 2. oc calls <proxy_url>/.well-known/oauth-authorization-server (wellKnownOauthConfigEndpoint endpoint)
 	// 3. proxy forwards it to <sso_url>/auth/realms/<sso_realm>/.well-known/openid-configuration
 	// 4. oc starts an OAuth flow by opening a browser for <proxy_url>/auth/realms/<realm>/protocol/openid-connect/auth

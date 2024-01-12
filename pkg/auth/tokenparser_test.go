@@ -134,7 +134,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "unexpected signing method: HS256")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: unexpected signing method: HS256")
 	})
 
 	s.Run("token signed by unknown key", func() {
@@ -156,7 +156,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwtX)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "unknown kid")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: unknown kid")
 	})
 
 	s.Run("no KID header in token", func() {
@@ -175,7 +175,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "no key id given in the token")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: no key id given in the token")
 	})
 
 	s.Run("missing claim: preferred_username", func() {
@@ -252,7 +252,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.True(s.T(), strings.HasPrefix(err.Error(), "token is expired by "))
+		require.EqualError(s.T(), err, "token has invalid claims: token is expired")
 	})
 
 	s.Run("signature is good but token not valid yet", func() {
@@ -273,7 +273,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "token is not valid yet")
+		require.EqualError(s.T(), err, "token has invalid claims: token is not valid yet")
 	})
 
 	s.Run("token signed by known key but the signature is invalid", func() {
@@ -296,7 +296,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "crypto/rsa: verification error")
+		require.EqualError(s.T(), err, "token signature is invalid: crypto/rsa: verification error")
 	})
 
 	s.Run("parse valid token with original_sub claim", func() {

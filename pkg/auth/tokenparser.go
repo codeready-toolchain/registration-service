@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 /****************************************************
@@ -16,7 +16,7 @@ import (
 
  *****************************************************/
 
-const leeway = 5000
+const leeway = 5 * time.Second
 
 // TokenClaims represents access token claims
 type TokenClaims struct {
@@ -30,20 +30,19 @@ type TokenClaims struct {
 	OriginalSub       string `json:"original_sub"`
 	UserID            string `json:"user_id"`
 	AccountID         string `json:"account_id"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // Valid checks whether the token claims are valid
 func (c *TokenClaims) Valid() error {
-	c.StandardClaims.IssuedAt -= leeway
+	var v = jwt.NewValidator(jwt.WithLeeway(leeway))
+	err := v.Validate(c.RegisteredClaims)
 	now := time.Now().Unix()
-	err := c.StandardClaims.Valid()
 	if err != nil {
 		log.Error(nil, err, "Token validation failed")
 		log.Infof(nil, "Current time: %s", strconv.FormatInt(now, 10))
-		log.Infof(nil, "Token IssuedAt time: %s", strconv.FormatInt(c.StandardClaims.IssuedAt, 10))
+		log.Infof(nil, "Token IssuedAt time: %s", strconv.FormatInt(c.RegisteredClaims.IssuedAt.Unix(), 10))
 	}
-	c.StandardClaims.IssuedAt += leeway
 	return err
 }
 

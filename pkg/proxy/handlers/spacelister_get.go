@@ -151,7 +151,7 @@ func filterUserSpaceBinding(username string, allSpaceBindings []toolchainv1alpha
 // generateWorkspaceBindings generates the bindings list starting from the spacebindings found on a given space resource and an all parent spaces.
 // The Bindings list  has the available actions for each entry in the list.
 func generateWorkspaceBindings(space *toolchainv1alpha1.Space, spaceBindings []toolchainv1alpha1.SpaceBinding, spacebindingRequests []toolchainv1alpha1.SpaceBindingRequest) ([]toolchainv1alpha1.Binding, error) {
-	var bindings []toolchainv1alpha1.Binding
+	bindings := make([]toolchainv1alpha1.Binding, 0, len(spaceBindings) + len(spacebindingRequests))
 	for _, spaceBinding := range spaceBindings {
 		binding := toolchainv1alpha1.Binding{
 			MasterUserRecord: spaceBinding.Spec.MasterUserRecord,

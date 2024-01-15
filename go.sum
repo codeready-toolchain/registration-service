@@ -73,8 +73,6 @@ github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tN
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/alexeykazakov/toolchain-common v0.0.0-20240115191151-d312e446ff81 h1:5Ymg07HCuGbyMDGIkST1Xghb0pKPb/951qe+5oiGzL4=
-github.com/alexeykazakov/toolchain-common v0.0.0-20240115191151-d312e446ff81/go.mod h1:9YS35niqlaKOpGTKX9RoXhonHopTkwH9W4C9Bcg7ZjM=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/aws/aws-sdk-go v1.44.100 h1:7I86bWNQB+HGDT5z/dJy61J7qgbgLoZ7O51C9eL6hrA=
 github.com/aws/aws-sdk-go v1.44.100/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
@@ -119,6 +117,8 @@ github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/codeready-toolchain/api v0.0.0-20240103194050-d5c7803671c1 h1:R+5BmQrz9hBfj6QFL+ojExD6CiZ5EuuVUbeb3pqxdds=
 github.com/codeready-toolchain/api v0.0.0-20240103194050-d5c7803671c1/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240115235114-36095a5f2acc h1:tiRzD0Xasn/o2aBfZttt/O9Dw5S/13dY3dtqJ5wvu5I=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240115235114-36095a5f2acc/go.mod h1:9YS35niqlaKOpGTKX9RoXhonHopTkwH9W4C9Bcg7ZjM=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

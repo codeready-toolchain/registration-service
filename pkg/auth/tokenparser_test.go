@@ -276,6 +276,26 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		require.EqualError(s.T(), err, "token has invalid claims: token is not valid yet")
 	})
 
+	s.Run("signature is good and token expiration is within leeway", func() {
+		username0 := uuid.Must(uuid.NewV4()).String()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.Must(uuid.NewV4()),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+		expTime := time.Now().Add(-1 * time.Second)
+		expClaim := authsupport.WithExpClaim(expTime)
+		// generate non-serialized token
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
+
+		// serialize
+		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
+		require.NoError(s.T(), err)
+		// validate token
+		_, err = tokenParser.FromString(jwt0string)
+		require.NoError(s.T(), err)
+	})
+
 	s.Run("token signed by known key but the signature is invalid", func() {
 		username0 := uuid.Must(uuid.NewV4()).String()
 		identity0 := &authsupport.Identity{

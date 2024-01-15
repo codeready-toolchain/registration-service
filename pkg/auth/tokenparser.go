@@ -3,18 +3,10 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/golang-jwt/jwt/v5"
 )
-
-/****************************************************
-
-  This section is a temporary fix until formal leeway support is available in the next jwt-go release
-
- *****************************************************/
 
 const leeway = 5 * time.Second
 
@@ -31,19 +23,6 @@ type TokenClaims struct {
 	UserID            string `json:"user_id"`
 	AccountID         string `json:"account_id"`
 	jwt.RegisteredClaims
-}
-
-// Valid checks whether the token claims are valid
-func (c *TokenClaims) Valid() error {
-	var v = jwt.NewValidator(jwt.WithLeeway(leeway))
-	err := v.Validate(c.RegisteredClaims)
-	now := time.Now().Unix()
-	if err != nil {
-		log.Error(nil, err, "Token validation failed")
-		log.Infof(nil, "Current time: %s", strconv.FormatInt(now, 10))
-		log.Infof(nil, "Token IssuedAt time: %s", strconv.FormatInt(c.RegisteredClaims.IssuedAt.Unix(), 10))
-	}
-	return err
 }
 
 // TokenParser represents a parser for JWT tokens.
@@ -63,27 +42,32 @@ func NewTokenParser(keyManager *KeyManager) (*TokenParser, error) {
 
 // FromString parses a JWT, validates the signature and returns the claims struct.
 func (tp *TokenParser) FromString(jwtEncoded string) (*TokenClaims, error) {
-	token, err := jwt.ParseWithClaims(jwtEncoded, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// validate the alg is what we expect
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+	token, err := jwt.ParseWithClaims(
+		jwtEncoded,
+		&TokenClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			// validate the alg is what we expect
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
 
-		kid := token.Header["kid"]
-		if kid == nil {
-			return nil, errors.New("no key id given in the token")
-		}
-		kidStr, ok := kid.(string)
-		if !ok {
-			return nil, errors.New("given key id has unknown type")
-		}
-		// get the public key for kid from keyManager
-		publicKey, err := tp.keyManager.Key(kidStr)
-		if err != nil {
-			return nil, err
-		}
-		return publicKey, nil
-	})
+			kid := token.Header["kid"]
+			if kid == nil {
+				return nil, errors.New("no key id given in the token")
+			}
+			kidStr, ok := kid.(string)
+			if !ok {
+				return nil, errors.New("given key id has unknown type")
+			}
+			// get the public key for kid from keyManager
+			publicKey, err := tp.keyManager.Key(kidStr)
+			if err != nil {
+				return nil, err
+			}
+			return publicKey, nil
+		},
+		jwt.WithLeeway(leeway),
+	)
 	if err != nil {
 		return nil, err
 	}

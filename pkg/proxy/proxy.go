@@ -178,7 +178,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	if workspaceName != "" {
 		// when a workspace name was provided
 		// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
-		workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName, p.getMembersFunc)
+		workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName)
 		if err != nil {
 			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}

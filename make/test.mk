@@ -48,7 +48,7 @@ ifeq ($(E2E_REPO_PATH),"")
         else
 			$(eval AUTHOR_LINK = $(shell jq -r '.refs[0].pulls[0].author_link' <<< $${CLONEREFS_OPTIONS} | tr -d '[:space:]'))
 			@echo "using pull sha ${PULL_PULL_SHA}"
-			$(eval BRANCH_NAME := $(shell jq -r '.refs[0].pulls[0].head_ref' < $${CLONEREFS_OPTIONS} | tr -d '[:space:]'))
+			$(eval BRANCH_NAME := $(shell jq -r '.refs[0].pulls[0].head_ref' <<< $${CLONEREFS_OPTIONS} | tr -d '[:space:]'))
         endif
 		@echo "using author link ${AUTHOR_LINK}"
 		@echo "detected branch ${BRANCH_NAME}"

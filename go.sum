@@ -115,8 +115,8 @@ github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20210922020428-25de7278fc84/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
-github.com/codeready-toolchain/api v0.0.0-20240103194050-d5c7803671c1 h1:R+5BmQrz9hBfj6QFL+ojExD6CiZ5EuuVUbeb3pqxdds=
-github.com/codeready-toolchain/api v0.0.0-20240103194050-d5c7803671c1/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
+github.com/codeready-toolchain/api v0.0.0-20240116164228-8d18c9262420 h1:rxbURSqAgiMCsyKDRwsHMjw7bIktK0IUU/OXpxwu0Zk=
+github.com/codeready-toolchain/api v0.0.0-20240116164228-8d18c9262420/go.mod h1:FO7kgXH1x1LqkF327D5a36u0WIrwjVCbeijPkzgwaZc=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20240116160454-ad743a86ea5f h1:yPZM+eab+uuHVQq6FvqP47qLLDB/xApsekVU7eoagXc=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20240116160454-ad743a86ea5f/go.mod h1:9YS35niqlaKOpGTKX9RoXhonHopTkwH9W4C9Bcg7ZjM=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=

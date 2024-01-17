@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -134,7 +134,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "unexpected signing method: HS256")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: unexpected signing method: HS256")
 	})
 
 	s.Run("token signed by unknown key", func() {
@@ -156,7 +156,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwtX)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "unknown kid")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: unknown kid")
 	})
 
 	s.Run("no KID header in token", func() {
@@ -175,7 +175,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "no key id given in the token")
+		require.EqualError(s.T(), err, "token is unverifiable: error while executing keyfunc: no key id given in the token")
 	})
 
 	s.Run("missing claim: preferred_username", func() {
@@ -252,7 +252,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.True(s.T(), strings.HasPrefix(err.Error(), "token is expired by "))
+		require.EqualError(s.T(), err, "token has invalid claims: token is expired")
 	})
 
 	s.Run("signature is good but token not valid yet", func() {
@@ -273,7 +273,27 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "token is not valid yet")
+		require.EqualError(s.T(), err, "token has invalid claims: token is not valid yet")
+	})
+
+	s.Run("signature is good and token expiration is within leeway", func() {
+		username0 := uuid.Must(uuid.NewV4()).String()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.Must(uuid.NewV4()),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+		expTime := time.Now().Add(-1 * time.Second)
+		expClaim := authsupport.WithExpClaim(expTime)
+		// generate non-serialized token
+		jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), expClaim)
+
+		// serialize
+		jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
+		require.NoError(s.T(), err)
+		// validate token
+		_, err = tokenParser.FromString(jwt0string)
+		require.NoError(s.T(), err)
 	})
 
 	s.Run("token signed by known key but the signature is invalid", func() {
@@ -296,7 +316,7 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		// validate token
 		_, err = tokenParser.FromString(jwt0string)
 		require.Error(s.T(), err)
-		require.EqualError(s.T(), err, "crypto/rsa: verification error")
+		require.EqualError(s.T(), err, "token signature is invalid: crypto/rsa: verification error")
 	})
 
 	s.Run("parse valid token with original_sub claim", func() {
@@ -320,5 +340,40 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		require.Equal(s.T(), identity0.Username, claims.PreferredUsername)
 		require.Equal(s.T(), email0, claims.Email)
 		require.Equal(s.T(), "OriginalSubValue:1234-ABCD", claims.OriginalSub)
+	})
+
+	s.Run("parse valid token with aud claim", func() {
+		username0 := uuid.Must(uuid.NewV4()).String()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.Must(uuid.NewV4()),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+
+		tests := map[string]struct {
+			aud []string
+		}{
+			"single string": {
+				aud: []string{"aud-claim-1"},
+			},
+			"multiple strings": {
+				aud: []string{"aud-claim-1", "aud-claim-2"},
+			},
+		}
+
+		for k, tc := range tests {
+			s.T().Run(k, func(t *testing.T) {
+				// generate non-serialized token
+				jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithAudClaim(tc.aud))
+
+				// serialize
+				jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
+				require.NoError(s.T(), err)
+				// validate token
+				parsed, err := tokenParser.FromString(jwt0string)
+				require.NoError(s.T(), err)
+				require.Equal(s.T(), jwt.ClaimStrings(tc.aud), parsed.Audience)
+			})
+		}
 	})
 }

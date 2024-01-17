@@ -163,7 +163,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments")
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token is malformed: token contains an invalid number of segments")
 		})
 
 		s.Run("unauthorized if can't extract userID from a valid token", func() {
@@ -248,7 +248,7 @@ func (s *TestProxySuite) checkWebsocketsError() {
 			},
 			"not a jwt token": {
 				ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy"},
-				ExpectedError:   "invalid bearer token: unable to extract userID from token: token contains an invalid number of segments",
+				ExpectedError:   "invalid bearer token: unable to extract userID from token: token is malformed: token contains an invalid number of segments",
 			},
 			"invalid token is not base64 encoded": {
 				ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.token,dummy"},
@@ -665,7 +665,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										spaceBindings := []toolchainv1alpha1.SpaceBinding{}
 										for _, req := range reqs {
 											if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
-												spaceBindings = append(spaceBindings, *fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
+												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin")}
 											}
 										}
 										return spaceBindings, nil

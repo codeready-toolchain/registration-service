@@ -148,7 +148,8 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 	), nil
 }
 
-// getUserSignupAndSpace returns the space and the usersignup for a given request
+// getUserSignupAndSpace returns the space and the usersignup for a given request.
+// When no space is found a nil value is returned instead of an error.
 func getUserSignupAndSpace(ctx echo.Context, spaceLister *SpaceLister, workspaceName string) (*signup.Signup, *toolchainv1alpha1.Space, error) {
 	userSignup, err := spaceLister.GetProvisionedUserSignup(ctx)
 	if err != nil {

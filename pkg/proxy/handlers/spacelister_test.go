@@ -755,6 +755,7 @@ func TestGetUserWorkspace(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", "batman.space", true),
+		newSignup("robin", "robin.space", true),
 	)
 
 	fakeClient := fake.InitClient(t,
@@ -766,34 +767,62 @@ func TestGetUserWorkspace(t *testing.T) {
 		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
 	)
 
-	t.Run("error when there's multiple spacebindings for same MUR and Space", func(t *testing.T) {
-		// given
-		signupProvider := fakeSignupService.GetSignupFromInformer
-		informerFunc := fake.GetInformerService(fakeClient)
-		proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-		s := &handlers.SpaceLister{
-			GetSignupFunc:          signupProvider,
-			GetInformerServiceFunc: informerFunc,
-			ProxyMetrics:           proxyMetrics,
-		}
+	tests := map[string]struct {
+		username          string
+		expectedErr       string
+		workspaceRequest  string
+		expectedWorkspace string
+	}{
+		"invalid number of spacebindings": {
+			username:         "batman.space",
+			expectedErr:      "invalid number of SpaceBindings found for MUR:batman and Space:batman. Expected 1 got 2",
+			workspaceRequest: "batman",
+		},
+		"user is unauthorized": {
+			username:         "robin.space",
+			workspaceRequest: "batman",
+		},
+	}
 
-		e := echo.New()
-		req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
-		rec := httptest.NewRecorder()
-		ctx := e.NewContext(req, rec)
-		ctx.Set(rcontext.UsernameKey, "batman.space")
-		ctx.Set(rcontext.RequestReceivedTime, time.Now())
-		ctx.SetParamNames("workspace")
-		ctx.SetParamValues("batman")
+	for k, tc := range tests {
+		t.Run(k, func(t *testing.T) {
+			// given
+			signupProvider := fakeSignupService.GetSignupFromInformer
+			informerFunc := fake.GetInformerService(fakeClient)
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			s := &handlers.SpaceLister{
+				GetSignupFunc:          signupProvider,
+				GetInformerServiceFunc: informerFunc,
+				ProxyMetrics:           proxyMetrics,
+			}
 
-		// when
-		wrk, err := handlers.GetUserWorkspace(ctx, s, "batman")
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+			ctx.Set(rcontext.UsernameKey, tc.username)
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+			ctx.SetParamNames("workspace")
+			ctx.SetParamValues(tc.workspaceRequest)
 
-		// then
-		// error case
-		require.Error(t, err, "invalid number of SpaceBindings found for MUR:batman and Space:batman. Expected 1 got 2")
-		require.Nil(t, wrk)
-	})
+			// when
+			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
+
+			// then
+			if tc.expectedErr != "" {
+				// error case
+				require.Error(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.expectedWorkspace != "" {
+				require.Equal(t, wrk, tc.expectedWorkspace)
+			} else {
+				require.Nil(t, wrk) // user is not authorized to get this workspace
+			}
+		})
+	}
 }
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {

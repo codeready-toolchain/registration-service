@@ -50,7 +50,7 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 		return nil, err
 	}
 	// signup is not ready
-	if userSignup == nil {
+	if userSignup == nil || space == nil {
 		return nil, nil
 	}
 
@@ -72,7 +72,13 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 		ctx.Logger().Error(err, "failed to list space bindings")
 		return nil, err
 	}
-	if len(userSpaceBindings) != 1 {
+	if len(userSpaceBindings) == 0 {
+		//  let's only log the issue and consider this as not found
+		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+		return nil, nil
+	}
+
+	if len(userSpaceBindings) > 1 {
 		userBindingsErr := fmt.Errorf("invalid number of SpaceBindings found for MUR:%s and Space:%s. Expected 1 got %d", userSignup.CompliantUsername, space.Name, len(userSpaceBindings))
 		ctx.Logger().Error(userBindingsErr)
 		return nil, userBindingsErr

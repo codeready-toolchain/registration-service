@@ -751,6 +751,51 @@ func TestSpaceLister(t *testing.T) {
 	})
 }
 
+func TestGetUserWorkspace(t *testing.T) {
+
+	fakeSignupService := fake.NewSignupService(
+		newSignup("batman", "batman.space", true),
+	)
+
+	fakeClient := fake.InitClient(t,
+		// space
+		fake.NewSpace("batman", "member-1", "batman"),
+
+		// 2 spacebindings to force the error
+		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
+		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
+	)
+
+	t.Run("error when there's multiple spacebindings for same MUR and Space", func(t *testing.T) {
+		// given
+		signupProvider := fakeSignupService.GetSignupFromInformer
+		informerFunc := fake.GetInformerService(fakeClient)
+		proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+		s := &handlers.SpaceLister{
+			GetSignupFunc:          signupProvider,
+			GetInformerServiceFunc: informerFunc,
+			ProxyMetrics:           proxyMetrics,
+		}
+
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
+		ctx.Set(rcontext.UsernameKey, "batman.space")
+		ctx.Set(rcontext.RequestReceivedTime, time.Now())
+		ctx.SetParamNames("workspace")
+		ctx.SetParamValues("batman")
+
+		// when
+		wrk, err := handlers.GetUserWorkspace(ctx, s, "batman")
+
+		// then
+		// error case
+		require.Error(t, err, "invalid number of SpaceBindings found for MUR:batman and Space:batman. Expected 1 got 2")
+		require.Nil(t, wrk)
+	})
+}
+
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
 	compliantUsername := signupName
 	if !ready {

@@ -13,6 +13,7 @@ import (
 )
 
 // SetupRoutes registers handlers for various URL paths.
+// proxyPort is the API Proxy Server port to be used to setup a route for the health checker for the proxy.
 func (srv *RegistrationServer) SetupRoutes(proxyPort string) error {
 	var err error
 	_, err = auth.InitializeDefaultTokenParser()

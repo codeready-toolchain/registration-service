@@ -181,6 +181,14 @@ func (r AuthConfig) AuthClientPublicKeysURL() string {
 	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs")
 }
 
+func (r AuthConfig) SSOBaseURL() string {
+	return commonconfig.GetString(r.c.SSOBaseURL, "https://sso.devsandbox.dev")
+}
+
+func (r AuthConfig) SSORealm() string {
+	return commonconfig.GetString(r.c.SSORealm, "sandbox-dev")
+}
+
 type VerificationConfig struct {
 	c       toolchainv1alpha1.RegistrationServiceVerificationConfig
 	secrets map[string]map[string]string

@@ -38,7 +38,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
+	healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker(proxy.ProxyPort))
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {

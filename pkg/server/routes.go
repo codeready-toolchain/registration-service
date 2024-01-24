@@ -13,7 +13,7 @@ import (
 )
 
 // SetupRoutes registers handlers for various URL paths.
-func (srv *RegistrationServer) SetupRoutes() error {
+func (srv *RegistrationServer) SetupRoutes(proxyPort string) error {
 	var err error
 	_, err = auth.InitializeDefaultTokenParser()
 	if err != nil {
@@ -22,7 +22,7 @@ func (srv *RegistrationServer) SetupRoutes() error {
 
 	srv.routesSetup.Do(func() {
 		// creating the controllers
-		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
+		healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker(proxyPort))
 		authConfigCtrl := controller.NewAuthConfig()
 		analyticsCtrl := controller.NewAnalytics()
 		signupCtrl := controller.NewSignup(srv.application)

@@ -79,7 +79,7 @@ func newProxyWithClusterClient(app application.Application, cln client.Client, p
 	}, nil
 }
 
-func (p *Proxy) StartProxy() *http.Server {
+func (p *Proxy) StartProxy(port string) *http.Server {
 	// start server
 	router := echo.New()
 	router.Logger.SetLevel(glog.INFO)
@@ -131,7 +131,7 @@ func (p *Proxy) StartProxy() *http.Server {
 
 	log.Info(nil, "Starting the Proxy server...")
 	srv := &http.Server{
-		Addr:              ":" + ProxyPort,
+		Addr:              fmt.Sprintf(":%s", port),
 		Handler:           handler,
 		ReadHeaderTimeout: 2 * time.Second,
 		TLSConfig: &tls.Config{

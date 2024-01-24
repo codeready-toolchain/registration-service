@@ -86,7 +86,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.
-	err = srv.SetupRoutes()
+	err = srv.SetupRoutes(proxy.ProxyPort)
 	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.

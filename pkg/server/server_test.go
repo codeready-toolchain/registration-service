@@ -37,7 +37,7 @@ func (s *TestServerSuite) TestServer() {
 
 	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.
-	err := srv.SetupRoutes()
+	err := srv.SetupRoutes("8091")
 	require.NoError(s.T(), err)
 	gock.OffAll()
 

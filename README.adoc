@@ -1,4 +1,4 @@
-= Registration Service
+= Registration Service Test PR
 
 image:https://goreportcard.com/badge/github.com/codeready-toolchain/registration-service[Go Report Card, link="https://goreportcard.com/report/github.com/codeready-toolchain/registration-service"]
 image:https://godoc.org/github.com/codeready-toolchain/registration-service?status.png[GoDoc,link="https://godoc.org/github.com/codeready-toolchain/registration-service"]

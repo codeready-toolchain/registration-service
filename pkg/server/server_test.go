@@ -37,7 +37,7 @@ func (s *TestServerSuite) TestServer() {
 
 	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.
-	err := srv.SetupRoutes("8091")
+	err := srv.SetupRoutes("8091") // uses a different proxy port than the default one to avoid collision with other concurrent tests
 	require.NoError(s.T(), err)
 	gock.OffAll()
 

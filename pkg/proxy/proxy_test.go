@@ -75,7 +75,7 @@ func (s *TestProxySuite) TestProxy() {
 			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics)
 			require.NoError(s.T(), err)
 
-			server := p.StartProxy(ProxyPort)
+			server := p.StartProxy(DefaultProxyPort)
 			require.NotNil(s.T(), server)
 			defer func() {
 				_ = server.Close()

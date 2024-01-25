@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	DefaultProxyPort     = "8081"
+	DefaultPort          = "8081"
 	bearerProtocolPrefix = "base64url.bearer.authorization.k8s.io." //nolint:gosec
 
 	proxyHealthEndpoint          = "/proxyhealth"

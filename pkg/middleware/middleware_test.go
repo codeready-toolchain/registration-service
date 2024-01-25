@@ -86,7 +86,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.
-	err = srv.SetupRoutes(proxy.DefaultProxyPort)
+	err = srv.SetupRoutes(proxy.DefaultPort)
 	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.
@@ -105,7 +105,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 
 		// mock proxy
 		defer gock.Off()
-		gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.DefaultProxyPort)).
+		gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.DefaultPort)).
 			Reply(http.StatusOK).
 			BodyString("")
 
@@ -166,7 +166,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 
 				// mock proxy
 				defer gock.Off()
-				gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.DefaultProxyPort)).
+				gock.New(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.DefaultPort)).
 					Reply(http.StatusOK).
 					BodyString("")
 

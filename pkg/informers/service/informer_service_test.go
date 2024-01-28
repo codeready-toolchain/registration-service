@@ -43,6 +43,9 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 						"spec": map[string]interface{}{
 							"tierName": "deactivate30",
 							"userID":   "john-id",
+							"propagatedClaims": map[string]interface{}{
+								"sub": "john-id",
+							},
 							"userAccounts": []map[string]interface{}{
 								{
 									"targetCluster": "member1",
@@ -55,7 +58,9 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"tierName": "deactivate30",
-							"userID":   "noise-id",
+							"propagatedClaims": map[string]interface{}{
+								"sub": "noise-id",
+							},
 							"userAccounts": []map[string]interface{}{
 								{
 									"targetCluster": "member2",
@@ -307,12 +312,16 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"targetCluster": "member2",
-							"username":      "foo@redhat.com",
-							"userid":        "foo",
-							"givenName":     "Foo",
-							"familyName":    "Bar",
-							"company":       "Red Hat",
-							"originalSub":   "sub-key",
+							"identityClaims": map[string]interface{}{
+								"propagatedClaims": map[string]interface{}{
+									"sub":         "foo",
+									"originalSub": "sub-key",
+								},
+								"preferredUsername": "foo@redhat.com",
+								"givenName":         "Foo",
+								"familyName":        "Bar",
+								"company":           "Red Hat",
+							},
 						},
 					},
 				},
@@ -320,12 +329,16 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"targetCluster": "member1",
-							"username":      "noise@redhat.com",
-							"userid":        "noise",
-							"givenName":     "Noise",
-							"familyName":    "Make",
-							"company":       "Noisy",
-							"originalSub":   "noise-key",
+							"identityClaims": map[string]interface{}{
+								"propagatedClaims": map[string]interface{}{
+									"sub":         "noise",
+									"originalSub": "noise-key",
+								},
+								"preferredUsername": "noise@redhat.com",
+								"givenName":         "Noise",
+								"familyName":        "Make",
+								"company":           "Noisy",
+							},
 						},
 					},
 				},
@@ -361,7 +374,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 						FamilyName:        "Bar",
 						Company:           "Red Hat",
 						PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
-							UserID:      "foo",
+							Sub:         "foo",
 							OriginalSub: "sub-key",
 						},
 					},
@@ -374,7 +387,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 

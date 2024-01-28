@@ -119,7 +119,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	require.NoError(s.T(), err)
 	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // at this point, the activation counter annotation is not set
 	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // at this point, the last target cluster annotation is not set
-	require.Equal(s.T(), "original-sub-value", userSignup.Spec.OriginalSub)
+	require.Equal(s.T(), "original-sub-value", userSignup.Spec.IdentityClaims.OriginalSub)
 
 	gvr, existing := assertUserSignupExists(userSignup, "jsmith")
 
@@ -1950,6 +1950,138 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() {
+
+	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
+
+	// Create a new UserSignup, set its UserID and AccountID annotations
+	userSignup := s.newUserSignupComplete()
+
+	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
+	require.NoError(s.T(), err)
+
+	mur := &toolchainv1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userSignup.Status.CompliantUsername,
+			Namespace: configuration.Namespace(),
+		},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{
+				{
+					Type:   toolchainv1alpha1.MasterUserRecordReady,
+					Status: "true",
+				},
+			},
+		},
+	}
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+	require.NoError(s.T(), err)
+
+	s.Run("PreferredUsername property updated when set in context", func() {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set(context.UsernameKey, "cocochanel")
+
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+		require.NoError(s.T(), err)
+
+		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		require.NoError(s.T(), err)
+
+		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+		require.Equal(s.T(), "John", modified.Spec.IdentityClaims.GivenName)
+		require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
+		require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+
+		require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+		require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+		require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+		require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+		require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+		s.Run("GivenName property updated when set in context", func() {
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Set(context.GivenNameKey, "Jonathan")
+
+			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+			require.NoError(s.T(), err)
+
+			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			require.NoError(s.T(), err)
+
+			require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+
+			// Confirm that some other properties were not changed
+			require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+			require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
+			require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+
+			require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+			require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+			require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+			require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+			require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+			require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+			s.Run("FamilyName and Company properties updated when set in context", func() {
+				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c.Set(context.FamilyNameKey, "Smythe")
+				c.Set(context.CompanyKey, "Red Hat")
+
+				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+				require.NoError(s.T(), err)
+
+				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+				require.NoError(s.T(), err)
+
+				require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
+				require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
+
+				require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+				require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+
+				require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
+				require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
+				require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
+				require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+				require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
+				require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+				s.Run("Remaining properties updated when set in context", func() {
+					c, _ := gin.CreateTestContext(httptest.NewRecorder())
+					c.Set(context.SubKey, "987654321")
+					c.Set(context.UserIDKey, "123456777")
+					c.Set(context.AccountIDKey, "777654321")
+					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
+					c.Set(context.EmailKey, "jsmythe@redhat.com")
+
+					_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+					require.NoError(s.T(), err)
+
+					modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+					require.NoError(s.T(), err)
+
+					require.Equal(s.T(), "987654321", modified.Spec.IdentityClaims.Sub)
+					require.Equal(s.T(), "123456777", modified.Spec.IdentityClaims.UserID)
+					require.Equal(s.T(), "777654321", modified.Spec.IdentityClaims.AccountID)
+					require.Equal(s.T(), "jsmythe-original-sub", modified.Spec.IdentityClaims.OriginalSub)
+					require.Equal(s.T(), "jsmythe@redhat.com", modified.Spec.IdentityClaims.Email)
+					require.Equal(s.T(), "7cd294acda3a75773834df81d6e8ed7c", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+
+					require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
+					require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
+					require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
+					require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+				})
+			})
+		})
+	})
+}
+
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
 	return s.newUserSignupCompleteWithReason("")
 }
@@ -1962,6 +2094,9 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
 			Namespace: configuration.Namespace(),
+			Annotations: map[string]string{
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "90cb861692508c36933b85dfe43f5369",
+			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{

@@ -17,7 +17,7 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -236,7 +236,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 					require.NotEqual(s.T(), tt.kid, kid)
 					return keyManager.Key(tt.kid)
 				})
-				assert.EqualError(s.T(), err, "crypto/rsa: verification error")
+				assert.EqualError(s.T(), err, "token signature is invalid: crypto/rsa: verification error")
 			})
 		}
 	})

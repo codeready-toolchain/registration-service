@@ -119,7 +119,6 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			TargetCluster: "",
-			OriginalSub:   ctx.GetString(context.OriginalSubKey),
 
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
 				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
@@ -512,6 +511,21 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 	c.Company, updated = updateIfRequired(ctx, context.CompanyKey, c.Company, updated)
 
 	userSignup.Spec.IdentityClaims = c
+
+	// make sure that labels and annotations are initiated
+	if userSignup.Labels == nil {
+		userSignup.Labels = map[string]string{}
+	}
+	if userSignup.Annotations == nil {
+		userSignup.Annotations = map[string]string{}
+	}
+
+	// make sure that he email hash matches the email
+	emailHash := hash.EncodeString(c.Email)
+	if userSignup.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey] != emailHash {
+		userSignup.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey] = emailHash
+		updated = true
+	}
 
 	return updated
 }

@@ -106,7 +106,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 
@@ -166,7 +166,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 
@@ -355,14 +355,14 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			expected := &toolchainv1alpha1.UserSignup{
 				Spec: toolchainv1alpha1.UserSignupSpec{
 					TargetCluster: "member2",
-					OriginalSub:   "sub-key",
 					IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
 						PreferredUsername: "foo@redhat.com",
 						GivenName:         "Foo",
 						FamilyName:        "Bar",
 						Company:           "Red Hat",
 						PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
-							UserID: "foo",
+							UserID:      "foo",
+							OriginalSub: "sub-key",
 						},
 					},
 				},

@@ -172,6 +172,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 			signup.Labels = map[string]string{}
 		}
 
+		if signup.Annotations == nil {
+			signup.Annotations = map[string]string{}
+		}
+
 		for k, v := range labelValues {
 			signup.Labels[k] = v
 		}
@@ -318,6 +322,10 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 		if err != nil {
 			return err
+		}
+
+		if signup.Annotations == nil {
+			signup.Annotations = map[string]string{}
 		}
 
 		if unsetVerificationRequired {

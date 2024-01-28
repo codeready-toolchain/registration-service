@@ -313,7 +313,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 						"spec": map[string]interface{}{
 							"targetCluster": "member2",
 							"identityClaims": map[string]interface{}{
-								"propagatedClaims": map[string]interface{}{
+								"PropagatedClaims": map[string]interface{}{
 									"sub":         "foo",
 									"originalSub": "sub-key",
 								},

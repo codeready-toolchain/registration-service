@@ -791,7 +791,11 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Name:      userID.String(),
 			Namespace: configuration.Namespace(),
 		},
-		Spec: toolchainv1alpha1.UserSignupSpec{},
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "bill",
+			},
+		},
 		Status: toolchainv1alpha1.UserSignupStatus{
 			CompliantUsername: "bill",
 			Conditions: []toolchainv1alpha1.Condition{
@@ -1152,7 +1156,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.NotNil(s.T(), response)
 
 			require.Equal(s.T(), us.Name, response.Name)
-			require.Equal(s.T(), "ted@domain.com", response.Username)
+			require.Equal(s.T(), "jsmith", response.Username)
 			require.Equal(s.T(), "ted", response.CompliantUsername)
 			assert.True(s.T(), response.Status.Ready)
 			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -1206,7 +1210,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), response)
 
-				require.Equal(s.T(), "ted@domain.com", response.Username)
+				require.Equal(s.T(), "jsmith", response.Username)
 				require.Equal(s.T(), "ted", response.CompliantUsername)
 				assert.True(s.T(), response.Status.Ready)
 				assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)

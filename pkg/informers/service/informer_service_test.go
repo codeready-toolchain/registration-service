@@ -313,10 +313,8 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 						"spec": map[string]interface{}{
 							"targetCluster": "member2",
 							"identityClaims": map[string]interface{}{
-								"PropagatedClaims": map[string]interface{}{
-									"sub":         "foo",
-									"originalSub": "sub-key",
-								},
+								"sub":               "foo",
+								"originalSub":       "sub-key",
 								"preferredUsername": "foo@redhat.com",
 								"givenName":         "Foo",
 								"familyName":        "Bar",
@@ -330,10 +328,8 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 						"spec": map[string]interface{}{
 							"targetCluster": "member1",
 							"identityClaims": map[string]interface{}{
-								"propagatedClaims": map[string]interface{}{
-									"sub":         "noise",
-									"originalSub": "noise-key",
-								},
+								"sub":               "noise",
+								"originalSub":       "noise-key",
 								"preferredUsername": "noise@redhat.com",
 								"givenName":         "Noise",
 								"familyName":        "Make",

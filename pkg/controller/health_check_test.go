@@ -38,7 +38,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create health check instance.
-	healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker())
+	healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker(proxy.DefaultPort))
 	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {
@@ -54,7 +54,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// mock proxy
 		defer gock.Off()
-		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
+		gock.New(fmt.Sprintf("http://localhost:%s", proxy.DefaultPort)).
 			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).
@@ -89,7 +89,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// mock proxy
 		defer gock.Off()
-		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
+		gock.New(fmt.Sprintf("http://localhost:%s", proxy.DefaultPort)).
 			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).
@@ -130,7 +130,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// mock proxy
 		defer gock.Off()
-		gock.New(fmt.Sprintf("http://localhost:%s", proxy.ProxyPort)).
+		gock.New(fmt.Sprintf("http://localhost:%s", proxy.DefaultPort)).
 			Get("/proxyhealth").
 			Persist().
 			Reply(http.StatusOK).

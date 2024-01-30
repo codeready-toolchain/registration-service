@@ -7,7 +7,6 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
 	"github.com/gin-gonic/gin"
@@ -65,11 +64,12 @@ type HealthChecker interface {
 	APIProxyAlive(*gin.Context) bool
 }
 
-func NewHealthChecker() HealthChecker {
-	return &healthCheckerImpl{}
+func NewHealthChecker(port string) HealthChecker {
+	return &healthCheckerImpl{port: port}
 }
 
 type healthCheckerImpl struct {
+	port string
 }
 
 func (c *healthCheckerImpl) Alive(ctx *gin.Context) bool {
@@ -78,7 +78,7 @@ func (c *healthCheckerImpl) Alive(ctx *gin.Context) bool {
 }
 
 func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/proxyhealth", proxy.ProxyPort))
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/proxyhealth", c.port))
 	if err != nil {
 		log.Error(ctx, err, "API Proxy health check failed")
 		return false

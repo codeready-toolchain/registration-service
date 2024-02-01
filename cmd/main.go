@@ -117,7 +117,7 @@ func main() {
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
-	proxySrv := p.StartProxy()
+	proxySrv := p.StartProxy(proxy.DefaultPort)
 
 	// stop the informer when proxy server shuts down
 	proxySrv.RegisterOnShutdown(func() {
@@ -126,7 +126,7 @@ func main() {
 
 	srv := server.New(app)
 
-	err = srv.SetupRoutes()
+	err = srv.SetupRoutes(proxy.DefaultPort)
 	if err != nil {
 		panic(err.Error())
 	}

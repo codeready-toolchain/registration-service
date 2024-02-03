@@ -126,7 +126,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 					UserID:      ctx.GetString(context.UserIDKey),
 					AccountID:   ctx.GetString(context.AccountIDKey),
 					OriginalSub: ctx.GetString(context.OriginalSubKey),
-					Email:       ctx.GetString(context.EmailKey),
+					Email:       userEmail,
 				},
 				PreferredUsername: ctx.GetString(context.UsernameKey),
 				GivenName:         ctx.GetString(context.GivenNameKey),

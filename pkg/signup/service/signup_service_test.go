@@ -83,7 +83,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
 		require.Equal(s.T(), userID.String(), val.Spec.Userid)
 		require.Equal(s.T(), username, val.Name)
-		require.Equal(s.T(), username, val.Spec.Username)
+		require.Equal(s.T(), username, val.Spec.IdentityClaims.PreferredUsername)
 		require.Equal(s.T(), "jane", val.Spec.GivenName)
 		require.Equal(s.T(), "doe", val.Spec.FamilyName)
 		require.Equal(s.T(), "red hat", val.Spec.Company)
@@ -706,7 +706,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	val := userSignups.Items[0]
 	require.Equal(s.T(), configuration.Namespace(), val.Namespace)
 	require.Equal(s.T(), "jsmith", val.Name)
-	require.Equal(s.T(), "jsmith", val.Spec.Username)
+	require.Equal(s.T(), "jsmith", val.Spec.IdentityClaims.PreferredUsername)
 	require.Equal(s.T(), userID.String(), val.Spec.Userid)
 	require.Equal(s.T(), "", val.Spec.GivenName)
 	require.Equal(s.T(), "", val.Spec.FamilyName)
@@ -811,7 +811,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			Namespace: configuration.Namespace(),
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "bill",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "bill",
+			},
 		},
 		Status: toolchainv1alpha1.UserSignupStatus{
 			CompliantUsername: "bill",
@@ -949,7 +951,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 		// when
 		// we set checkUserSignupCompleted to false
-		response, err := svc.GetSignupFromInformer(c, userID.String(), userSignupNotComplete.Spec.Username, false)
+		response, err := svc.GetSignupFromInformer(c, userID.String(), userSignupNotComplete.Spec.IdentityClaims.PreferredUsername, false)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1014,7 +1016,9 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 				Namespace: configuration.Namespace(),
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "bill",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "bill",
+				},
 			},
 			Status: status,
 		}
@@ -1171,7 +1175,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.NotNil(s.T(), response)
 
 			require.Equal(s.T(), us.Name, response.Name)
-			require.Equal(s.T(), "ted@domain.com", response.Username)
+			require.Equal(s.T(), "jsmith", response.Username)
 			require.Equal(s.T(), "ted", response.CompliantUsername)
 			assert.True(s.T(), response.Status.Ready)
 			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -1225,7 +1229,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				require.NoError(s.T(), err)
 				require.NotNil(s.T(), response)
 
-				require.Equal(s.T(), "ted@domain.com", response.Username)
+				require.Equal(s.T(), "jsmith", response.Username)
 				require.Equal(s.T(), "ted", response.CompliantUsername)
 				assert.True(s.T(), response.Status.Ready)
 				assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -1248,7 +1252,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newUserSignupComplete()
-	us.Name = service.EncodeUserIdentifier(us.Spec.Username)
+	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
@@ -1271,14 +1275,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NoError(s.T(), err)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, "foo", us.Spec.Username)
+	response, err := s.Application.SignupService().GetSignup(c, "foo", us.Spec.IdentityClaims.PreferredUsername)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
 	require.Equal(s.T(), us.Name, response.Name)
-	require.Equal(s.T(), "ted@domain.com", response.Username)
+	require.Equal(s.T(), "jsmith", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -1326,14 +1330,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.Username, true)
+		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.IdentityClaims.PreferredUsername, true)
 
 		// then
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), response)
 
 		require.Equal(s.T(), us.Name, response.Name)
-		require.Equal(s.T(), "ted@domain.com", response.Username)
+		require.Equal(s.T(), "jsmith", response.Username)
 		require.Equal(s.T(), "ted", response.CompliantUsername)
 		assert.True(s.T(), response.Status.Ready)
 		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -2006,7 +2010,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 
 	s.Run("confirm nothing changed when context empty", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2020,7 +2024,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set(context.UserIDKey, "888888")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2031,7 +2035,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 	})
 
 	s.Run("confirm nothing changed when context nil", func() {
-		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(nil, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2060,7 +2064,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 		c.Set(context.UserIDKey, "")
 		c.Set(context.AccountIDKey, "1234567890")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2076,7 +2080,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 			c.Set(context.UserIDKey, "7777777")
 			c.Set(context.AccountIDKey, "0987654321")
 
-			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 			require.NoError(s.T(), err)
 
 			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2092,7 +2096,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupAnnotations() {
 				c.Set(context.UserIDKey, "888888")
 				c.Set(context.AccountIDKey, "1234567890")
 
-				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 				require.NoError(s.T(), err)
 
 				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2141,7 +2145,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set(context.UsernameKey, "cocochanel")
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 		require.NoError(s.T(), err)
 
 		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2163,7 +2167,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Set(context.GivenNameKey, "Jonathan")
 
-			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 			require.NoError(s.T(), err)
 
 			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2188,7 +2192,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 				c.Set(context.FamilyNameKey, "Smythe")
 				c.Set(context.CompanyKey, "Red Hat")
 
-				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 				require.NoError(s.T(), err)
 
 				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2215,7 +2219,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
 					c.Set(context.EmailKey, "jsmythe@redhat.com")
 
-					_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.Username)
+					_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
 					require.NoError(s.T(), err)
 
 					modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
@@ -2256,7 +2260,6 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "ted@domain.com",
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
 				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
 					Sub:         "123456789",

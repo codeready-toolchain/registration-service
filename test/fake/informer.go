@@ -91,11 +91,11 @@ func NewSpace(name, targetCluster, compliantUserName string, spaceTestOptions ..
 		spacetest.WithStatusProvisionedNamespaces(
 			[]toolchainv1alpha1.SpaceNamespace{
 				{
-					Name: "john-dev",
+					Name: name + "-dev",
 					Type: "default",
 				},
 				{
-					Name: "john-stage",
+					Name: name + "-stage",
 				},
 			},
 		),

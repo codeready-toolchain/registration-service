@@ -23,6 +23,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
+	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -72,7 +73,7 @@ func (s *TestProxySuite) TestProxy() {
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics)
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)
@@ -664,7 +665,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										spaceBindings := []toolchainv1alpha1.SpaceBinding{}
 										for _, req := range reqs {
 											if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
-												spaceBindings = append(spaceBindings, *fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"))
+												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin")}
 											}
 										}
 										return spaceBindings, nil

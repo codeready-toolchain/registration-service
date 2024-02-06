@@ -42,7 +42,9 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"tierName": "deactivate30",
-							"userID":   "john-id",
+							"propagatedClaims": map[string]interface{}{
+								"sub": "john-id",
+							},
 							"userAccounts": []map[string]interface{}{
 								{
 									"targetCluster": "member1",
@@ -55,7 +57,9 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"tierName": "deactivate30",
-							"userID":   "noise-id",
+							"propagatedClaims": map[string]interface{}{
+								"sub": "noise-id",
+							},
 							"userAccounts": []map[string]interface{}{
 								{
 									"targetCluster": "member2",
@@ -89,11 +93,13 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			expected := &toolchainv1alpha1.MasterUserRecord{
 				Spec: toolchainv1alpha1.MasterUserRecordSpec{
 					TierName: "deactivate30",
-					UserID:   "john-id",
 					UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{
 						{
 							TargetCluster: "member1",
 						},
+					},
+					PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+						Sub: "john-id",
 					},
 				},
 			}
@@ -104,7 +110,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 
@@ -164,7 +170,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 
@@ -305,12 +311,14 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"targetCluster": "member2",
-							"username":      "foo@redhat.com",
-							"userid":        "foo",
-							"givenName":     "Foo",
-							"familyName":    "Bar",
-							"company":       "Red Hat",
-							"originalSub":   "sub-key",
+							"identityClaims": map[string]interface{}{
+								"sub":               "foo",
+								"originalSub":       "sub-key",
+								"preferredUsername": "foo@redhat.com",
+								"givenName":         "Foo",
+								"familyName":        "Bar",
+								"company":           "Red Hat",
+							},
 						},
 					},
 				},
@@ -318,12 +326,14 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"targetCluster": "member1",
-							"username":      "noise@redhat.com",
-							"userid":        "noise",
-							"givenName":     "Noise",
-							"familyName":    "Make",
-							"company":       "Noisy",
-							"originalSub":   "noise-key",
+							"identityClaims": map[string]interface{}{
+								"sub":               "noise",
+								"originalSub":       "noise-key",
+								"preferredUsername": "noise@redhat.com",
+								"givenName":         "Noise",
+								"familyName":        "Make",
+								"company":           "Noisy",
+							},
 						},
 					},
 				},
@@ -353,12 +363,16 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			expected := &toolchainv1alpha1.UserSignup{
 				Spec: toolchainv1alpha1.UserSignupSpec{
 					TargetCluster: "member2",
-					Username:      "foo@redhat.com",
-					Userid:        "foo",
-					GivenName:     "Foo",
-					FamilyName:    "Bar",
-					Company:       "Red Hat",
-					OriginalSub:   "sub-key",
+					IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+						PreferredUsername: "foo@redhat.com",
+						GivenName:         "Foo",
+						FamilyName:        "Bar",
+						Company:           "Red Hat",
+						PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+							Sub:         "foo",
+							OriginalSub: "sub-key",
+						},
+					},
 				},
 			}
 
@@ -368,7 +382,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 

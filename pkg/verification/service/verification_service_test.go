@@ -141,15 +141,14 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
-			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "sbryzak@redhat.com",
+			},
 		},
 	}
 
@@ -160,15 +159,14 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "jsmith",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
-			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+61NUMBER",
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "jsmith",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "jsmith",
+			},
 		},
 	}
 
@@ -185,7 +183,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	// Test the init verification for the first UserSignup
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -220,7 +218,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	ctx, _ = gin.CreateTestContext(httptest.NewRecorder())
 	// This time we won't pass in the UserID, just the username yet still expect the UserSignup to be found
-	err = s.Application.VerificationService().InitVerification(ctx, "", userSignup2.Spec.Username, "+61NUMBER", "1")
+	err = s.Application.VerificationService().InitVerification(ctx, "", userSignup2.Spec.IdentityClaims.PreferredUsername, "+61NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	userSignup2, err = s.FakeUserSignupClient.Get(userSignup2.Name)
@@ -283,15 +281,14 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "123",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "sbryzak@redhat.com",
-			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "shane@redhat.com",
+			},
 		},
 	}
 
@@ -309,7 +306,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: 123", err.Error())
 	})
 
@@ -322,7 +319,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
 			"for assistance: error while verifying phone code")
@@ -344,7 +341,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -391,7 +388,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
 				toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
 				toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
@@ -401,7 +397,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "shane@redhat.com",
+			},
 		},
 	}
 	states.SetVerificationRequired(userSignup, true)
@@ -410,7 +408,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -449,7 +447,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
@@ -458,7 +455,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "shane@redhat.com",
+			},
 		},
 	}
 	states.SetVerificationRequired(userSignup, true)
@@ -467,7 +466,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code")
 }
 
@@ -491,7 +490,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			Name:      "123",
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey:                 "testuser@redhat.com",
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(cfg.Verification().DailyLimit()),
 				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
 			},
@@ -500,7 +498,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "sbryzak@redhat.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "shane@redhat.com",
+			},
 		},
 	}
 	states.SetVerificationRequired(userSignup, true)
@@ -509,7 +509,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.Username, "+1NUMBER", "1")
+	err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code", err.Error())
 	require.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
@@ -535,15 +535,14 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
-			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "alpha@foxtrot.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "alpha@foxtrot.com",
+			},
 		},
 	}
 	states.SetApprovedManually(alphaUserSignup, true)
@@ -556,13 +555,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
-			},
-			Labels: map[string]string{},
+			Labels:    map[string]string{},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "bravo@foxtrot.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "bravo@foxtrot.com",
+			},
 		},
 	}
 	states.SetVerificationRequired(bravoUserSignup, true)
@@ -571,7 +569,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber, "1")
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use: cannot register using phone number: +19875551122", err.Error())
 
@@ -603,16 +601,15 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alpha",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "alpha@foxtrot.com",
-			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
 				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueDeactivated,
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "alpha@foxtrot.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "alpha@foxtrot.com",
+			},
 		},
 	}
 	states.SetApprovedManually(alphaUserSignup, true)
@@ -626,13 +623,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bravo",
 			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailAnnotationKey: "bravo@foxtrot.com",
-			},
-			Labels: map[string]string{},
+			Labels:    map[string]string{},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
-			Username: "bravo@foxtrot.com",
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PreferredUsername: "bravo@foxtrot.com",
+			},
 		},
 	}
 	states.SetVerificationRequired(bravoUserSignup, true)
@@ -641,7 +637,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	require.NoError(s.T(), err)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.Username, e164PhoneNumber, "1")
+	err = s.Application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.NoError(s.T(), err)
 
 	// Reload bravoUserSignup
@@ -663,7 +659,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.8",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
@@ -674,7 +669,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 		states.SetVerificationRequired(userSignup, true)
@@ -683,7 +680,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.NoError(s.T(), err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -699,7 +696,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "employee085",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "employee085@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.7",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
@@ -710,7 +706,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "employee085@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "employee085@redhat.com",
+				},
 			},
 		}
 		states.SetVerificationRequired(userSignup, true)
@@ -735,7 +733,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
@@ -745,7 +742,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 
@@ -756,7 +755,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
@@ -771,7 +770,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
@@ -781,7 +779,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 
@@ -791,7 +791,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		e := &crterrors.Error{}
 		require.True(s.T(), errors.As(err, &e))
 		require.Equal(s.T(), "expired: verification code expired", e.Error())
@@ -805,7 +805,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
@@ -815,7 +814,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 
@@ -825,7 +826,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
 
@@ -836,7 +837,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
@@ -846,7 +846,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 
@@ -856,7 +858,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
@@ -872,7 +874,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				Name:      "123",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     "ABC",
@@ -882,7 +883,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				},
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
-				Username: "sbryzak@redhat.com",
+				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+					PreferredUsername: "shane@redhat.com",
+				},
 			},
 		}
 
@@ -892,7 +895,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 
@@ -978,7 +981,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 						Name:      "123",
 						Namespace: configuration.Namespace(),
 						Annotations: map[string]string{
-							toolchainv1alpha1.UserSignupUserEmailAnnotationKey:        "sbryzak@redhat.com",
 							toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
 							toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
 							toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Minute).Format(verificationservice.TimestampLayout),
@@ -988,7 +990,9 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 						},
 					},
 					Spec: toolchainv1alpha1.UserSignupSpec{
-						Username: "sbryzak@redhat.com",
+						IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+							PreferredUsername: "shane@redhat.com",
+						},
 					},
 				}
 				if tc.activationCounterAnnotationValue != "" {
@@ -1010,7 +1014,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				require.NoError(s.T(), err)
 
 				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-				err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.Username, "123456")
+				err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 
 				// then
 				if tc.expectedErr != "" {
@@ -1043,7 +1047,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.NoError(t, err)
@@ -1060,7 +1064,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.NoError(t, err)
@@ -1079,7 +1083,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(t, err, "too many verification attempts: 3")
@@ -1097,7 +1101,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 			require.NoError(t, err)
 
 			// when
-			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, "invalid")
+			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
 			require.EqualError(t, err, "invalid code: the provided code is invalid")
@@ -1116,7 +1120,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 			require.NoError(t, err)
 
 			// when
-			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, "invalid")
+			err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
 			require.EqualError(t, err, "invalid code: the provided code is invalid")
@@ -1135,7 +1139,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(t, err, "invalid code: the event is full")
@@ -1153,7 +1157,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(t, err, "invalid code: the provided code is invalid")
@@ -1171,7 +1175,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 
 		// when
-		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.Username, event.Name)
+		err = s.Application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(t, err, "invalid code: the provided code is invalid")

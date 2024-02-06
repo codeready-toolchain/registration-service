@@ -97,18 +97,16 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		expectedUserID := ob.String()
 		ctx.Set(context.SubKey, expectedUserID)
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
-		email := ctx.GetString(context.EmailKey)
 		signup := &crtapi.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
 				Namespace: "namespace-foo",
-				Annotations: map[string]string{
-					crtapi.UserSignupUserEmailAnnotationKey: email,
-				},
 			},
 			Spec: crtapi.UserSignupSpec{
-				Username: "bill",
+				IdentityClaims: crtapi.IdentityClaimsEmbedded{
+					PreferredUsername: "bill",
+				},
 			},
 			Status: crtapi.UserSignupStatus{
 				Conditions: []crtapi.Condition{
@@ -279,7 +277,6 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			Name:      userID,
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				crtapi.UserSignupUserEmailAnnotationKey:           "jsmith@redhat.com",
 				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
 				crtapi.UserSignupVerificationCodeAnnotationKey:    "",
 			},
@@ -392,9 +389,6 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID,
 				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
-				},
 			},
 			Spec:   crtapi.UserSignupSpec{},
 			Status: crtapi.UserSignupStatus{},
@@ -436,10 +430,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 				us := crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
-						Name: userID,
-						Annotations: map[string]string{
-							crtapi.UserSignupUserEmailAnnotationKey: "jsmith@redhat.com",
-						},
+						Name:   userID,
 						Labels: map[string]string{},
 					},
 					Spec:   crtapi.UserSignupSpec{},
@@ -483,7 +474,6 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Name:      userID,
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
-				crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@redhat.com",
 				crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 				crtapi.UserSignupVerificationCodeAnnotationKey: "999888",
 				crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
@@ -671,15 +661,18 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 				Name:      "jsmith",
 				Namespace: configuration.Namespace(),
 				Annotations: map[string]string{
-					crtapi.UserSignupUserEmailAnnotationKey:        "jsmith@acme.com",
 					crtapi.UserVerificationAttemptsAnnotationKey:   "0",
 					crtapi.UserSignupVerificationCodeAnnotationKey: "999127",
 					crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
 				},
 			},
 			Spec: crtapi.UserSignupSpec{
-				Userid:   otherUserID,
-				Username: "jsmith",
+				IdentityClaims: crtapi.IdentityClaimsEmbedded{
+					PreferredUsername: "jsmith",
+					PropagatedClaims: crtapi.PropagatedClaims{
+						Sub: otherUserID,
+					},
+				},
 			},
 			Status: crtapi.UserSignupStatus{},
 		}
@@ -695,7 +688,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "999127",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "", otherUserSignup.Spec.Username, http.MethodGet, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, param, nil, "", otherUserSignup.Spec.IdentityClaims.PreferredUsername, http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)

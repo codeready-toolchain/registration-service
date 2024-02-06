@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,37 +9,65 @@ import (
 	"testing"
 	"time"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
+	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
+	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
+	"github.com/codeready-toolchain/registration-service/test/fake"
+	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test"
+	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
+	spacebindingrequesttest "github.com/codeready-toolchain/toolchain-common/pkg/test/spacebindingrequest"
 	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/labels"
-
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/codeready-toolchain/registration-service/test/fake"
-	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
-	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestSpaceListerGet(t *testing.T) {
 	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
+	memberFakeClient := fake.InitClient(t,
+		// spacebinding requests
+		spacebindingrequesttest.NewSpaceBindingRequest("animelover-sbr", "dancelover-dev",
+			spacebindingrequesttest.WithSpaceRole("viewer"),
+			spacebindingrequesttest.WithMUR("animelover"),
+			spacebindingrequesttest.WithCondition(spacebindingrequesttest.Ready()),
+		),
+		spacebindingrequesttest.NewSpaceBindingRequest("failing-sbr", "dancelover-dev",
+			spacebindingrequesttest.WithSpaceRole("admin"),
+			spacebindingrequesttest.WithMUR("someuser"),
+			spacebindingrequesttest.WithCondition(spacebindingrequesttest.UnableToCreateSpaceBinding("unable to find user 'someuser'")),
+		),
+	)
+
+	memberClientErrorList := fake.InitClient(t)
+	memberClientErrorList.MockList = func(ctx context.Context, list runtimeclient.ObjectList, opts ...runtimeclient.ListOption) error {
+		if _, ok := list.(*toolchainv1alpha1.SpaceBindingRequestList); ok {
+			return fmt.Errorf("mock list error")
+		}
+		return memberFakeClient.Client.List(ctx, list, opts...)
+	}
+
 	t.Run("HandleSpaceGetRequest", func(t *testing.T) {
 		// given
 		tests := map[string]struct {
-			username             string
-			expectedWs           []toolchainv1alpha1.Workspace
-			expectedErr          string
-			expectedErrCode      int
-			expectedWorkspace    string
-			overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-			overrideInformerFunc func() service.InformerService
+			username               string
+			expectedWs             []toolchainv1alpha1.Workspace
+			expectedErr            string
+			expectedErrCode        int
+			expectedWorkspace      string
+			overrideSignupFunc     func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+			overrideInformerFunc   func() service.InformerService
+			overrideGetMembersFunc func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster
+			overrideMemberClient   *test.FakeClient
 		}{
 			"dancelover gets dancelover space": {
 				username: "dance.lover",
@@ -55,13 +84,22 @@ func TestSpaceListerGet(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{ // animelover was granted access to dancelover workspace using SpaceBindingRequest
 									Name:      "animelover-sbr",
-									Namespace: "dancelover-tenant",
+									Namespace: "dancelover-dev",
 								},
 							},
 							{
 								MasterUserRecord: "dancelover",
 								Role:             "admin",
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
+							},
+							{
+								MasterUserRecord: "someuser",
+								Role:             "admin",
+								AvailableActions: []string{"update", "delete"},
+								BindingRequest: &toolchainv1alpha1.BindingRequest{ // this SBR should show in the list even if it doesn't have a SpaceBinding associated
+									Name:      "failing-sbr",
+									Namespace: "dancelover-dev",
+								},
 							},
 						}),
 					),
@@ -88,7 +126,7 @@ func TestSpaceListerGet(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{ // foodlover was granted access to movielover workspace using SpaceBindingRequest
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -146,7 +184,7 @@ func TestSpaceListerGet(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -186,7 +224,7 @@ func TestSpaceListerGet(t *testing.T) {
 								AvailableActions: []string{"update", "delete"},
 								BindingRequest: &toolchainv1alpha1.BindingRequest{
 									Name:      "foodlover-sbr",
-									Namespace: "movielover-tenant",
+									Namespace: "movielover-dev",
 								},
 							},
 							{
@@ -469,6 +507,22 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedErrCode:   404,
 				expectedWs:        []toolchainv1alpha1.Workspace{},
 			},
+			"no member clusters found": {
+				username:          "movie.lover",
+				expectedWorkspace: "movielover",
+				expectedErr:       "no member clusters found",
+				expectedErrCode:   500,
+				overrideGetMembersFunc: func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+					return []*commoncluster.CachedToolchainCluster{}
+				},
+			},
+			"error listing spacebinding requests": {
+				username:             "movie.lover",
+				expectedWorkspace:    "movielover",
+				expectedErr:          "mock list error",
+				expectedErrCode:      500,
+				overrideMemberClient: memberClientErrorList,
+			},
 		}
 
 		for k, tc := range tests {
@@ -502,7 +556,15 @@ func TestSpaceListerGet(t *testing.T) {
 				ctx.SetParamValues(tc.expectedWorkspace)
 
 				// when
-				err := handlers.HandleSpaceGetRequest(s)(ctx)
+				memberClient := memberFakeClient
+				if tc.overrideMemberClient != nil {
+					memberClient = tc.overrideMemberClient
+				}
+				getMembersFunc := proxytest.NewGetMembersFunc(memberClient)
+				if tc.overrideGetMembersFunc != nil {
+					getMembersFunc = tc.overrideGetMembersFunc
+				}
+				err := handlers.HandleSpaceGetRequest(s, getMembersFunc)(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -523,4 +585,144 @@ func TestSpaceListerGet(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestGetUserWorkspace(t *testing.T) {
+
+	fakeSignupService := fake.NewSignupService(
+		newSignup("batman", "batman.space", true),
+		newSignup("robin", "robin.space", true),
+	)
+
+	fakeClient := fake.InitClient(t,
+		// space
+		fake.NewSpace("batman", "member-1", "batman"),
+		fake.NewSpace("robin", "member-1", "robin"),
+
+		fake.NewSpaceBinding("robin-1", "robin", "robin", "admin"),
+		// 2 spacebindings to force the error
+		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
+		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
+	)
+
+	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
+
+	tests := map[string]struct {
+		username             string
+		expectedErr          string
+		workspaceRequest     string
+		expectedWorkspace    *toolchainv1alpha1.Workspace
+		overrideInformerFunc func() service.InformerService
+		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+	}{
+		"get robin workspace": {
+			username:          "robin.space",
+			workspaceRequest:  "robin",
+			expectedWorkspace: &robinWS,
+		},
+		"invalid number of spacebindings": {
+			username:         "batman.space",
+			expectedErr:      "invalid number of SpaceBindings found for MUR:batman and Space:batman. Expected 1 got 2",
+			workspaceRequest: "batman",
+		},
+		"user is unauthorized": {
+			username:         "robin.space",
+			workspaceRequest: "batman",
+		},
+		"usersignup not found": {
+			username:          "invalid.user",
+			workspaceRequest:  "batman",
+			expectedWorkspace: nil, // user is not authorized
+		},
+		"space not found": {
+			username:         "invalid.user",
+			workspaceRequest: "batman",
+			overrideInformerFunc: func() service.InformerService {
+				getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+					return nil, fmt.Errorf("no space")
+				}
+				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
+			},
+			expectedWorkspace: nil, // user is not authorized
+		},
+		"error getting usersignup": {
+			username:         "invalid.user",
+			workspaceRequest: "batman",
+			overrideInformerFunc: func() service.InformerService {
+				getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
+					return nil, fmt.Errorf("no space")
+				}
+				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
+			},
+			expectedWorkspace: nil, // user is not authorized
+		},
+		"get signup error": {
+			username:         "batman.space",
+			workspaceRequest: "batman",
+			expectedErr:      "signup error",
+			overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+				return nil, fmt.Errorf("signup error")
+			},
+			expectedWorkspace: nil,
+		},
+		"list spacebindings error": {
+			username:         "robin.space",
+			workspaceRequest: "robin",
+			expectedErr:      "list spacebindings error",
+			overrideInformerFunc: func() service.InformerService {
+				listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+					return nil, fmt.Errorf("list spacebindings error")
+				}
+				return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
+			},
+			expectedWorkspace: nil,
+		},
+	}
+
+	for k, tc := range tests {
+		t.Run(k, func(t *testing.T) {
+			// given
+			signupProvider := fakeSignupService.GetSignupFromInformer
+			if tc.overrideSignupFunc != nil {
+				signupProvider = tc.overrideSignupFunc
+			}
+			informerFunc := fake.GetInformerService(fakeClient)
+			if tc.overrideInformerFunc != nil {
+				informerFunc = tc.overrideInformerFunc
+			}
+
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			s := &handlers.SpaceLister{
+				GetSignupFunc:          signupProvider,
+				GetInformerServiceFunc: informerFunc,
+				ProxyMetrics:           proxyMetrics,
+			}
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+			ctx.Set(rcontext.UsernameKey, tc.username)
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+			ctx.SetParamNames("workspace")
+			ctx.SetParamValues(tc.workspaceRequest)
+
+			// when
+			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
+
+			// then
+			if tc.expectedErr != "" {
+				// error case
+				require.Error(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.expectedWorkspace != nil {
+				require.Equal(t, wrk, tc.expectedWorkspace)
+			} else {
+				require.Nil(t, wrk) // user is not authorized to get this workspace
+			}
+		})
+	}
 }

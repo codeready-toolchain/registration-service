@@ -42,7 +42,6 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 					Object: map[string]interface{}{
 						"spec": map[string]interface{}{
 							"tierName": "deactivate30",
-							"userID":   "john-id",
 							"propagatedClaims": map[string]interface{}{
 								"sub": "john-id",
 							},

@@ -453,7 +453,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
+	murCondition, conditionFound := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
+	if !conditionFound {
+		return nil, fmt.Errorf("unable to find condition type: %s", toolchainv1alpha1.ConditionReady)
+	}
 	ready, err := strconv.ParseBool(string(murCondition.Status))
 	if err != nil {
 		return nil, errs.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)

@@ -1571,6 +1571,70 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 	})
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupWithoutReadyCondition() {
+	// given
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+
+	us := s.newUserSignupComplete()
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	mur := &toolchainv1alpha1.MasterUserRecord{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "ted",
+			Namespace: configuration.Namespace(),
+		},
+		Spec: toolchainv1alpha1.MasterUserRecordSpec{
+			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
+		},
+		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			Conditions: []toolchainv1alpha1.Condition{}, // conditions are empty
+		},
+	}
+	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+	require.NoError(s.T(), err)
+
+	// when
+	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+
+	// then
+	require.EqualError(s.T(), err, "unable to find condition type: Ready")
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+			if name == mur.Name {
+				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
+
+		// then
+		require.EqualError(s.T(), err, "unable to find condition type: Ready")
+	})
+}
+
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)

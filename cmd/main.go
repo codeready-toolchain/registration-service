@@ -141,7 +141,7 @@ func main() {
 		log.Infof(nil, "Listening on %q...", configuration.HTTPAddress)
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				log.Info(nil, err.Error())
+				log.Info(nil, fmt.Sprintf("%s - this is expected when server shutdown has been initiated", err.Error()))
 			} else {
 				log.Error(nil, err, err.Error())
 			}

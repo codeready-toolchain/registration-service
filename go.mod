@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240116164228-8d18c9262420
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20240116160454-ad743a86ea5f
+	github.com/codeready-toolchain/api v0.0.0-20240207000013-661b63025269
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20240207000544-9cd055b3a18c
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1

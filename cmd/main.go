@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -139,7 +140,11 @@ func main() {
 		log.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
 		log.Infof(nil, "Listening on %q...", configuration.HTTPAddress)
 		if err := srv.HTTPServer().ListenAndServe(); err != nil {
-			log.Error(nil, err, err.Error())
+			if errors.Is(err, http.ErrServerClosed) {
+				log.Info(nil, err.Error())
+			} else {
+				log.Error(nil, err, err.Error())
+			}
 		}
 	}()
 

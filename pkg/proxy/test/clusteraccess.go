@@ -12,7 +12,6 @@ func NewGetMembersFunc(fakeClient client.Client) commoncluster.GetMemberClusters
 			{
 				Config: &commoncluster.Config{
 					Name:        "member-1",
-					Type:        commoncluster.Member,
 					APIEndpoint: "https://api.endpoint.member-1.com:6443",
 					RestConfig:  &rest.Config{},
 				},
@@ -22,7 +21,6 @@ func NewGetMembersFunc(fakeClient client.Client) commoncluster.GetMemberClusters
 				Config: &commoncluster.Config{
 					Name:              "member-2",
 					APIEndpoint:       "https://api.endpoint.member-2.com:6443",
-					Type:              commoncluster.Member,
 					OperatorNamespace: "member-operator",
 					RestConfig: &rest.Config{
 						BearerToken: "clusterSAToken",

@@ -243,7 +243,6 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			{
 				Config: &commoncluster.Config{
 					Name:        "member-1",
-					Type:        commoncluster.Member,
 					APIEndpoint: "https://api.endpoint.member-1.com:6443",
 					RestConfig: &rest.Config{
 						BearerToken: "def456",
@@ -254,7 +253,6 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				Config: &commoncluster.Config{
 					Name:              "member-2",
 					APIEndpoint:       "https://api.endpoint.member-2.com:6443",
-					Type:              commoncluster.Member,
 					OperatorNamespace: "member-operator",
 					RestConfig: &rest.Config{
 						BearerToken: "abc123",
@@ -266,7 +264,6 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				Config: &commoncluster.Config{
 					Name:        "member-3",
 					APIEndpoint: "https://api.endpoint.member-3.com:6443",
-					Type:        commoncluster.Member,
 					RestConfig:  &rest.Config{},
 				},
 			},
@@ -443,7 +440,6 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 			Config: &commoncluster.Config{
 				Name:              clusterName,
 				APIEndpoint:       fmt.Sprintf("https://api.endpoint.%s.com:6443", clusterName),
-				Type:              commoncluster.Member,
 				OperatorNamespace: "member-operator",
 			},
 			Client: nil,

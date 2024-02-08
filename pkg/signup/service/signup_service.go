@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"regexp"
-	"strconv"
 	"strings"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -444,14 +443,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
-	murCondition, conditionFound := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
-	if !conditionFound {
-		return nil, fmt.Errorf("unable to find condition type: %s", toolchainv1alpha1.ConditionReady)
-	}
-	ready, err := strconv.ParseBool(string(murCondition.Status))
-	if err != nil {
-		return nil, errs.Wrapf(err, "unable to parse readiness status as bool: %s", murCondition.Status)
-	}
+	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
+	// the MUR may not be ready immediately, so let's set it to not ready if the Ready condition it's not True,
+	// and the client can keep calling back until it's ready.
+	ready := murCondition.Status == apiv1.ConditionTrue
 	log.Info(nil, fmt.Sprintf("mur ready condition is: %t", ready))
 	signupResponse.Status = signup.Status{
 		Ready:                ready,

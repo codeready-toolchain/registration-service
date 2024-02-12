@@ -1602,7 +1602,8 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
 			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
 			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
-			s.FakeMasterUserRecordClient.Delete(mur.Name, nil)
+			err = s.FakeMasterUserRecordClient.Delete(mur.Name, nil)
+			require.NoError(s.T(), err)
 		})
 	}
 }

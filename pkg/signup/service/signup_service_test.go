@@ -1483,7 +1483,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	})
 }
 
-func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
+func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
@@ -1502,54 +1502,110 @@ func (s *TestSignupServiceSuite) TestGetSignupUnknownStatus() {
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
-		Status: toolchainv1alpha1.MasterUserRecordStatus{
-			Conditions: []toolchainv1alpha1.Condition{
-				{
-					Type:   toolchainv1alpha1.MasterUserRecordReady,
-					Status: "blah-blah-blah",
-				},
+	}
+
+	tests := map[string]struct {
+		condition              toolchainv1alpha1.Condition
+		expectedConditionReady bool
+	}{
+		"no ready condition": {
+			condition:              toolchainv1alpha1.Condition{},
+			expectedConditionReady: false,
+		},
+		"ready condition without status": {
+			condition: toolchainv1alpha1.Condition{
+				Type:    toolchainv1alpha1.ConditionReady,
+				Reason:  "some reason",
+				Message: "some message",
 			},
+			expectedConditionReady: false,
+		},
+		"ready condition with unknown status": {
+			condition: toolchainv1alpha1.Condition{
+				Type:    toolchainv1alpha1.ConditionReady,
+				Reason:  "some reason",
+				Message: "some message",
+				Status:  apiv1.ConditionUnknown,
+			},
+			expectedConditionReady: false,
+		},
+		"ready condition with false status": {
+			condition: toolchainv1alpha1.Condition{
+				Type:    toolchainv1alpha1.ConditionReady,
+				Reason:  "some reason",
+				Message: "some message",
+				Status:  apiv1.ConditionFalse,
+			},
+			expectedConditionReady: false,
+		},
+		"ready condition with true status": {
+			condition: toolchainv1alpha1.Condition{
+				Type:    toolchainv1alpha1.ConditionReady,
+				Reason:  "some reason",
+				Message: "some message",
+				Status:  apiv1.ConditionTrue,
+			},
+			expectedConditionReady: true,
 		},
 	}
-	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-	require.NoError(s.T(), err)
 
-	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	for tcName, tc := range tests {
+		s.T().Run(tcName, func(j *testing.T) {
 
-	// then
-	require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
+			// given
+			mur.Status = toolchainv1alpha1.MasterUserRecordStatus{
+				Conditions: []toolchainv1alpha1.Condition{
+					tc.condition,
+				},
 			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
+			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
+			require.NoError(s.T(), err)
+
+			// when
+			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+
+			// then
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
+			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
+			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
+
+			// informer case
+			// given
+			inf := fake.NewFakeInformer()
+			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+				if name == us.Name {
+					return us, nil
+				}
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
+			inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+				if name == mur.Name {
+					return mur, nil
+				}
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			}
 
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
+			s.Application.MockInformerService(inf)
+			svc := service.NewSignupService(
+				fake.MemberClusterServiceContext{
+					Client: s,
+					Svcs:   s.Application,
+				},
+			)
 
-		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
+			// when
+			_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
 
-		// then
-		require.EqualError(s.T(), err, "unable to parse readiness status as bool: blah-blah-blah: strconv.ParseBool: parsing \"blah-blah-blah\": invalid syntax")
-	})
+			// then
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
+			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
+			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
+			err = s.FakeMasterUserRecordClient.Delete(mur.Name, nil)
+			require.NoError(s.T(), err)
+		})
+	}
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {

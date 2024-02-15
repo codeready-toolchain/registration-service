@@ -395,7 +395,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	// Query BannedUsers to check the user has not been banned
 	banned, err := s.isUserEmailBanned(userSignup.Spec.IdentityClaims.Email)
 	if err != nil || banned {
-		// return usersignup not found if it's banned
+		// return usersignup not found if it's banned and the error ( if any )
 		return nil, err
 	}
 

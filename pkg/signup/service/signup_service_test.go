@@ -1613,14 +1613,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
 	us := s.newBannedUserSignup()
-	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
 	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
-
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-
-	toolchainStatus := s.newToolchainStatus(".apps.")
-	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 	require.NoError(s.T(), err)
 
 	bannedUserID, err := uuid.NewV4()
@@ -1648,7 +1641,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername)
+	response, err := s.Application.SignupService().GetSignup(ctx, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername)
 
 	// then
 	// return not found signup
@@ -1674,7 +1667,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(c, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername, true)
+		response, err := svc.GetSignupFromInformer(ctx, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername, true)
 
 		// then
 		require.Nil(s.T(), response)

@@ -91,12 +91,16 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	emailHash := hash.EncodeString(userEmail)
 
 	// Query BannedUsers to check the user has not been banned
-	banned, err := s.isUserEmailBanned(userEmail)
+	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
 	if err != nil {
 		return nil, err
 	}
-	if banned {
-		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
+
+	for _, bu := range bannedUsers.Items {
+		// If the user has been banned, return an error
+		if bu.Spec.Email == userEmail {
+			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
+		}
 	}
 
 	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
@@ -392,13 +396,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		return nil, nil
 	}
 
-	// Query BannedUsers to check the user has not been banned
-	banned, err := s.isUserEmailBanned(userSignup.Spec.IdentityClaims.Email)
-	if err != nil || banned {
-		// return usersignup not found if it's banned and the error ( if any )
-		return nil, err
-	}
-
 	signupResponse := &signup.Signup{
 		Name:     userSignup.GetName(),
 		Username: userSignup.Spec.IdentityClaims.PreferredUsername,
@@ -423,7 +420,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	// in proxy, we don't care if the UserSignup is completed, since sometimes it might be transitioning from complete to provisioning
-	// which cases issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
+	// which causes issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
 	// See Jira: https://issues.redhat.com/browse/SANDBOX-375
 	if completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted {
 		// UserSignup is not complete
@@ -438,6 +435,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
 		// UserSignup is deactivated. Treat it as non-existent.
 		return nil, nil
+	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
+		// UserSignup is banned, let's return a pending approval reason to the client.
+		signupResponse.Status = signup.Status{
+			Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
+		}
+		return signupResponse, nil
 	}
 
 	// If UserSignup status is complete as active

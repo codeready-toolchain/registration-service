@@ -1616,24 +1616,6 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
-	bannedUserID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
-			},
-		},
-		Spec: toolchainv1alpha1.BannedUserSpec{
-			Email: "jsmith@gmail.com",
-		},
-	})
-	require.NoError(s.T(), err)
-
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
 	ctx.Set(context.UsernameKey, "jsmith")
@@ -1641,12 +1623,13 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(ctx, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername)
+	response, err := s.Application.SignupService().GetSignup(ctx, us.Name, "")
 
 	// then
 	// return not found signup
-	require.Nil(s.T(), response)
 	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+	require.Equal(s.T(), toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1667,11 +1650,12 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 		)
 
 		// when
-		response, err := svc.GetSignupFromInformer(ctx, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername, true)
+		response, err := svc.GetSignupFromInformer(ctx, us.Name, "", true)
 
 		// then
-		require.Nil(s.T(), response)
 		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+		require.Equal(s.T(), toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
 
 	})
 }

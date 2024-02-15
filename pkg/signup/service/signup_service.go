@@ -91,16 +91,12 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	emailHash := hash.EncodeString(userEmail)
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
+	banned, err := s.isUserEmailBanned(userEmail)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, bu := range bannedUsers.Items {
-		// If the user has been banned, return an error
-		if bu.Spec.Email == userEmail {
-			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
-		}
+	if banned {
+		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
 	}
 
 	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
@@ -396,6 +392,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		return nil, nil
 	}
 
+	// Query BannedUsers to check the user has not been banned
+	banned, err := s.isUserEmailBanned(userSignup.Spec.IdentityClaims.Email)
+	if err != nil || banned {
+		// return usersignup not found if it's banned
+		return nil, err
+	}
+
 	signupResponse := &signup.Signup{
 		Name:     userSignup.GetName(),
 		Username: userSignup.Spec.IdentityClaims.PreferredUsername,
@@ -479,6 +482,20 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	return signupResponse, nil
+}
+
+func (s *ServiceImpl) isUserEmailBanned(userEmail string) (bool, error) {
+	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
+	if err != nil {
+		return false, err // error listing banned users
+	}
+
+	for _, bu := range bannedUsers.Items {
+		if bu.Spec.Email == userEmail {
+			return true, nil // user is banned
+		}
+	}
+	return false, nil // user is not banned
 }
 
 // auditUserSignupAgainstClaims compares the properties of the specified UserSignup against the claims contained in the

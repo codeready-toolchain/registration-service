@@ -1608,6 +1608,81 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	}
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
+	// given
+	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+
+	us := s.newBannedUserSignup()
+	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
+	err := s.FakeUserSignupClient.Tracker.Add(us)
+	require.NoError(s.T(), err)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	toolchainStatus := s.newToolchainStatus(".apps.")
+	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
+	require.NoError(s.T(), err)
+
+	bannedUserID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+
+	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      bannedUserID.String(),
+			Namespace: configuration.Namespace(),
+			Labels: map[string]string{
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+			},
+		},
+		Spec: toolchainv1alpha1.BannedUserSpec{
+			Email: "jsmith@gmail.com",
+		},
+	})
+	require.NoError(s.T(), err)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "jsmith")
+	ctx.Set(context.SubKey, us.Spec.IdentityClaims.UserID)
+	ctx.Set(context.EmailKey, "jsmith@gmail.com")
+
+	// when
+	response, err := s.Application.SignupService().GetSignup(c, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername)
+
+	// then
+	// return not found signup
+	require.Nil(s.T(), response)
+	require.NoError(s.T(), err)
+
+	s.T().Run("informer", func(t *testing.T) {
+		// given
+		inf := fake.NewFakeInformer()
+		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
+			if name == us.Name {
+				return us, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+
+		s.Application.MockInformerService(inf)
+		svc := service.NewSignupService(
+			fake.MemberClusterServiceContext{
+				Client: s,
+				Svcs:   s.Application,
+			},
+		)
+
+		// when
+		response, err := svc.GetSignupFromInformer(c, us.Spec.IdentityClaims.UserID, us.Spec.IdentityClaims.PreferredUsername, true)
+
+		// then
+		require.Nil(s.T(), response)
+		require.NoError(s.T(), err)
+
+	})
+}
+
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
@@ -2191,6 +2266,51 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 				},
 			},
 			CompliantUsername: "ted",
+		},
+	}
+}
+
+func (s *TestSignupServiceSuite) newBannedUserSignup() *toolchainv1alpha1.UserSignup {
+	userID, err := uuid.NewV4()
+	require.NoError(s.T(), err)
+	return &toolchainv1alpha1.UserSignup{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      userID.String(),
+			Namespace: configuration.Namespace(),
+			Annotations: map[string]string{
+				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
+			},
+		},
+		Spec: toolchainv1alpha1.UserSignupSpec{
+			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
+				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
+					Sub:         "123456789",
+					UserID:      "54321666",
+					AccountID:   "65432111",
+					OriginalSub: "jsmith-original-sub",
+					Email:       "jsmith@gmail.com",
+				},
+				PreferredUsername: "jsmith",
+				GivenName:         "John",
+				FamilyName:        "Smith",
+				Company:           "Acme Inc",
+			},
+		},
+		Status: toolchainv1alpha1.UserSignupStatus{
+			Conditions: []toolchainv1alpha1.Condition{
+				{
+					Type:   toolchainv1alpha1.UserSignupApproved,
+					Status: apiv1.ConditionTrue,
+					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
+				},
+				{
+					Type:   toolchainv1alpha1.UserSignupComplete,
+					Status: apiv1.ConditionTrue,
+					Reason: toolchainv1alpha1.UserSignupUserBannedReason,
+				},
+			},
+			CompliantUsername: "jsmith",
 		},
 	}
 }

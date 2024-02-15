@@ -488,20 +488,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	return signupResponse, nil
 }
 
-func (s *ServiceImpl) isUserEmailBanned(userEmail string) (bool, error) {
-	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
-	if err != nil {
-		return false, err // error listing banned users
-	}
-
-	for _, bu := range bannedUsers.Items {
-		if bu.Spec.Email == userEmail {
-			return true, nil // user is banned
-		}
-	}
-	return false, nil // user is not banned
-}
-
 // auditUserSignupAgainstClaims compares the properties of the specified UserSignup against the claims contained in the
 // user's access token and updates the UserSignup if necessary.  If updates were made, the function returns true
 // otherwise it returns false.

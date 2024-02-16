@@ -420,7 +420,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	// in proxy, we don't care if the UserSignup is completed, since sometimes it might be transitioning from complete to provisioning
-	// which cases issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
+	// which causes issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
 	// See Jira: https://issues.redhat.com/browse/SANDBOX-375
 	if completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted {
 		// UserSignup is not complete
@@ -435,6 +435,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
 		// UserSignup is deactivated. Treat it as non-existent.
 		return nil, nil
+	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
+		// UserSignup is banned, let's return a pending approval reason to the client.
+		signupResponse.Status = signup.Status{
+			Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
+		}
+		return signupResponse, nil
 	}
 
 	// If UserSignup status is complete as active

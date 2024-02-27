@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240207000013-661b63025269
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20240207000544-9cd055b3a18c
+	github.com/codeready-toolchain/api v0.0.0-20240227210924-371ddb054d87
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20240227212148-b32711b41532
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -146,7 +146,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/codeready-toolchain/api => github.com/sbryzak/api v0.0.0-20240226224654-d481e7f73040
-
-replace github.com/codeready-toolchain/toolchain-common => github.com/sbryzak/toolchain-common v0.0.0-20240226225508-645591b9ca46

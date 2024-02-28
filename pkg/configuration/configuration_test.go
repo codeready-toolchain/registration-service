@@ -49,7 +49,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "application/json; charset=utf-8", regServiceCfg.Auth().AuthClientConfigContentType())
 		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`,
 			regServiceCfg.Auth().AuthClientConfigRaw())
-		assert.Equal(t, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
+		assert.Equal(t, "https://sso.devsandbox.dev/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
 		assert.Equal(t, "https://sso.devsandbox.dev", regServiceCfg.Auth().SSOBaseURL())
 		assert.Equal(t, "sandbox-dev", regServiceCfg.Auth().SSORealm())
 		assert.False(t, regServiceCfg.Verification().Enabled())

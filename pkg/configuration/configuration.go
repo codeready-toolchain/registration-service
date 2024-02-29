@@ -178,7 +178,7 @@ func (r AuthConfig) AuthClientConfigRaw() string {
 }
 
 func (r AuthConfig) AuthClientPublicKeysURL() string {
-	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.devsandbox.dev/realms/sandbox-dev/protocol/openid-connect/certs")
+	return commonconfig.GetString(r.c.AuthClientPublicKeysURL, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs")
 }
 
 func (r AuthConfig) SSOBaseURL() string {

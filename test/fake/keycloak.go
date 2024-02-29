@@ -10,7 +10,7 @@ var certsContent = `{"keys":[{"kid":"E3DKGdZQ7xTiIvfdFgVXLNupVupFBlcxNUgVCFhDwEg
 
 func MockKeycloakCertsCall(t *testing.T) {
 	gock.New("https://sso.devsandbox.dev").
-		Get("realms/sandbox-dev/protocol/openid-connect/certs").
+		Get("auth/realms/sandbox-dev/protocol/openid-connect/certs").
 		Persist().
 		Reply(200).
 		BodyString(certsContent)

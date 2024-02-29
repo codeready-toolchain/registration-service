@@ -51,11 +51,11 @@ const (
 )
 
 func ssoWellKnownTarget() string {
-	return fmt.Sprintf("%s/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SSORealm())
+	return fmt.Sprintf("%s/auth/realms/%s/.well-known/openid-configuration", configuration.GetRegistrationServiceConfig().Auth().SSOBaseURL(), configuration.GetRegistrationServiceConfig().Auth().SSORealm())
 }
 
 func openidAuthEndpoint() string {
-	return fmt.Sprintf("/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SSORealm())
+	return fmt.Sprintf("/auth/realms/%s/protocol/openid-connect/auth", configuration.GetRegistrationServiceConfig().Auth().SSORealm())
 }
 
 func authorizationEndpointTarget() string {
@@ -146,10 +146,10 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	// Here is the expected flow for the "oc login -w" command:
 	// 1. "oc login -w --server=<proxy_url>"
 	// 2. oc calls <proxy_url>/.well-known/oauth-authorization-server (wellKnownOauthConfigEndpoint endpoint)
-	// 3. proxy forwards it to <sso_url>/realms/<sso_realm>/.well-known/openid-configuration
-	// 4. oc starts an OAuth flow by opening a browser for <proxy_url>/realms/<realm>/protocol/openid-connect/auth
+	// 3. proxy forwards it to <sso_url>/auth/realms/<sso_realm>/.well-known/openid-configuration
+	// 4. oc starts an OAuth flow by opening a browser for <proxy_url>/auth/realms/<realm>/protocol/openid-connect/auth
 	// 5. proxy redirects (the request is not proxied but redirected via 403 See Others response!) the request
-	//    to <sso_url>/realms/<realm>/protocol/openid-connect/auth
+	//    to <sso_url>/auth/realms/<realm>/protocol/openid-connect/auth
 	//    Note: oc uses this hardcoded public (no secret) oauth client name: "openshift-cli-client" which has to exist in SSO to make this flow work.
 	// 6. user provides the login credentials in the sso login page
 	// 7. all following oc requests (<proxy_url>/auth/*) go to the proxy and forwarded to SSO as is. This is used to obtain the generated token by oc.

@@ -314,7 +314,7 @@ func (s *TestProxySuite) checkWebLogin() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			switch p := r.URL.Path; p {
-			case "/realms/sandbox-dev/.well-known/openid-configuration":
+			case "/auth/realms/sandbox-dev/.well-known/openid-configuration":
 				_, err := w.Write([]byte("mock SSO configuration"))
 				require.NoError(s.T(), err)
 			case "/auth/anything":
@@ -343,10 +343,10 @@ func (s *TestProxySuite) checkWebLogin() {
 				ExpectedResponse:   "mock SSO configuration",
 			},
 			"oidc": {
-				RequestURL:         "http://localhost:8081/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
+				RequestURL:         "http://localhost:8081/auth/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
 				ExpectedStatusCode: http.StatusSeeOther,
 				ExpectedHeaders: map[string]string{
-					"Location": testServer.URL + "/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
+					"Location": testServer.URL + "/auth/realms/sandbox-dev/protocol/openid-connect/auth?state=mystate&code=mycode",
 				},
 			},
 			"other auth requests": {

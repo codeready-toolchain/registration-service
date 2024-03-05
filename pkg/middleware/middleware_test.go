@@ -119,11 +119,11 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 		err = json.Unmarshal(resp.Body.Bytes(), health)
 		require.NoError(s.T(), err)
 
-		assert.Equal(s.T(), health.Alive, true)
-		assert.Equal(s.T(), health.Environment, "unit-tests")
-		assert.Equal(s.T(), health.Revision, "0")
-		assert.NotEqual(s.T(), health.BuildTime, "")
-		assert.NotEqual(s.T(), health.StartTime, "")
+		assert.True(s.T(), health.Alive)
+		assert.Equal(s.T(), "unit-tests", health.Environment)
+		assert.Equal(s.T(), "0", health.Revision)
+		assert.NotEmpty(s.T(), health.BuildTime)
+		assert.NotEmpty(s.T(), health.StartTime)
 	})
 
 	s.Run("static request", func() {

@@ -129,7 +129,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		BodyString("")
 
 	var reqBody io.ReadCloser
-	obs := func(request *http.Request, mock gock.Mock) {
+	obs := func(request *http.Request, _ gock.Mock) {
 		reqBody = request.Body
 		defer request.Body.Close()
 	}
@@ -210,7 +210,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		Reply(http.StatusNoContent).
 		BodyString("")
 
-	obs = func(request *http.Request, mock gock.Mock) {
+	obs = func(request *http.Request, _ gock.Mock) {
 		reqBody = request.Body
 		defer request.Body.Close()
 	}
@@ -247,14 +247,14 @@ func (s *TestVerificationServiceSuite) TestNotificationSender() {
 			Verification().NotificationSender("aWs"))
 
 	sender := senderpkg.CreateNotificationSender(nil)
-	require.IsType(s.T(), sender, &senderpkg.AmazonSNSSender{})
+	require.IsType(s.T(), &senderpkg.AmazonSNSSender{}, sender)
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
 			Verification().NotificationSender(""))
 
 	sender = senderpkg.CreateNotificationSender(nil)
-	require.IsType(s.T(), sender, &senderpkg.TwilioNotificationSender{})
+	require.IsType(s.T(), &senderpkg.TwilioNotificationSender{}, sender)
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
@@ -270,7 +270,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		BodyString("")
 
 	var reqBody io.ReadCloser
-	obs := func(request *http.Request, mock gock.Mock) {
+	obs := func(request *http.Request, _ gock.Mock) {
 		reqBody = request.Body
 	}
 
@@ -300,27 +300,27 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	s.T().Run("when client GET call fails should return error", func(t *testing.T) {
 
 		// Cause the client GET call to fail
-		s.FakeUserSignupClient.MockGet = func(s string) (*toolchainv1alpha1.UserSignup, error) {
+		s.FakeUserSignupClient.MockGet = func(_ string) (*toolchainv1alpha1.UserSignup, error) {
 			return nil, errors.New("get failed")
 		}
 		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: 123", err.Error())
+		require.EqualError(t, err, "get failed: error retrieving usersignup: 123", err.Error())
 	})
 
 	s.T().Run("when client UPDATE call fails indefinitely should return error", func(t *testing.T) {
 
 		// Cause the client UPDATE call to fail always
-		s.FakeUserSignupClient.MockUpdate = func(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+		s.FakeUserSignupClient.MockUpdate = func(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			return nil, errors.New("there was an error while updating your account - please wait a moment before trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com \"+\n\t\t\t\"for assistance: error while verifying phone code")
 		}
 		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
+		require.EqualError(t, err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
 			"for assistance: error while verifying phone code")
 	})
@@ -342,25 +342,25 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
-		require.NotEmpty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		require.NotEmpty(t, userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 		buf := new(bytes.Buffer)
 		_, err = buf.ReadFrom(reqBody)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		reqValue := buf.String()
 
 		params, err := url.ParseQuery(reqValue)
-		require.NoError(s.T(), err)
-		require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
 			userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 			params.Get("Body"))
-		require.Equal(s.T(), "CodeReady", params.Get("From"))
-		require.Equal(s.T(), "+1NUMBER", params.Get("To"))
+		require.Equal(t, "CodeReady", params.Get("From"))
+		require.Equal(t, "+1NUMBER", params.Get("To"))
 	})
 }
 
@@ -376,7 +376,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	now := time.Now()
 
 	var reqBody io.ReadCloser
-	obs := func(request *http.Request, mock gock.Mock) {
+	obs := func(request *http.Request, _ gock.Mock) {
 		reqBody = request.Body
 	}
 
@@ -677,16 +677,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		states.SetVerificationRequired(userSignup, true)
 
 		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
-		require.False(s.T(), states.VerificationRequired(userSignup))
+		require.False(t, states.VerificationRequired(userSignup))
 	})
 
 	s.T().Run("verification ok for usersignup with username identifier", func(t *testing.T) {
@@ -714,16 +714,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		states.SetVerificationRequired(userSignup, true)
 
 		err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, "", "employee085", "654321")
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
-		require.False(s.T(), states.VerificationRequired(userSignup))
+		require.False(t, states.VerificationRequired(userSignup))
 	})
 
 	s.T().Run("when verification code is invalid", func(t *testing.T) {
@@ -749,18 +749,18 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		}
 
 		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.Error(s.T(), err)
+		require.Error(t, err)
 		e := &crterrors.Error{}
-		require.True(s.T(), errors.As(err, &e))
-		require.Equal(s.T(), "invalid code: the provided code is invalid", e.Error())
-		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
+		require.ErrorAs(t, err, &e)
+		require.Equal(t, "invalid code: the provided code is invalid", e.Error())
+		require.Equal(t, http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verification code has expired", func(t *testing.T) {
@@ -786,16 +786,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		}
 
 		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		e := &crterrors.Error{}
-		require.True(s.T(), errors.As(err, &e))
-		require.Equal(s.T(), "expired: verification code expired", e.Error())
-		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
+		require.ErrorAs(t, err, &e)
+		require.Equal(t, "expired: verification code expired", e.Error())
+		require.Equal(t, http.StatusForbidden, int(e.Code))
 	})
 
 	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
@@ -821,13 +821,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		}
 
 		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
+		require.EqualError(t, err, "too many verification attempts", err.Error())
 	})
 
 	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
@@ -853,18 +853,18 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		}
 
 		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
+		require.EqualError(t, err, "too many verification attempts", err.Error())
 
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
-		require.Equal(s.T(), "3", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
+		require.Equal(t, "3", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
 	})
 
 	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
@@ -890,13 +890,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		}
 
 		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
+		require.EqualError(t, err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 
 	s.T().Run("captcha configuration ", func(t *testing.T) {
@@ -1007,25 +1007,25 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				if err == nil {
 					// delete the usersignup, if exists, before adding the new one
 					err = s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-					require.NoError(s.T(), err)
+					require.NoError(t, err)
 				}
 
 				err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-				require.NoError(s.T(), err)
+				require.NoError(t, err)
 
 				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 				err = s.Application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 
 				// then
 				if tc.expectedErr != "" {
-					require.EqualError(s.T(), err, tc.expectedErr)
+					require.EqualError(t, err, tc.expectedErr)
 					_, err = s.FakeUserSignupClient.Get(userSignup.Name)
-					require.NoError(s.T(), err)
+					require.NoError(t, err)
 				} else {
-					require.NoError(s.T(), err)
+					require.NoError(t, err)
 					userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
-					require.NoError(s.T(), err)
-					require.False(s.T(), states.VerificationRequired(userSignup))
+					require.NoError(t, err)
+					require.False(t, states.VerificationRequired(userSignup))
 				}
 			})
 		}

@@ -89,7 +89,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("parse keys, invalid response status code", func() {
 		// setup http service serving the test keys
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, err := fmt.Fprintln(w, `{some: "invalid", "json"}`)
@@ -121,7 +121,7 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	s.Run("parse keys, invalid response", func() {
 		// setup http service serving the test keys
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, err := fmt.Fprintln(w, `{some: "invalid", "json"}`)

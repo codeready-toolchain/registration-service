@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Install Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
         go-version: 1.20.x
     
@@ -27,7 +27,7 @@ jobs:
         make test-with-coverage
 
     - name: Upload code coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./build/_output/coverage/coverage.txt
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: Install Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5
       with:
         go-version: 1.20.x
         
@@ -48,9 +48,9 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v4
       with:
-        version: v1.52.0
+        version: v1.56.2
         skip-pkg-cache: true
         skip-build-cache: true
         args: --config=./.golangci.yml --verbose

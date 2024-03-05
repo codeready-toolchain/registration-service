@@ -2,16 +2,17 @@ package sender_test
 
 import (
 	"bytes"
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/h2non/gock.v1"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/h2non/gock.v1"
 )
 
 type MockTwilioConfig struct {
@@ -62,7 +63,7 @@ func TestTwilioSenderID(t *testing.T) {
 			BodyString("")
 
 		var reqBody io.ReadCloser
-		obs := func(request *http.Request, mock gock.Mock) {
+		obs := func(request *http.Request, _ gock.Mock) {
 			reqBody = request.Body
 			defer func(Body io.ReadCloser) {
 				err := Body.Close()

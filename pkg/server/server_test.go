@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/test/fake"
-	"gopkg.in/h2non/gock.v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type TestServerSuite struct {
@@ -51,7 +51,7 @@ func (s *TestServerSuite) TestServer() {
 	require.NotNil(s.T(), srv.Engine())
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -59,7 +59,7 @@ func (s *TestServerSuite) TestServer() {
 	s.T().Run("CORS", func(t *testing.T) {
 		go func(t *testing.T) {
 			err := srv.Engine().Run()
-			require.NoError(t, err)
+			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
 		}(t)
 
 		err := wait.Poll(DefaultRetryInterval, DefaultTimeout, func() (done bool, err error) {
@@ -115,7 +115,7 @@ func startFakeProxy(t *testing.T) *http.Server {
 	srv := &http.Server{Addr: ":" + altProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		err := srv.ListenAndServe()
-		require.NoError(t, err)
+		assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
 	}()
 	return srv
 }

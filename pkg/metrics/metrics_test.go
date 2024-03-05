@@ -2,16 +2,17 @@ package metrics
 
 import (
 	"bytes"
-	"github.com/prometheus/client_golang/prometheus"
-	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
-	clientmodel "github.com/prometheus/client_model/go"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
+	clientmodel "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHistogramVec(t *testing.T) {
@@ -35,27 +36,27 @@ func TestHistogramVec(t *testing.T) {
 
 	g, er := reg.Gather()
 	require.NoError(t, er)
-	require.Equal(t, 1, len(g))
+	require.Len(t, g, 1)
 	require.Equal(t, "sandbox_test_histogram_vec", g[0].GetName())
 	require.Equal(t, "test histogram description", g[0].GetHelp())
-	require.Equal(t, 4, len(g[0].Metric))
+	require.Len(t, g[0].GetMetric(), 4)
 
 	// let's confirm the count of each label combination
-	require.Equal(t, 2, len(g[0].Metric[0].Label))
+	require.Len(t, g[0].GetMetric()[0].GetLabel(), 2)
 	compareLabelPairValues(t, getSuccess, g[0].GetMetric()[0].GetLabel())
-	require.Equal(t, uint64(1), *g[0].GetMetric()[0].Histogram.SampleCount)
+	require.Equal(t, uint64(1), g[0].GetMetric()[0].GetHistogram().GetSampleCount())
 
-	require.Equal(t, 2, len(g[0].Metric[1].Label))
+	require.Len(t, g[0].GetMetric()[1].GetLabel(), 2)
 	compareLabelPairValues(t, getFailure, g[0].GetMetric()[1].GetLabel())
-	require.Equal(t, uint64(1), *g[0].Metric[1].Histogram.SampleCount)
+	require.Equal(t, uint64(1), g[0].GetMetric()[1].GetHistogram().GetSampleCount())
 
-	require.Equal(t, 2, len(g[0].Metric[2].Label))
+	require.Len(t, g[0].GetMetric()[2].GetLabel(), 2)
 	compareLabelPairValues(t, listSuccess, g[0].GetMetric()[2].GetLabel())
-	require.Equal(t, uint64(1), *g[0].Metric[2].Histogram.SampleCount)
+	require.Equal(t, uint64(1), g[0].GetMetric()[2].GetHistogram().GetSampleCount())
 
-	require.Equal(t, 2, len(g[0].Metric[3].Label))
+	require.Len(t, g[0].GetMetric()[3].GetLabel(), 2)
 	compareLabelPairValues(t, listFailure, g[0].GetMetric()[3].GetLabel())
-	require.Equal(t, uint64(2), *g[0].Metric[3].Histogram.SampleCount)
+	require.Equal(t, uint64(2), g[0].GetMetric()[3].GetHistogram().GetSampleCount())
 
 }
 

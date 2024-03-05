@@ -368,11 +368,11 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 
 				// serialize
 				jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
-				require.NoError(s.T(), err)
+				require.NoError(t, err)
 				// validate token
 				parsed, err := tokenParser.FromString(jwt0string)
-				require.NoError(s.T(), err)
-				require.Equal(s.T(), jwt.ClaimStrings(tc.aud), parsed.Audience)
+				require.NoError(t, err)
+				require.Equal(t, jwt.ClaimStrings(tc.aud), parsed.Audience)
 			})
 		}
 	})

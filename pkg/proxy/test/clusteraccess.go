@@ -7,7 +7,7 @@ import (
 )
 
 func NewGetMembersFunc(fakeClient client.Client) commoncluster.GetMemberClustersFunc {
-	return func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+	return func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 		return []*commoncluster.CachedToolchainCluster{
 			{
 				Config: &commoncluster.Config{

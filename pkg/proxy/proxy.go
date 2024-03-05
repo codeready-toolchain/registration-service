@@ -129,7 +129,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 			LogMethod: true,
 			LogStatus: true,
 			LogURI:    true,
-			LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
+			LogValuesFunc: func(ctx echo.Context, _ middleware.RequestLoggerValues) error {
 				log.InfoEchof(ctx, "request routed")
 				return nil
 			},

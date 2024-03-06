@@ -203,7 +203,7 @@ func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 	ctx.Set(context.FamilyNameKey, "abernathy")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
+	s.FakeUserSignupClient.MockGet = func(_ string) (*toolchainv1alpha1.UserSignup, error) {
 		return nil, errors2.NewInternalError(errors.New("an internal error"), "an internal error happened")
 	}
 
@@ -280,7 +280,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		_, err := svc.GetSignupFromInformer(c, "000", "abc", true)
 
 		// then
-		require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
+		require.EqualError(t, err, "something quite unfortunate happened: something bad")
 	})
 }
 
@@ -575,7 +575,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	// then
 	require.Error(s.T(), err)
 	e := &apierrors.StatusError{}
-	require.True(s.T(), errors.As(err, &e))
+	require.ErrorAs(s.T(), err, &e)
 	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
 	require.Equal(s.T(), "forbidden: user has been banned", e.ErrStatus.Message)
 	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
@@ -737,7 +737,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc", true)
 
 		// then
-		require.EqualError(s.T(), err, "an error occurred")
+		require.EqualError(t, err, "an error occurred")
 	})
 }
 
@@ -771,8 +771,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 		signup, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
-		require.Nil(s.T(), signup)
-		require.NoError(s.T(), err)
+		require.Nil(t, signup)
+		require.NoError(t, err)
 	})
 }
 
@@ -829,16 +829,16 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "bill", response.Username)
 	require.Equal(s.T(), "bill", response.CompliantUsername)
 	require.False(s.T(), response.Status.Ready)
-	require.Equal(s.T(), response.Status.Reason, "test_reason")
-	require.Equal(s.T(), response.Status.Message, "test_message")
+	require.Equal(s.T(), "test_reason", response.Status.Reason)
+	require.Equal(s.T(), "test_message", response.Status.Message)
 	require.True(s.T(), response.Status.VerificationRequired)
-	require.Equal(s.T(), "", response.ConsoleURL)
-	require.Equal(s.T(), "", response.CheDashboardURL)
-	require.Equal(s.T(), "", response.APIEndpoint)
-	require.Equal(s.T(), "", response.ClusterName)
-	require.Equal(s.T(), "", response.ProxyURL)
-	assert.Equal(s.T(), "", response.DefaultUserNamespace)
-	assert.Equal(s.T(), "", response.RHODSMemberURL)
+	require.Empty(s.T(), response.ConsoleURL)
+	require.Empty(s.T(), response.CheDashboardURL)
+	require.Empty(s.T(), response.APIEndpoint)
+	require.Empty(s.T(), response.ClusterName)
+	require.Empty(s.T(), response.ProxyURL)
+	assert.Empty(s.T(), response.DefaultUserNamespace)
+	assert.Empty(s.T(), response.RHODSMemberURL)
 
 	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
@@ -862,23 +862,23 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 		// then
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), response)
+		require.NoError(t, err)
+		require.NotNil(t, response)
 
-		require.Equal(s.T(), userID.String(), response.Name)
-		require.Equal(s.T(), "bill", response.Username)
-		require.Equal(s.T(), "bill", response.CompliantUsername)
-		require.False(s.T(), response.Status.Ready)
-		require.Equal(s.T(), response.Status.Reason, "test_reason")
-		require.Equal(s.T(), response.Status.Message, "test_message")
-		require.True(s.T(), response.Status.VerificationRequired)
-		require.Equal(s.T(), "", response.ConsoleURL)
-		require.Equal(s.T(), "", response.CheDashboardURL)
-		require.Equal(s.T(), "", response.APIEndpoint)
-		require.Equal(s.T(), "", response.ClusterName)
-		require.Equal(s.T(), "", response.ProxyURL)
-		assert.Equal(s.T(), "", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "", response.RHODSMemberURL)
+		require.Equal(t, userID.String(), response.Name)
+		require.Equal(t, "bill", response.Username)
+		require.Equal(t, "bill", response.CompliantUsername)
+		require.False(t, response.Status.Ready)
+		require.Equal(t, "test_reason", response.Status.Reason)
+		require.Equal(t, "test_message", response.Status.Message)
+		require.True(t, response.Status.VerificationRequired)
+		require.Empty(t, response.ConsoleURL)
+		require.Empty(t, response.CheDashboardURL)
+		require.Empty(t, response.APIEndpoint)
+		require.Empty(t, response.ClusterName)
+		require.Empty(t, response.ProxyURL)
+		assert.Equal(t, "", response.DefaultUserNamespace)
+		assert.Equal(t, "", response.RHODSMemberURL)
 	})
 
 	s.T().Run("informer - with no check for UserSignup complete condition", func(t *testing.T) {
@@ -892,19 +892,19 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		)
 		mur := s.newProvisionedMUR("bill")
 		err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		space := s.newSpaceForMUR(mur.Name, userSignupNotComplete.Name)
 		err = s.FakeSpaceClient.Tracker.Add(space)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		spacebinding := s.newSpaceBinding(mur.Name, space.Name)
 		err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		toolchainStatus := s.newToolchainStatus(".apps.")
 		err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-		require.NoError(s.T(), err)
+		require.NoError(t, err)
 
 		inf := fake.NewFakeInformer()
 		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
@@ -919,10 +919,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			}
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 		}
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
@@ -935,23 +935,23 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		response, err := svc.GetSignupFromInformer(c, userID.String(), userSignupNotComplete.Spec.IdentityClaims.PreferredUsername, false)
 
 		// then
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), response)
+		require.NoError(t, err)
+		require.NotNil(t, response)
 
-		require.Equal(s.T(), userID.String(), response.Name)
-		require.Equal(s.T(), "bill", response.Username)
-		require.Equal(s.T(), "bill", response.CompliantUsername)
-		require.True(s.T(), response.Status.Ready)
-		require.Equal(s.T(), response.Status.Reason, "mur_ready_reason")
-		require.Equal(s.T(), response.Status.Message, "mur_ready_message")
-		require.False(s.T(), response.Status.VerificationRequired)
-		require.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
-		require.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-		require.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-		require.Equal(s.T(), "member-123", response.ClusterName)
-		require.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-		assert.Equal(s.T(), "bill-dev", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
+		require.Equal(t, userID.String(), response.Name)
+		require.Equal(t, "bill", response.Username)
+		require.Equal(t, "bill", response.CompliantUsername)
+		require.True(t, response.Status.Ready)
+		require.Equal(t, "mur_ready_reason", response.Status.Reason)
+		require.Equal(t, "mur_ready_message", response.Status.Message)
+		require.False(t, response.Status.VerificationRequired)
+		require.Equal(t, "https://console.apps.member-123.com", response.ConsoleURL)
+		require.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		require.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
+		require.Equal(t, "member-123", response.ClusterName)
+		require.Equal(t, "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(t, "bill-dev", response.DefaultUserNamespace)
+		assert.Equal(t, "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 
@@ -1018,16 +1018,16 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 		require.Equal(s.T(), userID.String(), response.Name)
 		require.Equal(s.T(), "bill", response.Username)
-		require.Equal(s.T(), "", response.CompliantUsername)
+		require.Empty(s.T(), response.CompliantUsername)
 		require.False(s.T(), response.Status.Ready)
 		require.Equal(s.T(), "PendingApproval", response.Status.Reason)
 		require.True(s.T(), response.Status.VerificationRequired)
-		require.Equal(s.T(), "", response.Status.Message)
-		require.Equal(s.T(), "", response.ConsoleURL)
-		require.Equal(s.T(), "", response.CheDashboardURL)
-		require.Equal(s.T(), "", response.APIEndpoint)
-		require.Equal(s.T(), "", response.ClusterName)
-		require.Equal(s.T(), "", response.ProxyURL)
+		require.Empty(s.T(), response.Status.Message)
+		require.Empty(s.T(), response.ConsoleURL)
+		require.Empty(s.T(), response.CheDashboardURL)
+		require.Empty(s.T(), response.APIEndpoint)
+		require.Empty(s.T(), response.ClusterName)
+		require.Empty(s.T(), response.ProxyURL)
 		assert.Equal(s.T(), "", response.DefaultUserNamespace)
 		assert.Equal(s.T(), "", response.RHODSMemberURL)
 
@@ -1053,23 +1053,23 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
 
 			// then
-			require.NoError(s.T(), err)
-			require.NotNil(s.T(), response)
+			require.NoError(t, err)
+			require.NotNil(t, response)
 
-			require.Equal(s.T(), userID.String(), response.Name)
-			require.Equal(s.T(), "bill", response.Username)
-			require.Equal(s.T(), "", response.CompliantUsername)
-			require.False(s.T(), response.Status.Ready)
-			require.Equal(s.T(), "PendingApproval", response.Status.Reason)
-			require.True(s.T(), response.Status.VerificationRequired)
-			require.Equal(s.T(), "", response.Status.Message)
-			require.Equal(s.T(), "", response.ConsoleURL)
-			require.Equal(s.T(), "", response.CheDashboardURL)
-			require.Equal(s.T(), "", response.APIEndpoint)
-			require.Equal(s.T(), "", response.ClusterName)
-			require.Equal(s.T(), "", response.ProxyURL)
-			assert.Equal(s.T(), "", response.DefaultUserNamespace)
-			assert.Equal(s.T(), "", response.RHODSMemberURL)
+			require.Equal(t, userID.String(), response.Name)
+			require.Equal(t, "bill", response.Username)
+			require.Empty(t, response.CompliantUsername)
+			require.False(t, response.Status.Ready)
+			require.Equal(t, "PendingApproval", response.Status.Reason)
+			require.True(t, response.Status.VerificationRequired)
+			require.Empty(t, response.Status.Message)
+			require.Empty(t, response.ConsoleURL)
+			require.Empty(t, response.CheDashboardURL)
+			require.Empty(t, response.APIEndpoint)
+			require.Empty(t, response.ClusterName)
+			require.Empty(t, response.ProxyURL)
+			assert.Equal(t, "", response.DefaultUserNamespace)
+			assert.Equal(t, "", response.RHODSMemberURL)
 		})
 	}
 }
@@ -1114,8 +1114,8 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 		signup, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
-		require.Nil(s.T(), signup)
-		require.NoError(s.T(), err)
+		require.Nil(t, signup)
+		require.NoError(t, err)
 	})
 }
 
@@ -1128,47 +1128,47 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 			us := s.newUserSignupComplete()
 			err := s.FakeUserSignupClient.Tracker.Add(us)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			mur := s.newProvisionedMUR("ted")
 			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 			toolchainStatus := s.newToolchainStatus(appsSubDomain)
 			err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			space := s.newSpaceForMUR(mur.Name, us.Name)
 			err = s.FakeSpaceClient.Tracker.Add(space)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			spacebinding := s.newSpaceBinding(mur.Name, space.Name)
 			err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			// when
 			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
 
 			// then
-			require.NoError(s.T(), err)
-			require.NotNil(s.T(), response)
+			require.NoError(t, err)
+			require.NotNil(t, response)
 
-			require.Equal(s.T(), us.Name, response.Name)
-			require.Equal(s.T(), "jsmith", response.Username)
-			require.Equal(s.T(), "ted", response.CompliantUsername)
-			assert.True(s.T(), response.Status.Ready)
-			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
-			assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
-			assert.False(s.T(), response.Status.VerificationRequired)
-			assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
-			assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-			assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-			assert.Equal(s.T(), "member-123", response.ClusterName)
-			assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-			assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-			assert.Equal(s.T(), fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
+			require.Equal(t, us.Name, response.Name)
+			require.Equal(t, "jsmith", response.Username)
+			require.Equal(t, "ted", response.CompliantUsername)
+			assert.True(t, response.Status.Ready)
+			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
+			assert.Equal(t, "mur_ready_message", response.Status.Message)
+			assert.False(t, response.Status.VerificationRequired)
+			assert.Equal(t, fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
+			assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+			assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
+			assert.Equal(t, "member-123", response.ClusterName)
+			assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
+			assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
+			assert.Equal(t, fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
 
 			s.T().Run("informer", func(t *testing.T) {
 				// given
@@ -1188,10 +1188,10 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
 					return toolchainStatus, nil
 				}
-				inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+				inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 					return space, nil
 				}
-				inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+				inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 					return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 				}
 
@@ -1207,22 +1207,22 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), response)
+				require.NoError(t, err)
+				require.NotNil(t, response)
 
-				require.Equal(s.T(), "jsmith", response.Username)
-				require.Equal(s.T(), "ted", response.CompliantUsername)
-				assert.True(s.T(), response.Status.Ready)
-				assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
-				assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
-				assert.False(s.T(), response.Status.VerificationRequired)
-				assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
-				assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-				assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-				assert.Equal(s.T(), "member-123", response.ClusterName)
-				assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-				assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-				assert.Equal(s.T(), fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
+				require.Equal(t, "jsmith", response.Username)
+				require.Equal(t, "ted", response.CompliantUsername)
+				assert.True(t, response.Status.Ready)
+				assert.Equal(t, "mur_ready_reason", response.Status.Reason)
+				assert.Equal(t, "mur_ready_message", response.Status.Message)
+				assert.False(t, response.Status.VerificationRequired)
+				assert.Equal(t, fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
+				assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+				assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
+				assert.Equal(t, "member-123", response.ClusterName)
+				assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
+				assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
+				assert.Equal(t, fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
 			})
 		})
 	}
@@ -1295,10 +1295,10 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
 			return toolchainStatus, nil
 		}
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
@@ -1314,23 +1314,23 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.IdentityClaims.PreferredUsername, true)
 
 		// then
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), response)
+		require.NoError(t, err)
+		require.NotNil(t, response)
 
-		require.Equal(s.T(), us.Name, response.Name)
-		require.Equal(s.T(), "jsmith", response.Username)
-		require.Equal(s.T(), "ted", response.CompliantUsername)
-		assert.True(s.T(), response.Status.Ready)
-		assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
-		assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
-		assert.False(s.T(), response.Status.VerificationRequired)
-		assert.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
-		assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-		assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
-		assert.Equal(s.T(), "member-123", response.ClusterName)
-		assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
-		assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
+		require.Equal(t, us.Name, response.Name)
+		require.Equal(t, "jsmith", response.Username)
+		require.Equal(t, "ted", response.CompliantUsername)
+		assert.True(t, response.Status.Ready)
+		assert.Equal(t, "mur_ready_reason", response.Status.Reason)
+		assert.Equal(t, "mur_ready_message", response.Status.Message)
+		assert.False(t, response.Status.VerificationRequired)
+		assert.Equal(t, "https://console.apps.member-123.com", response.ConsoleURL)
+		assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
+		assert.Equal(t, "member-123", response.ClusterName)
+		assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
+		assert.Equal(t, "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 
@@ -1423,7 +1423,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
-		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
+		require.EqualError(t, err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
 	})
 }
 
@@ -1479,7 +1479,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
-		require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
+		require.EqualError(t, err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
 	})
 }
 
@@ -1550,7 +1550,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	}
 
 	for tcName, tc := range tests {
-		s.T().Run(tcName, func(j *testing.T) {
+		s.T().Run(tcName, func(t *testing.T) {
 
 			// given
 			mur.Status = toolchainv1alpha1.MasterUserRecordStatus{
@@ -1559,16 +1559,16 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 				},
 			}
 			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 
 			// when
 			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
 
 			// then
-			require.NoError(s.T(), err)
-			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
-			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
-			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedConditionReady, response.Status.Ready)
+			require.Equal(t, tc.condition.Reason, response.Status.Reason)
+			require.Equal(t, tc.condition.Message, response.Status.Message)
 
 			// informer case
 			// given
@@ -1598,12 +1598,12 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
 
 			// then
-			require.NoError(s.T(), err)
-			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
-			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
-			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedConditionReady, response.Status.Ready)
+			require.Equal(t, tc.condition.Reason, response.Status.Reason)
+			require.Equal(t, tc.condition.Message, response.Status.Message)
 			err = s.FakeMasterUserRecordClient.Delete(mur.Name, nil)
-			require.NoError(s.T(), err)
+			require.NoError(t, err)
 		})
 	}
 }
@@ -1653,9 +1653,9 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 		response, err := svc.GetSignupFromInformer(ctx, us.Name, "", true)
 
 		// then
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), response)
-		require.Equal(s.T(), toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
 
 	})
 }
@@ -1686,10 +1686,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
@@ -1697,7 +1697,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
 
 		// then
-		assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+		assert.Equal(t, "dave-dev", defaultUserNamespace)
 	})
 }
 
@@ -1736,10 +1736,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
@@ -1747,7 +1747,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
 
 		// then
-		assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
+		assert.Equal(t, "userA-dev", defaultUserNamespace)
 	})
 }
 
@@ -1806,7 +1806,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 			}
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding1, *spacebinding2}, nil
 		}
 
@@ -1814,7 +1814,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
 
 		// then
-		assert.Equal(s.T(), "userB-dev", defaultUserNamespace)
+		assert.Equal(t, "userB-dev", defaultUserNamespace)
 	})
 }
 
@@ -1840,10 +1840,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding()
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return nil, apierrors.NewInternalError(fmt.Errorf("something went wrong"))
 		}
 
@@ -1851,7 +1851,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding()
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
 
 		// then
-		assert.Empty(s.T(), defaultUserNamespace)
+		assert.Empty(t, defaultUserNamespace)
 	})
 }
 
@@ -1880,7 +1880,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 		}
-		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
 		}
 
@@ -1888,7 +1888,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
 
 		// then
-		assert.Empty(s.T(), defaultUserNamespace)
+		assert.Empty(t, defaultUserNamespace)
 	})
 }
 
@@ -1906,7 +1906,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 	})
 
 	s.Run("getusersignup returns error", func() {
-		s.FakeUserSignupClient.MockGet = func(s string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockGet = func(_ string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("get failed")
 		}
 
@@ -1944,7 +1944,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 	})
 
 	s.Run("updateusersignup returns error", func() {
-		s.FakeUserSignupClient.MockUpdate = func(userSignup2 *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
+		s.FakeUserSignupClient.MockUpdate = func(_ *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
 			return nil, errors.New("update failed")
 		}
 
@@ -1969,7 +1969,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 
 		s.Run("nil request", func() {
@@ -1980,7 +1980,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 
 		s.Run("request missing Recaptcha-Token header", func() {
@@ -1991,7 +1991,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 
 		s.Run("request Recaptcha-Token header incorrect length", func() {
@@ -2002,7 +2002,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 
 		s.Run("captcha assessment error", func() {
@@ -2013,7 +2013,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 
 		s.Run("captcha is enabled but the score is too low", func() {
@@ -2025,7 +2025,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 0.5}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.True(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(0.5), score)
+			assert.InDelta(s.T(), float32(0.5), score, 0.01)
 		})
 	})
 
@@ -2037,7 +2037,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, nil)
 			assert.False(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 		s.Run("user's email domain is excluded", func() {
 			s.OverrideApplicationDefault(
@@ -2048,7 +2048,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
 			assert.False(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(-1), score)
+			assert.InDelta(s.T(), float32(-1), score, 0.01)
 		})
 		s.Run("captcha is enabled and the assessment is successful", func() {
 			s.OverrideApplicationDefault(
@@ -2059,7 +2059,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 1.0}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.False(s.T(), isVerificationRequired)
-			assert.Equal(s.T(), float32(1.0), score)
+			assert.InDelta(s.T(), float32(1.0), score, 0.01)
 		})
 
 	})

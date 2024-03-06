@@ -63,24 +63,24 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 	}
 
 	// Check if the token is valid.
-	if !response.TokenProperties.Valid {
+	if !response.GetTokenProperties().GetValid() {
 		return -1, fmt.Errorf("the CreateAssessment() call failed because the token"+
 			" was invalid for the following reasons: %v",
-			response.TokenProperties.InvalidReason)
+			response.GetTokenProperties().GetInvalidReason())
 	}
 
 	// Check if the expected action was executed.
-	if response.TokenProperties.Action == recaptchaSignupAction {
+	if response.GetTokenProperties().GetAction() == recaptchaSignupAction {
 		// Get the risk score and the reason(s).
 		// For more information on interpreting the assessment,
 		// see: https://cloud.google.com/recaptcha-enterprise/docs/interpret-assessment
-		log.Info(ctx, fmt.Sprintf("reCAPTCHA assessment score: %.1f", response.RiskAnalysis.Score))
+		log.Info(ctx, fmt.Sprintf("reCAPTCHA assessment score: %.1f", response.GetRiskAnalysis().GetScore()))
 
-		for _, reason := range response.RiskAnalysis.Reasons {
+		for _, reason := range response.GetRiskAnalysis().GetReasons() {
 			log.Info(ctx, fmt.Sprintf("Risk analysis reason: %s", reason.String()))
 		}
 		log.Info(ctx, fmt.Sprintf("Assessment Response: %+v", response))
-		return response.RiskAnalysis.Score, nil
+		return response.GetRiskAnalysis().GetScore(), nil
 	}
 
 	return -1, fmt.Errorf("the action attribute in the reCAPTCHA token does not match the expected action to score")

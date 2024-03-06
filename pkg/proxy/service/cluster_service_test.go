@@ -109,7 +109,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	s.Run("unable to get signup", func() {
 		s.Run("signup service returns error", func() {
-			sc.MockGetSignup = func(userID, username string) (*signup.Signup, error) {
+			sc.MockGetSignup = func(_, _ string) (*signup.Signup, error) {
 				return nil, errors.New("oopsi woopsi")
 			}
 
@@ -154,7 +154,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				inf.GetSpaceFunc = original
 				s.Application.MockInformerService(inf)
 			}()
-			inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) { // informer error
+			inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) { // informer error
 				return nil, fmt.Errorf("oopsi woopsi")
 			}
 			s.Application.MockInformerService(inf)
@@ -184,7 +184,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
-					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 						return []*commoncluster.CachedToolchainCluster{}
 					}
 				},
@@ -213,7 +213,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					Svcs:   s.Application,
 				},
 				func(si *service.ServiceImpl) {
-					si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 						return s.memberClusters()
 					}
 				},
@@ -275,7 +275,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				Svcs:   s.Application,
 			},
 			func(si *service.ServiceImpl) {
-				si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 					return memberArray
 				}
 			},

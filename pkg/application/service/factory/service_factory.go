@@ -111,11 +111,11 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 	}
 
 	// default function to return an instance of Verification service
-	f.verificationServiceFunc = func(opts ...verificationservice.VerificationServiceOption) service.VerificationService {
+	f.verificationServiceFunc = func(_ ...verificationservice.VerificationServiceOption) service.VerificationService {
 		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
 	}
 
-	f.signupServiceFunc = func(opts ...signupservice.SignupServiceOption) service.SignupService {
+	f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
 		return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
 	}
 

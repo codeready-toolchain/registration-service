@@ -97,7 +97,7 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 
 	s.Run("error", func() {
 		// force error while retrieving MUR
-		fakeInformer := fake.GetInformerService(fakeClient, fake.WithGetMurFunc(func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
+		fakeInformer := fake.GetInformerService(fakeClient, fake.WithGetMurFunc(func(_ string) (*toolchainv1alpha1.MasterUserRecord, error) {
 			return nil, fmt.Errorf("mock error")
 		}))()
 		s.Application.MockInformerService(fakeInformer)

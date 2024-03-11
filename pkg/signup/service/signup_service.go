@@ -450,7 +450,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := provider.GetMasterUserRecord(userSignup.Status.CompliantUsername)
+	mur, err := s.Services().InformerService().GetMasterUserRecord(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -473,7 +473,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		// #### The rest of this code only makes sense when there is a ProvisionedTime set, so we include it in the same block ####
 
 		// Lookup the user's tier
-		tier, err := provider.GetUserTier(mur.Spec.TierName)
+		tier, err := s.Services().InformerService().GetUserTier(mur.Spec.TierName)
 		if err != nil {
 			return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving UserTier [%s] for MasterUserRecord [%s]", mur.Spec.TierName, mur.GetName()))
 		}

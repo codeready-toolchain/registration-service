@@ -186,6 +186,10 @@ func (s *UnitTestSuite) GetMasterUserRecord(name string) (*toolchainv1alpha1.Mas
 	return s.MasterUserRecords().Get(name)
 }
 
+func (s *UnitTestSuite) GetUserTier(name string) (*toolchainv1alpha1.UserTier, error) {
+	return s.UserTiers().Get(name)
+}
+
 func (s *UnitTestSuite) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
 	return s.ToolchainStatuses().Get()
 }

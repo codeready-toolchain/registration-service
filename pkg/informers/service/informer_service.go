@@ -66,6 +66,21 @@ func (s *ServiceImpl) GetMasterUserRecord(name string) (*toolchainv1alpha1.Maste
 	return mur, err
 }
 
+func (s *ServiceImpl) GetUserTier(name string) (*toolchainv1alpha1.UserTier, error) {
+	obj, err := s.informer.Usertier.ByNamespace(configuration.Namespace()).Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	unobj := obj.(*unstructured.Unstructured)
+	ut := &toolchainv1alpha1.UserTier{}
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), ut); err != nil {
+		log.Errorf(nil, err, "failed to get UserTier '%s'", name)
+		return nil, err
+	}
+	return ut, err
+}
+
 func (s *ServiceImpl) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
 	obj, err := s.informer.Space.ByNamespace(configuration.Namespace()).Get(name)
 	if err != nil {

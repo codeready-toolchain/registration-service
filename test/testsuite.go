@@ -31,6 +31,7 @@ type UnitTestSuite struct {
 	ConfigClient               *test.FakeClient
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
+	FakeUserTierClient         *fake.FakeUserTierClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
 	FakeSocialEventClient      *fake.FakeSocialEventClient
@@ -158,6 +159,8 @@ func (s *UnitTestSuite) UserSignups() kubeclient.UserSignupInterface {
 func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface {
 	return s.FakeMasterUserRecordClient
 }
+
+func (s *UnitTestSuite) UserTiers() kubeclient.UserTierInterface { return s.FakeUserTierClient }
 
 func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 	return s.FakeBannedUserClient

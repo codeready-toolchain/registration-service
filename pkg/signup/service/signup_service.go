@@ -5,6 +5,7 @@ import (
 	"hash/crc32"
 	"regexp"
 	"strings"
+	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -37,6 +38,9 @@ const (
 
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
+
+	// ISO8601Format is used to format date values returned to the client
+	ISO8601Format = "2006-01-02T15:04:05.000Z07:00"
 )
 
 var annotationsToRetain = []string{
@@ -461,6 +465,30 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		Message:              murCondition.Message,
 		VerificationRequired: states.VerificationRequired(userSignup),
 	}
+
+	if mur.Status.ProvisionedTime != nil {
+		startDateValue := mur.Status.ProvisionedTime.Format(ISO8601Format)
+		signupResponse.StartDate = &startDateValue
+
+		// #### The rest of this code only makes sense when there is a ProvisionedTime set, so we include it in the same block ####
+
+		// Lookup the user's tier
+		tier, err := provider.GetUserTier(mur.Spec.TierName)
+		if err != nil {
+			return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving UserTier [%s] for MasterUserRecord [%s]", mur.Spec.TierName, mur.GetName()))
+		}
+
+		// Add the number of days for the tier to the provisioned time to get the end date
+		endDate := mur.Status.ProvisionedTime.Add(time.Hour * 24 * time.Duration(tier.Spec.DeactivationTimeoutDays))
+
+		endDateValue := endDate.Format(ISO8601Format)
+		signupResponse.EndDate = &endDateValue
+
+		// Calculate the number of days remaining
+		daysRemaining := endDate.Sub(time.Now()).Hours()
+		signupResponse.DaysRemaining = &daysRemaining
+	}
+
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status, err := provider.GetToolchainStatus()

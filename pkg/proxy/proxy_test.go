@@ -770,7 +770,6 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 					{
 						Config: &commoncluster.Config{
 							Name:        "member-1",
-							Type:        commoncluster.Member,
 							APIEndpoint: "https://api.endpoint.member-1.com:6443",
 							RestConfig:  &rest.Config{},
 						},
@@ -779,7 +778,6 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 						Config: &commoncluster.Config{
 							Name:              "member-2",
 							APIEndpoint:       serverURL,
-							Type:              commoncluster.Member,
 							OperatorNamespace: "member-operator",
 							RestConfig: &rest.Config{
 								BearerToken: "clusterSAToken",

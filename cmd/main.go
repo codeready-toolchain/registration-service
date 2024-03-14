@@ -101,7 +101,7 @@ func main() {
 	// this will speed up the first request
 	cacheLog := controllerlog.Log.WithName("registration-service")
 	cluster.NewToolchainClusterService(cl, cacheLog, configuration.Namespace(), 5*time.Second)
-	cluster.GetMemberClusters()
+	cluster.GetClusters()
 
 	_, err = auth.InitializeDefaultTokenParser()
 	if err != nil {
@@ -114,7 +114,7 @@ func main() {
 	metricsSrv := proxyMetrics.StartMetricsServer()
 
 	// Start the proxy server
-	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters)
+	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetClusters)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}

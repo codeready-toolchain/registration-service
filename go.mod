@@ -2,6 +2,8 @@ module github.com/codeready-toolchain/registration-service
 
 go 1.20
 
+replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240314072551-61beb0c3429f
+
 require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/codeready-toolchain/api v0.0.0-20240227210924-371ddb054d87
@@ -146,3 +148,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+

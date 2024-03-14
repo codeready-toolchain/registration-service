@@ -23,7 +23,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func HandleSpaceGetRequest(spaceLister *SpaceLister, GetMembersFunc cluster.GetMemberClustersFunc) echo.HandlerFunc {
+func HandleSpaceGetRequest(spaceLister *SpaceLister, GetMembersFunc cluster.GetClustersFunc) echo.HandlerFunc {
 	// get specific workspace
 	return func(ctx echo.Context) error {
 		requestReceivedTime := ctx.Get(regsercontext.RequestReceivedTime).(time.Time)
@@ -88,7 +88,7 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 }
 
 // GetUserWorkspaceWithBindings returns a workspace object with the required fields+bindings (the list with all the users access details)
-func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, workspaceName string, GetMembersFunc cluster.GetMemberClustersFunc) (*toolchainv1alpha1.Workspace, error) {
+func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, workspaceName string, GetMembersFunc cluster.GetClustersFunc) (*toolchainv1alpha1.Workspace, error) {
 	userSignup, space, err := getUserSignupAndSpace(ctx, spaceLister, workspaceName)
 	if err != nil {
 		return nil, err
@@ -165,7 +165,7 @@ func getUserSignupAndSpace(ctx echo.Context, spaceLister *SpaceLister, workspace
 }
 
 // listSpaceBindingRequestsForSpace searches for the SpaceBindingRequests in all the provisioned namespaces for the given Space
-func listSpaceBindingRequestsForSpace(ctx echo.Context, GetMembersFunc cluster.GetMemberClustersFunc, space *toolchainv1alpha1.Space) ([]toolchainv1alpha1.SpaceBindingRequest, error) {
+func listSpaceBindingRequestsForSpace(ctx echo.Context, GetMembersFunc cluster.GetClustersFunc, space *toolchainv1alpha1.Space) ([]toolchainv1alpha1.SpaceBindingRequest, error) {
 	members := GetMembersFunc()
 	if len(members) == 0 {
 		return nil, errs.New("no member clusters found")

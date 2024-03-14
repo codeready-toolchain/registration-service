@@ -25,14 +25,14 @@ type Option func(f *ServiceImpl)
 // ServiceImpl represents the implementation of the member cluster service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
-	GetMembersFunc cluster.GetMemberClustersFunc
+	GetMembersFunc cluster.GetClustersFunc
 }
 
 // NewMemberClusterService creates a service object for performing toolchain cluster related activities.
 func NewMemberClusterService(context servicecontext.ServiceContext, options ...Option) service.MemberClusterService {
 	si := &ServiceImpl{
 		BaseService:    base.NewBaseService(context),
-		GetMembersFunc: cluster.GetMemberClusters,
+		GetMembersFunc: cluster.GetClusters,
 	}
 	for _, o := range options {
 		o(si)

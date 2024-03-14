@@ -68,10 +68,10 @@ type Proxy struct {
 	tokenParser    *auth.TokenParser
 	spaceLister    *handlers.SpaceLister
 	metrics        *metrics.ProxyMetrics
-	getMembersFunc commoncluster.GetMemberClustersFunc
+	getMembersFunc commoncluster.GetClustersFunc
 }
 
-func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetClustersFunc) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, g
 	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc)
 }
 
-func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetClustersFunc) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err

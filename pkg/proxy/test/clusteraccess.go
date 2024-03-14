@@ -6,7 +6,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewGetMembersFunc(fakeClient client.Client) commoncluster.GetMemberClustersFunc {
+func NewGetMembersFunc(fakeClient client.Client) commoncluster.GetClustersFunc {
 	return func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 		return []*commoncluster.CachedToolchainCluster{
 			{

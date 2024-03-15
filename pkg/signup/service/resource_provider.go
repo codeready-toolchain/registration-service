@@ -8,7 +8,6 @@ import (
 
 type ResourceProvider interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
-	GetUserTier(name string) (*toolchainv1alpha1.UserTier, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
@@ -21,10 +20,6 @@ type crtClientProvider struct {
 
 func (p crtClientProvider) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 	return p.cl.V1Alpha1().MasterUserRecords().Get(name)
-}
-
-func (p crtClientProvider) GetUserTier(name string) (*toolchainv1alpha1.UserTier, error) {
-	return p.cl.V1Alpha1().UserTiers().Get(name)
 }
 
 func (p crtClientProvider) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {

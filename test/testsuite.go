@@ -31,7 +31,6 @@ type UnitTestSuite struct {
 	ConfigClient               *test.FakeClient
 	FakeUserSignupClient       *fake.FakeUserSignupClient
 	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
-	FakeUserTierClient         *fake.FakeUserTierClient
 	FakeBannedUserClient       *fake.FakeBannedUserClient
 	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
 	FakeSocialEventClient      *fake.FakeSocialEventClient
@@ -160,8 +159,6 @@ func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface
 	return s.FakeMasterUserRecordClient
 }
 
-func (s *UnitTestSuite) UserTiers() kubeclient.UserTierInterface { return s.FakeUserTierClient }
-
 func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
 	return s.FakeBannedUserClient
 }
@@ -184,10 +181,6 @@ func (s *UnitTestSuite) SpaceBindings() kubeclient.SpaceBindingInterface {
 
 func (s *UnitTestSuite) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 	return s.MasterUserRecords().Get(name)
-}
-
-func (s *UnitTestSuite) GetUserTier(name string) (*toolchainv1alpha1.UserTier, error) {
-	return s.UserTiers().Get(name)
 }
 
 func (s *UnitTestSuite) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {

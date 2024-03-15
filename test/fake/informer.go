@@ -24,7 +24,6 @@ func NewFakeInformer() Informer {
 
 type Informer struct {
 	GetMurFunc               func(name string) (*toolchainv1alpha1.MasterUserRecord, error)
-	GetUserTierFunc          func(name string) (*toolchainv1alpha1.UserTier, error)
 	GetSpaceFunc             func(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatusFunc   func() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
@@ -45,13 +44,6 @@ func (f Informer) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUse
 		return f.GetMurFunc(name)
 	}
 	panic("not supposed to call GetMasterUserRecord")
-}
-
-func (f Informer) GetUserTier(name string) (*toolchainv1alpha1.UserTier, error) {
-	if f.GetUserTierFunc != nil {
-		return f.GetUserTierFunc(name)
-	}
-	panic("not supposed to call GetUserTier")
 }
 
 func (f Informer) GetSpace(name string) (*toolchainv1alpha1.Space, error) {

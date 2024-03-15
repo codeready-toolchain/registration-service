@@ -16,7 +16,6 @@ type CRTClient interface {
 type V1Alpha1 interface {
 	UserSignups() UserSignupInterface
 	MasterUserRecords() MasterUserRecordInterface
-	UserTiers() UserTierInterface
 	BannedUsers() BannedUserInterface
 	ToolchainStatuses() ToolchainStatusInterface
 	SocialEvents() SocialEventInterface
@@ -63,8 +62,6 @@ func getRegisterObject() []runtime.Object {
 		&crtapi.UserSignupList{},
 		&crtapi.MasterUserRecord{},
 		&crtapi.MasterUserRecordList{},
-		&crtapi.UserTier{},
-		&crtapi.UserTierList{},
 		&crtapi.BannedUser{},
 		&crtapi.BannedUserList{},
 		&crtapi.ToolchainStatus{},
@@ -109,19 +106,6 @@ func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 // MasterUserRecords returns an interface which may be used to perform CRUD operations for MasterUserRecord resources
 func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
-		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
-		},
-	}
-}
-
-// UserTiers returns an interface which may be used to perform CRUD operations for UserTier resources
-func (c *V1Alpha1REST) UserTiers() UserTierInterface {
-	return &userTierClient{
 		crtClient: crtClient{
 			client:   c.client.RestClient,
 			informer: c.client.Informer,

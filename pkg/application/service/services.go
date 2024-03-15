@@ -10,7 +10,6 @@ import (
 
 type InformerService interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
-	GetUserTier(name string) (*toolchainv1alpha1.UserTier, error)
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
 	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
 	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)

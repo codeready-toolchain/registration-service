@@ -450,7 +450,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := s.Services().InformerService().GetMasterUserRecord(userSignup.Status.CompliantUsername)
+	mur, err := provider.GetMasterUserRecord(userSignup.Status.CompliantUsername)
 	if err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
@@ -472,21 +472,14 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 		// #### The rest of this code only makes sense when there is a ProvisionedTime set, so we include it in the same block ####
 
-		// Lookup the user's tier
-		tier, err := s.Services().InformerService().GetUserTier(mur.Spec.TierName)
-		if err != nil {
-			return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving UserTier [%s] for MasterUserRecord [%s]", mur.Spec.TierName, mur.GetName()))
+		if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {
+			endDateValue := userSignup.Status.ScheduledDeactivationTimestamp.Format(ISO8601Format)
+			signupResponse.EndDate = &endDateValue
+
+			// Calculate the number of days remaining
+			daysRemaining := userSignup.Status.ScheduledDeactivationTimestamp.Sub(time.Now()).Hours()
+			signupResponse.DaysRemaining = &daysRemaining
 		}
-
-		// Add the number of days for the tier to the provisioned time to get the end date
-		endDate := mur.Status.ProvisionedTime.Add(time.Hour * 24 * time.Duration(tier.Spec.DeactivationTimeoutDays))
-
-		endDateValue := endDate.Format(ISO8601Format)
-		signupResponse.EndDate = &endDateValue
-
-		// Calculate the number of days remaining
-		daysRemaining := endDate.Sub(time.Now()).Hours()
-		signupResponse.DaysRemaining = &daysRemaining
 	}
 
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {

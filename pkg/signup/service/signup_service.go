@@ -477,7 +477,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 			signupResponse.EndDate = &endDateValue
 
 			// Calculate the number of days remaining
-			daysRemaining := userSignup.Status.ScheduledDeactivationTimestamp.Sub(time.Now()).Hours()
+			daysRemaining := time.Until(userSignup.Status.ScheduledDeactivationTimestamp.Time).Hours() / 24
 			signupResponse.DaysRemaining = &daysRemaining
 		}
 	}

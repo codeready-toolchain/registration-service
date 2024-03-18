@@ -31,6 +31,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -66,6 +67,8 @@ func (s *TestProxySuite) TestProxy() {
 	_, err := auth.InitializeDefaultTokenParser()
 	require.NoError(s.T(), err)
 
+	cfg := commonconfig.PublicViewerConfig{}
+
 	for _, environment := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev, testconfig.Prod} {
 		s.Run("for environment "+string(environment), func() {
 
@@ -73,7 +76,8 @@ func (s *TestProxySuite) TestProxy() {
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
+			p, err := newProxyWithClusterClient(
+				fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())), &cfg)
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)

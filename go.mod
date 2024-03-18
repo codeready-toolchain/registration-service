@@ -147,6 +147,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/filariow/toolchain-common v0.0.0-20240318115656-7ddb03191083
+replace github.com/codeready-toolchain/toolchain-common => github.com/filariow/toolchain-common v0.0.0-20240318122124-5b365181bd76
 
 replace github.com/codeready-toolchain/api => github.com/filariow/toolchain-api v0.0.0-20240318114050-43313b449285

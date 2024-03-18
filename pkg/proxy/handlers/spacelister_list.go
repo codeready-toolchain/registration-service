@@ -4,24 +4,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/metrics"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 )
 
-func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
+func HandleSpaceListRequest(spaceLister *SpaceLister, publicViewerConfig *commonconfig.PublicViewerConfig) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		// list all user workspaces
 		requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-		workspaces, err := ListUserWorkspaces(ctx, spaceLister)
+		workspaces, err := ListUserWorkspaces(ctx, spaceLister, publicViewerConfig)
 		if err != nil {
 			spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
 			return errorResponse(ctx, apierrors.NewInternalError(err))
@@ -33,16 +36,18 @@ func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
 
 // ListUserWorkspaces returns a list of Workspaces for the current user.
 // The function lists all SpaceBindings for the user and return all the workspaces found from this list.
-func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchainv1alpha1.Workspace, error) {
+func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister, publicViewerConfig *commonconfig.PublicViewerConfig) ([]toolchainv1alpha1.Workspace, error) {
 	signup, err := spaceLister.GetProvisionedUserSignup(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// signup is not ready
-	if signup == nil {
-		return []toolchainv1alpha1.Workspace{}, nil
-	}
-	murName := signup.CompliantUsername
+	murName := func() string {
+		// signup is not ready
+		if signup == nil {
+			return publicViewerConfig.Username()
+		}
+		return signup.CompliantUsername
+	}()
 
 	// get all spacebindings with given mur since no workspace was provided
 	spaceBindings, err := listSpaceBindingsForUser(spaceLister, murName)
@@ -50,7 +55,24 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchain
 		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
 		return nil, err
 	}
-	return workspacesFromSpaceBindings(ctx, spaceLister, signup.Name, spaceBindings), nil
+
+	if publicViewerConfig.Enabled() {
+		sbs, err := listSpaceBindingsForUser(spaceLister, publicViewerConfig.Username())
+		if err != nil {
+			ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
+			return nil, err
+		}
+
+		for _, sb := range sbs {
+			if !slices.ContainsFunc(spaceBindings, func(lsb toolchainv1alpha1.SpaceBinding) bool {
+				return sb.Name == lsb.Name
+			}) {
+				spaceBindings = append(spaceBindings, sb)
+			}
+		}
+	}
+
+	return workspacesFromSpaceBindings(ctx, spaceLister, murName, spaceBindings), nil
 }
 
 func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Workspace) error {
@@ -68,12 +90,11 @@ func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Work
 }
 
 func listSpaceBindingsForUser(spaceLister *SpaceLister, murName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
+	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.In, []string{murName})
 	if err != nil {
 		return nil, err
 	}
-	requirements := []labels.Requirement{*murSelector}
-	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(requirements...)
+	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*murSelector)
 }
 
 func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {

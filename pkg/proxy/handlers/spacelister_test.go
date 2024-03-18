@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,8 +21,8 @@ import (
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 )
 
-func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient) {
-	fakeSignupService := fake.NewSignupService(
+func buildSpaceListerFakes(t *testing.T, publicViewerConfig *commonconfig.PublicViewerConfig) (*fake.SignupService, *test.FakeClient) {
+	signups := []fake.SignupDef{
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),
 		newSignup("pandalover", "panda.lover", true),
@@ -33,7 +34,15 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 		newSignup("parentspace", "parent.space", true),
 		newSignup("childspace", "child.space", true),
 		newSignup("grandchildspace", "grandchild.space", true),
-	)
+	}
+	if publicViewerConfig.Enabled() {
+		signups = append(signups,
+			newSignup("nospacer", "no.spacer", false),
+			newSignup("communityspace", "community.space", true),
+			newSignup("communitylover", "community.lover", true),
+		)
+	}
+	fakeSignupService := fake.NewSignupService(signups...)
 
 	// space that is not provisioned yet
 	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
@@ -60,7 +69,7 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
 
-	fakeClient := fake.InitClient(t,
+	objs := []runtime.Object{
 		// spaces
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
@@ -74,6 +83,8 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 		fake.NewSpace("grandchildspace", "member-1", "grandchildspace", spacetest.WithSpecParentSpace("childspace")),
 		// noise space, user will have a different role here , just to make sure this is not returned anywhere in the tests
 		fake.NewSpace("otherspace", "member-1", "otherspace", spacetest.WithSpecParentSpace("otherspace")),
+		// space flagged as community
+		fake.NewSpace("communityspace", "member-2", "communityspace"),
 
 		//spacebindings
 		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
@@ -94,7 +105,14 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
-	)
+	}
+	if publicViewerConfig.Enabled() {
+		objs = append(objs,
+			fake.NewSpaceBinding("communityspace-sb", "communityspace", "communityspace", "admin"),
+			fake.NewSpaceBinding("community-sb", publicViewerConfig.Username(), "communityspace", "viewer"),
+		)
+	}
+	fakeClient := fake.InitClient(t, objs...)
 
 	return fakeSignupService, fakeClient
 }

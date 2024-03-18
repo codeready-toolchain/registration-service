@@ -18,6 +18,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
@@ -32,7 +33,8 @@ import (
 )
 
 func TestSpaceListerGet(t *testing.T) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+	cfg := &configuration.PublicViewerConfig{Config: toolchainv1alpha1.PublicViewerConfig{Enabled: false}}
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t, cfg)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests
@@ -244,7 +246,7 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedErr:     "nstemplatetier error",
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
-					informerFunc := fake.GetInformerService(fakeClient, fake.WithGetNSTemplateTierFunc(func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
+					informerFunc := fake.GetInformerService(fakeClient, fake.WithGetNSTemplateTierFunc(func(tierName string) (*toolchainv1alpha1.NSTemplateTier, error) {
 						return nil, fmt.Errorf("nstemplatetier error")
 					}))
 					return informerFunc()
@@ -256,7 +258,7 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
-				overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
 				expectedWorkspace: "dancelover",
@@ -274,7 +276,7 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedErr:     "list spacebindings error",
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
-					listSpaceBindingFunc := func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+					listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 						return nil, fmt.Errorf("list spacebindings error")
 					}
 					return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
@@ -287,7 +289,7 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedErr:     "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
 				expectedErrCode: 404,
 				overrideInformerFunc: func() service.InformerService {
-					getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
+					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
 						return nil, fmt.Errorf("no space")
 					}
 					return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
@@ -512,7 +514,7 @@ func TestSpaceListerGet(t *testing.T) {
 				expectedWorkspace: "movielover",
 				expectedErr:       "no member clusters found",
 				expectedErrCode:   500,
-				overrideGetMembersFunc: func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				overrideGetMembersFunc: func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 					return []*commoncluster.CachedToolchainCluster{}
 				},
 			},
@@ -564,7 +566,7 @@ func TestSpaceListerGet(t *testing.T) {
 				if tc.overrideGetMembersFunc != nil {
 					getMembersFunc = tc.overrideGetMembersFunc
 				}
-				err := handlers.HandleSpaceGetRequest(s, getMembersFunc)(ctx)
+				err := handlers.HandleSpaceGetRequest(s, getMembersFunc, cfg)(ctx)
 
 				// then
 				if tc.expectedErr != "" {
@@ -576,7 +578,7 @@ func TestSpaceListerGet(t *testing.T) {
 					// get workspace case
 					workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
 					require.NoError(t, decodeErr)
-					require.Len(t, tc.expectedWs, 1, "test case should have exactly one expected item since it's a get request")
+					require.Equal(t, 1, len(tc.expectedWs), "test case should have exactly one expected item since it's a get request")
 					for i := range tc.expectedWs {
 						assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
 						assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
@@ -638,7 +640,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			username:         "invalid.user",
 			workspaceRequest: "batman",
 			overrideInformerFunc: func() service.InformerService {
-				getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
+				getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
 					return nil, fmt.Errorf("no space")
 				}
 				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
@@ -649,7 +651,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			username:         "invalid.user",
 			workspaceRequest: "batman",
 			overrideInformerFunc: func() service.InformerService {
-				getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
+				getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
 					return nil, fmt.Errorf("no space")
 				}
 				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
@@ -660,7 +662,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			username:         "batman.space",
 			workspaceRequest: "batman",
 			expectedErr:      "signup error",
-			overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+			overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
 				return nil, fmt.Errorf("signup error")
 			},
 			expectedWorkspace: nil,
@@ -670,7 +672,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			workspaceRequest: "robin",
 			expectedErr:      "list spacebindings error",
 			overrideInformerFunc: func() service.InformerService {
-				listSpaceBindingFunc := func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+				listSpaceBindingFunc := func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 					return nil, fmt.Errorf("list spacebindings error")
 				}
 				return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
@@ -719,7 +721,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			}
 
 			if tc.expectedWorkspace != nil {
-				require.Equal(t, tc.expectedWorkspace, wrk)
+				require.Equal(t, wrk, tc.expectedWorkspace)
 			} else {
 				require.Nil(t, wrk) // user is not authorized to get this workspace
 			}

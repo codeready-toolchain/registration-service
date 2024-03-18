@@ -27,6 +27,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
@@ -63,23 +64,24 @@ func authorizationEndpointTarget() string {
 }
 
 type Proxy struct {
-	app            application.Application
-	cl             client.Client
-	tokenParser    *auth.TokenParser
-	spaceLister    *handlers.SpaceLister
-	metrics        *metrics.ProxyMetrics
-	getMembersFunc commoncluster.GetMemberClustersFunc
+	app                application.Application
+	cl                 client.Client
+	tokenParser        *auth.TokenParser
+	spaceLister        *handlers.SpaceLister
+	metrics            *metrics.ProxyMetrics
+	getMembersFunc     commoncluster.GetMemberClustersFunc
+	publicViewerConfig *commonconfig.PublicViewerConfig
 }
 
-func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc, publicViewerConfig *commonconfig.PublicViewerConfig) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
 	}
-	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc)
+	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc, publicViewerConfig)
 }
 
-func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc, publicViewerConfig *commonconfig.PublicViewerConfig) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -88,12 +90,13 @@ func newProxyWithClusterClient(app application.Application, cln client.Client, p
 	// init handlers
 	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
 	return &Proxy{
-		app:            app,
-		cl:             cln,
-		tokenParser:    tokenParser,
-		spaceLister:    spaceLister,
-		metrics:        proxyMetrics,
-		getMembersFunc: getMembersFunc,
+		app:                app,
+		cl:                 cln,
+		tokenParser:        tokenParser,
+		spaceLister:        spaceLister,
+		metrics:            proxyMetrics,
+		getMembersFunc:     getMembersFunc,
+		publicViewerConfig: publicViewerConfig,
 	}, nil
 }
 
@@ -139,8 +142,8 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
 	// Space lister routes
-	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc))
-	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
+	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc, p.publicViewerConfig))
+	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister, p.publicViewerConfig))
 	router.GET(proxyHealthEndpoint, p.health)
 	// SSO routes. Used by web login (oc login -w).
 	// Here is the expected flow for the "oc login -w" command:
@@ -294,7 +297,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 		workspaces = []toolchainv1alpha1.Workspace{*workspace}
 	} else {
 		// list all workspaces
-		workspaces, err = handlers.ListUserWorkspaces(ctx, p.spaceLister)
+		workspaces, err = handlers.ListUserWorkspaces(ctx, p.spaceLister, p.publicViewerConfig)
 		if err != nil {
 			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}

@@ -6,15 +6,17 @@ import (
 	"net/http"
 	"time"
 
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 )
 
 func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
@@ -40,17 +42,36 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchain
 	}
 	// signup is not ready
 	if signup == nil {
-		return []toolchainv1alpha1.Workspace{}, nil
+		return nil, nil
 	}
-	murName := signup.CompliantUsername
+
+	// get MUR Names
+	murNames := getMURNamesForList(ctx, signup)
+	if len(murNames) == 0 {
+		return nil, nil
+	}
 
 	// get all spacebindings with given mur since no workspace was provided
-	spaceBindings, err := listSpaceBindingsForUser(spaceLister, murName)
+	spaceBindings, err := listSpaceBindingsForUsers(spaceLister, murNames)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
 		return nil, err
 	}
+
 	return workspacesFromSpaceBindings(ctx, spaceLister, signup.Name, spaceBindings), nil
+}
+
+// getMURNamesForList returns a list MasterUserRecord names to use in listing Workspaces.
+// If PublicViewer is enabled, the list will contain at least the PublicViewer username.
+func getMURNamesForList(ctx echo.Context, signup *signup.Signup) []string {
+	names := []string{}
+	if signup != nil && signup.CompliantUsername != "" {
+		names = append(names, signup.CompliantUsername)
+	}
+	if context.IsPublicViewerEnabled(ctx) {
+		names = append(names, toolchainv1alpha1.KubesawAuthenticatedUsername)
+	}
+	return names
 }
 
 func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Workspace) error {
@@ -67,13 +88,12 @@ func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Work
 	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
 }
 
-func listSpaceBindingsForUser(spaceLister *SpaceLister, murName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
+func listSpaceBindingsForUsers(spaceLister *SpaceLister, murNames []string) ([]toolchainv1alpha1.SpaceBinding, error) {
+	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.In, murNames)
 	if err != nil {
 		return nil, err
 	}
-	requirements := []labels.Requirement{*murSelector}
-	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(requirements...)
+	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*murSelector)
 }
 
 func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {

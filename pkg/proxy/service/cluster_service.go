@@ -40,21 +40,21 @@ func NewMemberClusterService(context servicecontext.ServiceContext, options ...O
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string) (*access.ClusterAccess, error) {
-	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false) // don't check for usersignup complete status, since it might cause the proxy blocking the request and returning an error when quick transitions from ready to provisioning are happening.
-	if err != nil {
-		return nil, err
-	}
-	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
-	if signup == nil || signup.CompliantUsername == "" {
-		cause := errs.New("user is not provisioned (yet)")
-		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
-		return nil, cause
-	}
-
+func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// if workspace is not provided then return the default space access
 	if workspace == "" {
-		return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyPluginName)
+		return s.getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName)
+	}
+
+	return s.getSpaceAccess(userID, username, workspace, proxyPluginName, publicViewerEnabled)
+}
+
+// getSpaceAccess retrieves space access for an user
+func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
+	// retrieve the user's complaint name
+	userName, err := s.getUserSignupComplaintName(userID, username, publicViewerEnabled)
+	if err != nil {
+		return nil, err
 	}
 
 	// look up space
@@ -65,7 +65,49 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginN
 		return nil, fmt.Errorf("the requested space is not available")
 	}
 
-	return s.accessForSpace(space, signup.CompliantUsername, proxyPluginName)
+	return s.accessForSpace(space, userName, proxyPluginName)
+}
+
+func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
+	// if PublicViewer is enabled and the requested user is the PublicViewer, than no lookup is required
+	if publicViewerEnabled && username == userID && userID == toolchainv1alpha1.KubesawAuthenticatedUsername {
+		return username, nil
+	}
+
+	// retrieve the UserSignup from cache
+	//
+	// don't check for usersignup complete status, since it might cause the proxy blocking the request
+	// and returning an error when quick transitions from ready to provisioning are happening.
+	userSignup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	if err != nil {
+		return "", err
+	}
+	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
+	if userSignup == nil || userSignup.CompliantUsername == "" {
+		cause := errs.New("user is not provisioned (yet)")
+		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", userSignup))
+		return "", cause
+	}
+
+	return userSignup.CompliantUsername, nil
+}
+
+// getClusterAccessForDefaultWorkspace retrieves the cluster for the user's default workspace
+func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
+	// don't check for usersignup complete status, since it might cause the proxy blocking the request
+	// and returning an error when quick transitions from ready to provisioning are happening.
+	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	if err != nil {
+		return nil, err
+	}
+	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
+	if signup == nil || signup.CompliantUsername == "" {
+		cause := errs.New("user is not provisioned (yet)")
+		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
+		return nil, cause
+	}
+
+	return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyPluginName)
 }
 
 func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyPluginName string) (*access.ClusterAccess, error) {

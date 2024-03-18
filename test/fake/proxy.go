@@ -17,10 +17,15 @@ type ProxyFakeApp struct {
 	Err                      error
 	SignupServiceMock        service.SignupService
 	MemberClusterServiceMock service.MemberClusterService
+	InformerServiceMock      service.InformerService
 }
 
 func (a *ProxyFakeApp) InformerService() service.InformerService {
-	panic("InformerService shouldn't be called")
+	if a.InformerServiceMock == nil {
+		panic("InformerService shouldn't be called")
+	}
+
+	return a.InformerServiceMock
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {
@@ -45,7 +50,7 @@ type fakeClusterService struct {
 	fakeApp *ProxyFakeApp
 }
 
-func (f *fakeClusterService) GetClusterAccess(userID, _, _, _ string) (*access.ClusterAccess, error) {
+func (f *fakeClusterService) GetClusterAccess(userID, _, _, _ string, _ bool) (*access.ClusterAccess, error) {
 	return f.fakeApp.Accesses[userID], f.fakeApp.Err
 }
 

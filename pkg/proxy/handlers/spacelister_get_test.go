@@ -31,8 +31,16 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestSpaceListerGet(t *testing.T) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+func TestSpaceListerGetCommonCommunityEnabled(t *testing.T) {
+	testSpaceListerGet(t, true)
+}
+
+func TestSpaceListerGetCommonCommunityDisabled(t *testing.T) {
+	testSpaceListerGet(t, false)
+}
+
+func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t, publicViewerEnabled)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests
@@ -564,6 +572,7 @@ func TestSpaceListerGet(t *testing.T) {
 				if tc.overrideGetMembersFunc != nil {
 					getMembersFunc = tc.overrideGetMembersFunc
 				}
+				ctx.Set(rcontext.PublicViewerEnabled, publicViewerEnabled)
 				err := handlers.HandleSpaceGetRequest(s, getMembersFunc)(ctx)
 
 				// then
@@ -709,6 +718,260 @@ func TestGetUserWorkspace(t *testing.T) {
 
 			// when
 			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
+
+			// then
+			if tc.expectedErr != "" {
+				// error case
+				require.Error(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.expectedWorkspace != nil {
+				require.Equal(t, tc.expectedWorkspace, wrk)
+			} else {
+				require.Nil(t, wrk) // user is not authorized to get this workspace
+			}
+		})
+	}
+}
+
+func TestSpaceListerGetCommunityEnabled(t *testing.T) {
+
+	fakeSignupService := fake.NewSignupService(
+		newSignup("batman", "batman.space", true),
+		newSignup("robin", "robin.space", true),
+	)
+
+	fakeClient := fake.InitClient(t,
+		// space
+		fake.NewSpace("robin", "member-1", "robin"),
+		fake.NewSpace("batman", "member-1", "batman"),
+
+		// spacebindings
+		fake.NewSpaceBinding("robin-1", "robin", "robin", "admin"),
+		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
+
+		fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
+	)
+
+	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
+	batmanWS := workspaceFor(t, fakeClient, "batman", "admin", true)
+
+	tests := map[string]struct {
+		username             string
+		expectedErr          string
+		workspaceRequest     string
+		expectedWorkspace    *toolchainv1alpha1.Workspace
+		overrideInformerFunc func() service.InformerService
+		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+	}{
+		"robin can get robin workspace": {
+			username:          "robin.space",
+			workspaceRequest:  "robin",
+			expectedWorkspace: &robinWS,
+		},
+		"batman can get batman workspace": {
+			username:          "batman.space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: &batmanWS,
+		},
+		"batman can get robin workspace": {
+			username:         "batman.space",
+			workspaceRequest: "robin",
+			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
+				batmansRobinWS := robinWS.DeepCopy()
+				batmansRobinWS.Status.Type = ""
+				batmansRobinWS.Status.Role = "viewer"
+				return batmansRobinWS
+			}(),
+		},
+		"robin can not get batman workspace": {
+			username:          "robin.space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: nil,
+			expectedErr:       "",
+		},
+	}
+
+	for k, tc := range tests {
+
+		t.Run(k, func(t *testing.T) {
+			// given
+			signupProvider := fakeSignupService.GetSignupFromInformer
+			if tc.overrideSignupFunc != nil {
+				signupProvider = tc.overrideSignupFunc
+			}
+			informerFunc := fake.GetInformerService(fakeClient)
+			if tc.overrideInformerFunc != nil {
+				informerFunc = tc.overrideInformerFunc
+			}
+
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			s := &handlers.SpaceLister{
+				GetSignupFunc:          signupProvider,
+				GetInformerServiceFunc: informerFunc,
+				ProxyMetrics:           proxyMetrics,
+			}
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+			ctx.Set(rcontext.UsernameKey, tc.username)
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+			ctx.SetParamNames("workspace")
+			ctx.SetParamValues(tc.workspaceRequest)
+			ctx.Set(rcontext.PublicViewerEnabled, true)
+
+			// when
+			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
+
+			// then
+			if tc.expectedErr != "" {
+				// error case
+				require.Error(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.expectedWorkspace != nil {
+				require.Equal(t, tc.expectedWorkspace, wrk)
+			} else {
+				require.Nil(t, wrk) // user is not authorized to get this workspace
+			}
+		})
+	}
+}
+
+func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
+
+	fakeSignupService := fake.NewSignupService(
+		newSignup("batman", "batman.space", true),
+		newSignup("robin", "robin.space", true),
+	)
+
+	fakeClient := fake.InitClient(t,
+		// NSTemplateTiers
+		fake.NewBase1NSTemplateTier(),
+
+		// space
+		fake.NewSpace("robin", "member-1", "robin"),
+		fake.NewSpace("batman", "member-1", "batman"),
+
+		// spacebindings
+		fake.NewSpaceBinding("robin-1", "robin", "robin", "admin"),
+		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
+
+		fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
+	)
+
+	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true,
+		commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+			{
+				MasterUserRecord: toolchainv1alpha1.KubesawAuthenticatedUsername,
+				Role:             "viewer",
+				AvailableActions: []string{},
+			},
+			{
+				MasterUserRecord: "robin",
+				Role:             "admin",
+				AvailableActions: []string{},
+			},
+		}),
+		commonproxy.WithAvailableRoles([]string{"admin", "viewer"}),
+	)
+
+	batmanWS := workspaceFor(t, fakeClient, "batman", "admin", true,
+		commonproxy.WithBindings([]toolchainv1alpha1.Binding{
+			{
+				MasterUserRecord: "batman",
+				Role:             "admin",
+				AvailableActions: []string{},
+			},
+		}),
+		commonproxy.WithAvailableRoles([]string{"admin", "viewer"}),
+	)
+
+	tests := map[string]struct {
+		username             string
+		expectedErr          string
+		workspaceRequest     string
+		expectedWorkspace    *toolchainv1alpha1.Workspace
+		overrideInformerFunc func() service.InformerService
+		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+	}{
+		"robin can get robin workspace": {
+			username:          "robin.space",
+			workspaceRequest:  "robin",
+			expectedWorkspace: &robinWS,
+		},
+		"batman can get batman workspace": {
+			username:          "batman.space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: &batmanWS,
+		},
+		"batman can get robin workspace": {
+			username:         "batman.space",
+			workspaceRequest: "robin",
+			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
+				batmansRobinWS := robinWS.DeepCopy()
+				batmansRobinWS.Status.Type = ""
+				batmansRobinWS.Status.Role = "viewer"
+				return batmansRobinWS
+			}(),
+		},
+		"robin can not get batman workspace": {
+			username:          "robin.space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: nil,
+			expectedErr:       "",
+		},
+	}
+
+	for k, tc := range tests {
+
+		t.Run(k, func(t *testing.T) {
+			// given
+			signupProvider := fakeSignupService.GetSignupFromInformer
+			if tc.overrideSignupFunc != nil {
+				signupProvider = tc.overrideSignupFunc
+			}
+			informerFunc := fake.GetInformerService(fakeClient)
+			if tc.overrideInformerFunc != nil {
+				informerFunc = tc.overrideInformerFunc
+			}
+
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			s := &handlers.SpaceLister{
+				GetSignupFunc:          signupProvider,
+				GetInformerServiceFunc: informerFunc,
+				ProxyMetrics:           proxyMetrics,
+			}
+
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+			ctx.Set(rcontext.UsernameKey, tc.username)
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+			ctx.SetParamNames("workspace")
+			ctx.SetParamValues(tc.workspaceRequest)
+			ctx.Set(rcontext.PublicViewerEnabled, true)
+
+			getMembersFuncMock := func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				return []*commoncluster.CachedToolchainCluster{
+					{
+						Client: fake.InitClient(t),
+						Config: &commoncluster.Config{
+							Name: "not-me",
+						},
+					},
+				}
+			}
+
+			// when
+			wrk, err := handlers.GetUserWorkspaceWithBindings(ctx, s, tc.workspaceRequest, getMembersFuncMock)
 
 			// then
 			if tc.expectedErr != "" {

@@ -121,6 +121,10 @@ func (r RegistrationServiceConfig) Print() {
 	logger.Info("Registration Service Configuration", "config", r.cfg.Host.RegistrationService)
 }
 
+func (r RegistrationServiceConfig) PublicViewer() commonconfig.PublicViewerConfig {
+	return commonconfig.PublicViewerConfig{Config: r.cfg.Global.PublicViewer}
+}
+
 func (r RegistrationServiceConfig) Environment() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.Environment, prodEnvironment)
 }

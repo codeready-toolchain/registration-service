@@ -30,10 +30,7 @@ import (
 )
 
 const (
-	DNS1123NameMaximumLength         = 63
-	DNS1123NotAllowedCharacters      = "[^-a-z0-9]"
-	DNS1123NotAllowedStartCharacters = "^[^a-z0-9]+"
-	DNS1123NotAllowedEndCharacters   = "[^a-z0-9]+$"
+	DNS1123NameMaximumLength = 63
 
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
@@ -236,20 +233,8 @@ func extractEmailHost(email string) string {
 // resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
 // to the new value
 func EncodeUserIdentifier(subject string) string {
-	// Convert to lower case
-	encoded := strings.ToLower(subject)
-
-	// Remove all invalid characters
-	nameNotAllowedChars := regexp.MustCompile(DNS1123NotAllowedCharacters)
-	encoded = nameNotAllowedChars.ReplaceAllString(encoded, "")
-
-	// Remove invalid start characters
-	nameNotAllowedStartChars := regexp.MustCompile(DNS1123NotAllowedStartCharacters)
-	encoded = nameNotAllowedStartChars.ReplaceAllString(encoded, "")
-
-	// Remove invalid end characters
-	nameNotAllowedEndChars := regexp.MustCompile(DNS1123NotAllowedEndCharacters)
-	encoded = nameNotAllowedEndChars.ReplaceAllString(encoded, "")
+	// Sanitize subject to be compliant with DNS labels format (RFC-1123)
+	encoded := sanitizeDNS1123(subject)
 
 	// Add a checksum prefix if the encoded value is different to the original subject value
 	if encoded != subject {
@@ -262,6 +247,27 @@ func EncodeUserIdentifier(subject string) string {
 	}
 
 	return encoded
+}
+
+func sanitizeDNS1123(str string) string {
+	// convert to lowercase
+	lstr := strings.ToLower(str)
+
+	// remove unwanted characters
+	b := strings.Builder{}
+	for _, r := range lstr {
+		switch {
+		case r >= '0' && r <= '9':
+			fallthrough
+		case r >= 'a' && r <= 'z':
+			fallthrough
+		case r == '-':
+			b.WriteRune(r)
+		}
+	}
+
+	// remove leading and trailing '-'
+	return strings.Trim(b.String(), "-")
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID

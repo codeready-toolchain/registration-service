@@ -230,6 +230,12 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
+var (
+	nameNotAllowedChars      = regexp.MustCompile(DNS1123NotAllowedCharacters)
+	nameNotAllowedStartChars = regexp.MustCompile(DNS1123NotAllowedStartCharacters)
+	nameNotAllowedEndChars   = regexp.MustCompile(DNS1123NotAllowedEndCharacters)
+)
+
 // EncodeUserIdentifier transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
 // by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
 // ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
@@ -240,15 +246,12 @@ func EncodeUserIdentifier(subject string) string {
 	encoded := strings.ToLower(subject)
 
 	// Remove all invalid characters
-	nameNotAllowedChars := regexp.MustCompile(DNS1123NotAllowedCharacters)
 	encoded = nameNotAllowedChars.ReplaceAllString(encoded, "")
 
 	// Remove invalid start characters
-	nameNotAllowedStartChars := regexp.MustCompile(DNS1123NotAllowedStartCharacters)
 	encoded = nameNotAllowedStartChars.ReplaceAllString(encoded, "")
 
 	// Remove invalid end characters
-	nameNotAllowedEndChars := regexp.MustCompile(DNS1123NotAllowedEndCharacters)
 	encoded = nameNotAllowedEndChars.ReplaceAllString(encoded, "")
 
 	// Add a checksum prefix if the encoded value is different to the original subject value

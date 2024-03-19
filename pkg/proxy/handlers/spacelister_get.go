@@ -46,14 +46,25 @@ func HandleSpaceGetRequest(spaceLister *SpaceLister, GetMembersFunc cluster.GetM
 
 // GetUserWorkspace returns a workspace object with the required fields used by the proxy
 func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
-	userSignup, space, err := getUserSignupAndSpace(ctx, spaceLister, workspaceName)
+	userSignup, err := spaceLister.GetProvisionedUserSignup(ctx)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "provisioned user signup error"))
 		return nil, err
 	}
-	// signup is not ready
-	if userSignup == nil || space == nil {
+
+	if userSignup == nil {
 		return nil, nil
+	}
+
+	return GetUserWorkspaceForSignup(ctx, spaceLister, userSignup, workspaceName)
+}
+
+// GetUserWorkspace returns a workspace object with the required fields used by the proxy
+func GetUserWorkspaceForSignup(ctx echo.Context, spaceLister *SpaceLister, userSignup *signup.Signup, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
+	space, err := spaceLister.GetInformerServiceFunc().GetSpace(workspaceName)
+	if err != nil {
+		ctx.Logger().Error(errs.Wrap(err, "unable to get space"))
+		return nil, err
 	}
 
 	// recursively get all the spacebindings for the current workspace

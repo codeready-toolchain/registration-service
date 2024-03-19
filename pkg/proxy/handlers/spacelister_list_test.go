@@ -78,7 +78,7 @@ func TestSpaceListerList(t *testing.T) {
 				expectedErrCode: 500,
 				overrideInformerFunc: func() service.InformerService {
 					inf := fake.NewFakeInformer()
-					inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+					inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 						return nil, fmt.Errorf("list spacebindings error")
 					}
 					return inf
@@ -89,7 +89,7 @@ func TestSpaceListerList(t *testing.T) {
 				expectedWs:      []toolchainv1alpha1.Workspace{},
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
-				overrideSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+				overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
 			},

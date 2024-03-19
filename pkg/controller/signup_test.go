@@ -137,7 +137,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+		svc.MockSignup = func(_ *gin.Context) (*crtapi.UserSignup, error) {
 			return nil, errors.New("blah")
 		}
 
@@ -153,7 +153,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
+		svc.MockSignup = func(_ *gin.Context) (*crtapi.UserSignup, error) {
 			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
 		}
 
@@ -202,7 +202,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, id, _ string) (*signup.Signup, error) {
 			if id == userID {
 				return expected, nil
 			}
@@ -229,7 +229,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _, _ string) (*signup.Signup, error) {
 			return nil, nil
 		}
 
@@ -246,7 +246,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(ctx *gin.Context, id, username string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _, _ string) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")
 		}
 
@@ -341,7 +341,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
-		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.InDelta(s.T(), float64(400), bodyParams["code"], 0.01)
 		require.Equal(s.T(), "strconv.Atoi: parsing \"(1)\": invalid syntax", bodyParams["message"])
 		require.Equal(s.T(), "invalid country_code", bodyParams["details"])
 	})
@@ -358,7 +358,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		messageLines := strings.Split(bodyParams["message"].(string), "\n")
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
-		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.InDelta(s.T(), float64(400), bodyParams["code"], 0.01)
 		require.Contains(s.T(), messageLines, "Key: 'Phone.CountryCode' Error:Field validation for 'CountryCode' failed on the 'required' tag")
 		require.Contains(s.T(), messageLines, "Key: 'Phone.PhoneNumber' Error:Field validation for 'PhoneNumber' failed on the 'required' tag")
 		require.Equal(s.T(), "error reading request body", bodyParams["details"])
@@ -413,7 +413,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
-		require.Equal(s.T(), float64(400), bodyParams["code"])
+		require.InDelta(s.T(), float64(400), bodyParams["code"], 0.01)
 		require.Equal(s.T(), "forbidden request: verification code will not be sent", bodyParams["message"])
 		require.Equal(s.T(), "forbidden request", bodyParams["details"])
 	})
@@ -426,7 +426,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// Create a mock SignupService
 		svc := &FakeSignupService{
-			MockGetUserSignupFromIdentifier: func(userID, username string) (userSignup *crtapi.UserSignup, e error) {
+			MockGetUserSignupFromIdentifier: func(_, _ string) (userSignup *crtapi.UserSignup, e error) {
 				us := crtapi.UserSignup{
 					TypeMeta: v1.TypeMeta{},
 					ObjectMeta: v1.ObjectMeta{
@@ -442,7 +442,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
 				return userSignup, nil
 			},
-			MockPhoneNumberAlreadyInUse: func(userID, username, e164phoneNumber string) error {
+			MockPhoneNumberAlreadyInUse: func(_, _, _ string) error {
 				return nil
 			},
 		}
@@ -535,7 +535,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
-		require.Equal(s.T(), float64(500), bodyParams["code"])
+		require.InDelta(s.T(), float64(500), bodyParams["code"], 0.01)
 		require.Equal(s.T(), fmt.Sprintf("no user: error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
@@ -565,7 +565,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
-		require.Equal(s.T(), float64(404), bodyParams["code"])
+		require.InDelta(s.T(), float64(404), bodyParams["code"], 0.01)
 		require.Equal(s.T(), " \"jsmith\" not found: user not found", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
@@ -595,7 +595,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
-		require.Equal(s.T(), float64(500), bodyParams["code"])
+		require.InDelta(s.T(), float64(500), bodyParams["code"], 0.01)
 		require.Equal(s.T(), "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for "+
 			"assistance: error while verifying phone code", bodyParams["message"])
@@ -631,7 +631,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
-		require.Equal(s.T(), float64(429), bodyParams["code"])
+		require.InDelta(s.T(), float64(429), bodyParams["code"], 0.01)
 		require.Equal(s.T(), "too many verification attempts", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})

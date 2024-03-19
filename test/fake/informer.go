@@ -209,12 +209,8 @@ func GetInformerService(fakeClient client.Client, options ...InformerServiceOpti
 			return space, err
 		}
 		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			labelMatch := client.MatchingLabels{}
-			for _, r := range reqs {
-				labelMatch[r.Key()] = r.Values().List()[0]
-			}
 			sbList := &toolchainv1alpha1.SpaceBindingList{}
-			err := fakeClient.List(context.TODO(), sbList, labelMatch)
+			err := fakeClient.List(context.TODO(), sbList, &client.ListOptions{LabelSelector: labels.NewSelector().Add(reqs...)})
 			return sbList.Items, err
 		}
 		inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {

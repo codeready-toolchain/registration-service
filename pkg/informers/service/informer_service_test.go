@@ -231,7 +231,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 
@@ -299,7 +299,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			// then
 			require.NotNil(s.T(), val)
 			require.NoError(s.T(), err)
-			assert.Equal(s.T(), val, expected)
+			assert.Equal(s.T(), expected, val)
 		})
 	})
 

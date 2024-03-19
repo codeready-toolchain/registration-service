@@ -358,7 +358,7 @@ func (s *TestProxySuite) checkWebLogin() {
 		for k, tc := range tests {
 			s.Run(k, func() {
 				client := &http.Client{
-					CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 						return http.ErrUseLastResponse // Do not follow redirects, so we can check the actual response from the proxy
 					}}
 
@@ -392,7 +392,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 		encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
 
 		// Start the member-2 API Server
-		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 			w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -689,7 +689,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										}
 										return nil, fmt.Errorf("proxy plugin not found")
 									}
-									inf.GetNSTemplateTierFunc = func(tier string) (*toolchainv1alpha1.NSTemplateTier, error) {
+									inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
 										return fake.NewBase1NSTemplateTier(), nil
 									}
 									s.Application.MockInformerService(inf)
@@ -765,12 +765,11 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 			Svcs:   s.Application,
 		},
 		func(si *service.ServiceImpl) {
-			si.GetMembersFunc = func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 				return []*commoncluster.CachedToolchainCluster{
 					{
 						Config: &commoncluster.Config{
 							Name:        "member-1",
-							Type:        commoncluster.Member,
 							APIEndpoint: "https://api.endpoint.member-1.com:6443",
 							RestConfig:  &rest.Config{},
 						},
@@ -779,7 +778,6 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 						Config: &commoncluster.Config{
 							Name:              "member-2",
 							APIEndpoint:       serverURL,
-							Type:              commoncluster.Member,
 							OperatorNamespace: "member-operator",
 							RestConfig: &rest.Config{
 								BearerToken: "clusterSAToken",
@@ -936,13 +934,13 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			}
 			proxy, workspace, err := getWorkspaceContext(req)
 			if tc.expectedErr == "" {
-				require.NoError(s.T(), err, fmt.Sprintf("failed for tc %s", k))
+				require.NoError(t, err, fmt.Sprintf("failed for tc %s", k))
 			} else {
-				require.EqualError(s.T(), err, tc.expectedErr, fmt.Sprintf("failed for tc %s", k))
+				require.EqualError(t, err, tc.expectedErr, fmt.Sprintf("failed for tc %s", k))
 			}
-			assert.Equal(s.T(), tc.expectedWorkspace, workspace, fmt.Sprintf("failed for tc %s", k))
-			assert.Equal(s.T(), tc.expectedPath, req.URL.Path, fmt.Sprintf("failed for tc %s", k))
-			assert.Equal(s.T(), tc.expectedPlugin, proxy, fmt.Sprintf("failed for tc %s", k))
+			assert.Equal(t, tc.expectedWorkspace, workspace, fmt.Sprintf("failed for tc %s", k))
+			assert.Equal(t, tc.expectedPath, req.URL.Path, fmt.Sprintf("failed for tc %s", k))
+			assert.Equal(t, tc.expectedPlugin, proxy, fmt.Sprintf("failed for tc %s", k))
 		})
 	}
 }
@@ -1048,9 +1046,9 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 		s.T().Run(k, func(t *testing.T) {
 			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces)
 			if tc.expectedErr == "" {
-				require.NoError(s.T(), err)
+				require.NoError(t, err)
 			} else {
-				require.EqualError(s.T(), err, tc.expectedErr)
+				require.EqualError(t, err, tc.expectedErr)
 			}
 		})
 	}
@@ -1058,7 +1056,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 
 func (s *TestProxySuite) TestGetTransport() {
 
-	s.T().Run("when not prod", func(t *testing.T) {
+	s.T().Run("when not prod", func(_ *testing.T) {
 		for _, envName := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev} {
 			s.T().Run("env "+string(envName), func(t *testing.T) {
 				// given
@@ -1081,7 +1079,7 @@ func (s *TestProxySuite) TestGetTransport() {
 		}
 	})
 
-	s.T().Run("for prod", func(t *testing.T) {
+	s.T().Run("for prod", func(_ *testing.T) {
 		// given
 		env := s.DefaultConfig().Environment()
 		defer s.SetConfig(testconfig.RegistrationService().

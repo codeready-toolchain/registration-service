@@ -97,7 +97,7 @@ func GetUserWorkspaceForSignup(ctx echo.Context, spaceLister *SpaceLister, userS
 		return nil, userBindingsErr
 	}
 
-	return createWorkspaceObject(userSignup.Name, space, &userSpaceBindings[0]), nil
+	return createWorkspaceObject(&userSignup.Name, space, &userSpaceBindings[0]), nil
 }
 
 // GetUserWorkspaceWithBindings returns a workspace object with the required fields+bindings (the list with all the users access details)
@@ -165,7 +165,7 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 		return nil, err
 	}
 
-	return createWorkspaceObject(userSignup.Name, space, userBinding,
+	return createWorkspaceObject(&userSignup.Name, space, userBinding,
 		commonproxy.WithAvailableRoles(getRolesFromNSTemplateTier(nsTemplateTier)),
 		commonproxy.WithBindings(bindings),
 	), nil

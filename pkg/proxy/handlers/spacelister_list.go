@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -41,35 +40,32 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister, publicViewer
 	if err != nil {
 		return nil, err
 	}
-	murName := func() string {
-		// signup is not ready
-		if signup == nil {
-			return publicViewerConfig.Username()
-		}
-		return signup.CompliantUsername
-	}()
 
+	// signup is not ready
+	var murName *string
+	if signup != nil {
+		murName = &signup.CompliantUsername
+	}
+
+	murNames := func() []string {
+		names := []string{}
+		if publicViewerConfig.Enabled() {
+			names = append(names, publicViewerConfig.Username())
+		}
+
+		if murName != nil {
+			names = append(names, *murName)
+		}
+		return names
+	}()
+	if len(murNames) == 0 {
+		return nil, nil
+	}
 	// get all spacebindings with given mur since no workspace was provided
-	spaceBindings, err := listSpaceBindingsForUser(spaceLister, murName)
+	spaceBindings, err := listSpaceBindingsForUsers(spaceLister, murNames)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
 		return nil, err
-	}
-
-	if publicViewerConfig.Enabled() {
-		sbs, err := listSpaceBindingsForUser(spaceLister, publicViewerConfig.Username())
-		if err != nil {
-			ctx.Logger().Error(errs.Wrap(err, "error listing space bindings"))
-			return nil, err
-		}
-
-		for _, sb := range sbs {
-			if !slices.ContainsFunc(spaceBindings, func(lsb toolchainv1alpha1.SpaceBinding) bool {
-				return sb.Name == lsb.Name
-			}) {
-				spaceBindings = append(spaceBindings, sb)
-			}
-		}
 	}
 
 	return workspacesFromSpaceBindings(ctx, spaceLister, murName, spaceBindings), nil
@@ -89,15 +85,15 @@ func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Work
 	return json.NewEncoder(ctx.Response().Writer).Encode(workspaceList)
 }
 
-func listSpaceBindingsForUser(spaceLister *SpaceLister, murName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.In, []string{murName})
+func listSpaceBindingsForUsers(spaceLister *SpaceLister, murNames []string) ([]toolchainv1alpha1.SpaceBinding, error) {
+	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.In, murNames)
 	if err != nil {
 		return nil, err
 	}
 	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*murSelector)
 }
 
-func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
+func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName *string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
 	workspaces := []toolchainv1alpha1.Workspace{}
 	for i := range spaceBindings {
 		spacebinding := &spaceBindings[i]

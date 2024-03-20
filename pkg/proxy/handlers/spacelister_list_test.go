@@ -45,9 +45,9 @@ func TestSpaceListerListCommunity(t *testing.T) {
 		"dancelover lists spaces": {
 			username: "dance.lover",
 			expectedWs: []toolchainv1alpha1.Workspace{
+				workspaceFor(t, fakeClient, "communityspace", "viewer", false),
 				workspaceFor(t, fakeClient, "dancelover", "admin", true),
 				workspaceFor(t, fakeClient, "movielover", "other", false),
-				workspaceFor(t, fakeClient, "communityspace", "viewer", false),
 			},
 			expectedErr: "",
 		},

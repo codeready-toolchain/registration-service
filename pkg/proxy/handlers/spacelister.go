@@ -56,7 +56,7 @@ func (s *SpaceLister) GetProvisionedUserSignup(ctx echo.Context) (*signup.Signup
 	return userSignup, nil
 }
 
-func createWorkspaceObject(signupName string, space *toolchainv1alpha1.Space, spaceBinding *toolchainv1alpha1.SpaceBinding, wsAdditionalOptions ...commonproxy.WorkspaceOption) *toolchainv1alpha1.Workspace {
+func createWorkspaceObject(signupName *string, space *toolchainv1alpha1.Space, spaceBinding *toolchainv1alpha1.SpaceBinding, wsAdditionalOptions ...commonproxy.WorkspaceOption) *toolchainv1alpha1.Workspace {
 	// TODO right now we get SpaceCreatorLabelKey but should get owner from Space once it's implemented
 	ownerName := space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey]
 
@@ -68,7 +68,7 @@ func createWorkspaceObject(signupName string, space *toolchainv1alpha1.Space, sp
 	}
 	// set the workspace type to "home" to indicate it is the user's home space
 	// TODO set home type based on UserSignup.Status.HomeSpace once it's implemented
-	if ownerName == signupName {
+	if signupName != nil && ownerName == *signupName {
 		wsOptions = append(wsOptions, commonproxy.WithType("home"))
 	}
 	wsOptions = append(wsOptions, wsAdditionalOptions...)

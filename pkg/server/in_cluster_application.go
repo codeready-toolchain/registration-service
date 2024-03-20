@@ -7,6 +7,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"k8s.io/client-go/rest"
 )
 
@@ -14,7 +15,7 @@ import (
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication(informer informers.Informer) (application.Application, error) {
+func NewInClusterApplication(informer informers.Informer, config commonconfig.PublicViewerConfig) (application.Application, error) {
 	k8sConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -29,7 +30,9 @@ func NewInClusterApplication(informer informers.Informer) (application.Applicati
 		serviceFactory: factory.NewServiceFactory(
 			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient),
 				factory.InformerOption(informer),
-			)),
+			),
+			factory.WithPublicViewerConfig(config),
+		),
 	}, nil
 }
 

@@ -276,12 +276,6 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	}
 
 	ctx.Set(context.WorkspaceKey, workspaceName) // set workspace context for logging
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
-	if err != nil {
-		return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
-	}
-
-	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
 
 	// access to user's home workspace
 	if workspaceName == "" {
@@ -296,43 +290,60 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 			return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 		}
 
+		cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
+		if err != nil {
+			return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		}
+
 		return proxyPluginName, cluster, workspaceName, false, nil
 	}
 
 	// when a workspace name was provided
 	// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
-
-	// workspace was found means we can forward the request
 	requestedNamespace := namespaceFromCtx(ctx)
 	workspaces, isPublicViewer, err := p.processDirectWorkspaceAccessRequest(ctx, workspaceName)
 	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
 		return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
+
+	cluster, err := func() (*access.ClusterAccess, error) {
+		if isPublicViewer {
+			return p.app.MemberClusterService().GetClusterAccess(
+				p.publicViewerConfig.Username(), p.publicViewerConfig.Username(), workspaceName, proxyPluginName)
+		}
+
+		return p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
+	}()
+	if err != nil {
+		return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+	}
+
 	return proxyPluginName, cluster, workspaceName, isPublicViewer, nil
 }
 
 func (p *Proxy) processDirectWorkspaceAccessRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, bool, *crterrors.Error) {
+	// collect information for logging
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
-	workspaces, crterr := p.processUserRequest(ctx, workspaceName)
-	switch {
-	case crterr == nil:
-		// user has direct access to workspace: use user identity
-		ctx.Logger().Debugf("user %s/%s has direct access to workspace %s", userID, username, workspaceName)
-		return workspaces, false, nil
-	case crterr.Code == http.StatusForbidden && p.publicViewerConfig.Enabled():
-		// user has no direct access, but workspace is community: use public-viewer
+
+	// check user has access to workspace
+	workspace, crterr := p.processUserRequest(ctx, workspaceName)
+	// user has direct access to workspace: use user identity
+	if crterr != nil {
 		ctx.Logger().Debugf("user %s/%s doesn't have direct access to workspace %s", userID, username, workspaceName)
-		workspaces, err := p.processPublicViewerRequest(ctx, workspaceName)
-		if err != nil {
-			return nil, false, crterr
+		// if community is enabled, try using public-viewer user
+		if p.publicViewerConfig.Enabled() {
+			workspaces, err := p.processPublicViewerRequest(ctx, workspaceName)
+			if err == nil {
+				ctx.Logger().Debugf("user %s/%s has no direct access to workspace %s, but it's visible to community: using community user", userID, username, workspaceName)
+				return workspaces, true, nil
+			}
 		}
-		return workspaces, true, nil
-	default:
-		// user has no direct access, neither the workspace is community
-		ctx.Logger().Debugf("user %s/%s doesn't have direct access to workspace private %s", userID, username, workspaceName)
 		return nil, false, crterr
 	}
+
+	ctx.Logger().Debugf("user %s/%s has direct access to workspace %s", userID, username, workspaceName)
+	return []toolchainv1alpha1.Workspace{*workspace}, false, nil
 }
 
 func (p *Proxy) processPublicViewerRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, *crterrors.Error) {
@@ -352,7 +363,7 @@ func (p *Proxy) processPublicViewerRequest(ctx echo.Context, workspaceName strin
 	return []toolchainv1alpha1.Workspace{*workspace}, nil
 }
 
-func (p *Proxy) processUserRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, *crterrors.Error) {
+func (p *Proxy) processUserRequest(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, *crterrors.Error) {
 	workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
@@ -362,7 +373,7 @@ func (p *Proxy) processUserRequest(ctx echo.Context, workspaceName string) ([]to
 		return nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspaceName))
 	}
 
-	return []toolchainv1alpha1.Workspace{*workspace}, nil
+	return workspace, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
@@ -545,6 +556,7 @@ func (p *Proxy) buildImpersonatingDirector(ctx echo.Context, target *access.Clus
 		return target.Username()
 	}()
 
+	ctx.Set("Impersonate-User", impersonateUser) // set impersonate-user context for logging
 	ctx.Logger().Infof("building reverse proxy impersonating %s", impersonateUser)
 
 	return func(req *http.Request) {
@@ -571,6 +583,8 @@ func (p *Proxy) buildImpersonatingDirector(ctx echo.Context, target *access.Clus
 		}
 
 		if isPublicViewer {
+			// set SSO-User context for logging
+			ctx.Set("SSO-User", target.Username())
 			req.Header.Set("SSO-User", target.Username())
 		}
 

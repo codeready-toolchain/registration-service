@@ -92,7 +92,8 @@ func main() {
 		panic(err.Error())
 	}
 
-	app, err := server.NewInClusterApplication(*informer)
+	pvcfg := crtConfig.PublicViewer()
+	app, err := server.NewInClusterApplication(*informer, pvcfg)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -114,7 +115,6 @@ func main() {
 	metricsSrv := proxyMetrics.StartMetricsServer()
 
 	// Start the proxy server
-	pvcfg := crtConfig.PublicViewer()
 	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters, &pvcfg)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))

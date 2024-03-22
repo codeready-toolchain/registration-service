@@ -139,10 +139,10 @@ github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCv
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJCLunww=
 github.com/evanphx/json-patch/v5 v5.6.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2VvlbKOFpnXhI9Bw4=
-github.com/filariow/toolchain-api v0.0.0-20240318114050-43313b449285 h1:rwbjw9Sx2i/KTXAsS7+SmoeSCM+qYmwbdK/0I+RADMo=
-github.com/filariow/toolchain-api v0.0.0-20240318114050-43313b449285/go.mod h1:cfNN6YPX4TORvhhZXMSjSPesqAHlB3nD/WAfGe4WLKQ=
-github.com/filariow/toolchain-common v0.0.0-20240318122124-5b365181bd76 h1:vEzqg+pqEUXBpo0IIYVScHJETZfNp483lsnM+acweIQ=
-github.com/filariow/toolchain-common v0.0.0-20240318122124-5b365181bd76/go.mod h1:p6LHpV0Cq/Ope2WyDY2qeLqFmm19yfbArwUV9XpaRE4=
+github.com/filariow/toolchain-api v0.0.0-20240322104820-8a9034b5d047 h1:RYjaty4k8pSHB9YORl5r5Yd3De6sPv1gpH8wm2pcy5w=
+github.com/filariow/toolchain-api v0.0.0-20240322104820-8a9034b5d047/go.mod h1:cfNN6YPX4TORvhhZXMSjSPesqAHlB3nD/WAfGe4WLKQ=
+github.com/filariow/toolchain-common v0.0.0-20240322111241-6d0b188b7a5d h1:k+bpJltkdNWTCAwX9bix2SXS0wTjNJcpN2E+lWx8b4c=
+github.com/filariow/toolchain-common v0.0.0-20240322111241-6d0b188b7a5d/go.mod h1:p6LHpV0Cq/Ope2WyDY2qeLqFmm19yfbArwUV9XpaRE4=
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
 github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=

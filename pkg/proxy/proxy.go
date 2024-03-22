@@ -285,14 +285,14 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 			return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}
 
-		requestedNamespace := namespaceFromCtx(ctx)
-		if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
-			return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
-		}
-
 		cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
 		if err != nil {
 			return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		}
+
+		requestedNamespace := namespaceFromCtx(ctx)
+		if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
+			return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 		}
 
 		return proxyPluginName, cluster, workspaceName, false, nil
@@ -549,13 +549,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 func (p *Proxy) buildImpersonatingDirector(ctx echo.Context, target *access.ClusterAccess, isPlugin bool, isPublicViewer bool) func(*http.Request) {
 	targetQuery := target.APIURL().RawQuery
 
-	impersonateUser := func() string {
-		if p.publicViewerConfig.Enabled() && isPublicViewer {
-			return p.publicViewerConfig.Username()
-		}
-		return target.Username()
-	}()
-
+	impersonateUser := target.Username()
 	ctx.Set("Impersonate-User", impersonateUser) // set impersonate-user context for logging
 	ctx.Logger().Infof("building reverse proxy impersonating %s", impersonateUser)
 
@@ -584,8 +578,8 @@ func (p *Proxy) buildImpersonatingDirector(ctx echo.Context, target *access.Clus
 
 		if isPublicViewer {
 			// set SSO-User context for logging
-			ctx.Set("SSO-User", target.Username())
-			req.Header.Set("SSO-User", target.Username())
+			username, _ := ctx.Get(context.UsernameKey).(string)
+			req.Header.Set("SSO-User", username)
 		}
 
 		// Replace token

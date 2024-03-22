@@ -64,12 +64,12 @@ func (s *TestProxySuite) TestProxyCommunity() {
 			})
 
 			// run community tests
-			s.checkProxyCommunityOK(fakeApp, p, port, cfg.Username())
+			s.checkProxyCommunityOK(fakeApp, p, port, &cfg)
 		})
 	}
 }
 
-func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Proxy, port, publicViewer string) {
+func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Proxy, port string, publicViewerConfig *commonconfig.PublicViewerConfig) {
 	s.Run("successfully proxy", func() {
 		owner, err := uuid.NewV4()
 		require.NoError(s.T(), err)
@@ -111,8 +111,8 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(communityUser)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
-					"Impersonate-User": {publicViewer},
-					"SSO-User":         {"communityuser"},
+					"Impersonate-User": {publicViewerConfig.Username()},
+					"SSO-User":         {"username-" + communityUser.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
@@ -135,7 +135,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 						require.Len(s.T(), r.Header.Values(hk), len(hv))
 						for i := range hv {
-							assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+							assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i], "header %s", hk)
 						}
 					}
 				})
@@ -194,7 +194,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					return fake.NewBase1NSTemplateTier(), nil
 				}
 				s.Application.MockInformerService(inf)
-				fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+				fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL, publicViewerConfig)
 				fakeApp.InformerServiceMock = inf
 
 				p.spaceLister = &handlers.SpaceLister{

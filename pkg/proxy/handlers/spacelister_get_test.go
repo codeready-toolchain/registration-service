@@ -18,6 +18,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
@@ -32,7 +33,8 @@ import (
 )
 
 func TestSpaceListerGet(t *testing.T) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+	cfg := &configuration.PublicViewerConfig{Config: toolchainv1alpha1.PublicViewerConfig{Enabled: false}}
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t, cfg)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests
@@ -564,7 +566,7 @@ func TestSpaceListerGet(t *testing.T) {
 				if tc.overrideGetMembersFunc != nil {
 					getMembersFunc = tc.overrideGetMembersFunc
 				}
-				err := handlers.HandleSpaceGetRequest(s, getMembersFunc)(ctx)
+				err := handlers.HandleSpaceGetRequest(s, getMembersFunc, cfg)(ctx)
 
 				// then
 				if tc.expectedErr != "" {

@@ -31,6 +31,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -66,62 +67,27 @@ func (s *TestProxySuite) TestProxy() {
 	_, err := auth.InitializeDefaultTokenParser()
 	require.NoError(s.T(), err)
 
+	cfg := commonconfig.PublicViewerConfig{
+		Config: toolchainv1alpha1.PublicViewerConfig{
+			Enabled: false,
+		},
+	}
 	for _, environment := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev, testconfig.Prod} {
 		s.Run("for environment "+string(environment), func() {
 
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 			fakeApp := &fake.ProxyFakeApp{}
-			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
-			require.NoError(s.T(), err)
-
-			server := p.StartProxy(DefaultPort)
-			require.NotNil(s.T(), server)
+			p, server := s.spinUpProxy(fakeApp, cfg, DefaultPort)
 			defer func() {
 				_ = server.Close()
 			}()
 
-			// Wait up to N seconds for the Proxy server to start
-			ready := false
-			sec := 10
-			for i := 0; i < sec; i++ {
-				log.Println("Checking if Proxy is started...")
-				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					time.Sleep(time.Second)
-					continue
-				}
-				_, _ = io.Copy(io.Discard, resp.Body)
-				_ = resp.Body.Close()
-				if resp.StatusCode != http.StatusUnauthorized {
-					// The server may be running but still not fully ready to accept requests
-					time.Sleep(time.Second)
-					continue
-				}
-				// Server is up and running!
-				ready = true
-				break
-			}
-			require.True(s.T(), ready, "Proxy is not ready after %d seconds", sec)
-
+			s.Run("is alive", func() {
+				s.waitForProxyToBeAlive(DefaultPort)
+			})
 			s.Run("health check ok", func() {
-				req, err := http.NewRequest("GET", "http://localhost:8081/proxyhealth", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-
-				// when
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				defer resp.Body.Close()
-				assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
-				s.assertResponseBody(resp, `{"alive": true}`)
+				s.checkProxyIsHealthy(DefaultPort)
 			})
 
 			s.checkPlainHTTPErrors(fakeApp)
@@ -130,6 +96,62 @@ func (s *TestProxySuite) TestProxy() {
 			s.checkProxyOK(fakeApp, p)
 		})
 	}
+}
+
+func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, cfg commonconfig.PublicViewerConfig, port string) (*Proxy, *http.Server) {
+	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+	p, err := newProxyWithClusterClient(
+		fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())), &cfg)
+	require.NoError(s.T(), err)
+
+	server := p.StartProxy(port)
+	require.NotNil(s.T(), server)
+
+	return p, server
+}
+
+func (s *TestProxySuite) waitForProxyToBeAlive(port string) {
+	// Wait up to N seconds for the Proxy server to start
+	ready := false
+	sec := 10
+	for i := 0; i < sec; i++ {
+		log.Println("Checking if Proxy is started...")
+		req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%s/api/mycoolworkspace/pods", port), nil)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), req)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			// The server may be running but still not fully ready to accept requests
+			time.Sleep(time.Second)
+			continue
+		}
+		// Server is up and running!
+		ready = true
+		break
+	}
+	require.True(s.T(), ready, "Proxy is not ready after %d seconds", sec)
+}
+
+func (s *TestProxySuite) checkProxyIsHealthy(port string) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%s/proxyhealth", port), nil)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), req)
+
+	// when
+	resp, err := http.DefaultClient.Do(req)
+
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), resp)
+	defer resp.Body.Close()
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+	s.assertResponseBody(resp, `{"alive": true}`)
 }
 
 func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
@@ -667,6 +689,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 											if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
 												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin")}
 											}
+											if p.publicViewerConfig.Enabled() && req.Values().List()[0] == p.publicViewerConfig.Username() {
+												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("communityspace-publicviewer", "publicviewer", "communityspace", "viewer")}
+											}
 										}
 										return spaceBindings, nil
 									}
@@ -693,7 +718,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										return fake.NewBase1NSTemplateTier(), nil
 									}
 									s.Application.MockInformerService(inf)
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL, &commonconfig.PublicViewerConfig{})
 
 									p.spaceLister = &handlers.SpaceLister{
 										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
@@ -735,7 +760,7 @@ type headerToAdd struct {
 	key, value string
 }
 
-func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {
+func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string, publicViewerConfig *commonconfig.PublicViewerConfig) appservice.MemberClusterService {
 	fakeClient := commontest.NewFakeClient(s.T())
 	serverHost := serverURL
 	switch {
@@ -765,6 +790,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 			Svcs:   s.Application,
 		},
 		func(si *service.ServiceImpl) {
+			si.PublicViewerConfig = *publicViewerConfig
 			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 				return []*commoncluster.CachedToolchainCluster{
 					{

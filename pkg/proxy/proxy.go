@@ -26,7 +26,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
@@ -63,23 +65,24 @@ func authorizationEndpointTarget() string {
 }
 
 type Proxy struct {
-	app            application.Application
-	cl             client.Client
-	tokenParser    *auth.TokenParser
-	spaceLister    *handlers.SpaceLister
-	metrics        *metrics.ProxyMetrics
-	getMembersFunc commoncluster.GetMemberClustersFunc
+	app                application.Application
+	cl                 client.Client
+	tokenParser        *auth.TokenParser
+	spaceLister        *handlers.SpaceLister
+	metrics            *metrics.ProxyMetrics
+	getMembersFunc     commoncluster.GetMemberClustersFunc
+	publicViewerConfig *commonconfig.PublicViewerConfig
 }
 
-func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc, publicViewerConfig *commonconfig.PublicViewerConfig) (*Proxy, error) {
 	cl, err := newClusterClient()
 	if err != nil {
 		return nil, err
 	}
-	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc)
+	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc, publicViewerConfig)
 }
 
-func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc, publicViewerConfig *commonconfig.PublicViewerConfig) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -88,12 +91,13 @@ func newProxyWithClusterClient(app application.Application, cln client.Client, p
 	// init handlers
 	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
 	return &Proxy{
-		app:            app,
-		cl:             cln,
-		tokenParser:    tokenParser,
-		spaceLister:    spaceLister,
-		metrics:        proxyMetrics,
-		getMembersFunc: getMembersFunc,
+		app:                app,
+		cl:                 cln,
+		tokenParser:        tokenParser,
+		spaceLister:        spaceLister,
+		metrics:            proxyMetrics,
+		getMembersFunc:     getMembersFunc,
+		publicViewerConfig: publicViewerConfig,
 	}, nil
 }
 
@@ -139,8 +143,8 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	// routes
 	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
 	// Space lister routes
-	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc))
-	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
+	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc, p.publicViewerConfig))
+	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister, p.publicViewerConfig))
 	router.GET(proxyHealthEndpoint, p.health)
 	// SSO routes. Used by web login (oc login -w).
 	// Here is the expected flow for the "oc login -w" command:
@@ -263,58 +267,124 @@ func (p *Proxy) health(ctx echo.Context) error {
 	return err
 }
 
-func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, error) {
+func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, bool, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 	proxyPluginName, workspaceName, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		return "", nil, crterrors.NewBadRequest("unable to get workspace context", err.Error())
+		return "", nil, false, crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 
 	ctx.Set(context.WorkspaceKey, workspaceName) // set workspace context for logging
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
-	if err != nil {
-		return "", nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
-	}
 
-	// before proxying the request, verify that the user has a spacebinding for the workspace and that the namespace (if any) belongs to the workspace
-	var workspaces []toolchainv1alpha1.Workspace
-	if workspaceName != "" {
-		// when a workspace name was provided
-		// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
-		workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName)
-		if err != nil {
-			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
-		}
-		if workspace == nil {
-			// not found
-			return "", nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspaceName))
-		}
-		// workspace was found means we can forward the request
-		workspaces = []toolchainv1alpha1.Workspace{*workspace}
-	} else {
+	// access to user's home workspace
+	if workspaceName == "" {
 		// list all workspaces
-		workspaces, err = handlers.ListUserWorkspaces(ctx, p.spaceLister)
+		workspaces, err := handlers.ListUserWorkspaces(ctx, p.spaceLister, p.publicViewerConfig)
 		if err != nil {
-			return "", nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+			return "", nil, false, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}
-	}
-	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
-		return "", nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
+
+		cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
+		if err != nil {
+			return "", nil, false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		}
+
+		requestedNamespace := namespaceFromCtx(ctx)
+		if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
+			return "", nil, false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
+		}
+
+		return proxyPluginName, cluster, false, nil
 	}
 
-	return proxyPluginName, cluster, nil
+	// when a workspace name was provided
+	// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
+	requestedNamespace := namespaceFromCtx(ctx)
+	workspaces, isPublicViewer, err := p.processDirectWorkspaceAccessRequest(ctx, workspaceName)
+	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
+		return "", nil, false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
+	}
+
+	cluster, err := func() (*access.ClusterAccess, error) {
+		if isPublicViewer {
+			return p.app.MemberClusterService().GetClusterAccess(
+				p.publicViewerConfig.Username(), p.publicViewerConfig.Username(), workspaceName, proxyPluginName)
+		}
+
+		return p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
+	}()
+	if err != nil {
+		return "", nil, false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+	}
+
+	return proxyPluginName, cluster, isPublicViewer, nil
+}
+
+func (p *Proxy) processDirectWorkspaceAccessRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, bool, *crterrors.Error) {
+	// collect information for logging
+	userID, _ := ctx.Get(context.SubKey).(string)
+	username, _ := ctx.Get(context.UsernameKey).(string)
+
+	// check user has access to workspace
+	workspace, crterr := p.processUserRequest(ctx, workspaceName)
+	// user has direct access to workspace: use user identity
+	if crterr != nil {
+		ctx.Logger().Debugf("user %s/%s doesn't have direct access to workspace %s", userID, username, workspaceName)
+		// if community is enabled, try using public-viewer user
+		if p.publicViewerConfig.Enabled() {
+			workspaces, err := p.processPublicViewerRequest(ctx, workspaceName)
+			if err == nil {
+				ctx.Logger().Debugf("user %s/%s has no direct access to workspace %s, but it's visible to community: using community user", userID, username, workspaceName)
+				return workspaces, true, nil
+			}
+		}
+		return nil, false, crterr
+	}
+
+	ctx.Logger().Debugf("user %s/%s has direct access to workspace %s", userID, username, workspaceName)
+	return []toolchainv1alpha1.Workspace{*workspace}, false, nil
+}
+
+func (p *Proxy) processPublicViewerRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, *crterrors.Error) {
+	puSignup := &signup.Signup{
+		Name:              p.publicViewerConfig.Username(),
+		CompliantUsername: p.publicViewerConfig.Username(),
+	}
+	workspace, err := handlers.GetUserWorkspaceForSignup(ctx, p.spaceLister, puSignup, workspaceName)
+	if err != nil {
+		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+	}
+	if workspace == nil {
+		// not found
+		return nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspaceName))
+	}
+
+	return []toolchainv1alpha1.Workspace{*workspace}, nil
+}
+
+func (p *Proxy) processUserRequest(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, *crterrors.Error) {
+	workspace, err := handlers.GetUserWorkspace(ctx, p.spaceLister, workspaceName)
+	if err != nil {
+		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+	}
+	if workspace == nil {
+		// not found
+		return nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspaceName))
+	}
+
+	return workspace, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-	proxyPluginName, cluster, err := p.processRequest(ctx)
+	proxyPluginName, cluster, isPublicViewer, err := p.processRequest(ctx)
 	if err != nil {
 		p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
 		return err
 	}
-	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0)
+
+	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0, isPublicViewer)
 	routeTime := time.Since(requestReceivedTime)
 	p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non-blocking and uses a go routine under the hood
@@ -461,10 +531,29 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, isPlugin bool) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, isPlugin bool, isPublicViewer bool) *httputil.ReverseProxy {
+	director := p.buildImpersonatingDirector(ctx, target, isPlugin, isPublicViewer)
+
 	req := ctx.Request()
+	transport := getTransport(req.Header)
+	m := &responseModifier{req.Header.Get("Origin")}
+
+	return &httputil.ReverseProxy{
+		Director:       director,
+		Transport:      transport,
+		FlushInterval:  -1,
+		ModifyResponse: m.addCorsToResponse,
+	}
+}
+
+func (p *Proxy) buildImpersonatingDirector(ctx echo.Context, target *access.ClusterAccess, isPlugin bool, isPublicViewer bool) func(*http.Request) {
 	targetQuery := target.APIURL().RawQuery
-	director := func(req *http.Request) {
+
+	impersonateUser := target.Username()
+	ctx.Set("Impersonate-User", impersonateUser) // set impersonate-user context for logging
+	ctx.Logger().Infof("building reverse proxy impersonating %s", impersonateUser)
+
+	return func(req *http.Request) {
 		origin := req.URL.String()
 		req.URL.Scheme = target.APIURL().Scheme
 		req.URL.Host = target.APIURL().Host
@@ -475,6 +564,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 			// route on the member cluster
 			req.Host = target.APIURL().Host
 		}
+
 		log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
@@ -485,6 +575,13 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 			// explicitly disable User-Agent so it's not set to default value
 			req.Header.Set("User-Agent", "")
 		}
+
+		if isPublicViewer {
+			// set SSO-User context for logging
+			username, _ := ctx.Get(context.UsernameKey).(string)
+			req.Header.Set("SSO-User", username)
+		}
+
 		// Replace token
 		if wsstream.IsWebSocketRequest(req) {
 			replaceTokenInWebsocketRequest(req, target.ImpersonatorToken())
@@ -493,15 +590,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 		}
 
 		// Set impersonation header
-		req.Header.Set("Impersonate-User", target.Username())
-	}
-	transport := getTransport(req.Header)
-	m := &responseModifier{req.Header.Get("Origin")}
-	return &httputil.ReverseProxy{
-		Director:       director,
-		Transport:      transport,
-		FlushInterval:  -1,
-		ModifyResponse: m.addCorsToResponse,
+		req.Header.Set("Impersonate-User", impersonateUser)
 	}
 }
 

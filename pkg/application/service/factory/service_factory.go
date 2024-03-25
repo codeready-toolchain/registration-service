@@ -13,6 +13,7 @@ import (
 	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
+	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 )
 
 type serviceContextImpl struct {
@@ -54,6 +55,7 @@ type ServiceFactory struct {
 	verificationServiceOptions []verificationservice.VerificationServiceOption
 	signupServiceFunc          func(opts ...signupservice.SignupServiceOption) service.SignupService
 	signupServiceOptions       []signupservice.SignupServiceOption
+	publicViewerConfig         commonconfig.PublicViewerConfig
 }
 
 func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceContextProducer {
@@ -69,7 +71,7 @@ func (s *ServiceFactory) InformerService() service.InformerService {
 }
 
 func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
-	return clusterservice.NewMemberClusterService(s.getContext())
+	return clusterservice.NewMemberClusterService(s.getContext(), clusterservice.WithPublicViewerConfig(s.publicViewerConfig))
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
@@ -94,6 +96,12 @@ type Option func(f *ServiceFactory)
 func WithServiceContextOptions(opts ...ServiceContextOption) func(f *ServiceFactory) {
 	return func(f *ServiceFactory) {
 		f.serviceContextOptions = append(f.serviceContextOptions, opts...)
+	}
+}
+
+func WithPublicViewerConfig(config commonconfig.PublicViewerConfig) func(f *ServiceFactory) {
+	return func(f *ServiceFactory) {
+		f.publicViewerConfig = config
 	}
 }
 

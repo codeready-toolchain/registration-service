@@ -187,7 +187,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					log.Printf("returning sbs: %v", sbs.Items)
 					return sbs.Items, nil
 				}
-				inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
+				inf.GetProxyPluginConfigFunc = func(_ string) (*toolchainv1alpha1.ProxyPlugin, error) {
 					return nil, fmt.Errorf("proxy plugin not found")
 				}
 				inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {

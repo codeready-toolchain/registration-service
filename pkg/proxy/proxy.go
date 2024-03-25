@@ -267,12 +267,12 @@ func (p *Proxy) health(ctx echo.Context) error {
 	return err
 }
 
-func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, string, bool, error) {
+func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, bool, error) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 	proxyPluginName, workspaceName, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
-		return "", nil, "", false, crterrors.NewBadRequest("unable to get workspace context", err.Error())
+		return "", nil, false, crterrors.NewBadRequest("unable to get workspace context", err.Error())
 	}
 
 	ctx.Set(context.WorkspaceKey, workspaceName) // set workspace context for logging
@@ -282,20 +282,20 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 		// list all workspaces
 		workspaces, err := handlers.ListUserWorkspaces(ctx, p.spaceLister, p.publicViewerConfig)
 		if err != nil {
-			return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
+			return "", nil, false, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 		}
 
 		cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
 		if err != nil {
-			return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+			return "", nil, false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 		}
 
 		requestedNamespace := namespaceFromCtx(ctx)
 		if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
-			return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
+			return "", nil, false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 		}
 
-		return proxyPluginName, cluster, workspaceName, false, nil
+		return proxyPluginName, cluster, false, nil
 	}
 
 	// when a workspace name was provided
@@ -303,7 +303,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	requestedNamespace := namespaceFromCtx(ctx)
 	workspaces, isPublicViewer, err := p.processDirectWorkspaceAccessRequest(ctx, workspaceName)
 	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
-		return "", nil, "", false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
+		return "", nil, false, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
 	cluster, err := func() (*access.ClusterAccess, error) {
@@ -315,10 +315,10 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 		return p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
 	}()
 	if err != nil {
-		return "", nil, "", false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
+		return "", nil, false, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 
-	return proxyPluginName, cluster, workspaceName, isPublicViewer, nil
+	return proxyPluginName, cluster, isPublicViewer, nil
 }
 
 func (p *Proxy) processDirectWorkspaceAccessRequest(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, bool, *crterrors.Error) {
@@ -378,13 +378,13 @@ func (p *Proxy) processUserRequest(ctx echo.Context, workspaceName string) (*too
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-	proxyPluginName, cluster, workspace, isPublicViewer, err := p.processRequest(ctx)
+	proxyPluginName, cluster, isPublicViewer, err := p.processRequest(ctx)
 	if err != nil {
 		p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())
 		return err
 	}
 
-	reverseProxy := p.newReverseProxy(ctx, cluster, workspace, len(proxyPluginName) > 0, isPublicViewer)
+	reverseProxy := p.newReverseProxy(ctx, cluster, len(proxyPluginName) > 0, isPublicViewer)
 	routeTime := time.Since(requestReceivedTime)
 	p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusAccepted), cluster.APIURL().Host).Observe(routeTime.Seconds())
 	// Note that ServeHttp is non-blocking and uses a go routine under the hood
@@ -531,7 +531,7 @@ func extractUserToken(req *http.Request) (string, error) {
 	return token[1], nil
 }
 
-func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, workspace string, isPlugin bool, isPublicViewer bool) *httputil.ReverseProxy {
+func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, isPlugin bool, isPublicViewer bool) *httputil.ReverseProxy {
 	director := p.buildImpersonatingDirector(ctx, target, isPlugin, isPublicViewer)
 
 	req := ctx.Request()

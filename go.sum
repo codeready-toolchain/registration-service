@@ -117,8 +117,6 @@ github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/codeready-toolchain/api v0.0.0-20240322110702-5ab3840476e9 h1:Lm7bFLrzfJzrUiRGVqtsSaZMpj+akLiR/fvAFjjE9gM=
 github.com/codeready-toolchain/api v0.0.0-20240322110702-5ab3840476e9/go.mod h1:cfNN6YPX4TORvhhZXMSjSPesqAHlB3nD/WAfGe4WLKQ=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20240403070054-183e7d407080 h1:2ZzjVjiEbQmJoLrGfY4A4VH4MEkYj030aZ1gnDUhLgs=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20240403070054-183e7d407080/go.mod h1:OJ3L9aaTRMGjxr2WeH/9l6m5OjExwEK3Bp/+P+efoGg=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -143,6 +141,8 @@ github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCv
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJCLunww=
 github.com/evanphx/json-patch/v5 v5.6.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2VvlbKOFpnXhI9Bw4=
+github.com/fbm3307/toolchain-common v0.0.0-20240417083716-70fbeef8e9da h1:w/hWA2MqlUM6eiGivlSSbVrr3/wCdHEE318FEzUcbL0=
+github.com/fbm3307/toolchain-common v0.0.0-20240417083716-70fbeef8e9da/go.mod h1:Iat3N+zBZcVgm/HWxa/ltSEoelM/YCXQUvbL9C8OSTw=
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
 github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=

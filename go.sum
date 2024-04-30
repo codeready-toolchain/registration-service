@@ -117,6 +117,10 @@ github.com/cncf/xds/go v0.0.0-20211001041855-01bcc9b48dfe/go.mod h1:eXthEFrGJvWH
 github.com/cncf/xds/go v0.0.0-20211011173535-cb28da3451f1/go.mod h1:eXthEFrGJvWHgFFCl3hGmgk+/aYT6PnTQLykKQRLhEs=
 github.com/codeready-toolchain/api v0.0.0-20240425165440-d0a6da0060a5 h1:L6NhQrzGY6vWIBjXYfmJ/Q+k/4Sb+iQYKVjtR6LT2Q4=
 github.com/codeready-toolchain/api v0.0.0-20240425165440-d0a6da0060a5/go.mod h1:ie9p4LenCCS0LsnbWp6/xwpFDdCWYE0KWzUO6Sk1g0E=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240422084400-e6d41ea74313 h1:UuLjLbn8Rh1QX8jyLipAtaZ3o25Ard33B2+DCcmJLsQ=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240422084400-e6d41ea74313/go.mod h1:rfVQhC9ctteNi2vbg300fgD0zgTfk/h3qjW9nsCayFs=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240429224949-78585f71122a h1:6ZqyPuT74RYEUToWCjPNieaEZ69wEx32te+8NafqNis=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20240429224949-78585f71122a/go.mod h1:bluFxwf6L4eWtNlrL3niZaJjFH6UwJnYabls5ay+EQA=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -141,8 +145,6 @@ github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCv
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJCLunww=
 github.com/evanphx/json-patch/v5 v5.6.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2VvlbKOFpnXhI9Bw4=
-github.com/filariow/toolchain-common v0.0.0-20240429150041-62a494311591 h1:wHBR4Amlow7Na+DTHwilOuokQP5mgQKzd8IoD+DT8Bc=
-github.com/filariow/toolchain-common v0.0.0-20240429150041-62a494311591/go.mod h1:bluFxwf6L4eWtNlrL3niZaJjFH6UwJnYabls5ay+EQA=
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
 github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=

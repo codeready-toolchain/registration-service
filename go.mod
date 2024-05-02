@@ -2,9 +2,9 @@ module github.com/codeready-toolchain/registration-service
 
 go 1.20
 
-replace github.com/codeready-toolchain/api => github.com/fbm3307/toolchainapi v0.0.0-20240425095952-cd8e9731b967
+replace github.com/codeready-toolchain/api => github.com/fbm3307/toolchainapi v0.0.0-20240502095518-0d75583a5baf
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240425102648-bac35a1b02f8
+replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240502101719-12e05e25f881
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100

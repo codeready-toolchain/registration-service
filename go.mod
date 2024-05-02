@@ -8,8 +8,8 @@ replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/to
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240424103940-03edc96d88fb
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20240422084400-e6d41ea74313
+	github.com/codeready-toolchain/api v0.0.0-20240425165440-d0a6da0060a5
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20240429224949-78585f71122a
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1

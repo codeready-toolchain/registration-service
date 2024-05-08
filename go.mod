@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240425165440-d0a6da0060a5
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20240429224949-78585f71122a
+	github.com/codeready-toolchain/api v0.0.0-20240507023248-73662d6db2c5
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20240507174147-ed50ce546b3c
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -59,6 +59,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-github/v52 v52.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect

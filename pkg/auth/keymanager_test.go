@@ -16,8 +16,8 @@ import (
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,25 +39,25 @@ func (s *TestKeyManagerSuite) TestKeyFetching() {
 
 	// create test keys
 	tokengenerator := authsupport.NewTokenManager()
-	kid0 := uuid.Must(uuid.NewV4()).String()
+	kid0 := uuid.NewString()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
-	kid1 := uuid.Must(uuid.NewV4()).String()
+	kid1 := uuid.NewString()
 	_, err = tokengenerator.AddPrivateKey(kid1)
 	require.NoError(s.T(), err)
 
 	// create two test tokens, both valid
-	username0 := uuid.Must(uuid.NewV4()).String()
+	username0 := uuid.NewString()
 	identity0 := &authsupport.Identity{
-		ID:       uuid.Must(uuid.NewV4()),
+		ID:       uuid.New(),
 		Username: username0,
 	}
 	email0 := identity0.Username + "@email.tld"
 	jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, authsupport.WithEmailClaim(email0))
 	require.NoError(s.T(), err)
-	username1 := uuid.Must(uuid.NewV4()).String()
+	username1 := uuid.NewString()
 	identity1 := &authsupport.Identity{
-		ID:       uuid.Must(uuid.NewV4()),
+		ID:       uuid.New(),
 		Username: username1,
 	}
 	email1 := identity1.Username + "@email.tld"

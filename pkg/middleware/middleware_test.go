@@ -20,7 +20,7 @@ import (
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -46,16 +46,16 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddleware() {
 func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	// create a TokenGenerator and a key
 	tokengenerator := authsupport.NewTokenManager()
-	kid0 := uuid.Must(uuid.NewV4()).String()
+	kid0 := uuid.NewString()
 	_, err := tokengenerator.AddPrivateKey(kid0)
 	require.NoError(s.T(), err)
 
 	// create some test tokens
 	identity0 := authsupport.Identity{
-		ID:       uuid.Must(uuid.NewV4()),
-		Username: uuid.Must(uuid.NewV4()).String(),
+		ID:       uuid.New(),
+		Username: uuid.NewString(),
 	}
-	emailClaim0 := authsupport.WithEmailClaim(uuid.Must(uuid.NewV4()).String() + "@email.tld")
+	emailClaim0 := authsupport.WithEmailClaim(uuid.NewString() + "@email.tld")
 	// valid token
 	tokenValid, err := tokengenerator.GenerateSignedToken(identity0, kid0, emailClaim0)
 	require.NoError(s.T(), err)
@@ -63,7 +63,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	tokenInvalidNoEmail, err := tokengenerator.GenerateSignedToken(identity0, kid0)
 	require.NoError(s.T(), err)
 	// invalid token - garbage
-	tokenInvalidGarbage := uuid.Must(uuid.NewV4()).String()
+	tokenInvalidGarbage := uuid.NewString()
 	// invalid token - expired
 	expTime := time.Now().Add(-60 * time.Second)
 	expClaim := authsupport.WithExpClaim(expTime)

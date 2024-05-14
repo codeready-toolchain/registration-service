@@ -35,7 +35,7 @@ import (
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,8 +171,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
-			userID, err := uuid.NewV4()
-			require.NoError(s.T(), err)
+			userID := uuid.New()
 			req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
 			resp, err := http.DefaultClient.Do(req)
 
@@ -385,8 +384,7 @@ func (s *TestProxySuite) checkWebLogin() {
 
 func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 	s.Run("successfully proxy", func() {
-		userID, err := uuid.NewV4()
-		require.NoError(s.T(), err)
+		userID := uuid.New()
 
 		encodedSAToken := base64.RawURLEncoding.EncodeToString([]byte("clusterSAToken"))
 		encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
@@ -1158,8 +1156,7 @@ func (s *TestProxySuite) request() *http.Request {
 	req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), req)
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
+	userID := uuid.New()
 	req.Header.Set("Authorization", "Bearer "+s.token(userID))
 
 	return req

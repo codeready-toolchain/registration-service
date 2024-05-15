@@ -2,7 +2,9 @@ package service
 
 import (
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"hash/crc32"
+	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -446,6 +448,16 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 			Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
 		}
 		return signupResponse, nil
+	}
+
+	if userSignup.Status.ScheduledDeactivationTimestamp != nil {
+		remaining := userSignup.Status.ScheduledDeactivationTimestamp.Time.Sub(time.Now())
+		// Round the days remaining to 2 decimal points
+		signupResponse.DaysRemaining = util.Ptr(math.Round(remaining.Hours()/24*100) / 100)
+		// If for whatever reason the days remaining is negative, set it to zero
+		if *signupResponse.DaysRemaining < float64(0) {
+			signupResponse.DaysRemaining = util.Ptr(float64(0))
+		}
 	}
 
 	// If UserSignup status is complete as active

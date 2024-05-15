@@ -2,13 +2,13 @@ module github.com/codeready-toolchain/registration-service
 
 go 1.20
 
-replace github.com/codeready-toolchain/api => github.com/fbm3307/toolchainapi v0.0.0-20240513145519-e72bfb85209f
+replace github.com/codeready-toolchain/api => github.com/fbm3307/toolchainapi v0.0.0-20240515061911-dc93afe9cbd7
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240514062344-9c5a21b4313e
+replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240515064413-27853532075e
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240507023248-73662d6db2c5
+	github.com/codeready-toolchain/api v0.0.0-20240514085958-3b5237399fe5
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20240507174147-ed50ce546b3c
 	github.com/go-logr/logr v1.2.3
 	github.com/gofrs/uuid v4.2.0+incompatible

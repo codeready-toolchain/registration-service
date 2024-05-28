@@ -457,7 +457,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	if userSignup.Status.ScheduledDeactivationTimestamp != nil {
-		remaining := userSignup.Status.ScheduledDeactivationTimestamp.Time.Sub(time.Now())
+		remaining := time.Until(userSignup.Status.ScheduledDeactivationTimestamp.Time)
 		// Round the days remaining to 2 decimal points
 		signupResponse.DaysRemaining = util.Ptr(math.Round(remaining.Hours()/24*100) / 100)
 		// If for whatever reason the days remaining is negative, set it to zero

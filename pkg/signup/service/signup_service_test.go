@@ -1161,7 +1161,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
 			require.NotNil(t, response.DaysRemaining)
-			require.Exactly(t)
 			require.Equal(t, float64(30), *response.DaysRemaining)
 			assert.True(t, response.Status.Ready)
 			assert.Equal(t, "mur_ready_reason", response.Status.Reason)

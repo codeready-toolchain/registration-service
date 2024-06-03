@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"hash/crc32"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -1158,6 +1160,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, us.Name, response.Name)
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
+			require.NotNil(t, response.DaysRemaining)
+			require.Exactly(t)
+			require.Equal(t, float64(30), *response.DaysRemaining)
 			assert.True(t, response.Status.Ready)
 			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
 			assert.Equal(t, "mur_ready_message", response.Status.Message)
@@ -2252,6 +2257,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 			},
 		},
 		Status: toolchainv1alpha1.UserSignupStatus{
+			ScheduledDeactivationTimestamp: util.Ptr(v1.NewTime(time.Now().Add(30 * time.Hour * 24))),
 			Conditions: []toolchainv1alpha1.Condition{
 				{
 					Type:   toolchainv1alpha1.UserSignupComplete,

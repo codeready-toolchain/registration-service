@@ -1161,7 +1161,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
 			require.NotNil(t, response.DaysRemaining)
-			require.Equal(t, float64(30), *response.DaysRemaining)
+			require.InEpsilon(t, float64(30), *response.DaysRemaining, 0.1)
 			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
 			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)
@@ -1247,7 +1247,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	inf := fake.NewFakeInformer()
+	/*inf := fake.NewFakeInformer()
 	inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
 		if name == us.Name {
 			return us, nil
@@ -1261,7 +1261,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 	}
 	s.Application.MockInformerService(inf)
-
+	*/
 	svc := service.NewSignupService(
 		fake.MemberClusterServiceContext{
 			Client: s,

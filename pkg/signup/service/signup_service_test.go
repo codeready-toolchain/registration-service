@@ -1247,21 +1247,6 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
-	/*inf := fake.NewFakeInformer()
-	inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-		if name == us.Name {
-			return us, nil
-		}
-		return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-	}
-	inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-		if name == mur.Name {
-			return mur, nil
-		}
-		return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-	}
-	s.Application.MockInformerService(inf)
-	*/
 	svc := service.NewSignupService(
 		fake.MemberClusterServiceContext{
 			Client: s,

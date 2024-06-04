@@ -1162,6 +1162,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, "ted", response.CompliantUsername)
 			require.NotNil(t, response.DaysRemaining)
 			require.Equal(t, float64(30), *response.DaysRemaining)
+			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
+			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)
 			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
 			assert.Equal(t, "mur_ready_message", response.Status.Message)
@@ -2330,6 +2332,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alph
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
 		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			ProvisionedTime: util.Ptr(v1.NewTime(time.Now())),
 			Conditions: []toolchainv1alpha1.Condition{
 				{
 					Type:    toolchainv1alpha1.MasterUserRecordReady,

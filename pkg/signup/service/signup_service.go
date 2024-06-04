@@ -37,9 +37,6 @@ const (
 
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
-
-	// ISO8601Format is used to format date values returned to the client
-	ISO8601Format = "2006-01-02T15:04:05.000Z07:00"
 )
 
 var annotationsToRetain = []string{
@@ -457,6 +454,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	if userSignup.Status.ScheduledDeactivationTimestamp != nil {
+		signupResponse.EndDate = userSignup.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339)
 		remaining := time.Until(userSignup.Status.ScheduledDeactivationTimestamp.Time)
 		// Round the days remaining to 2 decimal points
 		signupResponse.DaysRemaining = util.Ptr(math.Round(remaining.Hours()/24*100) / 100)
@@ -485,19 +483,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	if mur.Status.ProvisionedTime != nil {
-		startDateValue := mur.Status.ProvisionedTime.Format(ISO8601Format)
-		signupResponse.StartDate = &startDateValue
-
-		// #### The rest of this code only makes sense when there is a ProvisionedTime set, so we include it in the same block ####
-
-		if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {
-			endDateValue := userSignup.Status.ScheduledDeactivationTimestamp.Format(ISO8601Format)
-			signupResponse.EndDate = &endDateValue
-
-			// Calculate the number of days remaining
-			daysRemaining := time.Until(userSignup.Status.ScheduledDeactivationTimestamp.Time).Hours() / 24
-			signupResponse.DaysRemaining = &daysRemaining
-		}
+		signupResponse.StartDate = mur.Status.ProvisionedTime.Format(time.RFC3339)
 	}
 
 	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {

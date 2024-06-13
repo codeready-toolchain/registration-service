@@ -187,7 +187,7 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 		}
 	}
 
-	// require verification if captcha is enabled
+	// require verification if captcha is disabled
 	if !cfg.Verification().CaptchaEnabled() {
 		return true, -1, ""
 	}
@@ -212,9 +212,8 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 		return true, -1, ""
 	}
 
-	score := assessment.GetRiskAnalysis().GetScore()
-
 	// require verification if captcha score is too low
+	score := assessment.GetRiskAnalysis().GetScore()
 	threshold := cfg.Verification().CaptchaScoreThreshold()
 	if score < threshold {
 		log.Info(ctx, fmt.Sprintf("the risk analysis score '%.1f' did not meet the expected threshold '%.1f'", score, threshold))

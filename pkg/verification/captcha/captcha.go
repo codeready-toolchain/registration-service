@@ -16,7 +16,7 @@ import (
 const recaptchaSignupAction = "SIGNUP"
 
 type Assessor interface {
-	CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error)
+	CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error)
 }
 
 type Helper struct{}
@@ -29,20 +29,21 @@ type Helper struct{}
 * @param cfg: The Registration Service Configuration object.
 * @param token: The token obtained from the client on passing the reCAPTCHA Site Key.
 
-returns the score value and nil if the assessment was successful, otherwise returns -1 and the error.
+returns the score value, assessment ID and nil if the assessment was successful, otherwise returns -1, "" and the error.
 */
-func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (float32, error) {
+func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error) {
 	gctx := gocontext.Background()
 	client, err := recaptcha.NewClient(gctx)
 	if err != nil {
-		return -1, fmt.Errorf("error creating reCAPTCHA client")
+		return nil, fmt.Errorf("error creating reCAPTCHA client")
 	}
 	defer client.Close()
 
 	// Set the properties of the event to be tracked.
 	event := &recaptchapb.Event{
-		Token:   token,
-		SiteKey: cfg.Verification().CaptchaSiteKey(),
+		ExpectedAction: recaptchaSignupAction,
+		Token:          token,
+		SiteKey:        cfg.Verification().CaptchaSiteKey(),
 	}
 
 	assessment := &recaptchapb.Assessment{
@@ -59,12 +60,12 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 		ctx,
 		request)
 	if err != nil {
-		return -1, fmt.Errorf("failed to create reCAPTCHA assessment")
+		return nil, fmt.Errorf("failed to create reCAPTCHA assessment")
 	}
 
 	// Check if the token is valid.
 	if !response.GetTokenProperties().GetValid() {
-		return -1, fmt.Errorf("the CreateAssessment() call failed because the token"+
+		return nil, fmt.Errorf("the CreateAssessment() call failed because the token"+
 			" was invalid for the following reasons: %v",
 			response.GetTokenProperties().GetInvalidReason())
 	}
@@ -80,8 +81,8 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 			log.Info(ctx, fmt.Sprintf("Risk analysis reason: %s", reason.String()))
 		}
 		log.Info(ctx, fmt.Sprintf("Assessment Response: %+v", response))
-		return response.GetRiskAnalysis().GetScore(), nil
+		return response, nil
 	}
 
-	return -1, fmt.Errorf("the action attribute in the reCAPTCHA token does not match the expected action to score")
+	return nil, fmt.Errorf("the action attribute in the reCAPTCHA token does not match the expected action to score")
 }

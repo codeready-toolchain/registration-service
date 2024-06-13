@@ -134,6 +134,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	if captchaScore > -1.0 {
 		userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = fmt.Sprintf("%.1f", captchaScore)
+		// store assessment ID as annotation in UserSignup so that captcha assessments can be annotated later on eg. when a user is banned
 		userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaAssessmentIDAnnotationKey] = assessmentID
 	}
 
@@ -169,6 +170,8 @@ Returns false in the following cases:
 Returns true/false to dictate whether phone verification is required.
 Returns the captcha score if the assessment was successful, otherwise returns -1 which will
 prevent the score from being set in the UserSignup annotation.
+
+Returns the assessment ID if a captcha assessment was completed
 */
 func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32, string) {
 	cfg := configuration.GetRegistrationServiceConfig()
@@ -204,6 +207,8 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 		log.Error(ctx, nil, "no valid captcha token found in request header")
 		return true, -1, ""
 	}
+
+	// do captcha assessment
 
 	// require verification if captcha failed
 	assessment, err := captchaChecker.CompleteAssessment(ctx, cfg, captchaToken[0])

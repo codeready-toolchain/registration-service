@@ -222,11 +222,11 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 	threshold := cfg.Verification().CaptchaScoreThreshold()
 	if score < threshold {
 		log.Info(ctx, fmt.Sprintf("the risk analysis score '%.1f' did not meet the expected threshold '%.1f'", score, threshold))
-		return true, score, assessment.Name
+		return true, score, assessment.GetName()
 	}
 
 	// verification not required, score is above threshold
-	return false, score, assessment.Name
+	return false, score, assessment.GetName()
 }
 
 func extractEmailHost(email string) string {

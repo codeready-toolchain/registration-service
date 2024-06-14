@@ -100,7 +100,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		}
 	}
 
-	verificationRequired, captchaScore := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
+	verificationRequired, captchaScore, assessmentID := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
@@ -134,6 +134,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	if captchaScore > -1.0 {
 		userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = fmt.Sprintf("%.1f", captchaScore)
+		// store assessment ID as annotation in UserSignup so that captcha assessments can be annotated later on eg. when a user is banned
+		userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaAssessmentIDAnnotationKey] = assessmentID
 	}
 
 	states.SetVerificationRequired(userSignup, verificationRequired)
@@ -168,13 +170,15 @@ Returns false in the following cases:
 Returns true/false to dictate whether phone verification is required.
 Returns the captcha score if the assessment was successful, otherwise returns -1 which will
 prevent the score from being set in the UserSignup annotation.
+
+Returns the assessment ID if a captcha assessment was completed
 */
-func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32) {
+func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32, string) {
 	cfg := configuration.GetRegistrationServiceConfig()
 
 	// skip verification if verification is disabled
 	if !cfg.Verification().Enabled() {
-		return false, -1
+		return false, -1, ""
 	}
 
 	// skip verification for excluded email domains
@@ -182,44 +186,47 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 	emailHost := extractEmailHost(userEmail)
 	for _, d := range cfg.Verification().ExcludedEmailDomains() {
 		if strings.EqualFold(d, emailHost) {
-			return false, -1
+			return false, -1, ""
 		}
 	}
 
-	// require verification if captcha is enabled
+	// require verification if captcha is disabled
 	if !cfg.Verification().CaptchaEnabled() {
-		return true, -1
+		return true, -1, ""
 	}
 
 	// require verification if context is invalid
 	if ctx.Request == nil {
 		log.Error(ctx, nil, "no request in context")
-		return true, -1
+		return true, -1, ""
 	}
 
 	// require verification if captcha token is invalid
 	captchaToken, exists := ctx.Request.Header["Recaptcha-Token"]
 	if !exists || len(captchaToken) != 1 {
 		log.Error(ctx, nil, "no valid captcha token found in request header")
-		return true, -1
+		return true, -1, ""
 	}
 
+	// do captcha assessment
+
 	// require verification if captcha failed
-	score, err := captchaChecker.CompleteAssessment(ctx, cfg, captchaToken[0])
+	assessment, err := captchaChecker.CompleteAssessment(ctx, cfg, captchaToken[0])
 	if err != nil {
 		log.Error(ctx, err, "signup assessment failed")
-		return true, -1
+		return true, -1, ""
 	}
 
 	// require verification if captcha score is too low
+	score := assessment.GetRiskAnalysis().GetScore()
 	threshold := cfg.Verification().CaptchaScoreThreshold()
 	if score < threshold {
 		log.Info(ctx, fmt.Sprintf("the risk analysis score '%.1f' did not meet the expected threshold '%.1f'", score, threshold))
-		return true, score
+		return true, score, assessment.GetName()
 	}
 
 	// verification not required, score is above threshold
-	return false, score
+	return false, score, assessment.GetName()
 }
 
 func extractEmailHost(email string) string {

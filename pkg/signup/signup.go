@@ -40,9 +40,9 @@ type Signup struct {
 	// Company from the Identity Provider
 	Company string `json:"company"`
 	Status  Status `json:"status,omitempty"`
-	// StartDate is the date that the user's current subscription started, in ISO8601 format
+	// StartDate is the date that the user's current subscription started, in RFC3339 format
 	StartDate string `json:"startDate,omitempty"`
-	// End Date is the date that the user's current subscription will end, in ISO8601 format
+	// End Date is the date that the user's current subscription will end, in RFC3339 format
 	EndDate string `json:"endDate,omitempty"`
 	// DaysRemaining is a float representing the number of days remaining in the user's subscription
 	DaysRemaining *float64 `json:"daysRemaining,omitempty"`

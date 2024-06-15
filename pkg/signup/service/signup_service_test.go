@@ -27,6 +27,7 @@ import (
 	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
+	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1980,9 +1981,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(false))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 
 		s.Run("nil request", func() {
@@ -1991,9 +1993,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 
 		s.Run("request missing Recaptcha-Token header", func() {
@@ -2002,9 +2005,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 
 		s.Run("request Recaptcha-Token header incorrect length", func() {
@@ -2013,9 +2017,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 
 		s.Run("captcha assessment error", func() {
@@ -2024,9 +2029,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 
 		s.Run("captcha is enabled but the score is too low", func() {
@@ -2036,9 +2042,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().CaptchaScoreThreshold("0.8"))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 0.5}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 0.5}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(0.5), score, 0.01)
+			assert.Equal(s.T(), "captcha-assessment-123", assessmentID)
 		})
 	})
 
@@ -2048,9 +2055,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 				testconfig.RegistrationService().
 					Verification().Enabled(false))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, nil)
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, nil)
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 		s.Run("user's email domain is excluded", func() {
 			s.OverrideApplicationDefault(
@@ -2059,9 +2067,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().ExcludedEmailDomains("redhat.com"))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
+			assert.Equal(s.T(), "", assessmentID)
 		})
 		s.Run("captcha is enabled and the assessment is successful", func() {
 			s.OverrideApplicationDefault(
@@ -2070,9 +2079,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().CaptchaScoreThreshold("0.8"))
 
-			isVerificationRequired, score := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 1.0}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 1.0}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(1.0), score, 0.01)
+			assert.Equal(s.T(), "captcha-assessment-123", assessmentID)
 		})
 
 	})
@@ -2402,6 +2412,11 @@ type FakeCaptchaChecker struct {
 	result error
 }
 
-func (c FakeCaptchaChecker) CompleteAssessment(_ *gin.Context, _ configuration.RegistrationServiceConfig, _ string) (float32, error) {
-	return c.score, c.result
+func (c FakeCaptchaChecker) CompleteAssessment(_ *gin.Context, _ configuration.RegistrationServiceConfig, _ string) (*recaptchapb.Assessment, error) {
+	return &recaptchapb.Assessment{
+		RiskAnalysis: &recaptchapb.RiskAnalysis{
+			Score: c.score,
+		},
+		Name: "captcha-assessment-123",
+	}, c.result
 }

@@ -1282,9 +1282,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NotNil(s.T(), response)
 
 	// Confirm the StartDate is the same as the provisionedTime
-	responseStartDate, err := time.Parse(time.RFC3339, response.StartDate)
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), provisionedTime, responseStartDate)
+	require.Equal(s.T(), provisionedTime.Format(time.RFC3339), response.StartDate)
 
 	// Confirm the end date is about 1 day ago
 	responseEndDate, err := time.Parse(time.RFC3339, response.EndDate)

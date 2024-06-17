@@ -1241,10 +1241,15 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
+	// Set the scheduled deactivation timestamp 1 day ago
+	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(time.Now().Add(-time.Hour * 24)))
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
 	mur := s.newProvisionedMUR("ted")
+	// Set the provisioned time 31 days in the past
+	provisionedTime := time.Now().Add(-time.Hour * 24 * 31).Round(time.Second)
+	mur.Status.ProvisionedTime = util.Ptr(v1.NewTime(provisionedTime))
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
 
@@ -1276,6 +1281,20 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 
+	// Confirm the StartDate is the same as the provisionedTime
+	responseStartDate, err := time.Parse(time.RFC3339, response.StartDate)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), provisionedTime, responseStartDate)
+
+	// Confirm the end date is about 1 day ago
+	responseEndDate, err := time.Parse(time.RFC3339, response.EndDate)
+	require.NoError(s.T(), err)
+	expectedEndDate := time.Now().Add(-time.Hour * 24)
+	require.WithinDuration(s.T(), expectedEndDate, responseEndDate, time.Minute*5,
+		"endDate in response [%s] not in expected range [%s]", responseEndDate, expectedEndDate.Format(time.RFC3339))
+
+	// DaysRemaining should be zero
+	require.Equal(s.T(), float64(0), *response.DaysRemaining)
 	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "jsmith", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)

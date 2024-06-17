@@ -1294,7 +1294,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		"endDate in response [%s] not in expected range [%s]", responseEndDate, expectedEndDate.Format(time.RFC3339))
 
 	// DaysRemaining should be zero
-	require.Equal(s.T(), float64(0), *response.DaysRemaining)
+	require.InDelta(s.T(), float64(0), *response.DaysRemaining, 0)
 	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "jsmith", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)

@@ -1,9 +1,6 @@
 package metrics
 
 import (
-	"bytes"
-	"io"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -60,56 +57,6 @@ func TestHistogramVec(t *testing.T) {
 
 }
 
-func TestMetricsServer(t *testing.T) {
-	reg := prometheus.NewRegistry()
-	testMetrics := NewProxyMetrics(reg)
-	server := testMetrics.StartMetricsServer()
-	require.NotNil(t, server)
-	// Wait up to N seconds for the Metrics server to start
-	ready := false
-	sec := 10
-	for i := 0; i < sec; i++ {
-		req, err := http.NewRequest("GET", "http://localhost:8082/metrics", nil)
-		require.NoError(t, err)
-		require.NotNil(t, req)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			// The server may be running but still not fully ready to accept requests
-			time.Sleep(time.Second)
-			continue
-		}
-		// Server is up and running!
-		ready = true
-		break
-	}
-	require.True(t, ready, "Metrics Server is not ready after %d seconds", sec)
-	defer func() {
-		_ = server.Close()
-	}()
-
-	req, err := http.NewRequest("GET", "http://localhost:8082/metrics", nil)
-	require.NoError(t, err)
-	require.NotNil(t, req)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "text/plain; version=0.0.4; charset=utf-8", resp.Header.Get("Content-Type"))
-	// compare the body of the response as well
-	defer resp.Body.Close()
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(resp.Body)
-	require.NoError(t, err)
-	assert.Equal(t, expectedServerBlankResponse, buf.String())
-
-}
-
 var expectedResponseMetadata = `
 		# HELP sandbox_test_histogram_vec test histogram description
 		# TYPE sandbox_test_histogram_vec histogram`
@@ -155,11 +102,6 @@ var expectedResponse = `
 		sandbox_test_histogram_vec_sum{kube_verb="list",status_code="500"} 3.001
 		sandbox_test_histogram_vec_count{kube_verb="list",status_code="500"} 2
 		`
-var expectedServerBlankResponse = `# HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.
-# TYPE promhttp_metric_handler_errors_total counter
-promhttp_metric_handler_errors_total{cause="encoding"} 0
-promhttp_metric_handler_errors_total{cause="gathering"} 0
-`
 
 func compareLabelPairValues(t *testing.T, expected []clientmodel.LabelPair, labelPairs []*clientmodel.LabelPair) {
 	for i := range labelPairs {

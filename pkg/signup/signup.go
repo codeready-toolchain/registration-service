@@ -44,7 +44,9 @@ type Signup struct {
 	StartDate string `json:"startDate,omitempty"`
 	// End Date is the date that the user's current subscription will end, in RFC3339 format
 	EndDate string `json:"endDate,omitempty"`
-	// DaysRemaining is a float representing the number of days remaining in the user's subscription
+	// DaysRemaining is a float pointer representing the number of days remaining in the user's subscription
+	// If the subscription is not currently active then this property should be nil and therefore shouldn't be returned
+	// in the response
 	DaysRemaining *float64 `json:"daysRemaining,omitempty"`
 }
 

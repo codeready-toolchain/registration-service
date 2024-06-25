@@ -21,7 +21,7 @@ type SocialEventInterface interface {
 // Get returns the SocialEvent with the specified name, or an error if something went wrong while attempting to retrieve it
 func (c *socialeventClient) Get(name string) (*crtapi.SocialEvent, error) {
 	result := &crtapi.SocialEvent{}
-	err := c.client.Get().
+	err := c.restClient.Get().
 		Namespace(c.ns).
 		Resource(socialeventResourcePlural).
 		Name(name).

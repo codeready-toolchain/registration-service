@@ -19,7 +19,7 @@ type ToolchainStatusInterface interface {
 // If not found then NotFound error returned
 func (c *toolchainStatusClient) Get() (*crtapi.ToolchainStatus, error) {
 	result := &crtapi.ToolchainStatus{}
-	err := c.client.Get().
+	err := c.restClient.Get().
 		Namespace(c.ns).
 		Resource(resources.ToolchainStatusPlural).
 		Name(resources.ToolchainStatusName).

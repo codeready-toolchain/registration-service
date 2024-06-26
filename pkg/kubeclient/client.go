@@ -39,13 +39,13 @@ func NewCRTRESTClient(cfg *rest.Config, informer informers.Informer, namespace s
 	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
-	client, err := rest.RESTClientFor(&config)
+	restClient, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
 
 	crtRESTClient := &CRTRESTClient{
-		RestClient: client,
+		RestClient: restClient,
 		Informer:   informer,
 		Config:     config,
 		NS:         namespace,
@@ -94,11 +94,11 @@ type V1Alpha1REST struct {
 func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 	return &userSignupClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -107,11 +107,11 @@ func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -120,11 +120,11 @@ func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -133,11 +133,11 @@ func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 	return &toolchainStatusClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -146,11 +146,11 @@ func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 	return &socialeventClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -159,11 +159,11 @@ func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 func (c *V1Alpha1REST) Spaces() SpaceInterface {
 	return &spaceClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
@@ -172,19 +172,19 @@ func (c *V1Alpha1REST) Spaces() SpaceInterface {
 func (c *V1Alpha1REST) SpaceBindings() SpaceBindingInterface {
 	return &spaceBindingClient{
 		crtClient: crtClient{
-			client:   c.client.RestClient,
-			informer: c.client.Informer,
-			ns:       c.client.NS,
-			cfg:      c.client.Config,
-			scheme:   c.client.Scheme,
+			restClient: c.client.RestClient,
+			informer:   c.client.Informer,
+			ns:         c.client.NS,
+			cfg:        c.client.Config,
+			scheme:     c.client.Scheme,
 		},
 	}
 }
 
 type crtClient struct {
-	client   rest.Interface
-	informer informers.Informer
-	ns       string
-	cfg      rest.Config
-	scheme   *runtime.Scheme
+	restClient rest.Interface
+	informer   informers.Informer
+	ns         string
+	cfg        rest.Config
+	scheme     *runtime.Scheme
 }

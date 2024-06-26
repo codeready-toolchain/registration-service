@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"regexp"
+	"sort"
 	"strings"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -474,7 +475,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		Message:              murCondition.Message,
 		VerificationRequired: states.VerificationRequired(userSignup),
 	}
-	if mur.Status.UserAccounts != nil && len(mur.Status.UserAccounts) > 0 {
+	memberCluster, defaultNamespace := GetDefaultUserTarget(provider, userSignup.Status.HomeSpace, mur.Name)
+	if memberCluster != "" {
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status, err := provider.GetToolchainStatus()
 		if err != nil {
@@ -482,7 +484,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
 		for _, member := range status.Status.Members {
-			if member.ClusterName == mur.Status.UserAccounts[0].Cluster.Name {
+			if member.ClusterName == memberCluster {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
 				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
 				signupResponse.APIEndpoint = member.APIEndpoint
@@ -495,7 +497,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		signupResponse.RHODSMemberURL = getRHODSMemberURL(*signupResponse)
 
 		// set default user namespace
-		signupResponse.DefaultUserNamespace = GetDefaultUserNamespace(provider, *signupResponse)
+		signupResponse.DefaultUserNamespace = defaultNamespace
 	}
 
 	return signupResponse, nil
@@ -612,58 +614,51 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 	return nil
 }
 
-func GetDefaultUserNamespace(provider ResourceProvider, signup signup.Signup) string {
-	sbSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{signup.CompliantUsername})
-	if err != nil {
-		log.Errorf(nil, err, "unable to create spacebindings selector for signup %s", signup.Name)
-		return ""
-	}
-
-	requirements := []labels.Requirement{*sbSelector}
-
-	sbs, err := provider.ListSpaceBindings(requirements...)
-	if err != nil {
-		log.Errorf(nil, err, "unable to list spacebindings for signup %s", signup.Name)
-		return ""
-	}
-
-	// iterate through the SpaceBindings to find the Spaces that the user has access to, then look for the default namespace with a preference for a Space created by the user
-	var defaultNamespace string
-	var createdSpaceFound bool
-	for _, sb := range sbs {
-		spaceName := sb.Labels[toolchainv1alpha1.SpaceBindingSpaceLabelKey]
-		if spaceName == "" { // space may not be initialized
-			// log error and continue so that the api behaves in a best effort manner
-			log.Errorf(nil, fmt.Errorf("spacebinding has no '%s' label", toolchainv1alpha1.SpaceBindingSpaceLabelKey), "unable to get space '%s'", spaceName)
-			continue
-		}
-		space, err := provider.GetSpace(spaceName)
+func GetDefaultUserTarget(provider ResourceProvider, spaceName, murName string) (string, string) {
+	if spaceName == "" {
+		sbSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
 		if err != nil {
-			// log error and continue so that the api behaves in a best effort manner
-			// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
-			log.Errorf(nil, err, "unable to get space '%s'", spaceName)
-			continue
+			log.Errorf(nil, err, "unable to create spacebindings selector for MUR %s", murName)
+			return "", ""
 		}
 
-		createdSpaceFound = space.Labels[toolchainv1alpha1.SpaceCreatorLabelKey] == signup.Name
+		requirements := []labels.Requirement{*sbSelector}
 
-		for _, ns := range space.Status.ProvisionedNamespaces {
-			if ns.Type == toolchainv1alpha1.NamespaceTypeDefault {
-				// use this namespace if it is the first one found or if the space was created by the user
-				if defaultNamespace == "" || createdSpaceFound {
-					defaultNamespace = ns.Name
-				}
-				break
+		sbs, err := provider.ListSpaceBindings(requirements...)
+		if err != nil {
+			log.Errorf(nil, err, "unable to list spacebindings for MUR %s", murName)
+			return "", ""
+		}
+		if len(sbs) > 0 {
+			spaceNames := make([]string, len(sbs))
+			for i, sb := range sbs {
+				spaceNames[i] = sb.Spec.Space
 			}
+			sort.Strings(spaceNames)
+			spaceName = spaceNames[0]
 		}
+	}
+	if spaceName == "" {
+		return "", ""
+	}
+	space, err := provider.GetSpace(spaceName)
+	if err != nil {
+		// log error and continue so that the api behaves in a best effort manner
+		// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
+		log.Errorf(nil, err, "unable to get space '%s'", spaceName)
+		return "", ""
+	}
+	var defaultNamespace string
 
-		// if the space was created by the user and we have found a default namespace then we can stop looking because this is the best case scenario
-		if createdSpaceFound && defaultNamespace != "" {
+	for _, ns := range space.Status.ProvisionedNamespaces {
+		if ns.Type == toolchainv1alpha1.NamespaceTypeDefault {
+			// use this namespace if it is the first one found
+			defaultNamespace = ns.Name
 			break
 		}
 	}
 
-	return defaultNamespace
+	return space.Status.TargetCluster, defaultNamespace
 }
 
 func getRHODSMemberURL(signup signup.Signup) string {

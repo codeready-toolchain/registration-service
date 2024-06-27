@@ -1161,8 +1161,6 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, us.Name, response.Name)
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
-			require.NotNil(t, response.DaysRemaining)
-			require.InEpsilon(t, float64(30), *response.DaysRemaining, 0.1)
 			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
 			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)
@@ -1291,8 +1289,6 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.WithinDuration(s.T(), expectedEndDate, responseEndDate, time.Minute*5,
 		"endDate in response [%s] not in expected range [%s]", responseEndDate, expectedEndDate.Format(time.RFC3339))
 
-	// DaysRemaining should be zero
-	require.InDelta(s.T(), float64(0), *response.DaysRemaining, 0)
 	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "jsmith", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)

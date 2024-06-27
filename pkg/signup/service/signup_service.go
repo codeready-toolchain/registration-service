@@ -614,6 +614,14 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 	return nil
 }
 
+// GetDefaultUserTarget retrieves the target cluster and the default namespace from the Space a user has access to.
+// If no spaceName is provided (assuming that this is the home space the target information should be taken from)
+// then the logic lists all Spaces user has access to and picks the first one.
+// returned values are:
+//  1. name of the member cluster the Space is provisioned to
+//  2. the name of the default namespace
+//
+// If the user doesn't have access to any Space, then empty strings are returned
 func GetDefaultUserTarget(provider ResourceProvider, spaceName, murName string) (string, string) {
 	if spaceName == "" {
 		sbSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})

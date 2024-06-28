@@ -1710,9 +1710,9 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	})
 }
 
-// TestGetDefaultUserNamespaceOnlyUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created as the home space.
+// TestGetDefaultUserNamespaceFromFirstUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created as the home space.
 // This is valuable when user doesn't have default home space created, but has access to some shared spaces
-func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 	// space created for userA
@@ -1721,8 +1721,18 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 	require.NoError(s.T(), err)
 
 	// space shared with userB
-	spacebinding := s.newSpaceBinding("userB", space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	spacebindingB := s.newSpaceBinding("userB", space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebindingB)
+	require.NoError(s.T(), err)
+
+	// space created for userC
+	spaceC := s.newSpace("userC")
+	err = s.FakeSpaceClient.Tracker.Add(spaceC)
+	require.NoError(s.T(), err)
+
+	// spaceC shared with userB
+	spaceCindingC := s.newSpaceBinding("userB", spaceC.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spaceCindingC)
 	require.NoError(s.T(), err)
 
 	// when
@@ -1739,7 +1749,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 			return space, nil
 		}
 		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+			return []toolchainv1alpha1.SpaceBinding{*spacebindingB, *spaceCindingC}, nil
 		}
 
 		// when

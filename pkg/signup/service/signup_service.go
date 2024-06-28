@@ -637,17 +637,16 @@ func GetDefaultUserTarget(provider ResourceProvider, spaceName, murName string) 
 			log.Errorf(nil, err, "unable to list spacebindings for MUR %s", murName)
 			return "", ""
 		}
-		if len(sbs) > 0 {
-			spaceNames := make([]string, len(sbs))
-			for i, sb := range sbs {
-				spaceNames[i] = sb.Spec.Space
-			}
-			sort.Strings(spaceNames)
-			spaceName = spaceNames[0]
+		if len(sbs) == 0 {
+			return "", ""
 		}
-	}
-	if spaceName == "" {
-		return "", ""
+		spaceNames := make([]string, len(sbs))
+		for i, sb := range sbs {
+			spaceNames[i] = sb.Spec.Space
+		}
+		sort.Strings(spaceNames)
+		spaceName = spaceNames[0]
+
 	}
 	space, err := provider.GetSpace(spaceName)
 	if err != nil {

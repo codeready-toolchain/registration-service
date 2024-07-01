@@ -1161,6 +1161,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, us.Name, response.Name)
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
+
 			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
 			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)

@@ -16,7 +16,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
-	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -897,7 +896,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 		require.NoError(t, err)
 
-		space := s.newSpaceForMUR(mur.Name, userSignupNotComplete.Name)
+		space := s.newSpace(mur.Name)
 		err = s.FakeSpaceClient.Tracker.Add(space)
 		require.NoError(t, err)
 
@@ -1143,7 +1142,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 			require.NoError(t, err)
 
-			space := s.newSpaceForMUR(mur.Name, us.Name)
+			space := s.newSpace(mur.Name)
 			err = s.FakeSpaceClient.Tracker.Add(space)
 			require.NoError(t, err)
 
@@ -1261,7 +1260,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	space := s.newSpaceForMUR(mur.Name, us.Name)
+	space := s.newSpace(mur.Name)
 	err = s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
@@ -1413,6 +1412,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	mur := s.newProvisionedMUR("ted")
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
+	space := s.newSpace("ted")
+	require.NoError(s.T(), s.FakeSpaceClient.Tracker.Add(space))
 
 	// when
 	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
@@ -1432,6 +1433,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 			if name == mur.Name {
 				return mur, nil
+			}
+			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		}
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			if name == space.Name {
+				return space, nil
 			}
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 		}
@@ -1527,10 +1534,12 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			Name:      "ted",
 			Namespace: configuration.Namespace(),
 		},
-		Spec: toolchainv1alpha1.MasterUserRecordSpec{
-			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
-		},
 	}
+
+	space := s.newSpace("ted")
+	require.NoError(s.T(), s.FakeSpaceClient.Tracker.Add(space))
+	toolchainStatus := s.newToolchainStatus(".apps.")
+	require.NoError(s.T(), s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus))
 
 	tests := map[string]struct {
 		condition              toolchainv1alpha1.Condition
@@ -1613,6 +1622,15 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 				}
 				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 			}
+			inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+				if name == space.Name {
+					return space, nil
+				}
+				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			}
+			inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
+				return toolchainStatus, nil
+			}
 
 			s.Application.MockInformerService(inf)
 			svc := service.NewSignupService(
@@ -1692,24 +1710,16 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	signup := signup.Signup{
-		Name:              "dave#123",
-		CompliantUsername: "dave",
-	}
-
-	space := s.newSpaceForMUR(signup.CompliantUsername, signup.Name)
+	space := s.newSpace("dave")
 	err := s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
-	spacebinding := s.newSpaceBinding(signup.CompliantUsername, space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
-
 	// when
-	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
+	assert.Equal(s.T(), "member-123", targetCluster)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1717,49 +1727,47 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
 			return space, nil
 		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
 
 		// when
-		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
 
 		// then
 		assert.Equal(t, "dave-dev", defaultUserNamespace)
+		assert.Equal(s.T(), "member-123", targetCluster)
 	})
 }
 
-// TestGetDefaultUserNamespaceOnlyUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created by the user.
-// This is valuable because if the creator label on a Space is missing for whatever reason, APIs that depend on this field will still work.
-func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
+// TestGetDefaultUserNamespaceFromFirstUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created as the home space.
+// This is valuable when user doesn't have default home space created, but has access to some shared spaces
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
-
-	signupA := signup.Signup{
-		Name:              "userA#123",
-		CompliantUsername: "userA",
-	}
-
-	signupB := signup.Signup{
-		Name:              "userB#123",
-		CompliantUsername: "userB",
-	}
-
-	// space created by userA
-	space := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
+	// space created for userA
+	space := s.newSpace("userA")
 	err := s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
 	// space shared with userB
-	spacebinding := s.newSpaceBinding(signupB.CompliantUsername, space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
+	spacebindingB := s.newSpaceBinding("userB", space.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spacebindingB)
+	require.NoError(s.T(), err)
+
+	// space created for userC
+	spaceC := s.newSpace("userC")
+	err = s.FakeSpaceClient.Tracker.Add(spaceC)
+	require.NoError(s.T(), err)
+
+	// spaceC shared with userB
+	spaceCindingC := s.newSpaceBinding("userB", spaceC.Name)
+	err = s.FakeSpaceBindingClient.Tracker.Add(spaceCindingC)
 	require.NoError(s.T(), err)
 
 	// when
-	defaultUserNamespace := service.GetDefaultUserNamespace(s, signupB)
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
+	assert.Equal(s.T(), "member-123", targetCluster)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1768,58 +1776,50 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceOnlyUnownedSpace() {
 			return space, nil
 		}
 		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
+			return []toolchainv1alpha1.SpaceBinding{*spacebindingB, *spaceCindingC}, nil
 		}
 
 		// when
-		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
+		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
 
 		// then
 		assert.Equal(t, "userA-dev", defaultUserNamespace)
+		assert.Equal(s.T(), "member-123", targetCluster)
 	})
 }
 
-// TestGetDefaultUserNamespaceMultiSpace tests that the Space created by the user is prioritized when there are multiple spaces
+// TestGetDefaultUserNamespaceMultiSpace tests that the home Space created for the user is prioritized when there are multiple spaces
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	signupA := signup.Signup{
-		Name:              "userA#123",
-		CompliantUsername: "userA",
-	}
-
-	signupB := signup.Signup{
-		Name:              "userB#123",
-		CompliantUsername: "userB",
-	}
-
 	// space1 created by userA
-	space1 := s.newSpaceForMUR(signupA.CompliantUsername, signupA.Name)
+	space1 := s.newSpace("userA")
 	err := s.FakeSpaceClient.Tracker.Add(space1)
 	require.NoError(s.T(), err)
 
 	// space1 shared with userB
-	spacebinding1 := s.newSpaceBinding(signupB.CompliantUsername, space1.Name)
+	spacebinding1 := s.newSpaceBinding("userB", space1.Name)
 	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding1)
 	require.NoError(s.T(), err)
 
 	// space2 created by userB
-	space2 := s.newSpaceForMUR(signupB.CompliantUsername, signupB.Name)
+	space2 := s.newSpace("userB")
 	err = s.FakeSpaceClient.Tracker.Add(space2)
 	require.NoError(s.T(), err)
 
 	// space2 shared with userB
-	spacebinding2 := s.newSpaceBinding(signupB.CompliantUsername, space2.Name)
+	spacebinding2 := s.newSpaceBinding("userB", space2.Name)
 	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding2)
 	require.NoError(s.T(), err)
 
 	// when
 	// get default namespace for userB
-	defaultUserNamespace := service.GetDefaultUserNamespace(s, signupB)
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
+	assert.Equal(s.T(), "member-123", targetCluster)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1839,31 +1839,28 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 		}
 
 		// when
-		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signupB)
+		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
 
 		// then
 		assert.Equal(t, "userB-dev", defaultUserNamespace)
+		assert.Equal(s.T(), "member-123", targetCluster)
 	})
 }
 
-func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding() {
+func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpaceBinding() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	signup := signup.Signup{
-		Name:              "dave#123",
-		CompliantUsername: "dave",
-	}
-
-	space := s.newSpaceForMUR(signup.CompliantUsername, signup.Name)
+	space := s.newSpace("dave")
 	err := s.FakeSpaceClient.Tracker.Add(space)
 	require.NoError(s.T(), err)
 
 	// when
-	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
+	assert.Empty(s.T(), targetCluster)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1876,10 +1873,11 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpaceBinding()
 		}
 
 		// when
-		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
 
 		// then
 		assert.Empty(t, defaultUserNamespace)
+		assert.Empty(s.T(), targetCluster)
 	})
 }
 
@@ -1887,20 +1885,12 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
 	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
 
-	signup := signup.Signup{
-		Name:              "dave",
-		CompliantUsername: "dave",
-	}
-
-	spacebinding := s.newSpaceBinding(signup.CompliantUsername, signup.Name)
-	err := s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
-
 	// when
-	defaultUserNamespace := service.GetDefaultUserNamespace(s, signup)
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
+	assert.Empty(s.T(), targetCluster)
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
@@ -1908,15 +1898,13 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
 		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
 
 		// when
-		defaultUserNamespace := service.GetDefaultUserNamespace(inf, signup)
+		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
 
 		// then
 		assert.Empty(t, defaultUserNamespace)
+		assert.Empty(s.T(), targetCluster)
 	})
 }
 
@@ -2281,6 +2269,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 				},
 			},
 			CompliantUsername: "ted",
+			HomeSpace:         "ted",
 		},
 	}
 }
@@ -2357,14 +2346,14 @@ func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alph
 	}
 }
 
-func (s *TestSignupServiceSuite) newSpaceForMUR(murName, creator string) *toolchainv1alpha1.Space {
+func (s *TestSignupServiceSuite) newSpace(name string) *toolchainv1alpha1.Space {
 	return &toolchainv1alpha1.Space{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      murName,
+			Name:      name,
 			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
-				toolchainv1alpha1.SpaceCreatorLabelKey: creator,
+				toolchainv1alpha1.SpaceCreatorLabelKey: name,
 			},
 		},
 		Spec: toolchainv1alpha1.SpaceSpec{
@@ -2376,7 +2365,7 @@ func (s *TestSignupServiceSuite) newSpaceForMUR(murName, creator string) *toolch
 			TargetCluster: "member-123",
 			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
 				{
-					Name: fmt.Sprintf("%s-dev", murName),
+					Name: fmt.Sprintf("%s-dev", name),
 					Type: "default",
 				},
 			},

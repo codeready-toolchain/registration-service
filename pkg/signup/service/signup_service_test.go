@@ -1242,7 +1242,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
 	// Set the scheduled deactivation timestamp 1 day in the future
-	deactivationTimestamp := time.Now().Add(time.Hour * 24).Round(time.Second)
+	deactivationTimestamp := time.Now().Add(time.Hour * 24).Round(time.Second).UTC()
 	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(deactivationTimestamp))
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
@@ -1283,10 +1283,10 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NotNil(s.T(), response)
 
 	// Confirm the StartDate is the same as the provisionedTime
-	require.Equal(s.T(), provisionedTime.Format(time.RFC3339), response.StartDate)
+	require.Equal(s.T(), provisionedTime.UTC().Format(time.RFC3339), response.StartDate)
 
 	// Confirm the end date is about 1 day ago
-	responseEndDate, err := time.ParseInLocation(time.RFC3339, response.EndDate, time.Local)
+	responseEndDate, err := time.ParseInLocation(time.RFC3339, response.EndDate, nil)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), deactivationTimestamp, responseEndDate)
 

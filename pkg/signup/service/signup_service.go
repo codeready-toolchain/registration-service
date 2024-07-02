@@ -460,7 +460,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {
-		signupResponse.EndDate = userSignup.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339)
+		signupResponse.EndDate = userSignup.Status.ScheduledDeactivationTimestamp.UTC().Format(time.RFC3339)
 	}
 
 	// If UserSignup status is complete as active
@@ -482,7 +482,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 	}
 
 	if mur.Status.ProvisionedTime != nil {
-		signupResponse.StartDate = mur.Status.ProvisionedTime.Format(time.RFC3339)
+		signupResponse.StartDate = mur.Status.ProvisionedTime.UTC().Format(time.RFC3339)
 	}
 
 	memberCluster, defaultNamespace := GetDefaultUserTarget(provider, userSignup.Status.HomeSpace, mur.Name)

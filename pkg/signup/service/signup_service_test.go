@@ -841,6 +841,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Empty(s.T(), response.ProxyURL)
 	assert.Empty(s.T(), response.DefaultUserNamespace)
 	assert.Empty(s.T(), response.RHODSMemberURL)
+	assert.Empty(s.T(), response.StartDate)
+	assert.Empty(s.T(), response.EndDate)
 
 	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
@@ -1239,13 +1241,14 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
-	// Set the scheduled deactivation timestamp 1 day ago
-	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(time.Now().Add(-time.Hour * 24)))
+	// Set the scheduled deactivation timestamp 1 day in the future
+	deactivationTimestamp := time.Now().Add(time.Hour * 24).Round(time.Second)
+	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(deactivationTimestamp))
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
 	mur := s.newProvisionedMUR("ted")
-	// Set the provisioned time 31 days in the past
+	// Set the provisioned time 29 days in the past
 	provisionedTime := time.Now().Add(-time.Hour * 24 * 31).Round(time.Second)
 	mur.Status.ProvisionedTime = util.Ptr(v1.NewTime(provisionedTime))
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
@@ -1285,9 +1288,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	// Confirm the end date is about 1 day ago
 	responseEndDate, err := time.Parse(time.RFC3339, response.EndDate)
 	require.NoError(s.T(), err)
-	expectedEndDate := time.Now().Add(-time.Hour * 24)
-	require.WithinDuration(s.T(), expectedEndDate, responseEndDate, time.Minute*5,
-		"endDate in response [%s] not in expected range [%s]", responseEndDate, expectedEndDate.Format(time.RFC3339))
+	require.Equal(s.T(), deactivationTimestamp, responseEndDate)
 
 	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "jsmith", response.Username)

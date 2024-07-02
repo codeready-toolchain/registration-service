@@ -31,7 +31,7 @@ type UserSignupInterface interface {
 // If not found then NotFound error returned
 func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.client.Get().
+	err := c.restClient.Get().
 		Namespace(c.ns).
 		Resource(resources.UserSignupResourcePlural).
 		Name(name).
@@ -47,7 +47,7 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 // an error if something went wrong
 func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.client.Post().
+	err := c.restClient.Post().
 		Namespace(c.ns).
 		Resource(resources.UserSignupResourcePlural).
 		Body(obj).
@@ -62,7 +62,7 @@ func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, e
 // Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
 func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.client.Put().
+	err := c.restClient.Put().
 		Namespace(c.ns).
 		Resource(resources.UserSignupResourcePlural).
 		Name(obj.Name).

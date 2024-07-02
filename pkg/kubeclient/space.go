@@ -18,7 +18,7 @@ type SpaceInterface interface {
 // List returns the Spaces that match for the provided selector, or an error if something went wrong while attempting to retrieve it
 func (c *spaceClient) Get(name string) (*crtapi.Space, error) {
 	result := &crtapi.Space{}
-	err := c.client.Get().
+	err := c.restClient.Get().
 		Namespace(c.ns).
 		Resource(resources.SpaceResourcePlural).
 		Name(name).

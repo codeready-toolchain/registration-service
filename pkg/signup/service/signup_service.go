@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -458,6 +459,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		return signupResponse, nil
 	}
 
+	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {
+		signupResponse.EndDate = userSignup.Status.ScheduledDeactivationTimestamp.UTC().Format(time.RFC3339)
+	}
+
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur, err := provider.GetMasterUserRecord(userSignup.Status.CompliantUsername)
@@ -475,6 +480,11 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		Message:              murCondition.Message,
 		VerificationRequired: states.VerificationRequired(userSignup),
 	}
+
+	if mur.Status.ProvisionedTime != nil {
+		signupResponse.StartDate = mur.Status.ProvisionedTime.UTC().Format(time.RFC3339)
+	}
+
 	memberCluster, defaultNamespace := GetDefaultUserTarget(provider, userSignup.Status.HomeSpace, mur.Name)
 	if memberCluster != "" {
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster

@@ -10,27 +10,26 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/metrics"
-	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-	"github.com/prometheus/client_golang/prometheus"
-	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
-
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 
 	errs "github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
@@ -108,12 +107,15 @@ func main() {
 		panic(errs.Wrap(err, "failed to init default token parser"))
 	}
 
-	// Register metrics
-	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-	// Start metrics server
-	metricsSrv := proxyMetrics.StartMetricsServer()
+	// ---------------------------------------------
+	// API Proxy
+	// ---------------------------------------------
 
-	// Start the proxy server
+	// API Proxy metrics server
+	proxyRegistry := prometheus.NewRegistry()
+	proxyMetrics := metrics.NewProxyMetrics(proxyRegistry)
+	proxyMetricsSrv := proxy.StartMetricsServer(proxyRegistry, proxy.ProxyMetricsPort)
+	// Proxy API server
 	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
@@ -125,21 +127,25 @@ func main() {
 		informerShutdown <- struct{}{}
 	})
 
-	srv := server.New(app)
-
-	err = srv.SetupRoutes(proxy.DefaultPort)
+	// ---------------------------------------------
+	// Registration Service
+	// ---------------------------------------------
+	regsvcRegistry := prometheus.NewRegistry()
+	regsvcMetricsSrv, _ := server.StartMetricsServer(regsvcRegistry, server.RegSvcMetricsPort)
+	regsvcSrv := server.New(app)
+	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	routesToPrint := srv.GetRegisteredRoutes()
+	routesToPrint := regsvcSrv.GetRegisteredRoutes()
 	log.Infof(nil, "Configured routes: %s", routesToPrint)
 
 	// listen concurrently to allow for graceful shutdown
 	go func() {
 		log.Infof(nil, "Service Revision %s built on %s", configuration.Commit, configuration.BuildTime)
 		log.Infof(nil, "Listening on %q...", configuration.HTTPAddress)
-		if err := srv.HTTPServer().ListenAndServe(); err != nil {
+		if err := regsvcSrv.HTTPServer().ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				log.Info(nil, fmt.Sprintf("%s - this is expected when server shutdown has been initiated", err.Error()))
 			} else {
@@ -158,7 +164,7 @@ func main() {
 		}
 	}()
 
-	gracefulShutdown(configuration.GracefulTimeout, srv.HTTPServer(), proxySrv, metricsSrv)
+	gracefulShutdown(configuration.GracefulTimeout, regsvcSrv.HTTPServer(), regsvcMetricsSrv, proxySrv, proxyMetricsSrv)
 }
 
 func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {

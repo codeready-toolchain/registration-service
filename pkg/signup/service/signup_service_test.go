@@ -1249,7 +1249,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	mur := s.newProvisionedMUR("ted")
 	// Set the provisioned time 29 days in the past
-	provisionedTime := time.Now().Add(-time.Hour * 24 * 31).Round(time.Second)
+	provisionedTime := time.Now().Add(-time.Hour * 24 * 29).Round(time.Second)
 	mur.Status.ProvisionedTime = util.Ptr(v1.NewTime(provisionedTime))
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
@@ -1285,7 +1285,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	// Confirm the StartDate is the same as the provisionedTime
 	require.Equal(s.T(), provisionedTime.UTC().Format(time.RFC3339), response.StartDate)
 
-	// Confirm the end date is about 1 day ago
+	// Confirm the end date is about the same as the deactivationTimestamp
 	responseEndDate, err := time.ParseInLocation(time.RFC3339, response.EndDate, nil)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), deactivationTimestamp, responseEndDate)

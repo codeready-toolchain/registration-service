@@ -8,22 +8,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/test/fake"
-	"gopkg.in/h2non/gock.v1"
-
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
 )
 
 type TestAuthMiddlewareSuite struct {
@@ -86,7 +86,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 
 	// Setting up the routes.
-	err = srv.SetupRoutes(proxy.DefaultPort)
+	err = srv.SetupRoutes(proxy.DefaultPort, prometheus.NewRegistry())
 	require.NoError(s.T(), err)
 
 	// Check that there are routes registered.

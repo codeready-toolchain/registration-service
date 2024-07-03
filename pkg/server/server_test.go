@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func (s *TestServerSuite) TestServer() {
 
 	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.
-	err := srv.SetupRoutes("8091") // uses a different proxy port than the default one to avoid collision with other concurrent tests
+	err := srv.SetupRoutes("8091", prometheus.NewRegistry()) // uses a different proxy port than the default one to avoid collision with other concurrent tests
 	require.NoError(s.T(), err)
 	gock.OffAll()
 

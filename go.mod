@@ -33,6 +33,7 @@ require (
 	github.com/nyaruka/phonenumbers v1.1.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
+	github.com/prometheus/common v0.40.0
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.21.0
 	gopkg.in/square/go-jose.v2 v2.3.0
@@ -75,7 +76,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/migueleliasweb/go-github-mock v0.0.18 // indirect
-	github.com/prometheus/common v0.40.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

@@ -1,6 +1,6 @@
 module github.com/codeready-toolchain/registration-service
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240704090545-98893bbdb711
+replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20240704115306-a61b21af97e5
 
 go 1.20
 

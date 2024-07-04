@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"hash/crc32"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
@@ -839,6 +841,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Empty(s.T(), response.ProxyURL)
 	assert.Empty(s.T(), response.DefaultUserNamespace)
 	assert.Empty(s.T(), response.RHODSMemberURL)
+	assert.Empty(s.T(), response.StartDate)
+	assert.Empty(s.T(), response.EndDate)
 
 	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
@@ -1158,6 +1162,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, us.Name, response.Name)
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
+
+			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
+			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)
 			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
 			assert.Equal(t, "mur_ready_message", response.Status.Message)
@@ -1234,12 +1241,25 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
+	// Set the scheduled deactivation timestamp 1 day in the future
+	deactivationTimestamp := time.Now().Add(time.Hour * 24).Round(time.Second).UTC()
+	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(deactivationTimestamp))
 	err := s.FakeUserSignupClient.Tracker.Add(us)
 	require.NoError(s.T(), err)
 
 	mur := s.newProvisionedMUR("ted")
+	// Set the provisioned time 29 days in the past
+	provisionedTime := time.Now().Add(-time.Hour * 24 * 29).Round(time.Second)
+	mur.Status.ProvisionedTime = util.Ptr(v1.NewTime(provisionedTime))
 	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
 	require.NoError(s.T(), err)
+
+	svc := service.NewSignupService(
+		fake.MemberClusterServiceContext{
+			Client: s,
+			Svcs:   s.Application,
+		},
+	)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
@@ -1256,11 +1276,19 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.NoError(s.T(), err)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, "foo", us.Spec.IdentityClaims.PreferredUsername)
+	response, err := svc.GetSignup(c, "foo", us.Spec.IdentityClaims.PreferredUsername)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
+
+	// Confirm the StartDate is the same as the provisionedTime
+	require.Equal(s.T(), provisionedTime.UTC().Format(time.RFC3339), response.StartDate)
+
+	// Confirm the end date is about the same as the deactivationTimestamp
+	responseEndDate, err := time.ParseInLocation(time.RFC3339, response.EndDate, nil)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), deactivationTimestamp, responseEndDate)
 
 	require.Equal(s.T(), us.Name, response.Name)
 	require.Equal(s.T(), "jsmith", response.Username)
@@ -2228,6 +2256,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 			},
 		},
 		Status: toolchainv1alpha1.UserSignupStatus{
+			ScheduledDeactivationTimestamp: util.Ptr(v1.NewTime(time.Now().Add(30 * time.Hour * 24))),
 			Conditions: []toolchainv1alpha1.Condition{
 				{
 					Type:   toolchainv1alpha1.UserSignupComplete,
@@ -2302,6 +2331,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alph
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
 		},
 		Status: toolchainv1alpha1.MasterUserRecordStatus{
+			ProvisionedTime: util.Ptr(v1.NewTime(time.Now())),
 			Conditions: []toolchainv1alpha1.Condition{
 				{
 					Type:    toolchainv1alpha1.MasterUserRecordReady,

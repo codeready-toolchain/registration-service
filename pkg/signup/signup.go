@@ -40,6 +40,10 @@ type Signup struct {
 	// Company from the Identity Provider
 	Company string `json:"company"`
 	Status  Status `json:"status,omitempty"`
+	// StartDate is the date that the user's current subscription started, in RFC3339 format
+	StartDate string `json:"startDate,omitempty"`
+	// End Date is the date that the user's current subscription will end, in RFC3339 format
+	EndDate string `json:"endDate,omitempty"`
 }
 
 // Status represents UserSignup resource status

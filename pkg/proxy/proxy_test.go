@@ -27,6 +27,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -423,6 +424,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 			ExpectedProxyResponseHeaders    http.Header
 			ExpectedProxyResponseStatus     int
 			Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
+
+			OverrideGetSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+			ExpectedResponse      *string
 		}{
 			"plain http cors preflight request with no request method": {
 				ProxyRequestMethod: "OPTIONS",
@@ -568,6 +572,19 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 					"Vary":                             {"Origin"},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
+			},
+			"error retrieving user workspaces": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+				// ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
+				OverrideGetSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+					return nil, fmt.Errorf("test error")
+				},
+				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),
 			},
 		}
 
@@ -720,6 +737,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 										},
 										ProxyMetrics: p.metrics,
 									}
+									if tc.OverrideGetSignupFunc != nil {
+										p.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc
+									}
 								}
 
 								// when
@@ -731,7 +751,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 								require.NotNil(s.T(), resp)
 								defer resp.Body.Close()
 								assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
-								if !tc.Standalone {
+								if tc.ExpectedResponse != nil {
+									s.assertResponseBody(resp, *tc.ExpectedResponse)
+								} else if !tc.Standalone {
 									s.assertResponseBody(resp, "my response")
 								}
 								for hk, hv := range tc.ExpectedProxyResponseHeaders {
@@ -815,6 +837,10 @@ var noCORSHeaders = map[string][]string{
 	"Access-Control-Allow-Headers":     {},
 	"Access-Control-Allow-Methods":     {},
 	"Vary":                             {},
+}
+
+func ptr[T any](t T) *T {
+	return &t
 }
 
 func upgradeToWebsocket(req *http.Request) {

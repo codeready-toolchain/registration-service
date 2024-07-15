@@ -759,12 +759,10 @@ func TestSpaceListerGetCommunityEnabled(t *testing.T) {
 	batmanWS := workspaceFor(t, fakeClient, "batman", "admin", true)
 
 	tests := map[string]struct {
-		username             string
-		expectedErr          string
-		workspaceRequest     string
-		expectedWorkspace    *toolchainv1alpha1.Workspace
-		overrideInformerFunc func() service.InformerService
-		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+		username          string
+		expectedErr       string
+		workspaceRequest  string
+		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
 		"robin can get robin workspace": {
 			username:          "robin.space",
@@ -799,13 +797,7 @@ func TestSpaceListerGetCommunityEnabled(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignupFromInformer
-			if tc.overrideSignupFunc != nil {
-				signupProvider = tc.overrideSignupFunc
-			}
 			informerFunc := fake.GetInformerService(fakeClient)
-			if tc.overrideInformerFunc != nil {
-				informerFunc = tc.overrideInformerFunc
-			}
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{

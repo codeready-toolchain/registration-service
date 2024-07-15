@@ -31,12 +31,19 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestSpaceListerGetCommonCommunityEnabled(t *testing.T) {
-	testSpaceListerGet(t, true)
-}
+func TestSpaceListerGet(t *testing.T) {
+	tt := map[string]struct {
+		publicViewerEnabled bool
+	}{
+		"public-viewer enabled":  {publicViewerEnabled: true},
+		"public-viewer disabled": {publicViewerEnabled: false},
+	}
 
-func TestSpaceListerGetCommonCommunityDisabled(t *testing.T) {
-	testSpaceListerGet(t, false)
+	for k, tc := range tt {
+		t.Run(k, func(t *testing.T) {
+			testSpaceListerGet(t, tc.publicViewerEnabled)
+		})
+	}
 }
 
 func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {

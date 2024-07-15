@@ -743,7 +743,7 @@ func TestGetUserWorkspace(t *testing.T) {
 	}
 }
 
-func TestSpaceListerGetCommunityEnabled(t *testing.T) {
+func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", "batman.space", true),

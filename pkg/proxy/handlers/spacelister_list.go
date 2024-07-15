@@ -42,13 +42,13 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchain
 	}
 	// signup is not ready
 	if signup == nil {
-		return nil, nil
+		return []toolchainv1alpha1.Workspace{}, nil
 	}
 
 	// get MUR Names
 	murNames := getMURNamesForList(ctx, signup)
 	if len(murNames) == 0 {
-		return nil, nil
+		return []toolchainv1alpha1.Workspace{}, nil
 	}
 
 	// get all spacebindings with given mur since no workspace was provided

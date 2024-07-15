@@ -581,7 +581,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 				},
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
 				// ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
-				OverrideGetSignupFunc: func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+				OverrideGetSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("test error")
 				},
 				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),

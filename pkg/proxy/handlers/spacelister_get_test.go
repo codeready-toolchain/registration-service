@@ -843,7 +843,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	}
 }
 
-func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
+func TestSpaceListerGetWithBindingsWithPublicViewerEnabled(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", "batman.space", true),
@@ -893,12 +893,9 @@ func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
 	)
 
 	tests := map[string]struct {
-		username             string
-		expectedErr          string
-		workspaceRequest     string
-		expectedWorkspace    *toolchainv1alpha1.Workspace
-		overrideInformerFunc func() service.InformerService
-		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+		username          string
+		workspaceRequest  string
+		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
 		"robin can get robin workspace": {
 			username:          "robin.space",
@@ -924,7 +921,6 @@ func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
 			username:          "robin.space",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
-			expectedErr:       "",
 		},
 	}
 
@@ -933,13 +929,7 @@ func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignupFromInformer
-			if tc.overrideSignupFunc != nil {
-				signupProvider = tc.overrideSignupFunc
-			}
 			informerFunc := fake.GetInformerService(fakeClient)
-			if tc.overrideInformerFunc != nil {
-				informerFunc = tc.overrideInformerFunc
-			}
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
@@ -973,18 +963,8 @@ func TestSpaceListerGetWithBindingsCommunityEnabled(t *testing.T) {
 			wrk, err := handlers.GetUserWorkspaceWithBindings(ctx, s, tc.workspaceRequest, getMembersFuncMock)
 
 			// then
-			if tc.expectedErr != "" {
-				// error case
-				require.Error(t, err, tc.expectedErr)
-			} else {
-				require.NoError(t, err)
-			}
-
-			if tc.expectedWorkspace != nil {
-				require.Equal(t, tc.expectedWorkspace, wrk)
-			} else {
-				require.Nil(t, wrk) // user is not authorized to get this workspace
-			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedWorkspace, wrk)
 		})
 	}
 }

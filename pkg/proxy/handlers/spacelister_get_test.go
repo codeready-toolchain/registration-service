@@ -776,7 +776,7 @@ func TestSpaceListerGetCommunityEnabled(t *testing.T) {
 			workspaceRequest:  "batman",
 			expectedWorkspace: &batmanWS,
 		},
-		"batman can get robin workspace": {
+		"batman can get robin workspace as public-viewer": {
 			username:         "batman.space",
 			workspaceRequest: "robin",
 			expectedWorkspace: func() *toolchainv1alpha1.Workspace {

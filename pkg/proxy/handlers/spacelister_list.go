@@ -23,6 +23,7 @@ func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		// list all user workspaces
 		requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
+		ctx.Set(context.PublicViewerEnabled, false) // disable public-viewer on list endpoint
 		workspaces, err := ListUserWorkspaces(ctx, spaceLister)
 		if err != nil {
 			spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbList).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process

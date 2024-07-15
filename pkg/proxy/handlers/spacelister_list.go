@@ -61,8 +61,8 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchain
 	return workspacesFromSpaceBindings(ctx, spaceLister, signup.Name, spaceBindings), nil
 }
 
-// getMURNamesForList returns a list MasterUserRecord names to use in listing Workspaces.
-// If PublicViewer is enabled, the list will contain at least the PublicViewer username.
+// getMURNamesForList returns a list of MasterUserRecord names to use for listing Workspaces.
+// If PublicViewer is enabled, the list will also contain the PublicViewer username.
 func getMURNamesForList(ctx echo.Context, signup *signup.Signup) []string {
 	names := []string{}
 	if signup != nil && signup.CompliantUsername != "" {

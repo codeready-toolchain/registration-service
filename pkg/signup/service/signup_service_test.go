@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"hash/crc32"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 
@@ -1163,8 +1163,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(t, "jsmith", response.Username)
 			require.Equal(t, "ted", response.CompliantUsername)
 
-			require.Equal(t, mur.Status.ProvisionedTime.Format(time.RFC3339), response.StartDate)
-			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.Format(time.RFC3339), response.EndDate)
+			require.Equal(t, mur.Status.ProvisionedTime.UTC().Format(time.RFC3339), response.StartDate)
+			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.UTC().Format(time.RFC3339), response.EndDate)
 			assert.True(t, response.Status.Ready)
 			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
 			assert.Equal(t, "mur_ready_message", response.Status.Message)

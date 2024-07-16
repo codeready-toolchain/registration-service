@@ -48,9 +48,6 @@ func ListUserWorkspaces(ctx echo.Context, spaceLister *SpaceLister) ([]toolchain
 
 	// get MUR Names
 	murNames := getMURNamesForList(ctx, signup)
-	if len(murNames) == 0 {
-		return []toolchainv1alpha1.Workspace{}, nil
-	}
 
 	// get all spacebindings with given mur since no workspace was provided
 	spaceBindings, err := listSpaceBindingsForUsers(spaceLister, murNames)

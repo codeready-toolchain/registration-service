@@ -523,7 +523,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith3"},
 				},
-				ExpectedResponse:            &[]string{"unable to get target cluster: user is not provisioned (yet)"}[0],
+				ExpectedResponse:            ptr("unable to get target cluster: user is not provisioned (yet)"),
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
 			},
 			"proxy plain http actual request": {

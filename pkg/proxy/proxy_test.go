@@ -419,6 +419,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 
 		tests := map[string]struct {
 			ProxyRequestMethod              string
+			ProxyRequestPaths               map[string]string
 			ProxyRequestHeaders             http.Header
 			ExpectedAPIServerRequestHeaders http.Header
 			ExpectedProxyResponseHeaders    http.Header
@@ -596,6 +597,18 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 				},
 				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),
 			},
+			"unauthorized if workspace not exists": {
+				ProxyRequestPaths: map[string]string{
+					"not-existing-workspace-namespace": "http://localhost:8081/workspaces/not-existing-workspace/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("unable to get target cluster: the requested space is not available"),
+				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+			},
 		}
 
 		rejectedHeaders := []headerToAdd{
@@ -614,6 +627,14 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 
 		for k, tc := range tests {
 			s.Run(k, func() {
+				paths := tc.ProxyRequestPaths
+				if len(paths) == 0 {
+					paths = map[string]string{
+						"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
+						"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+						"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+					}
+				}
 
 				for _, firstHeader := range rejectedHeaders {
 					rejectedHeadersToAdd := []headerToAdd{firstHeader}
@@ -622,11 +643,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 
 						// Test each request using both the default workspace URL and a URL that uses the
 						// workspace context. Both should yield the same results.
-						for workspaceContext, reqPath := range map[string]string{
-							"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
-							"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-							"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-						} {
+						for workspaceContext, reqPath := range paths {
 							s.Run(workspaceContext, func() {
 								// given
 								req, err := http.NewRequest(tc.ProxyRequestMethod, reqPath, nil)

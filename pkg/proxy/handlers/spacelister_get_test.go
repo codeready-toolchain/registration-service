@@ -764,7 +764,12 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 
 	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
 	batmanWS := workspaceFor(t, fakeClient, "batman", "admin", true)
-
+	publicRobinWS := func() *toolchainv1alpha1.Workspace {
+		batmansRobinWS := robinWS.DeepCopy()
+		batmansRobinWS.Status.Type = ""
+		batmansRobinWS.Status.Role = "viewer"
+		return batmansRobinWS
+	}()
 	tests := map[string]struct {
 		username          string
 		expectedErr       string
@@ -782,20 +787,20 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			expectedWorkspace: &batmanWS,
 		},
 		"batman can get robin workspace as public-viewer": {
-			username:         "batman.space",
-			workspaceRequest: "robin",
-			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
-				batmansRobinWS := robinWS.DeepCopy()
-				batmansRobinWS.Status.Type = ""
-				batmansRobinWS.Status.Role = "viewer"
-				return batmansRobinWS
-			}(),
+			username:          "batman.space",
+			workspaceRequest:  "robin",
+			expectedWorkspace: publicRobinWS,
 		},
 		"robin can not get batman workspace": {
 			username:          "robin.space",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 			expectedErr:       "",
+		},
+		"gordon can get batman workspace": {
+			username:          "gordon.space",
+			workspaceRequest:  "robin",
+			expectedWorkspace: publicRobinWS,
 		},
 	}
 

@@ -14,7 +14,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 )
 
 func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
@@ -68,12 +67,8 @@ func listWorkspaceResponse(ctx echo.Context, workspaces []toolchainv1alpha1.Work
 }
 
 func listSpaceBindingsForUser(spaceLister *SpaceLister, murName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-	murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
-	if err != nil {
-		return nil, err
-	}
-	requirements := []labels.Requirement{*murSelector}
-	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(requirements...)
+	mrr, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName}).Requirements()
+	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(mrr[0])
 }
 
 func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {

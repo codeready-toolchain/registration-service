@@ -19,7 +19,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -56,15 +55,9 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 
 	// recursively get all the spacebindings for the current workspace
 	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{spaceName})
-		if err != nil {
-			return nil, err
-		}
-		murSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{userSignup.CompliantUsername})
-		if err != nil {
-			return nil, err
-		}
-		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector, *murSelector)
+		spaceSelector, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName}).Requirements()
+		murSelector, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: userSignup.CompliantUsername}).Requirements()
+		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(spaceSelector[0], murSelector[0])
 	}
 	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
 	userSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
@@ -100,11 +93,8 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 
 	// recursively get all the spacebindings for the current workspace
 	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-		spaceSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingSpaceLabelKey, selection.Equals, []string{spaceName})
-		if err != nil {
-			return nil, err
-		}
-		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*spaceSelector)
+		ss, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName}).Requirements()
+		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(ss[0])
 	}
 	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
 	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})

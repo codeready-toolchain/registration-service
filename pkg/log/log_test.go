@@ -60,25 +60,68 @@ func TestLog(t *testing.T) {
 	})
 
 	t.Run("log infoEchof", func(t *testing.T) {
-		buf.Reset()
-		req := httptest.NewRequest(http.MethodGet, "https://api-server.com/api/workspaces/path", strings.NewReader("{}"))
-		rec := httptest.NewRecorder()
-		ctx := echo.New().NewContext(req, rec)
-		ctx.Set(context.SubKey, "test")
-		ctx.Set(context.UsernameKey, "usernametest")
-		ctx.Set(context.WorkspaceKey, "coolworkspace")
+		tt := map[string]struct {
+			name        string
+			contains    string
+			notContains string
+			ctxSet      map[string]interface{}
+		}{
+			"default": {},
+			"impersonateUser is set": {
+				ctxSet:   map[string]interface{}{context.ImpersonateUser: "user"},
+				contains: `"impersonate-user":"user"`,
+			},
+			"impersonateUser is not set": {
+				ctxSet:      map[string]interface{}{},
+				notContains: `impersonate-user`,
+			},
+			"public-viewer-enabled is set to true": {
+				ctxSet:   map[string]interface{}{context.PublicViewerEnabled: true},
+				contains: `"public-viewer-enabled":true`,
+			},
+			"public-viewer-enabled is set to false": {
+				ctxSet:   map[string]interface{}{context.PublicViewerEnabled: false},
+				contains: `"public-viewer-enabled":false`,
+			},
+			"public-viewer-enabled is not set": {
+				ctxSet:      map[string]interface{}{},
+				notContains: `public-viewer-enabled`,
+			},
+		}
 
-		InfoEchof(ctx, "test %s", "info")
-		value := buf.String()
-		assert.Contains(t, value, `"logger":"logger_tests"`)
-		assert.Contains(t, value, `"msg":"test info"`)
-		assert.Contains(t, value, `"user_id":"test"`) // subject -> user_id
-		assert.Contains(t, value, `"username":"usernametest"`)
-		assert.Contains(t, value, `"level":"info"`)
-		assert.Contains(t, value, `"timestamp":"`)
-		assert.Contains(t, value, `"workspace":"coolworkspace"`)
-		assert.Contains(t, value, `"method":"GET"`)
-		assert.Contains(t, value, `"url":"https://api-server.com/api/workspaces/path"`)
+		for _, tc := range tt {
+			t.Run(tc.name, func(t *testing.T) {
+				buf.Reset()
+				req := httptest.NewRequest(http.MethodGet, "https://api-server.com/api/workspaces/path", strings.NewReader("{}"))
+				rec := httptest.NewRecorder()
+				ctx := echo.New().NewContext(req, rec)
+				ctx.Set(context.SubKey, "test")
+				ctx.Set(context.UsernameKey, "usernametest")
+				ctx.Set(context.WorkspaceKey, "coolworkspace")
+				for k, v := range tc.ctxSet {
+					ctx.Set(k, v)
+				}
+
+				InfoEchof(ctx, "test %s", "info")
+				value := buf.String()
+				assert.Contains(t, value, `"logger":"logger_tests"`)
+				assert.Contains(t, value, `"msg":"test info"`)
+				assert.Contains(t, value, `"user_id":"test"`) // subject -> user_id
+				assert.Contains(t, value, `"username":"usernametest"`)
+				assert.Contains(t, value, `"level":"info"`)
+				assert.Contains(t, value, `"timestamp":"`)
+				assert.Contains(t, value, `"workspace":"coolworkspace"`)
+				assert.Contains(t, value, `"method":"GET"`)
+				assert.Contains(t, value, `"url":"https://api-server.com/api/workspaces/path"`)
+
+				if tc.contains != "" {
+					assert.Contains(t, value, tc.contains)
+				}
+				if tc.notContains != "" {
+					assert.NotContains(t, value, tc.notContains)
+				}
+			})
+		}
 	})
 
 	t.Run("log infof with no arguments", func(t *testing.T) {

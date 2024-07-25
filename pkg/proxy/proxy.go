@@ -405,33 +405,38 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceNa
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "workspace not found")
 	}
 
-	// retrieve the requesting user's UserSignup
-	signup, err := p.spaceLister.GetSignupFunc(nil, userID, username, false)
-	if err != nil {
-		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "user not found")
-	}
-
-	// if PublicViewer is enabled and user has no direct access to the workspace, proceed as PublicViewer
-	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
-	if publicViewerEnabled && !hasDirectAccess(signup, workspace) {
-		cluster, err := p.app.MemberClusterService().GetClusterAccess(
-			toolchainv1alpha1.KubesawAuthenticatedUsername,
-			toolchainv1alpha1.KubesawAuthenticatedUsername,
-			workspaceName,
-			proxyPluginName,
-			publicViewerEnabled)
-		if err != nil {
-			return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
-		}
-		return cluster, nil
-	}
-
-	// retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName, publicViewerEnabled)
+	// retrieve cluster access as requesting user or PublicViewer
+	cluster, err := p.getClusterAccessAsUserOrPublicViewer(ctx, userID, username, proxyPluginName, workspace)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 	return cluster, nil
+}
+
+// getClusterAccessAsUserOrPublicViewer if the requesting user has direct access to the workspace,
+// it returns the ClusterAccess impersonating the requesting user.
+// Otherwise, if PublicViewer support is enabled and PublicViewer user has access to the workspace,
+// it returns the ClusterAccess impersonating the PublicViewer user.
+func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
+	// retrieve the requesting user's UserSignup
+	userSignup, err := p.spaceLister.GetSignupFunc(nil, userID, username, false)
+	if err != nil {
+		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "user not found")
+	}
+
+	// proceed as PublicViewer if needed
+	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
+	if publicViewerEnabled && !hasDirectAccess(userSignup, workspace) {
+		return p.app.MemberClusterService().GetClusterAccess(
+			toolchainv1alpha1.KubesawAuthenticatedUsername,
+			toolchainv1alpha1.KubesawAuthenticatedUsername,
+			workspace.Name,
+			proxyPluginName,
+			publicViewerEnabled)
+	}
+
+	// retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
+	return p.app.MemberClusterService().GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
 }
 
 // hasDirectAccess checks if an UserSignup has access to a workspace.

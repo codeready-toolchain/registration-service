@@ -323,19 +323,18 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 
 // processWorkspaceRequest process an HTTP Request targeting a specific workspace.
 func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, workspaceName, proxyPluginName string) (*access.ClusterAccess, error) {
-	// check if the user has access to the target workspace
-	if err := p.validateSpaceAccess(ctx, userID, username, workspaceName); err != nil {
+	// check that the user is provisioned and the space exists
+	if err := p.validateUserIsProvisionedAndSpaceExists(ctx, userID, username, workspaceName); err != nil {
 		return nil, err
 	}
 
-	// before proxying the request, verify that the user has a spacebinding for
-	// the workspace and that the namespace -if any- belongs to the workspace
+	// retrieve the requested Workspace with SpaceBindings
 	workspace, err := p.getUserWorkspaceWithBindings(ctx, workspaceName)
 	if err != nil {
 		return nil, err
 	}
 
-	// check whether the user's has access to the home workspace
+	// check whether the user has access to the workspace
 	// and whether the requestedNamespace -if any- exists in the workspace.
 	requestedNamespace := namespaceFromCtx(ctx)
 	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, *workspace); err != nil {
@@ -346,20 +345,20 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	return p.getClusterAccess(ctx, userID, username, workspaceName, proxyPluginName, workspace)
 }
 
-// validateSpaceAccess checks whether the user has access to the target workspace and that the Space exists.
-func (p *Proxy) validateSpaceAccess(ctx echo.Context, userID, username, workspaceName string) error {
-	if err := p.validateUserAccess(ctx, userID, username); err != nil {
+// validateUserIsProvisionedAndSpaceExists checks that the user is provisioned and the Space exists.
+// If the PublicViewer support is enabled, User check is skipped.
+func (p *Proxy) validateUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, username, workspaceName string) error {
+	if err := p.checkUserIsProvisioned(ctx, userID, username); err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
-	if err := p.validateSpace(workspaceName); err != nil {
+	if err := p.checkSpaceExists(workspaceName); err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
-
 	return nil
 }
 
-// validateSpace checks whether the Space exists.
-func (p *Proxy) validateSpace(workspaceName string) error {
+// checkSpaceExists checks whether the Space exists.
+func (p *Proxy) checkSpaceExists(workspaceName string) error {
 	if _, err := p.app.InformerService().GetSpace(workspaceName); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
 		log.Error(nil, err, "unable to get target cluster for workspace "+workspaceName)
@@ -368,9 +367,9 @@ func (p *Proxy) validateSpace(workspaceName string) error {
 	return nil
 }
 
-// validateUserAccess checks whether the user is Approved, if they are not an error is returned.
+// checkUserIsProvisioned checks whether the user is Approved, if they are not an error is returned.
 // If public-viewer is enabled, user validation is skipped.
-func (p *Proxy) validateUserAccess(ctx echo.Context, userID, username string) error {
+func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string) error {
 	// skip if public-viewer is enabled: read-only operations on community workspaces are always permitted.
 	if context.IsPublicViewerEnabled(ctx) {
 		return nil

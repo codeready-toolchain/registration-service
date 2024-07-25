@@ -313,7 +313,7 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 	// check whether the user's has access to the home workspace
 	// and whether the requestedNamespace -if any- exists in the workspace.
 	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest("", requestedNamespace, workspaces); err != nil {
+	if err := validateWorkspaceRequest("", requestedNamespace, workspaces...); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
@@ -330,7 +330,7 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 
 	// before proxying the request, verify that the user has a spacebinding for
 	// the workspace and that the namespace -if any- belongs to the workspace
-	workspaces, err := p.listUserWorkspaces(ctx, workspaceName)
+	workspace, err := p.getUserWorkspaceWithBindings(ctx, workspaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -338,12 +338,12 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	// check whether the user's has access to the home workspace
 	// and whether the requestedNamespace -if any- exists in the workspace.
 	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, workspaces); err != nil {
+	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, *workspace); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
 	// retrieve the ClusterAccess for the user and the target workspace
-	return p.getClusterAccess(ctx, userID, username, workspaceName, proxyPluginName, workspaces)
+	return p.getClusterAccess(ctx, userID, username, workspaceName, proxyPluginName, workspace)
 }
 
 // validateSpaceAccess checks whether the user has access to the target workspace and that the Space exists.
@@ -400,10 +400,9 @@ func (p *Proxy) validateUserAccess(ctx echo.Context, userID, username string) er
 // if the user has access to it.
 // Access can be either direct (an SpaceBinding linking the user to the workspace exists)
 // or community (a SpaceBinding linking the PublicViewer user to the workspace exists).
-func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceName, proxyPluginName string, workspaces []toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
+func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceName, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve by name the workspace from the list of workspaces the user has access to.
-	w := findWorkspaceByName(workspaceName, workspaces)
-	if w == nil {
+	if workspace == nil || workspace.Name != workspaceName {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "workspace not found")
 	}
 
@@ -415,7 +414,7 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceNa
 
 	// if PublicViewer is enabled and user has no direct access to the workspace, proceed as PublicViewer
 	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
-	if publicViewerEnabled && !hasDirectAccess(signup, w) {
+	if publicViewerEnabled && !hasDirectAccess(signup, workspace) {
 		cluster, err := p.app.MemberClusterService().GetClusterAccess(
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
@@ -451,18 +450,7 @@ func hasDirectAccess(signup *signup.Signup, workspace *toolchainv1alpha1.Workspa
 	return false
 }
 
-// findWorkspaceByName finds a workspace by name in a list of Workspaces.
-func findWorkspaceByName(workspaceName string, workspaces []toolchainv1alpha1.Workspace) *toolchainv1alpha1.Workspace {
-	for _, w := range workspaces {
-		if w.Name == workspaceName {
-			w := w // TODO We won't need it after upgrading to go 1.22: https://go.dev/blog/loopvar-preview
-			return &w
-		}
-	}
-	return nil
-}
-
-func (p *Proxy) listUserWorkspaces(ctx echo.Context, workspaceName string) ([]toolchainv1alpha1.Workspace, error) {
+func (p *Proxy) getUserWorkspaceWithBindings(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
 	// when a workspace name was provided
 	// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
 	workspace, err := handlers.GetUserWorkspaceWithBindings(ctx, p.spaceLister, workspaceName, p.getMembersFunc)
@@ -474,7 +462,7 @@ func (p *Proxy) listUserWorkspaces(ctx echo.Context, workspaceName string) ([]to
 		return nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspaceName))
 	}
 	// workspace was found means we can forward the request
-	return []toolchainv1alpha1.Workspace{*workspace}, nil
+	return workspace, nil
 }
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
@@ -812,7 +800,7 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 // validateWorkspaceRequest checks whether the requested workspace is in the list of workspaces the user has visibility on (retrieved via the spaceLister).
 // If `requestedWorkspace` is zero, this function looks for the home workspace (the one with `status.Type` set to `home`).
 // If `requestedNamespace` is NOT zero, this function checks if the namespace exists in the workspace.
-func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces []toolchainv1alpha1.Workspace) error {
+func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces ...toolchainv1alpha1.Workspace) error {
 	// check workspace access
 	isHomeWSRequested := requestedWorkspace == ""
 

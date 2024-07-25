@@ -1115,7 +1115,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 
 	for k, tc := range tests {
 		s.T().Run(k, func(t *testing.T) {
-			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces)
+			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces...)
 			if tc.expectedErr == "" {
 				require.NoError(t, err)
 			} else {

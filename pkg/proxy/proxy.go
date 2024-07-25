@@ -324,7 +324,7 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 // processWorkspaceRequest process an HTTP Request targeting a specific workspace.
 func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, workspaceName, proxyPluginName string) (*access.ClusterAccess, error) {
 	// check that the user is provisioned and the space exists
-	if err := p.validateUserIsProvisionedAndSpaceExists(ctx, userID, username, workspaceName); err != nil {
+	if err := p.checkUserIsProvisionedAndSpaceExists(ctx, userID, username, workspaceName); err != nil {
 		return nil, err
 	}
 
@@ -345,9 +345,9 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	return p.getClusterAccess(ctx, userID, username, workspaceName, proxyPluginName, workspace)
 }
 
-// validateUserIsProvisionedAndSpaceExists checks that the user is provisioned and the Space exists.
+// checkUserIsProvisionedAndSpaceExists checks that the user is provisioned and the Space exists.
 // If the PublicViewer support is enabled, User check is skipped.
-func (p *Proxy) validateUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, username, workspaceName string) error {
+func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, username, workspaceName string) error {
 	if err := p.checkUserIsProvisioned(ctx, userID, username); err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}

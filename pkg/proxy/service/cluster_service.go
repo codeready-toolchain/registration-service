@@ -11,6 +11,7 @@ import (
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
+	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -75,18 +76,9 @@ func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, public
 	}
 
 	// retrieve the UserSignup from cache
-	//
-	// don't check for usersignup complete status, since it might cause the proxy blocking the request
-	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := s.getSignupFromInformerForProvisionedUser(userID, username)
 	if err != nil {
 		return "", err
-	}
-	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
-	if userSignup == nil || userSignup.CompliantUsername == "" {
-		cause := errs.New("user is not provisioned (yet)")
-		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", userSignup))
-		return "", cause
 	}
 
 	return userSignup.CompliantUsername, nil
@@ -94,20 +86,32 @@ func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, public
 
 // getClusterAccessForDefaultWorkspace retrieves the cluster for the user's default workspace
 func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
-	// don't check for usersignup complete status, since it might cause the proxy blocking the request
-	// and returning an error when quick transitions from ready to provisioning are happening.
-	signup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	// retrieve the UserSignup from cache
+	userSignup, err := s.getSignupFromInformerForProvisionedUser(userID, username)
 	if err != nil {
 		return nil, err
 	}
+
+	// retrieve user's access for cluster
+	return s.accessForCluster(userSignup.APIEndpoint, userSignup.ClusterName, userSignup.CompliantUsername, proxyPluginName)
+}
+
+func (s *ServiceImpl) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
+	// don't check for usersignup complete status, since it might cause the proxy blocking the request
+	// and returning an error when quick transitions from ready to provisioning are happening.
+	userSignup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	if err != nil {
+		return nil, err
+	}
+
 	// if signup has the CompliantUsername set it means that MUR was created and useraccount is provisioned
-	if signup == nil || signup.CompliantUsername == "" {
+	if userSignup == nil || userSignup.CompliantUsername == "" {
 		cause := errs.New("user is not provisioned (yet)")
-		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", signup))
+		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", userSignup))
 		return nil, cause
 	}
 
-	return s.accessForCluster(signup.APIEndpoint, signup.ClusterName, signup.CompliantUsername, proxyPluginName)
+	return userSignup, nil
 }
 
 func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyPluginName string) (*access.ClusterAccess, error) {

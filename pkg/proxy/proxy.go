@@ -397,7 +397,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 
 // getClusterAccess retrieves the access to the cluster hosting the requested workspace,
 // if the user has access to it.
-// Access can be either direct (an SpaceBinding linking the user to the workspace exists)
+// Access can be either direct (a SpaceBinding linking the user to the workspace exists)
 // or community (a SpaceBinding linking the PublicViewer user to the workspace exists).
 func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceName, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve by name the workspace from the list of workspaces the user has access to.
@@ -451,7 +451,8 @@ func hasDirectAccess(signup *signup.Signup, workspace *toolchainv1alpha1.Workspa
 
 func (p *Proxy) getUserWorkspaceWithBindings(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
 	// when a workspace name was provided
-	// validate that the user has access to the workspace by getting all spacebindings recursively, starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
+	// validate that the user has access to the workspace by getting all spacebindings recursively,
+	// starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
 	workspace, err := handlers.GetUserWorkspaceWithBindings(ctx, p.spaceLister, workspaceName, p.getMembersFunc)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())

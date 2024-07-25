@@ -183,11 +183,11 @@ func TestPublicViewer(t *testing.T) {
 			cfg := commonconfig.NewToolchainConfigObjWithReset(t)
 			cfg.Spec.Host.PublicViewerConfig = tc.publicViewerConfig
 			secrets := make(map[string]map[string]string)
+
+			// when
 			regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, secrets)
 
 			// then
-
-			// when
 			assert.Equal(t, tc.expectedValue, regServiceCfg.PublicViewerEnabled())
 		})
 	}

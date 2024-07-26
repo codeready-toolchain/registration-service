@@ -474,6 +474,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			s.Run("ready space", func() {
 				//given
 				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				require.NoError(s.T(), err)
 				expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
 
 				// when

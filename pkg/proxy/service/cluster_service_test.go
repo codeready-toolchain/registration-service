@@ -462,13 +462,13 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 				},
 			)
-			_, err := svc.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
 			require.NoError(s.T(), err)
 		})
 
 		s.Run("has no default workspace", func() {
 			// when
-			_, err := svc.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")

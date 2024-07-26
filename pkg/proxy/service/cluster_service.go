@@ -71,7 +71,7 @@ func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginNam
 
 func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
 	// if PublicViewer is enabled and the requested user is the PublicViewer, than no lookup is required
-	if publicViewerEnabled && username == userID && userID == toolchainv1alpha1.KubesawAuthenticatedUsername {
+	if publicViewerEnabled && username == toolchainv1alpha1.KubesawAuthenticatedUsername {
 		return username, nil
 	}
 

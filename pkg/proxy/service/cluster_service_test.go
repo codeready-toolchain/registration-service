@@ -450,10 +450,15 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	// public-viewer enabled
 	s.Run("user is public-viewer", func() {
-		s.Run("always get space", func() {
-			//given
-			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
-			expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
+		s.Run("has no default workspace", func() {
+			// when
+			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+
+			// then
+			require.EqualError(s.T(), err, "user is not provisioned (yet)")
+		})
+
+		s.Run("get workspace by name", func() {
 			svc := service.NewMemberClusterService(
 				fake.MemberClusterServiceContext{
 					Client: s,
@@ -466,20 +471,36 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				},
 			)
 
-			// when
-			clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+			s.Run("ready space", func() {
+				//given
+				expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+				expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
 
-			// then
-			require.NoError(s.T(), err)
-			require.Equal(s.T(), expectedClusterAccess, clusterAccess)
-		})
+				// when
+				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
 
-		s.Run("has no default workspace", func() {
-			// when
-			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+				// then
+				require.NoError(s.T(), err)
+				require.Equal(s.T(), expectedClusterAccess, clusterAccess)
+			})
 
-			// then
-			require.EqualError(s.T(), err, "user is not provisioned (yet)")
+			s.Run("not-available space", func() {
+				// when
+				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "456-not-ready", "", true)
+
+				// then
+				require.EqualError(s.T(), err, "the requested space is not available")
+				require.Nil(s.T(), clusterAccess)
+			})
+
+			s.Run("ready space with unknown cluster", func() {
+				// when
+				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "012-ready-unknown-cluster", "", true)
+
+				// then
+				require.EqualError(s.T(), err, "the requested space is not available")
+				require.Nil(s.T(), clusterAccess)
+			})
 		})
 	})
 }

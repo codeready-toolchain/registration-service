@@ -451,6 +451,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	// public-viewer enabled
 	s.Run("user is public-viewer", func() {
 		s.Run("always get space", func() {
+			//given
+			expectedURL, err := url.Parse("https://api.endpoint.member-2.com:6443")
+			expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
 			svc := service.NewMemberClusterService(
 				fake.MemberClusterServiceContext{
 					Client: s,
@@ -462,8 +465,13 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 				},
 			)
-			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+
+			// when
+			clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+
+			// then
 			require.NoError(s.T(), err)
+			require.Equal(s.T(), expectedClusterAccess, clusterAccess)
 		})
 
 		s.Run("has no default workspace", func() {

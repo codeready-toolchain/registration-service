@@ -448,7 +448,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		})
 	}
 
-	// public-viewer enabled
+	// public-viewer specific tests
 	s.Run("user is public-viewer", func() {
 		s.Run("has no default workspace", func() {
 			// when
@@ -470,6 +470,14 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					}
 				},
 			)
+
+			s.Run("public-viewer is disabled", func() {
+				// when
+				_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
+
+				// then
+				require.Error(s.T(), err)
+			})
 
 			s.Run("ready space", func() {
 				//given

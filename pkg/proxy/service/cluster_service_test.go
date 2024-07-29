@@ -452,10 +452,11 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	s.Run("user is public-viewer", func() {
 		s.Run("has no default workspace", func() {
 			// when
-			_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+			ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
+			require.Nil(s.T(), ca)
 		})
 
 		s.Run("get workspace by name", func() {
@@ -473,10 +474,11 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("public-viewer is disabled", func() {
 				// when
-				_, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
+				ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
 
 				// then
 				require.Error(s.T(), err)
+				require.Nil(s.T(), ca)
 			})
 
 			s.Run("ready space", func() {

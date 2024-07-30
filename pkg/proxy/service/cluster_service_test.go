@@ -477,7 +477,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
 
 				// then
-				require.Error(s.T(), err)
+				require.EqualError(s.T(), err, "user is not provisioned (yet)")
 				require.Nil(s.T(), ca)
 			})
 

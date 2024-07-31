@@ -272,7 +272,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	}
 
 	ctx.Set(context.WorkspaceKey, workspaceName) // set workspace context for logging
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName)
+	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, workspaceName, proxyPluginName, false)
 	if err != nil {
 		return "", nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}

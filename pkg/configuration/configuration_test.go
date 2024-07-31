@@ -3,6 +3,7 @@ package configuration_test
 import (
 	"testing"
 
+	"github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
@@ -68,6 +69,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.False(t, regServiceCfg.PublicViewerEnabled())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -151,5 +153,42 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0.5), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.False(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.False(t, regServiceCfg.PublicViewerEnabled())
 	})
+}
+
+func TestPublicViewerConfiguration(t *testing.T) {
+	tt := map[string]struct {
+		name               string
+		expectedValue      bool
+		publicViewerConfig *v1alpha1.PublicViewerConfiguration
+	}{
+		"public-viewer is explicitly enabled": {
+			expectedValue:      true,
+			publicViewerConfig: &v1alpha1.PublicViewerConfiguration{Enabled: true},
+		},
+		"public-viewer is explicitly disabled": {
+			expectedValue:      false,
+			publicViewerConfig: &v1alpha1.PublicViewerConfiguration{Enabled: false},
+		},
+		"public-viewer config not set, assume disabled": {
+			expectedValue:      false,
+			publicViewerConfig: nil,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			cfg := commonconfig.NewToolchainConfigObjWithReset(t)
+			cfg.Spec.Host.PublicViewerConfig = tc.publicViewerConfig
+			secrets := make(map[string]map[string]string)
+
+			// when
+			regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, secrets)
+
+			// then
+			assert.Equal(t, tc.expectedValue, regServiceCfg.PublicViewerEnabled())
+		})
+	}
 }

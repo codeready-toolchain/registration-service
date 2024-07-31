@@ -53,7 +53,7 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginN
 // getSpaceAccess retrieves space access for an user
 func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// retrieve the user's complaint name
-	userName, err := s.getUserSignupComplaintName(userID, username, publicViewerEnabled)
+	complaintUserName, err := s.getUserSignupComplaintName(userID, username, publicViewerEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +66,12 @@ func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginNam
 		return nil, fmt.Errorf("the requested space is not available")
 	}
 
-	return s.accessForSpace(space, userName, proxyPluginName)
+	return s.accessForSpace(space, complaintUserName, proxyPluginName)
 }
 
 func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
 	// if PublicViewer is enabled and the requested user is the PublicViewer, than no lookup is required
-	if publicViewerEnabled && username == userID && userID == toolchainv1alpha1.KubesawAuthenticatedUsername {
+	if publicViewerEnabled && username == toolchainv1alpha1.KubesawAuthenticatedUsername {
 		return username, nil
 	}
 

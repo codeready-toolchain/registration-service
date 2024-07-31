@@ -67,11 +67,11 @@ func TestLog(t *testing.T) {
 			ctxSet      map[string]interface{}
 		}{
 			"default": {},
-			"impersonateUser is set": {
+			"impersonate-user is set": {
 				ctxSet:   map[string]interface{}{context.ImpersonateUser: "user"},
 				contains: `"impersonate-user":"user"`,
 			},
-			"impersonateUser is not set": {
+			"impersonate-user is not set": {
 				ctxSet:      map[string]interface{}{},
 				notContains: `impersonate-user`,
 			},

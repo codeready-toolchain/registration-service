@@ -86,16 +86,16 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 		if context.IsPublicViewerEnabled(ctx) {
 			pvSb, err := getUserSpaceBinding(ctx, spaceLister, space, toolchainv1alpha1.KubesawAuthenticatedUsername)
 			if err != nil {
-				ctx.Logger().Error(fmt.Sprintf("error checking if SpaceBinding is present for user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName))
+				ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName)
 				return nil, err
 			}
 			if pvSb == nil {
-				ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName))
+				ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName)
 				return nil, nil
 			}
 			return pvSb, nil
 		}
-		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+		ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName)
 	}
 
 	return userSpaceBinding, nil
@@ -164,7 +164,7 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 
 		if userBinding == nil {
 			//  let's only log the issue and consider this as not found
-			ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+			ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName)
 			return nil, nil
 		}
 	}

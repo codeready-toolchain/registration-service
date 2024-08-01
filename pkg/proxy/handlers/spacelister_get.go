@@ -102,9 +102,9 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 	return userSpaceBinding, nil
 }
 
-// getUserSpaceBinding retrieves the user space binding for an user and a space.
-// If no space binding found for this user and space then returns nil, nil
-// If multiple found then returns the first one.
+// getUserSpaceBinding retrieves the space binding for an user and a space.
+// If no space binding is found for the user and space then it returns nil, nil.
+// If more than one space bindings are found, then it returns an error.
 func getUserSpaceBinding(spaceLister *SpaceLister, space *toolchainv1alpha1.Space, compliantUsername string) (*toolchainv1alpha1.SpaceBinding, error) {
 	// recursively get all the spacebindings for the current workspace
 	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {

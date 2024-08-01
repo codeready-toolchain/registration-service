@@ -77,6 +77,7 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *toolchainv1alpha1.Space, userSignup *signup.Signup, workspaceName string) (*toolchainv1alpha1.SpaceBinding, error) {
 	userSpaceBinding, err := getUserSpaceBinding(ctx, spaceLister, space, userSignup.CompliantUsername)
 	if err != nil {
+		ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s: %v", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName, err)
 		return nil, err
 	}
 
@@ -86,7 +87,7 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 		if context.IsPublicViewerEnabled(ctx) {
 			pvSb, err := getUserSpaceBinding(ctx, spaceLister, space, toolchainv1alpha1.KubesawAuthenticatedUsername)
 			if err != nil {
-				ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName)
+				ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s: %v", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName, err)
 				return nil, err
 			}
 			if pvSb == nil {
@@ -114,7 +115,6 @@ func getUserSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *tool
 	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
 	userSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
-		ctx.Logger().Error(err, "failed to list space bindings")
 		return nil, err
 	}
 	if len(userSpaceBindings) == 0 {
@@ -124,7 +124,6 @@ func getUserSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *tool
 
 	if len(userSpaceBindings) > 1 {
 		userBindingsErr := fmt.Errorf("invalid number of SpaceBindings found for MUR:%s and Space:%s. Expected 1 got %d", compliantUsername, space.Name, len(userSpaceBindings))
-		ctx.Logger().Error(userBindingsErr)
 		return nil, userBindingsErr
 	}
 

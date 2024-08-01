@@ -119,6 +119,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 				return next(ctx)
 			}
 		},
+		p.addPublicViewerContext(),
 	)
 
 	// middleware after routing
@@ -563,6 +564,17 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 			ctx.Set(context.SubKey, userID)
 			ctx.Set(context.UsernameKey, username)
 
+			return next(ctx)
+		}
+	}
+}
+
+// addPublicViewerContext updates echo.Context with the configuration's PublicViewerEnabled value.
+func (p *Proxy) addPublicViewerContext() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			publicViewerEnabled := configuration.GetRegistrationServiceConfig().PublicViewerEnabled()
+			ctx.Set(context.PublicViewerEnabled, publicViewerEnabled)
 			return next(ctx)
 		}
 	}

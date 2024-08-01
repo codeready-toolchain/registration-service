@@ -28,32 +28,28 @@ import (
 func TestSpaceListerListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
-		expectedWs          func(*test.FakeClient) []toolchainv1alpha1.Workspace
-		expectedErr         string
-		expectedWorkspace   string
+		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
 		"dancelover lists spaces with public-viewer enabled": {
 			username: "dance.lover",
-			expectedWs: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
 					workspaceFor(t, fakeClient, "communityspace", "viewer", false),
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}
 			},
-			expectedErr:         "",
 			publicViewerEnabled: true,
 		},
 		"dancelover lists spaces with public-viewer disabled": {
 			username: "dance.lover",
-			expectedWs: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}
 			},
-			expectedErr:         "",
 			publicViewerEnabled: false,
 		},
 	}
@@ -88,7 +84,7 @@ func TestSpaceListerListUserWorkspaces(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			// list workspace case
-			expectedWs := tc.expectedWs(fakeClient)
+			expectedWs := tc.expectedWorkspaces(fakeClient)
 			require.Equal(t, len(expectedWs), len(ww))
 			for i, w := range ww {
 				assert.Equal(t, expectedWs[i].Name, w.Name)

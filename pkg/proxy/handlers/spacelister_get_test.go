@@ -694,7 +694,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			},
 			expectedWorkspace: nil,
 		},
-		"kubesaw-authenticated can not get robin workspace": {
+		"kubesaw-authenticated can not get robin workspace": { // Because public viewer feature is NOT enabled
 			username:          toolchainv1alpha1.KubesawAuthenticatedUsername,
 			workspaceRequest:  "robin",
 			expectedErr:       "",

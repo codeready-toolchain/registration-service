@@ -700,7 +700,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			expectedErr:       "",
 			expectedWorkspace: nil,
 		},
-		"batman can not get robin workspace": {
+		"batman can not get robin workspace": { // Because public viewer feature is NOT enabled
 			username:          "batman.space",
 			workspaceRequest:  "robin",
 			expectedErr:       "",

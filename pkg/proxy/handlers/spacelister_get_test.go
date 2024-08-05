@@ -795,7 +795,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 		},
-		"gordon can get batman workspace": {
+		"gordon can get robin workspace": {
 			username:          "gordon.space",
 			workspaceRequest:  "robin",
 			expectedWorkspace: publicRobinWS,

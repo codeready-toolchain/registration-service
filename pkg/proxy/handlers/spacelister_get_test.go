@@ -772,7 +772,6 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	}()
 	tests := map[string]struct {
 		username          string
-		expectedErr       string
 		workspaceRequest  string
 		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
@@ -795,7 +794,6 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			username:          "robin.space",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
-			expectedErr:       "",
 		},
 		"gordon can get batman workspace": {
 			username:          "gordon.space",
@@ -832,12 +830,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
 
 			// then
-			if tc.expectedErr != "" {
-				// error case
-				require.Error(t, err, tc.expectedErr)
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 
 			if tc.expectedWorkspace != nil {
 				require.Equal(t, tc.expectedWorkspace, wrk)

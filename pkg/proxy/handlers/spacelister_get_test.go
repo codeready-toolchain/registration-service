@@ -619,6 +619,7 @@ func TestGetUserWorkspace(t *testing.T) {
 		// 2 spacebindings to force the error
 		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
 		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
+		fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
 	)
 
 	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
@@ -691,6 +692,18 @@ func TestGetUserWorkspace(t *testing.T) {
 				}
 				return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
 			},
+			expectedWorkspace: nil,
+		},
+		"kubesaw-authenticated can not get robin workspace": {
+			username:          toolchainv1alpha1.KubesawAuthenticatedUsername,
+			workspaceRequest:  "robin",
+			expectedErr:       "",
+			expectedWorkspace: nil,
+		},
+		"batman can not get robin workspace": {
+			username:          "batman.space",
+			workspaceRequest:  "robin",
+			expectedErr:       "",
 			expectedWorkspace: nil,
 		},
 	}

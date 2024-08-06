@@ -25,7 +25,7 @@ import (
 )
 
 func TestSpaceListerList(t *testing.T) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t, false)
 
 	t.Run("HandleSpaceListRequest", func(t *testing.T) {
 		// given

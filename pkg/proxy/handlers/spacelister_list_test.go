@@ -25,7 +25,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 )
 
-func TestSpaceListerListUserWorkspaces(t *testing.T) {
+func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
 		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace

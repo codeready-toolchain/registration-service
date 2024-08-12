@@ -68,6 +68,8 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 	s.Run("successfully proxy", func() {
 		owner := uuid.New()
 		communityUser := uuid.New()
+		alice := uuid.New()
+		notReadyUser := uuid.New()
 		httpTestServerResponse := "my response"
 
 		// Start the member-2 API Server
@@ -105,6 +107,24 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith2"},
 					"X-SSO-User":       {"username-" + owner.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
+				ExpectedResponse:            httpTestServerResponse,
+			},
+			// Given A not ready user exists
+			// When  the not ready user requests the list of pods in workspace communityspace
+			// Then  the request is forwarded from the proxy
+			// And   the request impersonates the not ready user
+			// And   the request's X-SSO-User Header is set to not ready user's ID
+			// And   the request is successful
+			"plain http actual request as notReadyUser": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(notReadyUser)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
+					"X-SSO-User":       {"username-" + notReadyUser.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
@@ -187,13 +207,13 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 						Name:              "communityUser",
 						APIEndpoint:       testServer.URL,
 						ClusterName:       "member-2",
-						CompliantUsername: "communityuser",
+						CompliantUsername: "communityUser",
 						Username:          "communityUser@",
 						Status: signup.Status{
 							Ready: true,
 						},
 					}),
-					fake.Signup(communityUser.String(), &signup.Signup{
+					fake.Signup(alice.String(), &signup.Signup{
 						Name:              "alice",
 						APIEndpoint:       testServer.URL,
 						ClusterName:       "member-2",
@@ -201,6 +221,14 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 						Username:          "alice@",
 						Status: signup.Status{
 							Ready: true,
+						},
+					}),
+					fake.Signup(notReadyUser.String(), &signup.Signup{
+						Name:              "notReadyUser",
+						CompliantUsername: "notReadyUser",
+						Username:          "notReadyUser@",
+						Status: signup.Status{
+							Ready: false,
 						},
 					}),
 				)

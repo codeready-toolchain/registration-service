@@ -24,8 +24,8 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 	return buildSpaceListerFakesWithResources(t, nil, nil)
 }
 
-func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, objs []client.Object) (*fake.SignupService, *test.FakeClient) {
-	ss := []fake.SignupDef{
+func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, objs []runtime.Object) (*fake.SignupService, *test.FakeClient) {
+	ss := append(signups,
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),
 		newSignup("pandalover", "panda.lover", true),
@@ -37,10 +37,7 @@ func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, 
 		newSignup("parentspace", "parent.space", true),
 		newSignup("childspace", "child.space", true),
 		newSignup("grandchildspace", "grandchild.space", true),
-	}
-	for _, s := range signups {
-		ss = append(ss, s)
-	}
+	)
 	fakeSignupService := fake.NewSignupService(ss...)
 
 	// space that is not provisioned yet
@@ -68,7 +65,7 @@ func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, 
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
 
-	oo := []runtime.Object{
+	oo := append(objs,
 		// spaces
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
@@ -102,10 +99,7 @@ func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, 
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
-	}
-	for _, o := range objs {
-		oo = append(oo, o)
-	}
+	)
 	fakeClient := fake.InitClient(t, oo...)
 
 	return fakeSignupService, fakeClient

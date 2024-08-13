@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -32,7 +32,7 @@ func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
 		additionalSignups   []fake.SignupDef
-		additionalObjects   []client.Object
+		additionalObjects   []runtime.Object
 		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
@@ -41,7 +41,7 @@ func TestListUserWorkspaces(t *testing.T) {
 			additionalSignups: []fake.SignupDef{
 				newSignup("communitylover", "community.lover", true),
 			},
-			additionalObjects: []client.Object{
+			additionalObjects: []runtime.Object{
 				fake.NewSpace("communityspace", "member-1", "communitylover", space.WithTierName("appstudio")),
 				fake.NewSpaceBinding("communitylover", toolchainv1alpha1.KubesawAuthenticatedUsername, "communityspace", "viewer"),
 			},

@@ -32,7 +32,7 @@ import (
 )
 
 func TestSpaceListerGet(t *testing.T) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t, false)
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests

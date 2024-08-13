@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -22,20 +23,31 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 )
 
 func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
+		additionalSignups   []fake.SignupDef
+		additionalObjects   []client.Object
 		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
 		"dancelover lists spaces with public-viewer enabled": {
 			username: "dance.lover",
+			additionalSignups: []fake.SignupDef{
+				newSignup("communitylover", "community.lover", true),
+			},
+			additionalObjects: []client.Object{
+				fake.NewSpace("communityspace", "member-1", "communitylover", space.WithTierName("appstudio")),
+				fake.NewSpaceBinding("communitylover", toolchainv1alpha1.KubesawAuthenticatedUsername, "communityspace", "viewer"),
+			},
 			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "communityspace", "viewer", false),
+					workspaceFor(t, fakeClient, "communityspace", "viewer", false, proxy.WithOwner("communitylover")),
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}
@@ -55,7 +67,7 @@ func TestListUserWorkspaces(t *testing.T) {
 	}
 
 	for k, tc := range tests {
-		fakeSignupService, fakeClient := buildSpaceListerFakes(t, tc.publicViewerEnabled)
+		fakeSignupService, fakeClient := buildSpaceListerFakesWithResources(t, tc.additionalSignups, tc.additionalObjects)
 
 		t.Run(k, func(t *testing.T) {
 			// given
@@ -103,7 +115,7 @@ func TestSpaceListerList(t *testing.T) {
 	}
 
 	for k, rtc := range tt {
-		fakeSignupService, fakeClient := buildSpaceListerFakes(t, rtc.publicViewerEnabled)
+		fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 		t.Run(k, func(t *testing.T) {
 			// given

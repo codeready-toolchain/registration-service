@@ -1,0 +1,27 @@
+
+The redirectPage.js implements the redirect flow of pages from sandbox developer catalog.
+
+== Test
+
+1. In the assets static folder install node_modules by running 
+    ```
+    npm i
+    ```
+2. To run tests, execute
+    ```
+    npm run test
+    ``` 
+
+== Implementation guidelines
+
+1. When user clicks on a catalog item on developers.redhat.com it redirects to this url format
+    `${baseUrl}?link="catalogName"&keyword="keyword"&selectedId="selectedId"`
+2. If the user is not authenticated, it redirects to sso page for user to login
+3. Once the user is authenticated it redirects to the page user wants to access which is in the format
+    `${consoleUrl}/${link}/ns/${defaultUserNamespace}?keyword="keyword"&selectedId="selectedId"` with
+    most of the info coming from `api/v1/signup` and the original url
+
+The below are exceptions to above mentioned redirect Url's format
+    For `Jupyter Notebooks` the url format is `${consoleUrl}/notebookController/spawner`
+    For `Red Hat Openshift DevSpaces` the url format is `${consoleUrl}/dashboard/`
+

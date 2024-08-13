@@ -23,7 +23,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
-	"github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 )
@@ -42,12 +41,12 @@ func TestListUserWorkspaces(t *testing.T) {
 				newSignup("communitylover", "community.lover", true),
 			},
 			additionalObjects: []runtime.Object{
-				fake.NewSpace("communityspace", "member-1", "communitylover", space.WithTierName("appstudio")),
-				fake.NewSpaceBinding("communitylover", toolchainv1alpha1.KubesawAuthenticatedUsername, "communityspace", "viewer"),
+				fake.NewSpace("communitylover", "member-1", "communitylover", space.WithTierName("appstudio")),
+				fake.NewSpaceBinding("communitylover-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "communitylover", "viewer"),
 			},
 			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "communityspace", "viewer", false, proxy.WithOwner("communitylover")),
+					workspaceFor(t, fakeClient, "communitylover", "viewer", false),
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}

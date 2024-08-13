@@ -761,6 +761,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", "batman.space", true),
 		newSignup("robin", "robin.space", true),
+		newSignup("gordon", "gordon.no-space", false),
 	)
 
 	fakeClient := fake.InitClient(t,
@@ -809,9 +810,14 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			expectedWorkspace: nil,
 		},
 		"gordon can get robin workspace": {
-			username:          "gordon.space",
+			username:          "gordon.no-space",
 			workspaceRequest:  "robin",
 			expectedWorkspace: publicRobinWS,
+		},
+		"gordon can not get batman workspace": {
+			username:          "gordon.no-space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: nil,
 		},
 	}
 
@@ -854,11 +860,12 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	}
 }
 
-func TestSpaceListerGetWithBindingsWithPublicViewerEnabled(t *testing.T) {
+func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", "batman.space", true),
 		newSignup("robin", "robin.space", true),
+		newSignup("gordon", "gordon.no-space", false),
 	)
 
 	fakeClient := fake.InitClient(t,
@@ -932,6 +939,21 @@ func TestSpaceListerGetWithBindingsWithPublicViewerEnabled(t *testing.T) {
 			username:          "robin.space",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
+		},
+		"gordon can not get batman workspace": {
+			username:          "gordon.no-space",
+			workspaceRequest:  "batman",
+			expectedWorkspace: nil,
+		},
+		"gordon can get robin workspace": {
+			username:         "gordon.no-space",
+			workspaceRequest: "robin",
+			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
+				batmansRobinWS := robinWS.DeepCopy()
+				batmansRobinWS.Status.Type = ""
+				batmansRobinWS.Status.Role = "viewer"
+				return batmansRobinWS
+			}(),
 		},
 	}
 

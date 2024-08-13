@@ -106,7 +106,7 @@ func TestListUserWorkspaces(t *testing.T) {
 	}
 }
 
-func TestSpaceListerList(t *testing.T) {
+func TestHandleSpaceListRequest(t *testing.T) {
 	tt := map[string]struct {
 		publicViewerEnabled bool
 	}{

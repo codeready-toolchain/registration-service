@@ -20,7 +20,7 @@ import (
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 )
 
-func buildSpaceListerFakes(t *testing.T, publicViewerEnabled bool) (*fake.SignupService, *test.FakeClient) {
+func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient) {
 	signups := []fake.SignupDef{
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),
@@ -33,12 +33,6 @@ func buildSpaceListerFakes(t *testing.T, publicViewerEnabled bool) (*fake.Signup
 		newSignup("parentspace", "parent.space", true),
 		newSignup("childspace", "child.space", true),
 		newSignup("grandchildspace", "grandchild.space", true),
-	}
-	if publicViewerEnabled {
-		signups = append(signups,
-			newSignup("communityspace", "community.space", true),
-			newSignup("communitylover", "community.lover", true),
-		)
 	}
 	fakeSignupService := fake.NewSignupService(signups...)
 
@@ -103,12 +97,6 @@ func buildSpaceListerFakes(t *testing.T, publicViewerEnabled bool) (*fake.Signup
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
-	}
-	if publicViewerEnabled {
-		objs = append(objs,
-			fake.NewSpaceBinding("communityspace-sb", "communityspace", "communityspace", "admin"),
-			fake.NewSpaceBinding("community-sb", toolchainv1alpha1.KubesawAuthenticatedUsername, "communityspace", "viewer"),
-		)
 	}
 	fakeClient := fake.InitClient(t, objs...)
 

@@ -47,7 +47,7 @@ func TestSpaceListerGet(t *testing.T) {
 }
 
 func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t, publicViewerEnabled)
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests

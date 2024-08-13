@@ -21,7 +21,7 @@ import (
 )
 
 func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient) {
-	signups := []fake.SignupDef{
+	fakeSignupService := fake.NewSignupService(
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),
 		newSignup("pandalover", "panda.lover", true),
@@ -33,8 +33,7 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 		newSignup("parentspace", "parent.space", true),
 		newSignup("childspace", "child.space", true),
 		newSignup("grandchildspace", "grandchild.space", true),
-	}
-	fakeSignupService := fake.NewSignupService(signups...)
+	)
 
 	// space that is not provisioned yet
 	spaceNotProvisionedYet := fake.NewSpace("pandalover", "member-2", "pandalover")
@@ -61,7 +60,7 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestLabelKey] = "anime-sbr"
 	spaceBindingWithInvalidSBRNamespace.Labels[toolchainv1alpha1.SpaceBindingRequestNamespaceLabelKey] = "" // let's set the name to blank in order to trigger an error
 
-	objs := []runtime.Object{
+	fakeClient := fake.InitClient(t,
 		// spaces
 		fake.NewSpace("dancelover", "member-1", "dancelover"),
 		fake.NewSpace("movielover", "member-1", "movielover"),
@@ -75,8 +74,6 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 		fake.NewSpace("grandchildspace", "member-1", "grandchildspace", spacetest.WithSpecParentSpace("childspace")),
 		// noise space, user will have a different role here , just to make sure this is not returned anywhere in the tests
 		fake.NewSpace("otherspace", "member-1", "otherspace", spacetest.WithSpecParentSpace("otherspace")),
-		// space flagged as community
-		fake.NewSpace("communityspace", "member-2", "communityspace"),
 
 		//spacebindings
 		fake.NewSpaceBinding("dancer-sb1", "dancelover", "dancelover", "admin"),
@@ -97,8 +94,7 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
-	}
-	fakeClient := fake.InitClient(t, objs...)
+	)
 
 	return fakeSignupService, fakeClient
 }

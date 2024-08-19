@@ -394,6 +394,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 	annotationValues := map[string]string{}
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
+	targetCluster := ""
 
 	defer func() {
 		doUpdate := func() error {
@@ -418,6 +419,9 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 				signup.Labels = map[string]string{}
 			}
 			signup.Labels[toolchainv1alpha1.SocialEventUserSignupLabelKey] = code
+			if targetCluster != "" {
+				signup.Spec.TargetCluster = targetCluster
+			}
 			_, err = s.Services().SignupService().UpdateUserSignup(signup)
 			if err != nil {
 				return err
@@ -456,6 +460,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 		log.Infof(ctx, "the event with code '%s' has not started yet or is already past", code)
 		return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
 	}
+	targetCluster = event.Spec.TargetCluster
 	log.Infof(ctx, "approving user signup request with activation code '%s'", code)
 	// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
 	unsetVerificationRequired = true

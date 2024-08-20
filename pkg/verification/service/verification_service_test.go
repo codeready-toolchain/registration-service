@@ -1033,7 +1033,11 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 }
 
 func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
+	s.testVerifyActivationCode("")
+	s.testVerifyActivationCode("member-1")
+}
 
+func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster string) {
 	// given
 
 	cfg := configuration.GetRegistrationServiceConfig()
@@ -1042,7 +1046,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 	s.T().Run("verification ok", func(t *testing.T) {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1054,12 +1058,13 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(t, err)
 		require.False(t, states.VerificationRequired(userSignup))
+		assert.Equal(t, targetCluster, userSignup.Spec.TargetCluster)
 	})
 
 	s.T().Run("last user to signup", func(t *testing.T) {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                        // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9)) // one seat left
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                          // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9), testsocialevent.WithTargetCluster(targetCluster)) // one seat left
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1071,6 +1076,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(t, err)
 		require.False(t, states.VerificationRequired(userSignup))
+		assert.Equal(t, targetCluster, userSignup.Spec.TargetCluster)
 	})
 
 	s.T().Run("when too many attempts made", func(t *testing.T) {
@@ -1078,7 +1084,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.VerificationRequired(time.Second), // just signed up
 			testusersignup.WithVerificationAttempts(cfg.Verification().AttemptsAllowed()))
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1090,6 +1096,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		userSignup, err = s.FakeUserSignupClient.Get(userSignup.Name)
 		require.NoError(t, err)
 		require.True(t, states.VerificationRequired(userSignup)) // unchanged
+		assert.Empty(t, userSignup.Spec.TargetCluster)
 	})
 
 	s.T().Run("when invalid code", func(t *testing.T) {
@@ -1133,8 +1140,8 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 
 	s.T().Run("when max attendees reached", func(t *testing.T) {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                         // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10)) // same as default `spec.MaxAttendees`
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                           // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10), testsocialevent.WithTargetCluster(targetCluster)) // same as default `spec.MaxAttendees`
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1147,12 +1154,13 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 		require.True(t, states.VerificationRequired(userSignup))
 		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(t, userSignup.Spec.TargetCluster)
 	})
 
 	s.T().Run("when event not open yet", func(t *testing.T) {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                          // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour))) // starting in 1hr
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                            // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // starting in 1hr
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1165,12 +1173,13 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 		require.True(t, states.VerificationRequired(userSignup))
 		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(t, userSignup.Spec.TargetCluster)
 	})
 
 	s.T().Run("when event already closed", func(t *testing.T) {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                         // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour))) // ended 1hr ago
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                           // just signed up
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // ended 1hr ago
 		err := s.setupFakeClients(userSignup, event)
 		require.NoError(t, err)
 
@@ -1183,6 +1192,7 @@ func (s *TestVerificationServiceSuite) TestVerifyActivationCode() {
 		require.NoError(t, err)
 		require.True(t, states.VerificationRequired(userSignup))
 		assert.Equal(t, "1", userSignup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(t, userSignup.Spec.TargetCluster)
 	})
 }
 

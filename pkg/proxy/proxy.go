@@ -473,8 +473,6 @@ func (p *Proxy) getUserWorkspaceWithBindings(ctx echo.Context, workspaceName str
 
 func (p *Proxy) handleRequestAndRedirect(ctx echo.Context) error {
 	requestReceivedTime := ctx.Get(context.RequestReceivedTime).(time.Time)
-	publicViewerEnabled := configuration.GetRegistrationServiceConfig().PublicViewerEnabled()
-	ctx.Set(context.PublicViewerEnabled, publicViewerEnabled)
 	proxyPluginName, cluster, err := p.processRequest(ctx)
 	if err != nil {
 		p.metrics.RegServProxyAPIHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusNotAcceptable), metrics.MetricLabelRejected).Observe(time.Since(requestReceivedTime).Seconds())

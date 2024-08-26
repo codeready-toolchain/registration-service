@@ -47,7 +47,7 @@ func TestSpaceListerGet(t *testing.T) {
 }
 
 func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t, publicViewerEnabled)
+	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 	memberFakeClient := fake.InitClient(t,
 		// spacebinding requests
@@ -619,6 +619,7 @@ func TestGetUserWorkspace(t *testing.T) {
 		// 2 spacebindings to force the error
 		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
 		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
+		fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
 	)
 
 	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
@@ -691,6 +692,18 @@ func TestGetUserWorkspace(t *testing.T) {
 				}
 				return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
 			},
+			expectedWorkspace: nil,
+		},
+		"kubesaw-authenticated can not get robin workspace": { // Because public viewer feature is NOT enabled
+			username:          toolchainv1alpha1.KubesawAuthenticatedUsername,
+			workspaceRequest:  "robin",
+			expectedErr:       "",
+			expectedWorkspace: nil,
+		},
+		"batman can not get robin workspace": { // Because public viewer feature is NOT enabled
+			username:          "batman.space",
+			workspaceRequest:  "robin",
+			expectedErr:       "",
 			expectedWorkspace: nil,
 		},
 	}
@@ -773,7 +786,6 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	}()
 	tests := map[string]struct {
 		username          string
-		expectedErr       string
 		workspaceRequest  string
 		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
@@ -796,9 +808,8 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			username:          "robin.space",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
-			expectedErr:       "",
 		},
-		"gordon can get robin workspace": {
+		"gordon can get robin workspace as public-viewer": {
 			username:          "gordon.no-space",
 			workspaceRequest:  "robin",
 			expectedWorkspace: publicRobinWS,
@@ -838,12 +849,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 			wrk, err := handlers.GetUserWorkspace(ctx, s, tc.workspaceRequest)
 
 			// then
-			if tc.expectedErr != "" {
-				// error case
-				require.Error(t, err, tc.expectedErr)
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 
 			if tc.expectedWorkspace != nil {
 				require.Equal(t, tc.expectedWorkspace, wrk)

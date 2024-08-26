@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -23,43 +24,49 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 )
 
-func TestSpaceListerListUserWorkspaces(t *testing.T) {
+func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
-		expectedWs          func(*test.FakeClient) []toolchainv1alpha1.Workspace
-		expectedErr         string
-		expectedWorkspace   string
+		additionalSignups   []fake.SignupDef
+		additionalObjects   []runtime.Object
+		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
 		"dancelover lists spaces with public-viewer enabled": {
 			username: "dance.lover",
-			expectedWs: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+			additionalSignups: []fake.SignupDef{
+				newSignup("communitylover", "community.lover", true),
+			},
+			additionalObjects: []runtime.Object{
+				fake.NewSpace("communitylover", "member-1", "communitylover", space.WithTierName("appstudio")),
+				fake.NewSpaceBinding("communitylover-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "communitylover", "viewer"),
+			},
+			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "communityspace", "viewer", false),
+					workspaceFor(t, fakeClient, "communitylover", "viewer", false),
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}
 			},
-			expectedErr:         "",
 			publicViewerEnabled: true,
 		},
 		"dancelover lists spaces with public-viewer disabled": {
 			username: "dance.lover",
-			expectedWs: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
 					workspaceFor(t, fakeClient, "movielover", "other", false),
 				}
 			},
-			expectedErr:         "",
 			publicViewerEnabled: false,
 		},
 	}
 
 	for k, tc := range tests {
-		fakeSignupService, fakeClient := buildSpaceListerFakes(t, tc.publicViewerEnabled)
+		fakeSignupService, fakeClient := buildSpaceListerFakesWithResources(t, tc.additionalSignups, tc.additionalObjects)
 
 		t.Run(k, func(t *testing.T) {
 			// given
@@ -88,7 +95,7 @@ func TestSpaceListerListUserWorkspaces(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			// list workspace case
-			expectedWs := tc.expectedWs(fakeClient)
+			expectedWs := tc.expectedWorkspaces(fakeClient)
 			require.Equal(t, len(expectedWs), len(ww))
 			for i, w := range ww {
 				assert.Equal(t, expectedWs[i].Name, w.Name)
@@ -98,7 +105,7 @@ func TestSpaceListerListUserWorkspaces(t *testing.T) {
 	}
 }
 
-func TestSpaceListerList(t *testing.T) {
+func TestHandleSpaceListRequest(t *testing.T) {
 	tt := map[string]struct {
 		publicViewerEnabled bool
 	}{
@@ -107,7 +114,7 @@ func TestSpaceListerList(t *testing.T) {
 	}
 
 	for k, rtc := range tt {
-		fakeSignupService, fakeClient := buildSpaceListerFakes(t, rtc.publicViewerEnabled)
+		fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 		t.Run(k, func(t *testing.T) {
 			// given

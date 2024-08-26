@@ -8,7 +8,6 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	regsercontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -28,8 +27,6 @@ func HandleSpaceGetRequest(spaceLister *SpaceLister, GetMembersFunc cluster.GetM
 	// get specific workspace
 	return func(ctx echo.Context) error {
 		requestReceivedTime := ctx.Get(regsercontext.RequestReceivedTime).(time.Time)
-		publicViewerEnabled := configuration.GetRegistrationServiceConfig().PublicViewerEnabled()
-		ctx.Set(context.PublicViewerEnabled, publicViewerEnabled)
 		workspace, err := GetUserWorkspaceWithBindings(ctx, spaceLister, ctx.Param("workspace"), GetMembersFunc)
 		if err != nil {
 			spaceLister.ProxyMetrics.RegServWorkspaceHistogramVec.WithLabelValues(fmt.Sprintf("%d", http.StatusInternalServerError), metrics.MetricsLabelVerbGet).Observe(time.Since(requestReceivedTime).Seconds()) // using list as the default value for verb to minimize label combinations for prometheus to process
@@ -75,8 +72,9 @@ func GetUserWorkspace(ctx echo.Context, spaceLister *SpaceLister, workspaceName 
 // If the SpaceBinding is not found and the PublicViewer feature is enabled, it will retry
 // with the PublicViewer credentials.
 func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *toolchainv1alpha1.Space, userSignup *signup.Signup, workspaceName string) (*toolchainv1alpha1.SpaceBinding, error) {
-	userSpaceBinding, err := getUserSpaceBinding(ctx, spaceLister, space, userSignup.CompliantUsername)
+	userSpaceBinding, err := getUserSpaceBinding(spaceLister, space, userSignup.CompliantUsername)
 	if err != nil {
+		ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s: %v", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName, err)
 		return nil, err
 	}
 
@@ -84,27 +82,27 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 	// retry with PublicViewer's signup
 	if userSpaceBinding == nil {
 		if context.IsPublicViewerEnabled(ctx) {
-			pvSb, err := getUserSpaceBinding(ctx, spaceLister, space, toolchainv1alpha1.KubesawAuthenticatedUsername)
+			pvSb, err := getUserSpaceBinding(spaceLister, space, toolchainv1alpha1.KubesawAuthenticatedUsername)
 			if err != nil {
-				ctx.Logger().Error(fmt.Sprintf("error checking if SpaceBinding is present for user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName))
+				ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s: %v", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName, err)
 				return nil, err
 			}
 			if pvSb == nil {
-				ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName))
+				ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s or %s and the workspace %s", userSignup.CompliantUsername, toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName)
 				return nil, nil
 			}
 			return pvSb, nil
 		}
-		ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+		ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName)
 	}
 
 	return userSpaceBinding, nil
 }
 
-// getUserSpaceBinding retrieves the user space binding for an user and a space.
-// If no space binding found for this user and space then returns nil, nil
-// If multiple found then returns the first one.
-func getUserSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *toolchainv1alpha1.Space, compliantUsername string) (*toolchainv1alpha1.SpaceBinding, error) {
+// getUserSpaceBinding retrieves the space binding for an user and a space.
+// If no space binding is found for the user and space then it returns nil, nil.
+// If more than one space bindings are found, then it returns an error.
+func getUserSpaceBinding(spaceLister *SpaceLister, space *toolchainv1alpha1.Space, compliantUsername string) (*toolchainv1alpha1.SpaceBinding, error) {
 	// recursively get all the spacebindings for the current workspace
 	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
 		spaceSelector, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName}).Requirements()
@@ -114,7 +112,6 @@ func getUserSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *tool
 	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
 	userSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
-		ctx.Logger().Error(err, "failed to list space bindings")
 		return nil, err
 	}
 	if len(userSpaceBindings) == 0 {
@@ -124,7 +121,6 @@ func getUserSpaceBinding(ctx echo.Context, spaceLister *SpaceLister, space *tool
 
 	if len(userSpaceBindings) > 1 {
 		userBindingsErr := fmt.Errorf("invalid number of SpaceBindings found for MUR:%s and Space:%s. Expected 1 got %d", compliantUsername, space.Name, len(userSpaceBindings))
-		ctx.Logger().Error(userBindingsErr)
 		return nil, userBindingsErr
 	}
 
@@ -158,13 +154,14 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 	userBinding := filterUserSpaceBinding(userSignup.CompliantUsername, allSpaceBindings)
 	if userBinding == nil {
 		// if PublicViewer is enabled, check if the Space is visibile to PublicViewer
+		// in case usersignup is the KubesawAuthenticatedUsername, then we already checked in the previous step
 		if context.IsPublicViewerEnabled(ctx) && userSignup.CompliantUsername != toolchainv1alpha1.KubesawAuthenticatedUsername {
 			userBinding = filterUserSpaceBinding(toolchainv1alpha1.KubesawAuthenticatedUsername, allSpaceBindings)
 		}
 
 		if userBinding == nil {
 			//  let's only log the issue and consider this as not found
-			ctx.Logger().Error(fmt.Sprintf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName))
+			ctx.Logger().Errorf("unauthorized access - there is no SpaceBinding present for the user %s and the workspace %s", userSignup.CompliantUsername, workspaceName)
 			return nil, nil
 		}
 	}

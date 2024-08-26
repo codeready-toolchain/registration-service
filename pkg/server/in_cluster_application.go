@@ -29,8 +29,7 @@ func NewInClusterApplication(informer informers.Informer) (application.Applicati
 		serviceFactory: factory.NewServiceFactory(
 			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient),
 				factory.InformerOption(informer),
-			),
-		),
+			)),
 	}, nil
 }
 

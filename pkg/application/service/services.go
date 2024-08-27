@@ -16,6 +16,7 @@ type InformerService interface {
 	ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 	GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTemplateTier, error)
+	BannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error)
 }
 
 type SignupService interface {

@@ -9,10 +9,12 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 type Option func(f *ServiceImpl)
@@ -144,4 +146,34 @@ func (s *ServiceImpl) GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTempl
 		return nil, err
 	}
 	return tier, err
+}
+
+func (s *ServiceImpl) BannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
+	hashedEmail := hash.EncodeString(email)
+	r, err := labels.NewRequirement(toolchainv1alpha1.BannedUserEmailHashLabelKey, selection.Equals, []string{hashedEmail})
+	if err != nil {
+		return nil, err
+	}
+
+	ls := labels.NewSelector().Add(*r)
+	objs, err := s.informer.BannedUsers.ByNamespace(configuration.Namespace()).List(ls)
+	if err != nil {
+		return nil, err
+	}
+
+	bb := []toolchainv1alpha1.BannedUser{}
+	for _, obj := range objs {
+		unobj := obj.(*unstructured.Unstructured)
+		bu := &toolchainv1alpha1.BannedUser{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unobj.UnstructuredContent(), bu); err != nil {
+			log.Errorf(nil, err, "failed to list BannedUsers")
+			return nil, err
+		}
+
+		// check in case of hash collision
+		if bu.Spec.Email == email {
+			bb = append(bb, *bu)
+		}
+	}
+	return bb, nil
 }

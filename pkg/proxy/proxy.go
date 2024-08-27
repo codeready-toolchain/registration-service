@@ -4,6 +4,7 @@ import (
 	gocontext "context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -137,7 +138,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	)
 
 	// routes
-	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
+	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces", p.ensureUserIsNotBanned())
 	// Space lister routes
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
@@ -157,7 +158,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth) // <- this is the step 5 in the flow above
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)               // <- this is the step 7.
 	// The main proxy route
-	router.Any("/*", p.handleRequestAndRedirect)
+	router.Any("/*", p.handleRequestAndRedirect, p.ensureUserIsNotBanned())
 
 	// Insert the CORS preflight middleware
 	handler := corsPreflightHandler(router)
@@ -391,13 +392,47 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 				return next(ctx)
 			}
 
-			userID, username, err := p.extractUserID(ctx.Request())
+			token, err := p.extractUserToken(ctx.Request())
 			if err != nil {
 				return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
 			}
-			ctx.Set(context.SubKey, userID)
-			ctx.Set(context.UsernameKey, username)
+			ctx.Set(context.SubKey, token.Subject)
+			ctx.Set(context.UsernameKey, token.PreferredUsername)
+			ctx.Set(context.EmailKey, token.Email)
 
+			return next(ctx)
+		}
+	}
+}
+
+// ensureUserIsNotBanned rejects the request if the user is banned
+func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			errorResponse := func(err *crterrors.Error) error {
+				ctx.Logger().Error(errs.Wrap(err, "workspace list error"))
+				ctx.Response().Writer.Header().Set("Content-Type", "application/json")
+				ctx.Response().Writer.WriteHeader(int(err.Code))
+				return json.NewEncoder(ctx.Response().Writer).Encode(err.Status)
+			}
+
+			email := ctx.Get(context.EmailKey).(string)
+			if email == "" {
+				return errorResponse(crterrors.NewUnauthorizedError("unauthenticated request", "anonymous access is not allowed"))
+			}
+
+			// retrieve banned users
+			uu, err := p.app.InformerService().BannedUsersByEmail(email)
+			if err != nil {
+				return errorResponse(crterrors.NewInternalError(errs.New("unable to retrieve user"), "could not define ban status"))
+			}
+
+			// if a matching Banned user is found, then user is banned
+			if len(uu) > 0 {
+				return errorResponse(crterrors.NewForbiddenError("user is banned", "user is banned"))
+			}
+
+			// user is not banned
 			return next(ctx)
 		}
 	}
@@ -430,26 +465,26 @@ func (p *Proxy) addStartTime() echo.MiddlewareFunc {
 	}
 }
 
-func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
+func (p *Proxy) extractUserToken(req *http.Request) (*auth.TokenClaims, error) {
 	userToken := ""
 	var err error
 	if wsstream.IsWebSocketRequest(req) {
 		userToken, err = extractTokenFromWebsocketRequest(req)
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
 	} else {
 		userToken, err = extractUserToken(req)
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
 	}
 
 	token, err := p.tokenParser.FromString(userToken)
 	if err != nil {
-		return "", "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
+		return nil, crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
 	}
-	return token.Subject, token.PreferredUsername, nil
+	return token, nil
 }
 
 func extractUserToken(req *http.Request) (string, error) {

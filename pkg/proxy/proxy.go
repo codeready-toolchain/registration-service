@@ -343,7 +343,7 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	}
 
 	// retrieve the ClusterAccess for the user and the target workspace
-	return p.getClusterAccess(ctx, userID, username, workspaceName, proxyPluginName, workspace)
+	return p.getClusterAccess(ctx, userID, username, proxyPluginName, workspace)
 }
 
 // checkUserIsProvisionedAndSpaceExists checks that the user is provisioned and the Space exists.
@@ -400,7 +400,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 // if the user has access to it.
 // Access can be either direct (a SpaceBinding linking the user to the workspace exists)
 // or community (a SpaceBinding linking the PublicViewer user to the workspace exists).
-func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceName, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
+func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve by name the workspace from the list of workspaces the user has access to.
 	if workspace == nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "workspace not found")

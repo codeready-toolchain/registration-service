@@ -402,7 +402,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 // or community (a SpaceBinding linking the PublicViewer user to the workspace exists).
 func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, workspaceName, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve by name the workspace from the list of workspaces the user has access to.
-	if workspace == nil || workspace.Name != workspaceName {
+	if workspace == nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "workspace not found")
 	}
 
@@ -443,7 +443,7 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 // hasDirectAccess checks if an UserSignup has access to a workspace.
 // Workspace's bindings are obtained from its `status.bindings` property.
 func hasDirectAccess(signup *signup.Signup, workspace *toolchainv1alpha1.Workspace) bool {
-	if signup == nil || workspace == nil {
+	if signup == nil {
 		return false
 	}
 

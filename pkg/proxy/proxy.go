@@ -311,7 +311,7 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())
 	}
 
-	// check whether the user's has access to the home workspace
+	// check whether the user has access to the home workspace
 	// and whether the requestedNamespace -if any- exists in the workspace.
 	requestedNamespace := namespaceFromCtx(ctx)
 	if err := validateWorkspaceRequest("", requestedNamespace, workspaces...); err != nil {

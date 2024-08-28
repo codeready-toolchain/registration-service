@@ -362,8 +362,8 @@ func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, u
 func (p *Proxy) checkSpaceExists(workspaceName string) error {
 	if _, err := p.app.InformerService().GetSpace(workspaceName); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
-		log.Errorf(nil, err, "requested space '%s' is not available", workspaceName)
-		return fmt.Errorf("the requested space is not available")
+		log.Errorf(nil, err, "requested space '%s' does not exist", workspaceName)
+		return fmt.Errorf("access to workspace '%s' is forbidden", workspaceName)
 	}
 	return nil
 }

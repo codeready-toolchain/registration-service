@@ -207,6 +207,12 @@ func WithGetMurFunc(getMurFunc func(name string) (*toolchainv1alpha1.MasterUserR
 	}
 }
 
+func WithGetBannedUsersByEmailFunc(bannedUsersByEmail func(ermail string) ([]toolchainv1alpha1.BannedUser, error)) InformerServiceOptions {
+	return func(informer *Informer) {
+		informer.BannedUsersByEmailFunc = bannedUsersByEmail
+	}
+}
+
 func GetInformerService(fakeClient client.Client, options ...InformerServiceOptions) func() service.InformerService {
 	return func() service.InformerService {
 

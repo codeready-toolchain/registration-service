@@ -71,7 +71,16 @@ func (s *TestProxySuite) TestProxy() {
 
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
-			fakeApp := &fake.ProxyFakeApp{}
+
+			inf := fake.GetInformerService(
+				fake.InitClient(s.T()),
+				fake.WithGetBannedUsersByEmailFunc(func(_ string) ([]toolchainv1alpha1.BannedUser, error) {
+					return nil, nil
+				}))()
+
+			fakeApp := &fake.ProxyFakeApp{
+				InformerServiceMock: inf,
+			}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
 			require.NoError(s.T(), err)

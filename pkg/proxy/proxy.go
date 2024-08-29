@@ -4,7 +4,6 @@ import (
 	gocontext "context"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -414,27 +413,20 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 				return next(ctx)
 			}
 
-			errorResponse := func(err *crterrors.Error) error {
-				ctx.Logger().Error(errs.Wrap(err, "user ban status check error"))
-				ctx.Response().Writer.Header().Set("Content-Type", "application/json")
-				ctx.Response().Writer.WriteHeader(int(err.Code))
-				return json.NewEncoder(ctx.Response().Writer).Encode(err.Status)
-			}
-
 			email := ctx.Get(context.EmailKey).(string)
 			if email == "" {
-				return errorResponse(crterrors.NewUnauthorizedError("unauthenticated request", "anonymous access is not allowed"))
+				return crterrors.NewUnauthorizedError("unauthenticated request", "anonymous access is not allowed")
 			}
 
 			// retrieve banned users
 			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
 			if err != nil {
-				return errorResponse(crterrors.NewInternalError(errs.New("unable to retrieve user"), "could not define ban status"))
+				return crterrors.NewInternalError(errs.New("unable to retrieve user"), "could not define ban status")
 			}
 
 			// if a matching Banned user is found, then user is banned
 			if len(uu) > 0 {
-				return errorResponse(crterrors.NewForbiddenError("user is banned", "user is banned"))
+				return crterrors.NewForbiddenError("user is banned", "user is banned")
 			}
 
 			// user is not banned

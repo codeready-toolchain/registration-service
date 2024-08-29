@@ -405,7 +405,9 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	}
 }
 
-// ensureUserIsNotBanned rejects the request if the user is banned
+// ensureUserIsNotBanned rejects the request if the user is banned.
+// This Middleware requires the context to contain the email of the user,
+// so it needs to be executed after the `addUserContext` Middleware.
 func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {

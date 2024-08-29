@@ -415,7 +415,7 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 			}
 
 			errorResponse := func(err *crterrors.Error) error {
-				ctx.Logger().Error(errs.Wrap(err, "workspace list error"))
+				ctx.Logger().Error(errs.Wrap(err, "user ban status check error"))
 				ctx.Response().Writer.Header().Set("Content-Type", "application/json")
 				ctx.Response().Writer.WriteHeader(int(err.Code))
 				return json.NewEncoder(ctx.Response().Writer).Encode(err.Status)

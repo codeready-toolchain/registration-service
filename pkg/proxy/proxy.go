@@ -421,12 +421,12 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 			// retrieve banned users
 			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
 			if err != nil {
-				return crterrors.NewInternalError(errs.New("unable to retrieve user"), "could not define ban status")
+				return crterrors.NewInternalError(errs.New("could not define user access"), "could not define user access")
 			}
 
 			// if a matching Banned user is found, then user is banned
 			if len(uu) > 0 {
-				return crterrors.NewForbiddenError("user is banned", "user is banned")
+				return crterrors.NewForbiddenError("user access is forbidden", "user access is forbidden")
 			}
 
 			// user is not banned

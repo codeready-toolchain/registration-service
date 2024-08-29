@@ -433,7 +433,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		// convert to unstructured.Unstructured for fakeLister
 		bbu := make(map[string]*unstructured.Unstructured, len(bb))
 		for k, b := range bb {
-			bu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&b)
+			bu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(b.DeepCopy())
 			require.NoError(s.T(), err)
 			bbu[k] = &unstructured.Unstructured{Object: bu}
 		}
@@ -450,8 +450,8 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			rbb, err := svc.ListBannedUsersByEmail("unknown@unknown.com")
 
 			// then
-			assert.NoError(s.T(), err)
-			assert.Empty(s.T(), rbb)
+			require.NoError(s.T(), err)
+			require.Empty(s.T(), rbb)
 		})
 
 		s.Run("invalid email", func() {
@@ -459,8 +459,8 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			rbb, err := svc.ListBannedUsersByEmail("not-an-email")
 
 			// then
-			assert.NoError(s.T(), err)
-			assert.Empty(s.T(), rbb)
+			require.NoError(s.T(), err)
+			require.Empty(s.T(), rbb)
 		})
 
 		s.Run("found one", func() {
@@ -474,7 +474,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			require.NotNil(s.T(), rbb)
 			require.NoError(s.T(), err)
 			require.Len(s.T(), rbb, 1, "expected 1 result for email %s", expected.Spec.Email)
-			require.Equal(s.T(), rbb[0], expected)
+			require.Equal(s.T(), expected, rbb[0])
 		})
 
 		s.Run("found multiple", func() {
@@ -488,7 +488,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			require.NotNil(s.T(), rbb)
 			require.NoError(s.T(), err)
 			require.Len(s.T(), rbb, 2, "expected 2 results for email %s", expected[0].Spec.Email)
-			require.Equal(s.T(), rbb, expected)
+			require.Equal(s.T(), expected, rbb)
 		})
 	})
 }

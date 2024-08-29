@@ -148,7 +148,7 @@ func (s *ServiceImpl) GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTempl
 	return tier, err
 }
 
-func (s *ServiceImpl) BannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
+func (s *ServiceImpl) ListBannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
 	hashedEmail := hash.EncodeString(email)
 	r, err := labels.NewRequirement(toolchainv1alpha1.BannedUserEmailHashLabelKey, selection.Equals, []string{hashedEmail})
 	if err != nil {

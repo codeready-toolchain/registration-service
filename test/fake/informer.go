@@ -82,7 +82,7 @@ func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateT
 	panic("not supposed to call GetNSTemplateTierFunc")
 }
 
-func (f Informer) BannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
+func (f Informer) ListBannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
 	if f.BannedUsersByEmailFunc != nil {
 		return f.BannedUsersByEmailFunc(email)
 	}

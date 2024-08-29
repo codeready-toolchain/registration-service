@@ -75,7 +75,7 @@ func StartInformer(cfg *rest.Config) (*Informer, chan struct{}, error) {
 	nsTemplateTierInformer := genericNSTemplateTierInformer.Informer()
 
 	// BannedUsers
-	genericBannedUsersInformer := factory.ForResource(schema.GroupVersionResource{Group: toolchainv1alpha1.GroupVersion.Group, Version: toolchainv1alpha1.GroupVersion.Version, Resource: resources.BannedUserResourcePlural})
+	genericBannedUsersInformer := factory.ForResource(schema.GroupVersionResource{Group: group, Version: version, Resource: resources.BannedUserResourcePlural})
 	informer.BannedUsers = genericBannedUsersInformer.Lister()
 	bannedUsersInformer := genericBannedUsersInformer.Informer()
 

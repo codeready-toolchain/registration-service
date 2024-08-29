@@ -23,14 +23,14 @@ func NewFakeInformer() Informer {
 }
 
 type Informer struct {
-	GetMurFunc               func(name string) (*toolchainv1alpha1.MasterUserRecord, error)
-	GetSpaceFunc             func(name string) (*toolchainv1alpha1.Space, error)
-	GetToolchainStatusFunc   func() (*toolchainv1alpha1.ToolchainStatus, error)
-	GetUserSignupFunc        func(name string) (*toolchainv1alpha1.UserSignup, error)
-	ListSpaceBindingFunc     func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
-	GetProxyPluginConfigFunc func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
-	GetNSTemplateTierFunc    func(name string) (*toolchainv1alpha1.NSTemplateTier, error)
-	BannedUsersByEmailFunc   func(email string) ([]toolchainv1alpha1.BannedUser, error)
+	GetMurFunc                 func(name string) (*toolchainv1alpha1.MasterUserRecord, error)
+	GetSpaceFunc               func(name string) (*toolchainv1alpha1.Space, error)
+	GetToolchainStatusFunc     func() (*toolchainv1alpha1.ToolchainStatus, error)
+	GetUserSignupFunc          func(name string) (*toolchainv1alpha1.UserSignup, error)
+	ListSpaceBindingFunc       func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
+	GetProxyPluginConfigFunc   func(name string) (*toolchainv1alpha1.ProxyPlugin, error)
+	GetNSTemplateTierFunc      func(name string) (*toolchainv1alpha1.NSTemplateTier, error)
+	ListBannedUsersByEmailFunc func(email string) ([]toolchainv1alpha1.BannedUser, error)
 }
 
 func (f Informer) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
@@ -83,8 +83,8 @@ func (f Informer) GetNSTemplateTier(tier string) (*toolchainv1alpha1.NSTemplateT
 }
 
 func (f Informer) ListBannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error) {
-	if f.BannedUsersByEmailFunc != nil {
-		return f.BannedUsersByEmailFunc(email)
+	if f.ListBannedUsersByEmailFunc != nil {
+		return f.ListBannedUsersByEmailFunc(email)
 	}
 	panic("not supposed to call BannedUsersByEmail")
 }
@@ -209,7 +209,7 @@ func WithGetMurFunc(getMurFunc func(name string) (*toolchainv1alpha1.MasterUserR
 
 func WithGetBannedUsersByEmailFunc(bannedUsersByEmail func(ermail string) ([]toolchainv1alpha1.BannedUser, error)) InformerServiceOptions {
 	return func(informer *Informer) {
-		informer.BannedUsersByEmailFunc = bannedUsersByEmail
+		informer.ListBannedUsersByEmailFunc = bannedUsersByEmail
 	}
 }
 

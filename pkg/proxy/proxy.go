@@ -417,14 +417,14 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 
 			email := ctx.Get(context.EmailKey).(string)
 			if email == "" {
-				return crterrors.NewUnauthorizedError("unauthenticated request", "anonymous access is not allowed")
+				return crterrors.NewUnauthorizedError("unauthenticated request", "invalid email in token")
 			}
 
 			// retrieve banned users
 			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
 			if err != nil {
 				ctx.Logger().Errorf("error retrieving the list of banned users with email address %s: %v", email, err)
-				return crterrors.NewInternalError(errs.New("could not define user access"), "could not define user access")
+				return crterrors.NewInternalError(errs.New("user access could not be verified"), "could not define user access")
 			}
 
 			// if a matching Banned user is found, then user is banned

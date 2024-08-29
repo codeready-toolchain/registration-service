@@ -119,6 +119,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 				return next(ctx)
 			}
 		},
+		p.ensureUserIsNotBanned(),
 	)
 
 	// middleware after routing
@@ -138,7 +139,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	)
 
 	// routes
-	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces", p.ensureUserIsNotBanned())
+	wg := router.Group("/apis/toolchain.dev.openshift.com/v1alpha1/workspaces")
 	// Space lister routes
 	wg.GET("/:workspace", handlers.HandleSpaceGetRequest(p.spaceLister, p.getMembersFunc))
 	wg.GET("", handlers.HandleSpaceListRequest(p.spaceLister))
@@ -158,7 +159,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	router.Any(fmt.Sprintf("%s*", openidAuthEndpoint()), p.openidAuth) // <- this is the step 5 in the flow above
 	router.Any(fmt.Sprintf("%s*", authEndpoint), p.auth)               // <- this is the step 7.
 	// The main proxy route
-	router.Any("/*", p.handleRequestAndRedirect, p.ensureUserIsNotBanned())
+	router.Any("/*", p.handleRequestAndRedirect)
 
 	// Insert the CORS preflight middleware
 	handler := corsPreflightHandler(router)
@@ -409,6 +410,10 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
+			if unsecured(ctx) { // skip only for unsecured endpoints
+				return next(ctx)
+			}
+
 			errorResponse := func(err *crterrors.Error) error {
 				ctx.Logger().Error(errs.Wrap(err, "workspace list error"))
 				ctx.Response().Writer.Header().Set("Content-Type", "application/json")

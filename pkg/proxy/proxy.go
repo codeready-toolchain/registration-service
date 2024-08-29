@@ -423,6 +423,7 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 			// retrieve banned users
 			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
 			if err != nil {
+				ctx.Logger().Errorf("error retrieving the list of banned users with email address %s: %v", email, err)
 				return crterrors.NewInternalError(errs.New("could not define user access"), "could not define user access")
 			}
 

@@ -161,17 +161,22 @@ function updateSignupState() {
       } else {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
-      cheDashboardURL = data.cheDashboardURL;
       proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
       document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
+      cheDashboardURL = data.cheDashboardURL;
       if (cheDashboardURL === undefined) {
         cheDashboardURL = 'n/a'
+      }
+      rhoaiDashboardURL = data.rhodsMemberURL;
+      if (rhoaiDashboardURL === undefined) {
+        rhoaiDashboardURL = 'n/a'
       }
       console.log('showing dashboard..');
       hideAll();
       show('dashboard');
       document.getElementById('stateConsole').href = consoleURL;
       document.getElementById('cheDashboard').href = cheDashboardURL;
+      document.getElementById('rhoaiDashboard').href = rhoaiDashboardURL;
     } else if (data.status.ready === false && data.status.reason === 'Provisioning') {
       console.log('account is provisioning..');
       // account is provisioning; start polling.
@@ -422,3 +427,18 @@ getJSON('GET', configURL, null, function(err, data) {
     });
   }
 });
+
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
+  });
+}

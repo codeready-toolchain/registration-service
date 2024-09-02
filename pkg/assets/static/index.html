@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@patternfly/patternfly@4.6.3/patternfly.css" crossorigin="anonymous">
   <link rel="stylesheet" href="landingpage.css">
   <script src="https://www.google.com/recaptcha/enterprise.js?render=6LdL7aMlAAAAALvuuAZWjwlOLRKMCIrWjOpv-U3G"></script>
-  <title>OpenShift Developer Sandbox</title>
+  <title>Developer Sandbox for Red Hat OpenShift</title>
 </head>
 <body>
   <div class="pf-c-page" id="page-layout-horizontal-nav">
@@ -24,9 +24,14 @@
             <div class="pf-l-stack__item">
                 <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
             </div>
-            <div class="pf-l-stack__item"><span id="userid"></span></div>
-            <div class="pf-l-stack__item"><span id="originalsub"></span></div>
-            <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link pf-m-small" type="button"id="login-command" onclick="showLoginCommand()">Proxy login command</button></div>
+            <div class="pf-l-stack__item">
+              <button class="collapsible"></button>
+              <div class="collapsible-content">
+                <div class="pf-l-stack__item"><span id="userid"></span></div>
+                <div class="pf-l-stack__item"><span id="originalsub"></span></div>
+                <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link pf-m-small" type="button"id="login-command" onclick="showLoginCommand()">Proxy login command</button></div>
+              </div>
+            </div>
             <div class="pf-l-stack__item" id="oc-login" style="display:none">
               <div class="pf-c-clipboard-copy">
                 <div class="pf-c-clipboard-copy__group">
@@ -78,7 +83,7 @@
         <table>
           <tr>
             <td><img class="pf-c-brand rhd-logo" src="rhdeveloper-logo.svg" alt="Red Hat Developer Logo" /></td>
-            <td style="padding-left: 0.8em; padding-bottom: 10px; font-size: 1.5em;">OpenShift Developer Sandbox</td>
+            <td style="padding-left: 0.8em; padding-bottom: 10px; font-size: 1.5em;">Developer Sandbox for Red Hat OpenShift</td>
           </tr>
         </table>
       </div>
@@ -98,22 +103,19 @@
       </div>
       <div class="pf-c-content">
         <div class="toolchain-state" id="state-getstarted">
-          <button id="loginbutton" class="getstartedbutton-disabled" onclick="login()">Get Started with OpenShift Developer Sandbox</button>
-          <p class="terms">
-            <input onchange="termsAgreed(this)" style="display: table-cell; vertical-align: middle;" type="checkbox">
-            <span>I agree to the <a href="https://www.openshift.com/legal/terms/">Terms and Conditions</a></span>
-          </p>
-          <p class="terms">&copy; 2020, Red Hat Inc.</p>
+          <button id="loginbutton" class="getstartedbutton-enabled" onclick="login()">Get Started with Developer Sandbox</button>
         </div>
         <div class="toolchain-state" id="state-initiate-phone-verification">
-          <p>You need to confirm your account using a mobile phone. Please enter you phone number including country code:</p>
-          <p>
-            Country Code and Phone Number: <input type="text" name="countrycode" id="phone-countrycode" required minlength="1" maxlength="4" size="4" placeholder="+01">
-            - <input type="text" name="phonenumber" id="phone-phonenumber" required minlength="6" maxlength="32" size="15" placeholder="123-4567890">
-            <button class="phone-button" onclick="initiatePhoneVerification()">Send Code</button>
-          </p>
-          <p class="terms">Cost may apply for receiving texts outside of the United States. Please consult with your service provider for details.</p>
-          <p>Alternatively you may confirm your account using an activation code:</p>
+          <div hidden="hidden">
+            <p>You need to confirm your account using a mobile phone. Please enter you phone number including country code:</p>
+            <p>
+              Country Code and Phone Number: <input type="text" name="countrycode" id="phone-countrycode" required minlength="1" maxlength="4" size="4" placeholder="+01">
+              - <input type="text" name="phonenumber" id="phone-phonenumber" required minlength="6" maxlength="32" size="15" placeholder="123-4567890">
+              <button class="phone-button" onclick="initiatePhoneVerification()">Send Code</button>
+            </p>
+            <p class="terms">Cost may apply for receiving texts outside of the United States. Please consult with your service provider for details.</p>
+          </div>
+          <p>Please provide an activation code:</p>
           <p>
             Activation Code: <input type="text" name="activationcode" id="activationcode" required minlength="5" maxlength="5" size="10" placeholder="XXXXX">
             <button class="activationcode-button" onclick="submitActivationCode()">Send Code</button>
@@ -131,36 +133,60 @@
           </p>
         </div>
         <div class="toolchain-state" id="state-waiting-for-approval">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your OpenShift Developer Sandbox account is waiting for approval</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account is waiting for approval</h1>
         </div>
         <div class="toolchain-state" id="state-waiting-for-provisioning">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your OpenShift Developer Sandbox account is waiting for provisioning</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account is waiting for provisioning</h1>
         </div>
         <div class="toolchain-state" id="state-provisioned">
-          <h1><i class="fas fa-spinner fa-pulse"></i> Your OpenShift Developer Sandbox account has been provisioned</h1>
+          <h1><i class="fas fa-spinner fa-pulse"></i> Your Developer Sandbox account has been provisioned</h1>
         </div>
         <div class="toolchain-dashboard" id="dashboard">
           <div class="pf-c-content">
             <div class="pf-l-gallery pf-m-gutter">
               <div class="pf-l-gallery__item">
                 <div class="pf-c-card">
+                  <div class="pf-c-card__header">
+                    <img class="pf-c-brand box-logo" src="OpenShift-RGB.svg" alt="OpenShift Logo" />
+                    <h1>OpenShift</h1>
+                  </div>
                   <div class="pf-c-card__body">
-                    <img class="pf-c-brand box-logo" src="openshift-logo.svg" alt="OpenShift Logo" />
-                    <h1>Red Hat OpenShift Dev Experience</h1>
-                    <span><a id="stateConsole" href="#" class="pf-c-nav__link">Start using your Sandbox..</a></span>
+                    <p>A cloud-native application platform with everything you need to manage your development life cycle securely, including standardized workflows, support for multiple environments, continuous integration, and release management.</p>
+                  </div>
+                  <div class="pf-c-card__footer">
+                    <span><a id="stateConsole" href="#" class="pf-c-nav__link">Launch...</a></span>
                   </div>
                 </div>
               </div>
               <div class="pf-l-gallery__item" style="display:none">
                 <div class="pf-c-card">
-                  <div class="pf-c-card__body">
+                  <div class="pf-c-card__header">
                     <img class="pf-c-brand box-logo" src="codereadyws-logo.svg" alt="CodeReady Workspaces Logo" />
-                    <h1>CodeReady&nbsp;Workspaces<br>&nbsp;</h1>
-                    <span><a id="cheDashboard" href="#" class="pf-c-nav__link">Start Coding..</a></span>
+                    <h1>Dev Spaces</h1>
+                  </div>
+                  <div class="pf-c-card__body">
+                    <p>A collaborative Kubernetes-native solution for rapid application development that delivers consistent developer environments on Red Hat OpenShift to allow anyone with a browser to contribute code in under two minutes.</p>
+                  </div>
+                  <div class="pf-c-card__footer">
+                    <span><a id="cheDashboard" href="#" class="pf-c-nav__link">Launch..</a></span>
                   </div>
                 </div>
               </div>
-            </div>    
+              <div class="pf-l-gallery__item">
+                <div class="pf-c-card">
+                  <div class="pf-c-card__header">
+                    <img class="pf-c-brand box-logo" src="OpenShift_Data_Science-RGB.svg" alt="OpenShift AI Logo" />
+                    <h1>OpenShift AI</h1>
+                  </div>
+                  <div class="pf-c-card__body">
+                    <p>OpenShift AI gives data scientists and developers a powerful AI/ML platform for building AI-enabled applications.<br><br><br><br><br><br></p>
+                  </div>
+                  <div class="pf-c-card__footer">
+                    <span><a id="rhoaiDashboard" href="#" class="pf-c-nav__link">Launch...</a></span>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="pf-l-gallery pf-m-gutter">
             </div>
           </div>    

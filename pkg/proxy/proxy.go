@@ -418,7 +418,8 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 	// retrieve the requesting user's UserSignup
 	userSignup, err := p.spaceLister.GetSignupFunc(nil, userID, username, false)
 	if err != nil {
-		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), "user not found")
+		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for userID '%s' and username '%s'", userID, username))
+		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")
 	}
 
 	// proceed as PublicViewer if needed

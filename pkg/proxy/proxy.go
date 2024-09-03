@@ -454,10 +454,10 @@ func hasDirectAccess(signup *signup.Signup, workspace *toolchainv1alpha1.Workspa
 	return false
 }
 
+// getUserWorkspaceWithBindings retrieves the workspace with the SpaceBindings if the requesting user has access to it.
+// User access to the Workspace is checked by getting all spacebindings recursively,
+// starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
 func (p *Proxy) getUserWorkspaceWithBindings(ctx echo.Context, workspaceName string) (*toolchainv1alpha1.Workspace, error) {
-	// when a workspace name was provided
-	// validate that the user has access to the workspace by getting all spacebindings recursively,
-	// starting from this workspace and going up to the parent workspaces till the "root" of the workspace tree.
 	workspace, err := handlers.GetUserWorkspaceWithBindings(ctx, p.spaceLister, workspaceName, p.getMembersFunc)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to retrieve user workspaces"), err.Error())

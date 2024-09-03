@@ -410,10 +410,12 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPlugin
 	return cluster, nil
 }
 
-// getClusterAccessAsUserOrPublicViewer if the requesting user has direct access to the workspace,
-// it returns the ClusterAccess impersonating the requesting user.
-// Otherwise, if PublicViewer support is enabled and PublicViewer user has access to the workspace,
-// it returns the ClusterAccess impersonating the PublicViewer user.
+// getClusterAccessAsUserOrPublicViewer if the requesting user exists and has direct access to the workspace,
+// this function returns the ClusterAccess impersonating the requesting user.
+// If PublicViewer support is enabled and PublicViewer user has access to the workspace,
+// this function returns the ClusterAccess impersonating the PublicViewer user.
+// If requesting user does not exists and PublicViewer is disabled or does not have access to the workspace,
+// this function returns an error.
 func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve the requesting user's UserSignup
 	userSignup, err := p.spaceLister.GetSignupFunc(nil, userID, username, false)
@@ -422,7 +424,7 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")
 	}
 
-	// proceed as PublicViewer if needed
+	// proceed as PublicViewer if the feature is enabled and userSignup is nil
 	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
 	if publicViewerEnabled && !hasDirectAccess(userSignup, workspace) {
 		return p.app.MemberClusterService().GetClusterAccess(
@@ -433,7 +435,7 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 			publicViewerEnabled)
 	}
 
-	// retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
+	// otherwise retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
 	return p.app.MemberClusterService().GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
 }
 

@@ -26,12 +26,13 @@ func TestContent(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.Len(t, entries, 9)
-	names := make([]string, 9)
+	require.Len(t, entries, 11)
+	names := make([]string, 11)
 	for i, e := range entries {
 		names[i] = e.Name()
 	}
 	assert.ElementsMatch(t, []string{
+		"OpenShift-RGB.svg", "OpenShift_Data_Science-RGB.svg",
 		"codereadyws-logo.svg", "index.html", "landingpage.js",
 		"redhat-logo.svg", "silent-check-sso.html", "favicon.ico",
 		"landingpage.css", "openshift-logo.svg", "rhdeveloper-logo.svg",

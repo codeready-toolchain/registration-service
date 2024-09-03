@@ -606,7 +606,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization": {"Bearer clusterSAToken"},
 				},
-				ExpectedResponse:            ptr("unable to get target cluster: the requested space is not available"),
+				ExpectedResponse:            ptr("unable to get target cluster: access to workspace 'not-existing-workspace' is forbidden"),
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
 			},
 		}

@@ -324,7 +324,8 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 
 // processWorkspaceRequest process an HTTP Request targeting a specific workspace.
 func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, workspaceName, proxyPluginName string) (*access.ClusterAccess, error) {
-	// check that the user is provisioned and the space exists
+	// check that the user is provisioned and the space exists.
+	// if the PublicViewer support is enabled, user check is skipped.
 	if err := p.checkUserIsProvisionedAndSpaceExists(ctx, userID, username, workspaceName); err != nil {
 		return nil, err
 	}

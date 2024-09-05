@@ -1245,6 +1245,7 @@ func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.Extr
 		Username: "username-" + userID.String(),
 	}
 
+	// if an email address is not explicitly set, someemail@comp.com is used
 	extra := append([]authsupport.ExtraClaim{authsupport.WithEmailClaim("someemail@comp.com")}, extraClaims...)
 	token, err := authsupport.GenerateSignedE2ETestToken(*userIdentity, extra...)
 	require.NoError(s.T(), err)

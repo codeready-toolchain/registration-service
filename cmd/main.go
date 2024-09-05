@@ -154,13 +154,13 @@ func main() {
 		}
 	}()
 
-	// update cache every 10 seconds
+	// update cache every 2 seconds
 	go func() {
 		for {
 			if _, err := configuration.ForceLoadRegistrationServiceConfig(cl); err != nil {
 				log.Error(nil, err, "failed to update the configuration cache")
 			}
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
 

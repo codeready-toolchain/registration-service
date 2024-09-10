@@ -1,7 +1,4 @@
-import Keycloak from "keycloak-js";
-
-// URL to get config
-const configURL = "/api/v1/authconfig";
+const configURL = "/api/v1/authconfig"; // URL to get config
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
 const link = urlParams.get("link");

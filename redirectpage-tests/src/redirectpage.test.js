@@ -3,7 +3,7 @@ import {
   getJSON,
   getRedirectData,
   redirectUser,
-} from "./redirectpage";
+} from "../../pkg/assets/static/redirectpage.js";
 
 //Mock dependencies
 global.fetch = jest.fn();

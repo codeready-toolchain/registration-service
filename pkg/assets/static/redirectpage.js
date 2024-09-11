@@ -17,7 +17,7 @@ let keycloak;
 let intervalRefRefresh;
 
 export function handleSuccess(data) {
-  if (!data || !data.consoleURL || !data.defaultUserNamespace) {
+  if (!data?.consoleURL || !data?.defaultUserNamespace) {
     window.location.href = consoleUrlMock;
     return;
   }
@@ -27,15 +27,15 @@ export function handleSuccess(data) {
   const redirectUrl = new URL(baseUrl + appendedUrl);
   let resultUrl;
   if (data.status != "ready") {
-    resultUrl = consoleUrlMock;
+    window.location.url = consoleUrlMock;
+  }
+
+  if (link === "notebookController") {
+    resultUrl = `${baseUrl}notebookController/spawner`;
+  } else if (link === "dashboard") {
+    resultUrl = `${baseUrl}dashboard`;
   } else {
-    if (link === "notebookController") {
-      resultUrl = `${baseUrl}notebookController/spawner`;
-    } else if (link === "dashboard") {
-      resultUrl = `${baseUrl}dashboard`;
-    } else {
-      resultUrl = redirectUrl.toString();
-    }
+    resultUrl = redirectUrl.toString();
   }
   const url = new URL(resultUrl);
   Object.keys(params).forEach((key) => {
@@ -99,7 +99,7 @@ export function getJSON(
   body = null,
   headers = {}
 ) {
-  var xhr = new XMLHttpRequest();
+  let xhr = new XMLHttpRequest();
   xhr.open(method, url, true);
   if (token != null) xhr.setRequestHeader("Authorization", "Bearer " + token);
 
@@ -109,7 +109,7 @@ export function getJSON(
 
   xhr.responseType = "json";
   xhr.onload = () => {
-    var status = xhr.status;
+    let status = xhr.status;
     if (status >= 200 && status < 300) {
       callback(null, xhr.response);
     } else {
@@ -142,9 +142,9 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
 export async function getRedirectData() {
   const xhr = new XMLHttpRequest();
 
-  xhr.open('GET', registrationURL, true);
+  xhr.open("GET", registrationURL, true);
 
-  xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+  xhr.setRequestHeader("Authorization", `Bearer ${idToken}`);
   xhr.onreadystatechange = function () {
     if (xhr.readyState === XMLHttpRequest.DONE) {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -158,7 +158,7 @@ export async function getRedirectData() {
         handleError();
       }
     }
-  }
+  };
   xhr.onerror = function () {
     handleError();
   };
@@ -177,7 +177,7 @@ export function redirectUser() {
             const clientConfig = JSON.parse(data["auth-client-config"]);
             initializeKeycloak(clientConfig);
           },
-          handleError()
+          () => handleError()
         );
       }
     });

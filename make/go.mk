@@ -23,7 +23,7 @@ build-dev:
 
 # builds the production binary with bundled assets
 ## builds production binary
-build-prod: check-template-changes
+build-prod:
 	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} -ldflags="${LDFLAGS} -s -w" -trimpath \
 		-o $(OUT_DIR)/bin/registration-service \
@@ -32,16 +32,6 @@ build-prod: check-template-changes
 .PHONY: vendor
 vendor:
 	$(Q)go mod vendor
-
-.PHONY: check-template-changes
-check-template-changes:
-ifneq ($(shell git status -s | grep deploy/registration-service.yaml),)
-	@echo "#########################################################################"
-	@echo "## WARNING: The file deploy/registration-service.yaml has been changed ##"
-	@echo "##          Don't forget to reflect the change in host-operator repo   ##"
-	@echo "##          Run 'make copy-reg-service-template' and send PR         ##"
-	@echo "#########################################################################"
-endif
 
 .PHONY: verify-dependencies
 ## Runs commands to verify after the updated dependecies of toolchain-common/API(go mod replace), if the repo needs any changes to be made

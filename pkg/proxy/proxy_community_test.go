@@ -66,8 +66,7 @@ func (s *TestProxySuite) TestProxyCommunityEnabled() {
 
 func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Proxy, port string) {
 	s.Run("successfully proxy", func() {
-		owner := uuid.New()
-		communityUser := uuid.New()
+		smith := uuid.New()
 		alice := uuid.New()
 		notReadyUser := uuid.New()
 		notSignedUpUser := uuid.New()
@@ -93,28 +92,32 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			ExpectedResponse                string
 		}
 
+		podsRequestUrl := func(workspace string) string {
+			return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
+		}
+
 		tests := map[string]testCase{
-			// Given smith2 owns a workspace named communityspace
-			// And   communityspace is publicly visible (shared with PublicViewer)
-			// When  smith2 requests the list of pods in workspace communityspace
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// When  smith requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
-			// And   the request impersonates smith2
-			// And   the request's X-SSO-User Header is set to smith2's ID
+			// And   the request impersonates smith
+			// And   the request's X-SSO-User Header is set to smith's ID
 			// And   the request is successful
-			"plain http actual request as owner": {
+			"plain http actual request as community space owner": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(owner)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
-					"Impersonate-User": {"smith2"},
-					"X-SSO-User":       {"username-" + owner.String()},
+					"Impersonate-User": {"smith"},
+					"X-SSO-User":       {"username-" + smith.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
+				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given A not ready user exists
-			// When  the not ready user requests the list of pods in workspace communityspace
+			// When  the not ready user requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
 			// And   the request impersonates the not ready user
 			// And   the request's X-SSO-User Header is set to not ready user's ID
@@ -128,11 +131,11 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + notReadyUser.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
+				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given A not signed up user exists
-			// When  the not signed up user requests the list of pods in workspace communityspace
+			// When  the not signed up user requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
 			// And   the request impersonates the not signed up user
 			// And   the request's X-SSO-User Header is set to not signed up user's ID
@@ -146,47 +149,47 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + notSignedUpUser.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
+				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
-			// Given smith2 owns a workspace named communityspace
-			// And   communityspace is publicly visible (shared with PublicViewer)
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
 			// And   a user named communityuser exists
-			// And   smith2's communityspace is not directly shared with communityuser
-			// When  communityuser requests the list of pods in workspace communityspace
+			// And   smith's smith-community is not directly shared with communityuser
+			// When  communityuser requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
 			// And   the request impersonates the PublicViewer
 			// And   the request's X-SSO-User Header is set to communityuser's ID
 			// And   the request is successful
 			"plain http actual request as community user": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(communityUser)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + communityUser.String()},
+					"X-SSO-User":       {"username-" + alice.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/communityspace/api/communityspace/pods", port),
+				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given user alice exists
 			// And   alice owns a private workspace
-			// When  smith2 requests the list of pods in alice's workspace
+			// When  smith requests the list of pods in alice's workspace
 			// Then  the request is forwarded from the proxy
-			// And   the request impersonates smith2
-			// And   the request's X-SSO-User Header is set to smith2's ID
+			// And   the request impersonates smith
+			// And   the request's X-SSO-User Header is set to smith's ID
 			// And   the request is NOT successful
-			"plain http actual request as not owner to private workspace": {
+			"plain http actual request as non-owner to private workspace": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(owner)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
-					"Impersonate-User": {"smith2"},
-					"X-SSO-User":       {"username-" + owner.String()},
+					"Impersonate-User": {"smith"},
+					"X-SSO-User":       {"username-" + smith.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 fmt.Sprintf("http://localhost:%s/workspaces/alice-private/api/alice-private/pods", port),
+				RequestPath:                 podsRequestUrl("alice-private"),
 				ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
 			},
 		}
@@ -212,22 +215,12 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					}
 				})
 				fakeApp.SignupServiceMock = fake.NewSignupService(
-					fake.Signup(owner.String(), &signup.Signup{
-						Name:              "smith2",
+					fake.Signup(smith.String(), &signup.Signup{
+						Name:              "smith",
 						APIEndpoint:       testServer.URL,
 						ClusterName:       "member-2",
-						CompliantUsername: "smith2",
-						Username:          "smith2@",
-						Status: signup.Status{
-							Ready: true,
-						},
-					}),
-					fake.Signup(communityUser.String(), &signup.Signup{
-						Name:              "communityUser",
-						APIEndpoint:       testServer.URL,
-						ClusterName:       "member-2",
-						CompliantUsername: "communityUser",
-						Username:          "communityUser@",
+						CompliantUsername: "smith",
+						Username:          "smith@",
 						Status: signup.Status{
 							Ready: true,
 						},
@@ -255,19 +248,19 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				inf := fake.NewFakeInformer()
 				inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
 					switch name {
-					case "communityspace":
-						return fake.NewSpace("communityspace", "member-2", "smith2"), nil
+					case "smith-community":
+						return fake.NewSpace("smith-community", "member-2", "smith"), nil
 					case "alice-private":
 						return fake.NewSpace("alice-private", "member-2", "alice"), nil
 					}
 					return nil, fmt.Errorf("space not found error")
 				}
 
-				sbmycoolSmith2 := fake.NewSpaceBinding("communityspace-smith2", "smith2", "communityspace", "admin")
-				commSpacePublicViewer := fake.NewSpaceBinding("communityspace-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "communityspace", "viewer")
-				alicePrivate := fake.NewSpaceBinding("alice-default", "alice", "alice-default", "admin")
+				sbSmithCommunitySmith := fake.NewSpaceBinding("smith-community-smith", "smith", "smith-community", "admin")
+				commSpacePublicViewer := fake.NewSpaceBinding("smith-community-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith-community", "viewer")
+				alicePrivate := fake.NewSpaceBinding("alice-default", "alice", "alice-private", "admin")
 
-				cli := fake.InitClient(s.T(), sbmycoolSmith2, commSpacePublicViewer, alicePrivate)
+				cli := fake.InitClient(s.T(), sbSmithCommunitySmith, commSpacePublicViewer, alicePrivate)
 				inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
 					sbs := toolchainv1alpha1.SpaceBindingList{}
 					opts := &client.ListOptions{

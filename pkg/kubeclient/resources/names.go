@@ -9,4 +9,5 @@ const (
 	ToolchainStatusName        = "toolchain-status"
 	ProxyPluginsPlural         = "proxyplugins"
 	NSTemplateTierPlural       = "nstemplatetiers"
+	BannedUserResourcePlural   = "bannedusers"
 )

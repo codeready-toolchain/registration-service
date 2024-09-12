@@ -19,6 +19,7 @@ import (
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -33,6 +34,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -56,6 +58,23 @@ func TestRunProxySuite(t *testing.T) {
 	suite.Run(t, &TestProxySuite{test.UnitTestSuite{}})
 }
 
+var (
+	bannedUser = toolchainv1alpha1.BannedUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "alice",
+			Namespace: configuration.Namespace(),
+			Labels: map[string]string{
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString("alice@redhat.com"),
+			},
+		},
+		Spec: toolchainv1alpha1.BannedUserSpec{
+			Email: "alice@redhat.com",
+		},
+	}
+
+	bannedUserListErrorEmailValue = "banneduser-list-error"
+)
+
 func (s *TestProxySuite) TestProxy() {
 	// given
 
@@ -72,8 +91,29 @@ func (s *TestProxySuite) TestProxy() {
 
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
-			fakeApp := &fake.ProxyFakeApp{}
-			p, server := s.spinUpProxy(fakeApp, DefaultPort)
+
+			inf := fake.GetInformerService(
+				fake.InitClient(s.T()),
+				fake.WithGetBannedUsersByEmailFunc(func(email string) ([]toolchainv1alpha1.BannedUser, error) {
+					switch email {
+					case bannedUser.Spec.Email:
+						return []toolchainv1alpha1.BannedUser{bannedUser}, nil
+					case bannedUserListErrorEmailValue:
+						return nil, fmt.Errorf("list banned user error")
+					default:
+						return nil, nil
+					}
+				}))()
+
+			fakeApp := &fake.ProxyFakeApp{
+				InformerServiceMock: inf,
+			}
+			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
+			require.NoError(s.T(), err)
+
+			server := p.StartProxy(DefaultPort)
+			require.NotNil(s.T(), server)
 			defer func() {
 				_ = server.Close()
 			}()
@@ -219,9 +259,10 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 
 		s.Run("internal error if get accesses returns an error", func() {
 			// given
+			fakeApp.Err = errors.New("some-error")
+			defer func() { fakeApp.Err = nil }()
 			req := s.request()
 			fakeApp.Accesses = map[string]*access.ClusterAccess{}
-			fakeApp.Err = errors.New("some-error")
 
 			// when
 			resp, err := http.DefaultClient.Do(req)
@@ -236,6 +277,8 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 
 		s.Run("internal error if accessing incorrect url", func() {
 			// given
+			fakeApp.Err = errors.New("some-error")
+			defer func() { fakeApp.Err = nil }()
 			req := s.request()
 			req.URL.Path = "http://localhost:8081/metrics"
 			require.NotNil(s.T(), req)
@@ -248,6 +291,42 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
+		})
+
+		s.Run("forbidden error if user is banned", func() {
+			// given
+			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), req)
+			userID := uuid.New()
+			token := s.token(userID, authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUser.Spec.Email))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+			resp, err := http.DefaultClient.Do(req)
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), resp)
+			defer resp.Body.Close()
+			assert.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
+			s.assertResponseBody(resp, "user access is forbidden: user access is forbidden")
+		})
+
+		s.Run("internal error if error occurred while defining if the user is banned", func() {
+			// given
+			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), req)
+			userID := uuid.New()
+			token := s.token(userID, authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUserListErrorEmailValue))
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+			resp, err := http.DefaultClient.Do(req)
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), resp)
+			defer resp.Body.Close()
+			assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
+			s.assertResponseBody(resp, "user access could not be verified: could not define user access")
 		})
 	})
 }
@@ -753,6 +832,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 									inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
 										return fake.NewBase1NSTemplateTier(), nil
 									}
+									inf.ListBannedUsersByEmailFunc = func(_ string) ([]toolchainv1alpha1.BannedUser, error) {
+										return nil, nil
+									}
 									s.Application.MockInformerService(inf)
 									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 									fakeApp.InformerServiceMock = inf
@@ -1241,7 +1323,8 @@ func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.Extr
 		Username: "username-" + userID.String(),
 	}
 
-	extra := append(extraClaims, authsupport.WithEmailClaim("someemail@comp.com"))
+	// if an email address is not explicitly set, someemail@comp.com is used
+	extra := append([]authsupport.ExtraClaim{authsupport.WithEmailClaim("someemail@comp.com")}, extraClaims...)
 	token, err := authsupport.GenerateSignedE2ETestToken(*userIdentity, extra...)
 	require.NoError(s.T(), err)
 

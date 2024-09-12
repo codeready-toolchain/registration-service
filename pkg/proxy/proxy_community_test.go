@@ -279,6 +279,9 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
 					return fake.NewBase1NSTemplateTier(), nil
 				}
+				inf.ListBannedUsersByEmailFunc = func(_ string) ([]toolchainv1alpha1.BannedUser, error) {
+					return nil, nil
+				}
 				s.Application.MockInformerService(inf)
 				fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 				fakeApp.InformerServiceMock = inf

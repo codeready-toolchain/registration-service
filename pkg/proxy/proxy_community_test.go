@@ -13,6 +13,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	"github.com/google/uuid"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -70,6 +72,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		alice := uuid.New()
 		bob := uuid.New()
 		john := uuid.New()
+		eve, eveEmail := uuid.New(), "eve@somecorp.com"
 
 		// Start the member-2 API Server
 		httpTestServerResponse := "my response"
@@ -192,6 +195,33 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				RequestPath:                 podsRequestURL("alice-private"),
 				ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
 			},
+			// Given banned user eve exists
+			// And   user smith exists
+			// And   smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// When  eve requests the list of pods in smith's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http actual request as banned user to community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(eve, authsupport.WithEmailClaim(eveEmail))}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsRequestURL("smith-community"),
+				ExpectedResponse:            "user access is forbidden: user access is forbidden",
+			},
+			// Given banned user eve exists
+			// And   user alice exists
+			// And   alice owns a private workspace
+			// When  eve requests the list of pods in alice's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http actual request as banned user to private workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(eve, authsupport.WithEmailClaim(eveEmail))}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsRequestURL("alice-private"),
+				ExpectedResponse:            "user access is forbidden: user access is forbidden",
+			},
 		}
 
 		for k, tc := range tests {
@@ -243,6 +273,15 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 							Ready: false,
 						},
 					}),
+					fake.Signup(eve.String(), &signup.Signup{
+						Name:              "eve",
+						CompliantUsername: "eve",
+						Username:          "eve@",
+						Status: signup.Status{
+							Ready:  false,
+							Reason: toolchainv1alpha1.UserSignupUserBannedReason,
+						},
+					}),
 				)
 				s.Application.MockSignupService(fakeApp.SignupServiceMock)
 				inf := fake.NewFakeInformer()
@@ -279,9 +318,23 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
 					return fake.NewBase1NSTemplateTier(), nil
 				}
-				inf.ListBannedUsersByEmailFunc = func(_ string) ([]toolchainv1alpha1.BannedUser, error) {
-					return nil, nil
+				inf.ListBannedUsersByEmailFunc = func(email string) ([]toolchainv1alpha1.BannedUser, error) {
+					switch email {
+					case eveEmail:
+						return []toolchainv1alpha1.BannedUser{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "eve",
+									Namespace: "toolchain-host-operator",
+								},
+								Spec: toolchainv1alpha1.BannedUserSpec{},
+							},
+						}, nil
+					default:
+						return nil, nil
+					}
 				}
+
 				s.Application.MockInformerService(inf)
 				fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 				fakeApp.InformerServiceMock = inf

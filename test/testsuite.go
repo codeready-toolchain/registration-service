@@ -94,10 +94,9 @@ func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) conf
 	err = s.ConfigClient.Create(context.TODO(), newcfg)
 	require.NoError(s.T(), err)
 
-	// update config cache
-	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
-	require.NoError(s.T(), err)
-	return cfg
+	// set client & get the config
+	configuration.SetClient(s.ConfigClient)
+	return configuration.GetRegistrationServiceConfig()
 }
 
 func (s *UnitTestSuite) SetSecret(secret *corev1.Secret) {
@@ -112,10 +111,8 @@ func (s *UnitTestSuite) SetSecret(secret *corev1.Secret) {
 	require.True(s.T(), errors.IsNotFound(err), "unexpected error")
 	err = s.ConfigClient.Create(context.TODO(), secret)
 	require.NoError(s.T(), err)
-	// update config cache
-	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
-	require.NoError(s.T(), err)
-	require.NotEmpty(s.T(), cfg)
+	// set client
+	configuration.SetClient(s.ConfigClient)
 }
 
 func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig {
@@ -125,9 +122,9 @@ func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig 
 	obj := testconfig.NewToolchainConfigObj(s.T(), testconfig.RegistrationService().Environment("unit-tests"))
 	err := s.ConfigClient.Create(context.TODO(), obj)
 	require.NoError(s.T(), err)
-	cfg, err := configuration.ForceLoadRegistrationServiceConfig(s.ConfigClient)
-	require.NoError(s.T(), err)
-	return cfg
+	// set client & get the config
+	configuration.SetClient(s.ConfigClient)
+	return configuration.GetRegistrationServiceConfig()
 }
 
 func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {

@@ -92,7 +92,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			ExpectedResponse                string
 		}
 
-		podsRequestUrl := func(workspace string) string {
+		podsRequestURL := func(workspace string) string {
 			return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
 		}
 
@@ -113,7 +113,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + smith.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 podsRequestUrl("smith-community"),
+				RequestPath:                 podsRequestURL("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given The not ready user john exists
@@ -131,7 +131,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + john.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 podsRequestUrl("smith-community"),
+				RequestPath:                 podsRequestURL("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given The not signed up user bob exists
@@ -149,7 +149,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + bob.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 podsRequestUrl("smith-community"),
+				RequestPath:                 podsRequestURL("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given smith owns a workspace named smith-community
@@ -170,7 +170,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + alice.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
-				RequestPath:                 podsRequestUrl("smith-community"),
+				RequestPath:                 podsRequestURL("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given user alice exists
@@ -189,7 +189,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					"X-SSO-User":       {"username-" + smith.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsRequestUrl("alice-private"),
+				RequestPath:                 podsRequestURL("alice-private"),
 				ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
 			},
 		}

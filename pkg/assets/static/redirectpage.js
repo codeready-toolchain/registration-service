@@ -16,7 +16,7 @@ let idToken;
 let keycloak;
 let intervalRefRefresh;
 
-export function handleSuccess(data) {
+function handleSuccess(data) {
   if (!data?.consoleURL || !data?.defaultUserNamespace) {
     window.location.href = consoleUrlMock;
     return;
@@ -91,7 +91,7 @@ function initializeKeycloak(clientConfig) {
 }
 
 // General function to fetch JSON data
-export function getJSON(
+function getJSON(
   method,
   url,
   token,
@@ -139,7 +139,7 @@ function loadAuthLibrary(url, cbSuccess, cbError) {
   document.head.appendChild(script);
 }
 
-export async function getRedirectData() {
+async function getRedirectData() {
   const xhr = new XMLHttpRequest();
 
   xhr.open("GET", registrationURL, true);
@@ -165,7 +165,7 @@ export async function getRedirectData() {
   xhr.send();
 }
 
-export function redirectUser() {
+function redirectUser() {
   if (!idToken) {
     getJSON("GET", configURL, null, (err, data) => {
       if (err) {

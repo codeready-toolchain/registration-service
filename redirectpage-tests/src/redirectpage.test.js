@@ -1,12 +1,11 @@
-import {
+const {
   handleSuccess,
   getJSON,
   getRedirectData,
   redirectUser,
-} from "../../pkg/assets/static/redirectpage.js";
+} = require("../../pkg/assets/static/redirectpage.js");
 
 //Mock dependencies
-global.fetch = jest.fn();
 const mockKeycloak = {
   init: jest.fn(),
   loadUserInfo: jest.fn(),
@@ -32,7 +31,6 @@ global.consoleUrlMock = "https://example.com";
 
 describe("redirect user functions", () => {
   describe("handleSuccess", () => {
-
     beforeEach(() => {
       //Mock window.location
       delete window.location;
@@ -44,7 +42,7 @@ describe("redirect user functions", () => {
         consoleURL: "https://example.com/",
         defaultUserNamespace: "user123",
       };
-      window.location = {href: 'https:example.com'};
+      window.location = { href: "https:example.com" };
       handleSuccess(dataMock);
       expect(window.location.href).toBe(
         "https://console.redhat.com/openshift/sandbox"
@@ -58,7 +56,7 @@ describe("redirect user functions", () => {
       };
 
       //Set the link parameter and mock search params
-      window.location = {href: 'https://example.com'};
+      window.location = { href: "https://example.com" };
 
       handleSuccess(dataMock);
       expect(window.location.href).toBe(

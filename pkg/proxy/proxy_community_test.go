@@ -154,12 +154,12 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			},
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
-			// And   a user named communityuser exists
-			// And   smith's smith-community is not directly shared with communityuser
-			// When  communityuser requests the list of pods in workspace smith-community
+			// And   a user named alice exists
+			// And   smith's smith-community is not directly shared with alice
+			// When  alice requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
 			// And   the request impersonates the PublicViewer
-			// And   the request's X-SSO-User Header is set to communityuser's ID
+			// And   the request's X-SSO-User Header is set to alice's ID
 			// And   the request is successful
 			"plain http actual request as community user": {
 				ProxyRequestMethod:  "GET",

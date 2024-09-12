@@ -63,14 +63,13 @@ func Namespace() string {
 	return os.Getenv(commonconfig.WatchNamespaceEnvVar)
 }
 
-// GetRegistrationServiceConfig returns a RegistrationServiceConfig using the cache, or if the cache was not initialized
-// then retrieves the latest config using the provided client and updates the cache
+// GetRegistrationServiceConfig returns a RegistrationServiceConfig reflecting the current state of the ToolchainConfig CR and the associated secrets
 func GetRegistrationServiceConfig() RegistrationServiceConfig {
 	if configurationClient == nil {
 		logger.Error(fmt.Errorf("configuration client is not initialized"), "using default configuration")
 		return RegistrationServiceConfig{cfg: &toolchainv1alpha1.ToolchainConfigSpec{}}
 	}
-	config, secrets, err := commonconfig.GetConfig(configurationClient, &toolchainv1alpha1.ToolchainConfig{})
+	config, secrets, err := commonconfig.LoadLatest(configurationClient, &toolchainv1alpha1.ToolchainConfig{})
 	if err != nil {
 		// return default config
 		logger.Error(err, "failed to retrieve RegistrationServiceConfig, using default configuration")
@@ -79,18 +78,9 @@ func GetRegistrationServiceConfig() RegistrationServiceConfig {
 	return NewRegistrationServiceConfig(config, secrets)
 }
 
-// ForceLoadRegistrationServiceConfig updates the cache using the provided client and returns the latest RegistrationServiceConfig
-func ForceLoadRegistrationServiceConfig(cl client.Client) (RegistrationServiceConfig, error) {
-	if configurationClient == nil {
-		configurationClient = cl
-	}
-	config, secrets, err := commonconfig.LoadLatest(cl, &toolchainv1alpha1.ToolchainConfig{})
-	if err != nil {
-		// return default config
-		logger.Error(err, "failed to force load RegistrationServiceConfig")
-		return RegistrationServiceConfig{cfg: &toolchainv1alpha1.ToolchainConfigSpec{}}, err
-	}
-	return NewRegistrationServiceConfig(config, secrets), nil
+// SetClient sets the client to be used to fetch the configuration
+func SetClient(cl client.Client) {
+	configurationClient = cl
 }
 
 type RegistrationServiceConfig struct {

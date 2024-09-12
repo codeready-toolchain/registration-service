@@ -175,7 +175,11 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 	// listen concurrently to allow for graceful shutdown
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
-			log.Error(nil, err, err.Error())
+			if errors.Is(err, http.ErrServerClosed) {
+				log.Info(nil, fmt.Sprintf("%s - this is expected when server shutdown has been initiated", err.Error()))
+			} else {
+				log.Error(nil, err, err.Error())
+			}
 		}
 	}()
 

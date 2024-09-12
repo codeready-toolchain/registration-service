@@ -68,11 +68,11 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 	s.Run("successfully proxy", func() {
 		smith := uuid.New()
 		alice := uuid.New()
-		notReadyUser := uuid.New()
+		john := uuid.New()
 		notSignedUpUser := uuid.New()
-		httpTestServerResponse := "my response"
 
 		// Start the member-2 API Server
+		httpTestServerResponse := "my response"
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
@@ -116,19 +116,19 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
-			// Given A not ready user exists
-			// When  the not ready user requests the list of pods in workspace smith-community
+			// Given The not ready user john exists
+			// When  john requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
-			// And   the request impersonates the not ready user
-			// And   the request's X-SSO-User Header is set to not ready user's ID
+			// And   the request impersonates john
+			// And   the request's X-SSO-User Header is set to john's ID
 			// And   the request is successful
 			"plain http actual request as notReadyUser": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(notReadyUser)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(john)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + notReadyUser.String()},
+					"X-SSO-User":       {"username-" + john.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestUrl("smith-community"),
@@ -235,10 +235,10 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 							Ready: true,
 						},
 					}),
-					fake.Signup(notReadyUser.String(), &signup.Signup{
-						Name:              "notReadyUser",
-						CompliantUsername: "notReadyUser",
-						Username:          "notReadyUser@",
+					fake.Signup(john.String(), &signup.Signup{
+						Name:              "john",
+						CompliantUsername: "john",
+						Username:          "john@",
 						Status: signup.Status{
 							Ready: false,
 						},

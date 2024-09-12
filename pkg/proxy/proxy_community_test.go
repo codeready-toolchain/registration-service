@@ -68,8 +68,8 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 	s.Run("successfully proxy", func() {
 		smith := uuid.New()
 		alice := uuid.New()
+		bob := uuid.New()
 		john := uuid.New()
-		notSignedUpUser := uuid.New()
 
 		// Start the member-2 API Server
 		httpTestServerResponse := "my response"
@@ -134,19 +134,19 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				RequestPath:                 podsRequestUrl("smith-community"),
 				ExpectedResponse:            httpTestServerResponse,
 			},
-			// Given A not signed up user exists
-			// When  the not signed up user requests the list of pods in workspace smith-community
+			// Given The not signed up user bob exists
+			// When  bob requests the list of pods in workspace smith-community
 			// Then  the request is forwarded from the proxy
-			// And   the request impersonates the not signed up user
-			// And   the request's X-SSO-User Header is set to not signed up user's ID
+			// And   the request impersonates bob
+			// And   the request's X-SSO-User Header is set to bob's ID
 			// And   the request is successful
-			"plain http actual request as notSignedUpUser": {
+			"plain http actual request as bob": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(notSignedUpUser)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(bob)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + notSignedUpUser.String()},
+					"X-SSO-User":       {"username-" + bob.String()},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestUrl("smith-community"),

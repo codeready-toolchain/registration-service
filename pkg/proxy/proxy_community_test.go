@@ -134,7 +134,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			// Given A not signed up user exists
 			// When  the not signed up user requests the list of pods in workspace communityspace
 			// Then  the request is forwarded from the proxy
-			// And   the request impersonates the not ready user
+			// And   the request impersonates the not signed up user
 			// And   the request's X-SSO-User Header is set to not signed up user's ID
 			// And   the request is successful
 			"plain http actual request as notSignedUpUser": {

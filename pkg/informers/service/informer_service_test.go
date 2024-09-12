@@ -6,15 +6,18 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -386,6 +389,108 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 		})
 	})
 
+	s.Run("bannedusers", func() {
+		// given
+		bb := map[string]toolchainv1alpha1.BannedUser{
+			"alice": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "alice",
+					Namespace: configuration.Namespace(),
+					Labels: map[string]string{
+						toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString("alice@redhat.com"),
+					},
+				},
+				Spec: toolchainv1alpha1.BannedUserSpec{
+					Email: "alice@redhat.com",
+				},
+			},
+			"bob": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bob",
+					Namespace: configuration.Namespace(),
+					Labels: map[string]string{
+						toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString("bob@redhat.com"),
+					},
+				},
+				Spec: toolchainv1alpha1.BannedUserSpec{
+					Email: "bob@redhat.com",
+				},
+			},
+			"bob-dup": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "bob-dup",
+					Namespace: configuration.Namespace(),
+					Labels: map[string]string{
+						toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString("bob@redhat.com"),
+					},
+				},
+				Spec: toolchainv1alpha1.BannedUserSpec{
+					Email: "bob@redhat.com",
+				},
+			},
+		}
+
+		// convert to unstructured.Unstructured for fakeLister
+		bbu := make(map[string]*unstructured.Unstructured, len(bb))
+		for k, b := range bb {
+			bu, err := runtime.DefaultUnstructuredConverter.ToUnstructured(b.DeepCopy())
+			require.NoError(s.T(), err)
+			bbu[k] = &unstructured.Unstructured{Object: bu}
+		}
+
+		// setup InformerService with fakeLister
+		inf := informers.Informer{BannedUsers: fakeLister{objs: bbu}}
+		svc := service.NewInformerService(fakeInformerServiceContext{
+			Svcs:     s.Application,
+			informer: inf,
+		})
+
+		s.Run("not found", func() {
+			// when
+			rbb, err := svc.ListBannedUsersByEmail("unknown@unknown.com")
+
+			// then
+			require.NoError(s.T(), err)
+			require.Empty(s.T(), rbb)
+		})
+
+		s.Run("invalid email", func() {
+			// when
+			rbb, err := svc.ListBannedUsersByEmail("not-an-email")
+
+			// then
+			require.NoError(s.T(), err)
+			require.Empty(s.T(), rbb)
+		})
+
+		s.Run("found one", func() {
+			// given
+			expected := bb["alice"]
+
+			// when
+			rbb, err := svc.ListBannedUsersByEmail(expected.Spec.Email)
+
+			// then
+			require.NotNil(s.T(), rbb)
+			require.NoError(s.T(), err)
+			require.Len(s.T(), rbb, 1, "expected 1 result for email %s", expected.Spec.Email)
+			require.Equal(s.T(), expected, rbb[0])
+		})
+
+		s.Run("found multiple", func() {
+			// given
+			expected := []toolchainv1alpha1.BannedUser{bb["bob"], bb["bob-dup"]}
+
+			// when
+			rbb, err := svc.ListBannedUsersByEmail(expected[0].Spec.Email)
+
+			// then
+			require.NotNil(s.T(), rbb)
+			require.NoError(s.T(), err)
+			require.Len(s.T(), rbb, 2, "expected 2 results for email %s", expected[0].Spec.Email)
+			require.Equal(s.T(), expected, rbb)
+		})
+	})
 }
 
 type fakeInformerServiceContext struct {
@@ -410,8 +515,15 @@ type fakeLister struct {
 }
 
 // List will return all objects across namespaces
-func (l fakeLister) List(_ labels.Selector) (ret []runtime.Object, err error) {
-	return nil, nil
+func (l fakeLister) List(ls labels.Selector) (ret []runtime.Object, err error) {
+	objs := []runtime.Object{}
+	for _, o := range l.objs {
+		ll := labels.Set(o.GetLabels())
+		if ls.Matches(ll) {
+			objs = append(objs, o)
+		}
+	}
+	return objs, nil
 }
 
 // Get will attempt to retrieve assuming that name==key

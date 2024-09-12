@@ -118,6 +118,7 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 				return next(ctx)
 			}
 		},
+		p.ensureUserIsNotBanned(),
 	)
 
 	// middleware after routing
@@ -395,13 +396,47 @@ func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 				return next(ctx)
 			}
 
-			userID, username, err := p.extractUserID(ctx.Request())
+			token, err := p.extractUserToken(ctx.Request())
 			if err != nil {
 				return crterrors.NewUnauthorizedError("invalid bearer token", err.Error())
 			}
-			ctx.Set(context.SubKey, userID)
-			ctx.Set(context.UsernameKey, username)
+			ctx.Set(context.SubKey, token.Subject)
+			ctx.Set(context.UsernameKey, token.PreferredUsername)
+			ctx.Set(context.EmailKey, token.Email)
 
+			return next(ctx)
+		}
+	}
+}
+
+// ensureUserIsNotBanned rejects the request if the user is banned.
+// This Middleware requires the context to contain the email of the user,
+// so it needs to be executed after the `addUserContext` Middleware.
+func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			if unsecured(ctx) { // skip only for unsecured endpoints
+				return next(ctx)
+			}
+
+			email := ctx.Get(context.EmailKey).(string)
+			if email == "" {
+				return crterrors.NewUnauthorizedError("unauthenticated request", "invalid email in token")
+			}
+
+			// retrieve banned users
+			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
+			if err != nil {
+				ctx.Logger().Errorf("error retrieving the list of banned users with email address %s: %v", email, err)
+				return crterrors.NewInternalError(errs.New("user access could not be verified"), "could not define user access")
+			}
+
+			// if a matching Banned user is found, then user is banned
+			if len(uu) > 0 {
+				return crterrors.NewForbiddenError("user access is forbidden", "user access is forbidden")
+			}
+
+			// user is not banned
 			return next(ctx)
 		}
 	}
@@ -434,26 +469,26 @@ func (p *Proxy) addStartTime() echo.MiddlewareFunc {
 	}
 }
 
-func (p *Proxy) extractUserID(req *http.Request) (string, string, error) {
+func (p *Proxy) extractUserToken(req *http.Request) (*auth.TokenClaims, error) {
 	userToken := ""
 	var err error
 	if wsstream.IsWebSocketRequest(req) {
 		userToken, err = extractTokenFromWebsocketRequest(req)
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
 	} else {
 		userToken, err = extractUserToken(req)
 		if err != nil {
-			return "", "", err
+			return nil, err
 		}
 	}
 
 	token, err := p.tokenParser.FromString(userToken)
 	if err != nil {
-		return "", "", crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
+		return nil, crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
 	}
-	return token.Subject, token.PreferredUsername, nil
+	return token, nil
 }
 
 func extractUserToken(req *http.Request) (string, error) {

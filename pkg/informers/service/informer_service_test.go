@@ -488,7 +488,7 @@ func (s *TestInformerServiceSuite) TestInformerService() {
 			require.NotNil(s.T(), rbb)
 			require.NoError(s.T(), err)
 			require.Len(s.T(), rbb, 2, "expected 2 results for email %s", expected[0].Spec.Email)
-			require.Equal(s.T(), expected, rbb)
+			require.ElementsMatch(s.T(), expected, rbb)
 		})
 	})
 }

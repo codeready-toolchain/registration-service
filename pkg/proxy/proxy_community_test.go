@@ -67,6 +67,10 @@ func (s *TestProxySuite) TestProxyCommunityEnabled() {
 }
 
 func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Proxy, port string) {
+	podsRequestURL := func(workspace string) string {
+		return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
+	}
+
 	s.Run("successfully proxy", func() {
 		smith := uuid.New()
 		alice := uuid.New()
@@ -76,21 +80,130 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 
 		// Start the member-2 API Server
 		httpTestServerResponse := "my response"
+		testServer := httptest.NewServer(nil)
+		defer testServer.Close()
 
-		type testCase struct {
+		// initialize SignupService
+		signupService := fake.NewSignupService(
+			fake.Signup(smith.String(), &signup.Signup{
+				Name:              "smith",
+				APIEndpoint:       testServer.URL,
+				ClusterName:       "member-2",
+				CompliantUsername: "smith",
+				Username:          "smith@",
+				Status: signup.Status{
+					Ready: true,
+				},
+			}),
+			fake.Signup(alice.String(), &signup.Signup{
+				Name:              "alice",
+				APIEndpoint:       testServer.URL,
+				ClusterName:       "member-2",
+				CompliantUsername: "alice",
+				Username:          "alice@",
+				Status: signup.Status{
+					Ready: true,
+				},
+			}),
+			fake.Signup(john.String(), &signup.Signup{
+				Name:              "john",
+				CompliantUsername: "john",
+				Username:          "john@",
+				Status: signup.Status{
+					Ready: false,
+				},
+			}),
+			fake.Signup(eve.String(), &signup.Signup{
+				Name:              "eve",
+				CompliantUsername: "eve",
+				Username:          "eve@",
+				Status: signup.Status{
+					Ready:  false,
+					Reason: toolchainv1alpha1.UserSignupUserBannedReason,
+				},
+			}),
+		)
+
+		// init fakeClient
+		sbSmithCommunitySmith := fake.NewSpaceBinding("smith-community-smith", "smith", "smith-community", "admin")
+		commSpacePublicViewer := fake.NewSpaceBinding("smith-community-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith-community", "viewer")
+		alicePrivate := fake.NewSpaceBinding("alice-default", "alice", "alice-private", "admin")
+		cli := fake.InitClient(s.T(), sbSmithCommunitySmith, commSpacePublicViewer, alicePrivate)
+
+		// configure informer
+		inf := fake.NewFakeInformer()
+		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
+			switch name {
+			case "smith-community":
+				return fake.NewSpace("smith-community", "member-2", "smith"), nil
+			case "alice-private":
+				return fake.NewSpace("alice-private", "member-2", "alice"), nil
+			}
+			return nil, fmt.Errorf("space not found error")
+		}
+		inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
+			sbs := toolchainv1alpha1.SpaceBindingList{}
+			opts := &client.ListOptions{
+				LabelSelector: labels.NewSelector().Add(reqs...),
+			}
+			log.Printf("received reqs: %v", reqs)
+			if err := cli.Client.List(context.TODO(), &sbs, opts); err != nil {
+				return nil, err
+			}
+			log.Printf("returning sbs: %v", sbs.Items)
+			return sbs.Items, nil
+		}
+		inf.GetProxyPluginConfigFunc = func(_ string) (*toolchainv1alpha1.ProxyPlugin, error) {
+			return nil, fmt.Errorf("proxy plugin not found")
+		}
+		inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
+			return fake.NewBase1NSTemplateTier(), nil
+		}
+		inf.ListBannedUsersByEmailFunc = func(email string) ([]toolchainv1alpha1.BannedUser, error) {
+			switch email {
+			case eveEmail:
+				return []toolchainv1alpha1.BannedUser{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "eve",
+							Namespace: "toolchain-host-operator",
+						},
+						Spec: toolchainv1alpha1.BannedUserSpec{},
+					},
+				}, nil
+			default:
+				return nil, nil
+			}
+		}
+
+		// configure fakeApp
+		fakeApp.Err = nil
+		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+		fakeApp.SignupServiceMock = signupService
+		fakeApp.InformerServiceMock = inf
+
+		// configure Application
+		s.Application.MockSignupService(signupService)
+		s.Application.MockInformerService(inf)
+
+		// configure proxy
+		p.spaceLister = &handlers.SpaceLister{
+			GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+			GetInformerServiceFunc: func() appservice.InformerService {
+				return inf
+			},
+			ProxyMetrics: p.metrics,
+		}
+
+		// run test cases
+		tests := map[string]struct {
 			ProxyRequestMethod              string
 			ProxyRequestHeaders             http.Header
 			ExpectedAPIServerRequestHeaders http.Header
 			ExpectedProxyResponseStatus     int
 			RequestPath                     string
 			ExpectedResponse                string
-		}
-
-		podsRequestURL := func(workspace string) string {
-			return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
-		}
-
-		tests := map[string]testCase{
+		}{
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
 			// When  smith requests the list of pods in workspace smith-community
@@ -219,9 +332,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			s.Run(k, func() {
 
 				// given
-				fakeApp.Err = nil
-
-				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -234,111 +345,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 							assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i], "header %s", hk)
 						}
 					}
-				}))
-				defer testServer.Close()
-
-				fakeApp.SignupServiceMock = fake.NewSignupService(
-					fake.Signup(smith.String(), &signup.Signup{
-						Name:              "smith",
-						APIEndpoint:       testServer.URL,
-						ClusterName:       "member-2",
-						CompliantUsername: "smith",
-						Username:          "smith@",
-						Status: signup.Status{
-							Ready: true,
-						},
-					}),
-					fake.Signup(alice.String(), &signup.Signup{
-						Name:              "alice",
-						APIEndpoint:       testServer.URL,
-						ClusterName:       "member-2",
-						CompliantUsername: "alice",
-						Username:          "alice@",
-						Status: signup.Status{
-							Ready: true,
-						},
-					}),
-					fake.Signup(john.String(), &signup.Signup{
-						Name:              "john",
-						CompliantUsername: "john",
-						Username:          "john@",
-						Status: signup.Status{
-							Ready: false,
-						},
-					}),
-					fake.Signup(eve.String(), &signup.Signup{
-						Name:              "eve",
-						CompliantUsername: "eve",
-						Username:          "eve@",
-						Status: signup.Status{
-							Ready:  false,
-							Reason: toolchainv1alpha1.UserSignupUserBannedReason,
-						},
-					}),
-				)
-				s.Application.MockSignupService(fakeApp.SignupServiceMock)
-				inf := fake.NewFakeInformer()
-				inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-					switch name {
-					case "smith-community":
-						return fake.NewSpace("smith-community", "member-2", "smith"), nil
-					case "alice-private":
-						return fake.NewSpace("alice-private", "member-2", "alice"), nil
-					}
-					return nil, fmt.Errorf("space not found error")
-				}
-
-				sbSmithCommunitySmith := fake.NewSpaceBinding("smith-community-smith", "smith", "smith-community", "admin")
-				commSpacePublicViewer := fake.NewSpaceBinding("smith-community-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith-community", "viewer")
-				alicePrivate := fake.NewSpaceBinding("alice-default", "alice", "alice-private", "admin")
-
-				cli := fake.InitClient(s.T(), sbSmithCommunitySmith, commSpacePublicViewer, alicePrivate)
-				inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-					sbs := toolchainv1alpha1.SpaceBindingList{}
-					opts := &client.ListOptions{
-						LabelSelector: labels.NewSelector().Add(reqs...),
-					}
-					log.Printf("received reqs: %v", reqs)
-					if err := cli.Client.List(context.TODO(), &sbs, opts); err != nil {
-						return nil, err
-					}
-					log.Printf("returning sbs: %v", sbs.Items)
-					return sbs.Items, nil
-				}
-				inf.GetProxyPluginConfigFunc = func(_ string) (*toolchainv1alpha1.ProxyPlugin, error) {
-					return nil, fmt.Errorf("proxy plugin not found")
-				}
-				inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
-					return fake.NewBase1NSTemplateTier(), nil
-				}
-				inf.ListBannedUsersByEmailFunc = func(email string) ([]toolchainv1alpha1.BannedUser, error) {
-					switch email {
-					case eveEmail:
-						return []toolchainv1alpha1.BannedUser{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      "eve",
-									Namespace: "toolchain-host-operator",
-								},
-								Spec: toolchainv1alpha1.BannedUserSpec{},
-							},
-						}, nil
-					default:
-						return nil, nil
-					}
-				}
-
-				s.Application.MockInformerService(inf)
-				fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
-				fakeApp.InformerServiceMock = inf
-
-				p.spaceLister = &handlers.SpaceLister{
-					GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
-					GetInformerServiceFunc: func() appservice.InformerService {
-						return inf
-					},
-					ProxyMetrics: p.metrics,
-				}
+				})
 
 				// prepare request
 				req, err := http.NewRequest(tc.ProxyRequestMethod, tc.RequestPath, nil)

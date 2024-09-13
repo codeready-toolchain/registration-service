@@ -273,8 +273,8 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -730,8 +730,8 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -764,8 +764,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -857,8 +857,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -890,8 +890,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		states.SetVerificationRequired(&userSignupNotComplete, false)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 		mur := s.newProvisionedMUR("bill")
@@ -1048,8 +1048,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			s.Application.MockInformerService(inf)
 			svc := service.NewSignupService(
 				fake.MemberClusterServiceContext{
-					Client: s,
-					Svcs:   s.Application,
+					CrtClient: s,
+					Svcs:      s.Application,
 				},
 			)
 
@@ -1109,8 +1109,8 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -1205,8 +1205,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 				s.Application.MockInformerService(inf)
 				svc := service.NewSignupService(
 					fake.MemberClusterServiceContext{
-						Client: s,
-						Svcs:   s.Application,
+						CrtClient: s,
+						Svcs:      s.Application,
 					},
 				)
 
@@ -1256,8 +1256,8 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	svc := service.NewSignupService(
 		fake.MemberClusterServiceContext{
-			Client: s,
-			Svcs:   s.Application,
+			CrtClient: s,
+			Svcs:      s.Application,
 		},
 	)
 
@@ -1333,8 +1333,8 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -1450,8 +1450,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -1506,8 +1506,8 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 
@@ -1636,8 +1636,8 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			s.Application.MockInformerService(inf)
 			svc := service.NewSignupService(
 				fake.MemberClusterServiceContext{
-					Client: s,
-					Svcs:   s.Application,
+					CrtClient: s,
+					Svcs:      s.Application,
 				},
 			)
 
@@ -1691,8 +1691,8 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
+				CrtClient: s,
+				Svcs:      s.Application,
 			},
 		)
 

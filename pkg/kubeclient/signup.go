@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -98,25 +99,29 @@ func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valu
 // label matching the specified label
 func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
 
+	selector := labels.NewSelector()
 	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotEquals, []string{crtapi.UserSignupStateLabelValueDeactivated})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*stateRequirement)
 	labelRequirement, err := labels.NewRequirement(labelKey, selection.Equals, []string{labelValue})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*labelRequirement)
 
-	userSignups, err := c.informer.UserSignup.ByNamespace(c.ns).List(labels.NewSelector().Add(*stateRequirement).Add(*labelRequirement))
+	userSignups := &crtapi.UserSignupList{}
+	err = c.client.List(context.TODO(), userSignups, client.InNamespace(c.ns), client.MatchingLabelsSelector{Selector: selector})
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*crtapi.UserSignup, len(userSignups))
+	result := make([]*crtapi.UserSignup, len(userSignups.Items))
 
-	for i := range userSignups {
+	for i := range userSignups.Items {
 		userSignup := &crtapi.UserSignup{}
-		err = c.crtClient.scheme.Convert(userSignups[i], userSignup, nil)
+		err = c.crtClient.scheme.Convert(userSignups.Items[i], userSignup, nil)
 		result[i] = userSignup
 	}
 

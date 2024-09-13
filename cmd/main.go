@@ -11,7 +11,6 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -85,12 +84,7 @@ func main() {
 		}
 	}
 
-	informer, informerShutdown, err := informers.StartInformer(cfg)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	app, err := server.NewInClusterApplication(*informer)
+	app, err := server.NewInClusterApplication(cl)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -120,11 +114,6 @@ func main() {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
 	proxySrv := p.StartProxy(proxy.DefaultPort)
-
-	// stop the informer when proxy server shuts down
-	proxySrv.RegisterOnShutdown(func() {
-		informerShutdown <- struct{}{}
-	})
 
 	// ---------------------------------------------
 	// Registration Service
@@ -202,7 +191,17 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 
 	// populate the cache backed by shared informers that are initialized lazily on the first call
 	// for the given GVK with all resources we are interested in from the host-operator namespace
-	objectsToList := []client.ObjectList{&toolchainv1alpha1.ToolchainConfigList{}, &corev1.SecretList{}}
+	objectsToList := []client.ObjectList{
+		&toolchainv1alpha1.MasterUserRecordList{},
+		&toolchainv1alpha1.SpaceList{},
+		&toolchainv1alpha1.SpaceBindingList{},
+		&toolchainv1alpha1.ToolchainStatusList{},
+		&toolchainv1alpha1.UserSignupList{},
+		&toolchainv1alpha1.ProxyPluginList{},
+		&toolchainv1alpha1.NSTemplateTierList{},
+		&toolchainv1alpha1.ToolchainConfigList{},
+		&toolchainv1alpha1.BannedUserList{},
+		&corev1.SecretList{}}
 	for i := range objectsToList {
 		if err := hostCluster.GetClient().List(ctx, objectsToList[i], client.InNamespace(configuration.Namespace())); err != nil {
 			return nil, err

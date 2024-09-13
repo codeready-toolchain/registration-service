@@ -2,7 +2,7 @@ package kubeclient
 
 import (
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -24,7 +24,7 @@ type V1Alpha1 interface {
 }
 
 // NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
-func NewCRTRESTClient(cfg *rest.Config, informer informers.Informer, namespace string) (CRTClient, error) {
+func NewCRTRESTClient(cfg *rest.Config, client client.Client, namespace string) (CRTClient, error) {
 	scheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
@@ -46,7 +46,7 @@ func NewCRTRESTClient(cfg *rest.Config, informer informers.Informer, namespace s
 
 	crtRESTClient := &CRTRESTClient{
 		RestClient: restClient,
-		Informer:   informer,
+		Client:     client,
 		Config:     config,
 		NS:         namespace,
 		Scheme:     scheme,
@@ -75,7 +75,7 @@ func getRegisterObject() []runtime.Object {
 
 type CRTRESTClient struct {
 	RestClient rest.Interface
-	Informer   informers.Informer
+	Client     client.Client
 	NS         string
 	Config     rest.Config
 	Scheme     *runtime.Scheme
@@ -95,7 +95,7 @@ func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 	return &userSignupClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -108,7 +108,7 @@ func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -121,7 +121,7 @@ func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -134,7 +134,7 @@ func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 	return &toolchainStatusClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -147,7 +147,7 @@ func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 	return &socialeventClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -160,7 +160,7 @@ func (c *V1Alpha1REST) Spaces() SpaceInterface {
 	return &spaceClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -173,7 +173,7 @@ func (c *V1Alpha1REST) SpaceBindings() SpaceBindingInterface {
 	return &spaceBindingClient{
 		crtClient: crtClient{
 			restClient: c.client.RestClient,
-			informer:   c.client.Informer,
+			client:     c.client.Client,
 			ns:         c.client.NS,
 			cfg:        c.client.Config,
 			scheme:     c.client.Scheme,
@@ -183,7 +183,7 @@ func (c *V1Alpha1REST) SpaceBindings() SpaceBindingInterface {
 
 type crtClient struct {
 	restClient rest.Interface
-	informer   informers.Informer
+	client     client.Client
 	ns         string
 	cfg        rest.Config
 	scheme     *runtime.Scheme

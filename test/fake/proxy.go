@@ -21,11 +21,10 @@ type ProxyFakeApp struct {
 }
 
 func (a *ProxyFakeApp) InformerService() service.InformerService {
-	if a.InformerServiceMock == nil {
-		panic("InformerService shouldn't be called")
+	if a.InformerServiceMock != nil {
+		return a.InformerServiceMock
 	}
-
-	return a.InformerServiceMock
+	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {

@@ -393,7 +393,6 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 
 	// if the UserSignup is nil or has NOT the CompliantUsername set,
 	// it means that MUR was NOT created and useraccount is NOT provisioned yet
-	// TODO(@filariow): should we also check if the user is Banned?
 	if userSignup == nil || userSignup.CompliantUsername == "" {
 		cause := errs.New("user is not provisioned (yet)")
 		log.Error(nil, cause, fmt.Sprintf("signup object: %+v", userSignup))

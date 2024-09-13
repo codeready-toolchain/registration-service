@@ -76,15 +76,6 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 
 		// Start the member-2 API Server
 		httpTestServerResponse := "my response"
-		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
-			w.Header().Set("Access-Control-Allow-Origin", "dummy")
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte(httpTestServerResponse))
-			require.NoError(s.T(), err)
-		}))
-		defer testServer.Close()
 
 		type testCase struct {
 			ProxyRequestMethod              string
@@ -230,7 +221,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				// given
 				fakeApp.Err = nil
 
-				testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -243,7 +234,9 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 							assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i], "header %s", hk)
 						}
 					}
-				})
+				}))
+				defer testServer.Close()
+
 				fakeApp.SignupServiceMock = fake.NewSignupService(
 					fake.Signup(smith.String(), &signup.Signup{
 						Name:              "smith",

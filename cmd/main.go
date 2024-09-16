@@ -191,19 +191,22 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 
 	// populate the cache backed by shared informers that are initialized lazily on the first call
 	// for the given GVK with all resources we are interested in from the host-operator namespace
-	objectsToList := []client.ObjectList{
-		&toolchainv1alpha1.MasterUserRecordList{},
-		&toolchainv1alpha1.SpaceList{},
-		&toolchainv1alpha1.SpaceBindingList{},
-		&toolchainv1alpha1.ToolchainStatusList{},
-		&toolchainv1alpha1.UserSignupList{},
-		&toolchainv1alpha1.ProxyPluginList{},
-		&toolchainv1alpha1.NSTemplateTierList{},
-		&toolchainv1alpha1.ToolchainConfigList{},
-		&toolchainv1alpha1.BannedUserList{},
-		&corev1.SecretList{}}
-	for i := range objectsToList {
-		if err := hostCluster.GetClient().List(ctx, objectsToList[i], client.InNamespace(configuration.Namespace())); err != nil {
+	objectsToList := map[string]client.ObjectList{
+		"MasterUserRecord": &toolchainv1alpha1.MasterUserRecordList{},
+		"Space":            &toolchainv1alpha1.SpaceList{},
+		"SpaceBinding":     &toolchainv1alpha1.SpaceBindingList{},
+		"ToolchainStatus":  &toolchainv1alpha1.ToolchainStatusList{},
+		"UserSignup":       &toolchainv1alpha1.UserSignupList{},
+		"ProxyPlugin":      &toolchainv1alpha1.ProxyPluginList{},
+		"NSTemplateTier":   &toolchainv1alpha1.NSTemplateTierList{},
+		"ToolchainConfig":  &toolchainv1alpha1.ToolchainConfigList{},
+		"BannedUser":       &toolchainv1alpha1.BannedUserList{},
+		"Secret":           &corev1.SecretList{}}
+
+	for resourceName := range objectsToList {
+		log.Infof(nil, "Syncing informer cache with %s resources", resourceName)
+		if err := hostCluster.GetClient().List(ctx, objectsToList[resourceName], client.InNamespace(configuration.Namespace())); err != nil {
+			log.Errorf(nil, err, "Informer cache sync failed for %s", resourceName)
 			return nil, err
 		}
 	}

@@ -99,8 +99,9 @@ func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valu
 // label matching the specified label
 func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
 
+	// TODO add unit tests checking that the label selection works as expected. Right now, it's not possible to do that thanks to the great abstraction and multiple level of layers, mocks, and services.
 	selector := labels.NewSelector()
-	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotEquals, []string{crtapi.UserSignupStateLabelValueDeactivated})
+	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotIn, []string{crtapi.UserSignupStateLabelValueDeactivated, crtapi.UserSignupStateLabelValueNotReady})
 	if err != nil {
 		return nil, err
 	}
@@ -120,9 +121,7 @@ func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string)
 	result := make([]*crtapi.UserSignup, len(userSignups.Items))
 
 	for i := range userSignups.Items {
-		userSignup := &crtapi.UserSignup{}
-		err = c.crtClient.scheme.Convert(userSignups.Items[i], userSignup, nil)
-		result[i] = userSignup
+		result[i] = &userSignups.Items[i]
 	}
 
 	return result, err

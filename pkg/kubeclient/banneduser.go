@@ -2,14 +2,10 @@ package kubeclient
 
 import (
 	"context"
-	"fmt"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -50,24 +46,10 @@ func (c *bannedUserClient) listByLabelForHashedValue(labelKey, valueToHash strin
 
 // listByLabel returns a BannedUserList containing any BannedUser resources that have a label matching the specified label
 func (c *bannedUserClient) listByLabel(labelKey, labelValue string) (*crtapi.BannedUserList, error) {
-
-	intf, err := dynamic.NewForConfig(&c.cfg)
-	if err != nil {
+	bannedUsers := &crtapi.BannedUserList{}
+	if err := c.client.List(context.TODO(), bannedUsers, client.InNamespace(c.ns),
+		client.MatchingLabels{labelKey: labelValue}); err != nil {
 		return nil, err
 	}
-
-	r := schema.GroupVersionResource{Group: "toolchain.dev.openshift.com", Version: "v1alpha1", Resource: bannedUserResourcePlural}
-	listOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", labelKey, labelValue),
-	}
-
-	list, err := intf.Resource(r).Namespace(c.ns).List(context.TODO(), listOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	result := &crtapi.BannedUserList{}
-
-	err = c.crtClient.scheme.Convert(list, result, nil)
-	return result, err
+	return bannedUsers, nil
 }

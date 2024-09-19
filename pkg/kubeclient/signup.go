@@ -5,10 +5,10 @@ import (
 	"regexp"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,44 +32,26 @@ type UserSignupInterface interface {
 // If not found then NotFound error returned
 func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.restClient.Get().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Name(name).
-		Do(context.TODO()).
-		Into(result)
-	if err != nil {
+	if err := c.client.Get(context.TODO(), types.NamespacedName{Namespace: c.ns, Name: name}, result); err != nil {
 		return nil, err
 	}
-	return result, err
+	return result, nil
 }
 
 // Create creates a new UserSignup resource in the cluster, and returns the resulting UserSignup that was created, or
 // an error if something went wrong
 func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.restClient.Post().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Body(obj).
-		Do(context.TODO()).
-		Into(result)
-	if err != nil {
+	if err := c.client.Create(context.TODO(), obj); err != nil {
 		return nil, err
 	}
-	return result, err
+	return result, nil
 }
 
 // Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
 func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.restClient.Put().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Name(obj.Name).
-		Body(obj).
-		Do(context.TODO()).
-		Into(result)
+	err := c.client.Update(context.TODO(), obj)
 	if err != nil {
 		return nil, err
 	}

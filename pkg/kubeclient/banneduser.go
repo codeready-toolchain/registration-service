@@ -8,10 +8,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	bannedUserResourcePlural = "bannedusers"
-)
-
 type bannedUserClient struct {
 	crtClient
 }

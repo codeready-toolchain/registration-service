@@ -7,10 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	socialeventResourcePlural = "socialevents"
-)
-
 type socialeventClient struct {
 	crtClient
 }

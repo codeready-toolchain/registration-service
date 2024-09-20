@@ -201,6 +201,7 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 		"NSTemplateTier":   &toolchainv1alpha1.NSTemplateTierList{},
 		"ToolchainConfig":  &toolchainv1alpha1.ToolchainConfigList{},
 		"BannedUser":       &toolchainv1alpha1.BannedUserList{},
+		"ToolchainCluster": &toolchainv1alpha1.ToolchainClusterList{},
 		"Secret":           &corev1.SecretList{}}
 
 	for resourceName := range objectsToList {

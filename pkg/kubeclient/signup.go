@@ -41,21 +41,19 @@ func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 // Create creates a new UserSignup resource in the cluster, and returns the resulting UserSignup that was created, or
 // an error if something went wrong
 func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
 	if err := c.client.Create(context.TODO(), obj); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return obj, nil
 }
 
 // Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
 func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
 	err := c.client.Update(context.TODO(), obj)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return obj, nil
 }
 
 // ListActiveSignupsByPhoneNumberOrHash will return a list of non-deactivated UserSignups that have a phone number hash

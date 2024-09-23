@@ -431,10 +431,6 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 	// proceed as PublicViewer if the feature is enabled and userSignup is nil
 	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
 	if publicViewerEnabled && !userHasDirectAccess(userSignup, workspace) {
-		if !publicViewerHasAccess(workspace) {
-			return nil, crterrors.NewForbiddenError("invalid workspace request", fmt.Sprintf("access to workspace '%s' is forbidden", workspace.Name))
-		}
-
 		return p.app.MemberClusterService().GetClusterAccess(
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
@@ -445,10 +441,6 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 
 	// otherwise retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
 	return p.app.MemberClusterService().GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
-}
-
-func publicViewerHasAccess(workspace *toolchainv1alpha1.Workspace) bool {
-	return userHasBinding(toolchainv1alpha1.KubesawAuthenticatedUsername, workspace)
 }
 
 // userHasDirectAccess checks if an UserSignup has access to a workspace.

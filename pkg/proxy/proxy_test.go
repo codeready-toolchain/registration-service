@@ -678,7 +678,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 			},
 			"unauthorized if workspace not exists": {
 				ProxyRequestPaths: map[string]string{
-					"not-existing-workspace-namespace": "http://localhost:8081/workspaces/not-existing-workspace/api/namespaces/not-existing-namespace/pods",
+					"not existing workspace namespace": "http://localhost:8081/workspaces/not-existing-workspace/api/namespaces/not-existing-namespace/pods",
 				},
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
@@ -687,6 +687,30 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 				},
 				ExpectedResponse:            ptr("unable to get target cluster: access to workspace 'not-existing-workspace' is forbidden"),
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+			},
+			"unauthorized if namespace does not exist in implicit workspace": {
+				ProxyRequestPaths: map[string]string{
+					"not existing namespace": "http://localhost:8081/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+			},
+			"unauthorized if namespace does not exist in explicit workspace": {
+				ProxyRequestPaths: map[string]string{
+					"not existing namespace": "http://localhost:8081/workspaces/mycoolworkspace/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
+				ExpectedProxyResponseStatus: http.StatusForbidden,
 			},
 		}
 

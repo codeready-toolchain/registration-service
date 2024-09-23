@@ -72,6 +72,10 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
 	}
 
+	podsInNamespaceRequestURL := func(workspace string, namespace string) string {
+		return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/namespaces/%s/pods", port, workspace, namespace)
+	}
+
 	s.Run("successfully proxy", func() {
 		// user with public workspace
 		smith := uuid.New()
@@ -323,6 +327,84 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(eve, authsupport.WithEmailClaim(eveEmail))}},
 				ExpectedProxyResponseStatus: http.StatusForbidden,
 				RequestPath:                 podsRequestURL("alice-private"),
+				ExpectedResponse:            "user access is forbidden: user access is forbidden",
+			},
+			// Given user alice exists
+			// And   alice owns a private workspace
+			// When  alice requests the list of pods in a non existing namespace in alice's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http request as owner to not existing namespace in private workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("alice-private", "not-existing"),
+				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'alice-private' is forbidden",
+			},
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// When  smith requests the list of pods in a non existing namespace in workspace smith-community
+			// Then  the request is forwarded from the proxy
+			// And   the request impersonates smith
+			// And   the request's X-SSO-User Header is set to smith's ID
+			// And   the request is successful
+			"plain http request as owner to not existing namespace in community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
+				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			},
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// And   user alice exists
+			// When  alice requests the list of pods in a non existing namespace in smith's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http request as community user to not existing namespace in community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
+				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			},
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// When  bob requests the list of pods in a non existing namespace in smith's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http request as unsigned user to not existing namespace in community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(bob)}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
+				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			},
+			// Given smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// And   not ready user john exists
+			// When  john requests the list of pods in a non existing namespace in smith's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http request as notReadyUser to not existing namespace in community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(john)}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
+				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			},
+			// Given banned user eve exists
+			// And   user smith exists
+			// And   smith owns a workspace named smith-community
+			// And   smith-community is publicly visible (shared with PublicViewer)
+			// When  eve requests the list of pods in a non existing namespace smith's workspace
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
+			"plain http actual request as banned user to not existing namespace community workspace": {
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(eve, authsupport.WithEmailClaim(eveEmail))}},
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
 				ExpectedResponse:            "user access is forbidden: user access is forbidden",
 			},
 		}

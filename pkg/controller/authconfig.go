@@ -12,6 +12,9 @@ type configResponse struct {
 	// this holds the raw config. Note: this is intentionally a string
 	// not json as this field may also hold non-json configs!
 	AuthClientConfigRaw string `json:"auth-client-config"`
+	// The signup page URL. After user logs into SSO but has not signed up yet then this URL can be used to redirect the user to
+	// sign up. If not set then the base URL of the registration service is supposed to be used by the clients.
+	SignupURL string `json:"signup-url"`
 }
 
 // AuthConfig implements the auth config endpoint, which is invoked to
@@ -30,6 +33,7 @@ func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
 	configRespData := configResponse{
 		AuthClientLibraryURL: cfg.Auth().AuthClientLibraryURL(),
 		AuthClientConfigRaw:  cfg.Auth().AuthClientConfigRaw(),
+		SignupURL:            cfg.RegistrationServiceURL(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

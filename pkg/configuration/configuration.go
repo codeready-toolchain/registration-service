@@ -136,7 +136,7 @@ func (r RegistrationServiceConfig) LogLevel() string {
 }
 
 func (r RegistrationServiceConfig) RegistrationServiceURL() string {
-	return commonconfig.GetString(r.cfg.Host.RegistrationService.RegistrationServiceURL, "https://registration.crt-placeholder.com")
+	return commonconfig.GetString(r.cfg.Host.RegistrationService.RegistrationServiceURL, "")
 }
 
 func (r RegistrationServiceConfig) Verification() VerificationConfig {

@@ -73,10 +73,15 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 	}
 
 	s.Run("successfully proxy", func() {
+		// user with public workspace
 		smith := uuid.New()
+		// user with private workspace
 		alice := uuid.New()
+		// unsigned user
 		bob := uuid.New()
+		// not ready
 		john := uuid.New()
+		// banned user
 		eve, eveEmail := uuid.New(), "eve@somecorp.com"
 
 		// Start the member-2 API Server
@@ -248,7 +253,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			// And   the request impersonates bob
 			// And   the request's X-SSO-User Header is set to bob's ID
 			// And   the request is successful
-			"plain http actual request as bob": {
+			"plain http actual request as not signed up user": {
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(bob)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
@@ -307,7 +312,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				RequestPath:                 podsRequestURL("smith-community"),
 				ExpectedResponse:            "user access is forbidden: user access is forbidden",
 			},
-			// Given banned user eve exists
+			// Given banned user eve exist
 			// And   user alice exists
 			// And   alice owns a private workspace
 			// When  eve requests the list of pods in alice's workspace
@@ -335,7 +340,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
 					w.WriteHeader(http.StatusOK)
-					_, err := w.Write([]byte("my response"))
+					_, err := w.Write([]byte(httpTestServerResponse))
 					require.NoError(s.T(), err)
 					for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 						require.Len(s.T(), r.Header.Values(hk), len(hv))

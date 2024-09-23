@@ -422,7 +422,7 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPlugin
 // this function returns an error.
 func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve the requesting user's UserSignup
-	userSignup, err := p.spaceLister.GetSignupFunc(nil, userID, username, false)
+	userSignup, err := p.app.SignupService().GetSignupFromInformer(nil, userID, username, false)
 	if err != nil {
 		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for userID '%s' and username '%s'", userID, username))
 		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")

@@ -456,8 +456,8 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 
 				forwardExpected := len(tc.ExpectedAPIServerRequestHeaders) > 0
 				requestForwarded := testServerInvoked.Load()
-				require.True(s.T(),
-					forwardExpected == requestForwarded,
+				require.Equal(s.T(),
+					forwardExpected, requestForwarded,
 					"expecting call forward to be %v, got %v", forwardExpected, requestForwarded,
 				)
 			})

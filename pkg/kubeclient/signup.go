@@ -9,6 +9,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -98,26 +99,29 @@ func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valu
 // label matching the specified label
 func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
 
-	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotEquals, []string{crtapi.UserSignupStateLabelValueDeactivated})
+	// TODO add unit tests checking that the label selection works as expected. Right now, it's not possible to do that thanks to the great abstraction and multiple level of layers, mocks, and services.
+	selector := labels.NewSelector()
+	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotIn, []string{crtapi.UserSignupStateLabelValueDeactivated, crtapi.UserSignupStateLabelValueNotReady})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*stateRequirement)
 	labelRequirement, err := labels.NewRequirement(labelKey, selection.Equals, []string{labelValue})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*labelRequirement)
 
-	userSignups, err := c.informer.UserSignup.ByNamespace(c.ns).List(labels.NewSelector().Add(*stateRequirement).Add(*labelRequirement))
+	userSignups := &crtapi.UserSignupList{}
+	err = c.client.List(context.TODO(), userSignups, client.InNamespace(c.ns), client.MatchingLabelsSelector{Selector: selector})
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*crtapi.UserSignup, len(userSignups))
+	result := make([]*crtapi.UserSignup, len(userSignups.Items))
 
-	for i := range userSignups {
-		userSignup := &crtapi.UserSignup{}
-		err = c.crtClient.scheme.Convert(userSignups[i], userSignup, nil)
-		result[i] = userSignup
+	for i := range userSignups.Items {
+		result[i] = &userSignups.Items[i]
 	}
 
 	return result, err

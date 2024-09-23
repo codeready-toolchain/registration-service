@@ -910,8 +910,8 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 	}
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
-			Client: s,
-			Svcs:   s.Application,
+			CrtClient: s,
+			Svcs:      s.Application,
 		},
 		func(si *service.ServiceImpl) {
 			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {

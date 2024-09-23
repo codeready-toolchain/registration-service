@@ -15,6 +15,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	"github.com/google/uuid"
+	"go.uber.org/atomic"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -283,18 +284,11 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			// Given user alice exists
 			// And   alice owns a private workspace
 			// When  smith requests the list of pods in alice's workspace
-			// Then  the request is forwarded from the proxy
-			// And   the request impersonates smith
-			// And   the request's X-SSO-User Header is set to smith's ID
-			// And   the request is NOT successful
+			// Then  the proxy does NOT forward the request
+			// And   the proxy rejects the call with 403 Forbidden
 			"plain http actual request as non-owner to private workspace": {
-				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
-				ExpectedAPIServerRequestHeaders: map[string][]string{
-					"Authorization":    {"Bearer clusterSAToken"},
-					"Impersonate-User": {"smith"},
-					"X-SSO-User":       {"username-" + smith.String()},
-				},
+				ProxyRequestMethod:          "GET",
+				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
 				ExpectedProxyResponseStatus: http.StatusForbidden,
 				RequestPath:                 podsRequestURL("alice-private"),
 				ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
@@ -330,9 +324,13 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 
 		for k, tc := range tests {
 			s.Run(k, func() {
+				testServerInvoked := atomic.NewBool(false)
 
 				// given
 				testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					v := testServerInvoked.Swap(true)
+					require.False(s.T(), v, "expected handler to be invoked just one time")
+
 					w.Header().Set("Content-Type", "application/json")
 					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
@@ -368,6 +366,13 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 				defer resp.Body.Close()
 				assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
 				s.assertResponseBody(resp, tc.ExpectedResponse)
+
+				forwardExpected := len(tc.ExpectedAPIServerRequestHeaders) > 0
+				requestForwarded := testServerInvoked.Load()
+				require.True(s.T(),
+					forwardExpected == requestForwarded,
+					"expecting call forward to be %v, got %v", forwardExpected, requestForwarded,
+				)
 			})
 		}
 	})

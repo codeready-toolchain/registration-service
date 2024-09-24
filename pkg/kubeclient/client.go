@@ -5,8 +5,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/rest"
 )
 
 type CRTClient interface {
@@ -24,62 +22,28 @@ type V1Alpha1 interface {
 }
 
 // NewCRTRESTClient creates a new REST client for managing Codeready Toolchain resources via the Kubernetes API
-func NewCRTRESTClient(cfg *rest.Config, client client.Client, namespace string) (CRTClient, error) {
+func NewCRTRESTClient(client client.Client, namespace string) (CRTClient, error) {
 	scheme := runtime.NewScheme()
 	err := crtapi.SchemeBuilder.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}
-	crtapi.SchemeBuilder.Register(getRegisterObject()...)
-
-	config := *cfg
-	config.GroupVersion = &crtapi.GroupVersion
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
-	config.UserAgent = rest.DefaultKubernetesUserAgent()
-
-	restClient, err := rest.RESTClientFor(&config)
-	if err != nil {
-		return nil, err
-	}
 
 	crtRESTClient := &CRTRESTClient{
-		RestClient: restClient,
-		Client:     client,
-		Config:     config,
-		NS:         namespace,
-		Scheme:     scheme,
+		Client: client,
+		NS:     namespace,
+		Scheme: scheme,
 	}
 
 	crtRESTClient.v1Alpha1 = &V1Alpha1REST{client: crtRESTClient}
 	return crtRESTClient, nil
 }
 
-func getRegisterObject() []runtime.Object {
-	return []runtime.Object{
-		&crtapi.UserSignup{},
-		&crtapi.UserSignupList{},
-		&crtapi.MasterUserRecord{},
-		&crtapi.MasterUserRecordList{},
-		&crtapi.BannedUser{},
-		&crtapi.BannedUserList{},
-		&crtapi.ToolchainStatus{},
-		&crtapi.ToolchainStatusList{},
-		&crtapi.Space{},
-		&crtapi.SpaceList{},
-		&crtapi.SpaceBinding{},
-		&crtapi.SpaceBindingList{},
-	}
-}
-
 type CRTRESTClient struct {
-	RestClient rest.Interface
-	Client     client.Client
-	NS         string
-	Config     rest.Config
-	Scheme     *runtime.Scheme
-	v1Alpha1   *V1Alpha1REST
+	Client   client.Client
+	NS       string
+	Scheme   *runtime.Scheme
+	v1Alpha1 *V1Alpha1REST
 }
 
 func (c *CRTRESTClient) V1Alpha1() V1Alpha1 {
@@ -94,11 +58,9 @@ type V1Alpha1REST struct {
 func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 	return &userSignupClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -107,11 +69,9 @@ func (c *V1Alpha1REST) UserSignups() UserSignupInterface {
 func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 	return &masterUserRecordClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -120,11 +80,9 @@ func (c *V1Alpha1REST) MasterUserRecords() MasterUserRecordInterface {
 func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 	return &bannedUserClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -133,11 +91,9 @@ func (c *V1Alpha1REST) BannedUsers() BannedUserInterface {
 func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 	return &toolchainStatusClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -146,11 +102,9 @@ func (c *V1Alpha1REST) ToolchainStatuses() ToolchainStatusInterface {
 func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 	return &socialeventClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -159,11 +113,9 @@ func (c *V1Alpha1REST) SocialEvents() SocialEventInterface {
 func (c *V1Alpha1REST) Spaces() SpaceInterface {
 	return &spaceClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
@@ -172,19 +124,15 @@ func (c *V1Alpha1REST) Spaces() SpaceInterface {
 func (c *V1Alpha1REST) SpaceBindings() SpaceBindingInterface {
 	return &spaceBindingClient{
 		crtClient: crtClient{
-			restClient: c.client.RestClient,
-			client:     c.client.Client,
-			ns:         c.client.NS,
-			cfg:        c.client.Config,
-			scheme:     c.client.Scheme,
+			client: c.client.Client,
+			ns:     c.client.NS,
+			scheme: c.client.Scheme,
 		},
 	}
 }
 
 type crtClient struct {
-	restClient rest.Interface
-	client     client.Client
-	ns         string
-	cfg        rest.Config
-	scheme     *runtime.Scheme
+	client client.Client
+	ns     string
+	scheme *runtime.Scheme
 }

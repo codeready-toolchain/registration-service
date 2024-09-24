@@ -5,7 +5,6 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -53,7 +52,7 @@ func (s *ServiceImpl) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
 
 func (s *ServiceImpl) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
 	status := &toolchainv1alpha1.ToolchainStatus{}
-	namespacedName := types.NamespacedName{Name: resources.ToolchainStatusName, Namespace: s.namespace}
+	namespacedName := types.NamespacedName{Name: "toolchain-status", Namespace: s.namespace}
 	err := s.client.Get(context.TODO(), namespacedName, status)
 	return status, err
 }

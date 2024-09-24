@@ -6,7 +6,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -15,12 +14,7 @@ import (
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
 func NewInClusterApplication(client client.Client) (application.Application, error) {
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, client, configuration.Namespace())
+	kubeClient, err := kubeclient.NewCRTRESTClient(client, configuration.Namespace())
 	if err != nil {
 		return nil, err
 	}

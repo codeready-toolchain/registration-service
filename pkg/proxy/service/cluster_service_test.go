@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -69,35 +70,25 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	}))
 	s.Application.MockSignupService(sc)
 
-	inf := fake.NewFakeInformer()
-	inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-		switch name {
-		case "noise1", "teamspace":
-			return fake.NewSpace(name, "member-1", name), nil
-		case "smith2":
-			return fake.NewSpace(name, "member-2", name), nil
-		case "unknown-cluster":
-			return fake.NewSpace(name, "unknown-cluster", name), nil
-		}
-		return nil, fmt.Errorf("space not found error")
-	}
-	inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
-		if name != "tekton-results" {
-			return nil, errors.New("not found")
-		}
-		pp := &toolchainv1alpha1.ProxyPlugin{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+	pp := &toolchainv1alpha1.ProxyPlugin{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tekton-results",
+			Namespace: commontest.HostOperatorNs,
+		},
+		Spec: toolchainv1alpha1.ProxyPluginSpec{
+			OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+				Namespace: "tekton-results",
+				Name:      "tekton-results",
 			},
-			Spec: toolchainv1alpha1.ProxyPluginSpec{
-				OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
-					Namespace: "tekton-results",
-					Name:      "tekton-results",
-				},
-			},
-		}
-		return pp, nil
+		},
 	}
+	fakeClient := commontest.NewFakeClient(s.T(),
+		fake.NewSpace("noise1", "member-1", "noise1"),
+		fake.NewSpace("teamspace", "member-1", "teamspace"),
+		fake.NewSpace("smith2", "member-2", "smith2"),
+		fake.NewSpace("unknown-cluster", "unknown-cluster", "unknown-cluster"),
+		pp)
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 	s.Application.MockInformerService(inf)
 
 	svc := service.NewMemberClusterService(
@@ -172,14 +163,16 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("unable to get space", func() {
 				s.Run("informer service returns error", func() {
-					original := inf.GetSpaceFunc
-					defer func() { // restore original GetSpaceFunc after test
-						inf.GetSpaceFunc = original
-						s.Application.MockInformerService(inf)
-					}()
-					inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) { // informer error
-						return nil, fmt.Errorf("oopsi woopsi")
+					fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						if key.Name == "smith2" {
+							return fmt.Errorf("oopsi woopsi")
+						}
+						return fakeClient.Client.Get(ctx, key, obj, opts...)
 					}
+					defer func() {
+						fakeClient.MockGet = nil
+					}()
+					inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 					s.Application.MockInformerService(inf)
 
 					// when

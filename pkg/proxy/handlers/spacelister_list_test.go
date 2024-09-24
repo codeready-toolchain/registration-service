@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -71,14 +73,15 @@ func TestListUserWorkspaces(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignupFromInformer
-			informerFunc := fake.GetInformerService(fakeClient)
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 			s := &handlers.SpaceLister{
-				GetSignupFunc:          signupProvider,
-				GetInformerServiceFunc: informerFunc,
-				ProxyMetrics:           proxyMetrics,
+				GetSignupFunc: signupProvider,
+				GetInformerServiceFunc: func() service.InformerService {
+					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+				},
+				ProxyMetrics: proxyMetrics,
 			}
 
 			e := echo.New()
@@ -114,68 +117,69 @@ func TestHandleSpaceListRequest(t *testing.T) {
 	}
 
 	for k, rtc := range tt {
-		fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
 		t.Run(k, func(t *testing.T) {
 			// given
 			tests := map[string]struct {
-				username             string
-				expectedWs           []toolchainv1alpha1.Workspace
-				expectedErr          string
-				expectedErrCode      int
-				expectedWorkspace    string
-				overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-				overrideInformerFunc func() service.InformerService
+				username           string
+				expectedWs         func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace
+				expectedErr        string
+				expectedErrCode    int
+				expectedWorkspace  string
+				overrideSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+				mockFakeClient     func(fakeClient *test.FakeClient)
 			}{
 				"dancelover lists spaces": {
 					username: "dance.lover",
-					expectedWs: []toolchainv1alpha1.Workspace{
-						workspaceFor(t, fakeClient, "dancelover", "admin", true),
-						workspaceFor(t, fakeClient, "movielover", "other", false),
+					expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+						return []toolchainv1alpha1.Workspace{
+							workspaceFor(t, fakeClient, "dancelover", "admin", true),
+							workspaceFor(t, fakeClient, "movielover", "other", false),
+						}
 					},
 					expectedErr: "",
 				},
 				"movielover lists spaces": {
 					username: "movie.lover",
-					expectedWs: []toolchainv1alpha1.Workspace{
-						workspaceFor(t, fakeClient, "movielover", "admin", true),
+					expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+						return []toolchainv1alpha1.Workspace{
+							workspaceFor(t, fakeClient, "movielover", "admin", true),
+						}
 					},
 					expectedErr: "",
 				},
 				"signup has no compliant username set": {
 					username:        "racing.lover",
-					expectedWs:      []toolchainv1alpha1.Workspace{},
+					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"space not initialized yet": {
 					username:        "panda.lover",
-					expectedWs:      []toolchainv1alpha1.Workspace{},
+					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"no spaces found": {
 					username:        "user.nospace",
-					expectedWs:      []toolchainv1alpha1.Workspace{},
+					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"informer error": {
 					username:        "dance.lover",
-					expectedWs:      []toolchainv1alpha1.Workspace{},
+					expectedWs:      nil,
 					expectedErr:     "list spacebindings error",
 					expectedErrCode: 500,
-					overrideInformerFunc: func() service.InformerService {
-						inf := fake.NewFakeInformer()
-						inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-							return nil, fmt.Errorf("list spacebindings error")
+					mockFakeClient: func(fakeClient *test.FakeClient) {
+						fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
+							return fmt.Errorf("list spacebindings error")
 						}
-						return inf
 					},
 				},
 				"get signup error": {
 					username:        "dance.lover",
-					expectedWs:      []toolchainv1alpha1.Workspace{},
+					expectedWs:      nil,
 					expectedErr:     "signup error",
 					expectedErrCode: 500,
 					overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
@@ -187,22 +191,24 @@ func TestHandleSpaceListRequest(t *testing.T) {
 			for k, tc := range tests {
 				t.Run(k, func(t *testing.T) {
 					// given
+					fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+					if tc.mockFakeClient != nil {
+						tc.mockFakeClient(fakeClient)
+					}
+
 					signupProvider := fakeSignupService.GetSignupFromInformer
 					if tc.overrideSignupFunc != nil {
 						signupProvider = tc.overrideSignupFunc
 					}
 
-					informerFunc := fake.GetInformerService(fakeClient)
-					if tc.overrideInformerFunc != nil {
-						informerFunc = tc.overrideInformerFunc
-					}
-
 					proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 					s := &handlers.SpaceLister{
-						GetSignupFunc:          signupProvider,
-						GetInformerServiceFunc: informerFunc,
-						ProxyMetrics:           proxyMetrics,
+						GetSignupFunc: signupProvider,
+						GetInformerServiceFunc: func() service.InformerService {
+							return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+						},
+						ProxyMetrics: proxyMetrics,
 					}
 
 					e := echo.New()
@@ -226,10 +232,14 @@ func TestHandleSpaceListRequest(t *testing.T) {
 						// list workspace case
 						workspaceList, decodeErr := decodeResponseToWorkspaceList(rec.Body.Bytes())
 						require.NoError(t, decodeErr)
-						require.Equal(t, len(tc.expectedWs), len(workspaceList.Items))
-						for i := range tc.expectedWs {
-							assert.Equal(t, tc.expectedWs[i].Name, workspaceList.Items[i].Name)
-							assert.Equal(t, tc.expectedWs[i].Status, workspaceList.Items[i].Status)
+						var expectedWorkspaces []toolchainv1alpha1.Workspace
+						if tc.expectedWs != nil {
+							expectedWorkspaces = tc.expectedWs(t, fakeClient)
+						}
+						require.Equal(t, len(expectedWorkspaces), len(workspaceList.Items))
+						for i := range expectedWorkspaces {
+							assert.Equal(t, expectedWorkspaces[i].Name, workspaceList.Items[i].Name)
+							assert.Equal(t, expectedWorkspaces[i].Status, workspaceList.Items[i].Status)
 						}
 					}
 				})

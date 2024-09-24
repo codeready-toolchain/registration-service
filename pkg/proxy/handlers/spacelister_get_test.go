@@ -12,6 +12,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
@@ -20,14 +21,12 @@ import (
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
-	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 	spacebindingrequesttest "github.com/codeready-toolchain/toolchain-common/pkg/test/spacebindingrequest"
 	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/labels"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,9 +46,8 @@ func TestSpaceListerGet(t *testing.T) {
 }
 
 func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
-	fakeSignupService, fakeClient := buildSpaceListerFakes(t)
 
-	memberFakeClient := fake.InitClient(t,
+	memberFakeClient := test.NewFakeClient(t,
 		// spacebinding requests
 		spacebindingrequesttest.NewSpaceBindingRequest("animelover-sbr", "dancelover-dev",
 			spacebindingrequesttest.WithSpaceRole("viewer"),
@@ -63,7 +61,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 		),
 	)
 
-	memberClientErrorList := fake.InitClient(t)
+	memberClientErrorList := test.NewFakeClient(t)
 	memberClientErrorList.MockList = func(ctx context.Context, list runtimeclient.ObjectList, opts ...runtimeclient.ListOption) error {
 		if _, ok := list.(*toolchainv1alpha1.SpaceBindingRequestList); ok {
 			return fmt.Errorf("mock list error")
@@ -75,19 +73,19 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 		// given
 		tests := map[string]struct {
 			username               string
-			expectedWs             []toolchainv1alpha1.Workspace
+			expectedWs             func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace
 			expectedErr            string
 			expectedErrCode        int
 			expectedWorkspace      string
 			overrideSignupFunc     func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-			overrideInformerFunc   func() service.InformerService
+			mockFakeClient         func(fakeClient *test.FakeClient)
 			overrideGetMembersFunc func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster
 			overrideMemberClient   *test.FakeClient
 		}{
 			"dancelover gets dancelover space": {
 				username: "dance.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "dancelover", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "dancelover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						},
@@ -117,15 +115,15 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								},
 							},
 						}),
-					),
+					)}
 				},
 				expectedErr:       "",
 				expectedWorkspace: "dancelover",
 			},
 			"dancelover gets movielover space": {
 				username: "dance.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "other", false,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "other", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -150,15 +148,15 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
-					),
+					)}
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
 			},
 			"dancelover gets foodlover space": {
 				username: "dance.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "foodlover", "admin", false,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "foodlover", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -174,15 +172,15 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"}, // since the binding is inherited from parent space, then it can only be overridden
 							},
 						}),
-					),
+					)}
 				},
 				expectedErr:       "",
 				expectedWorkspace: "foodlover",
 			},
 			"movielover gets movielover space": {
 				username: "movie.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -208,22 +206,22 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
-					),
+					)}
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
 			},
 			"movielover cannot get dancelover space": {
 				username:          "movie.lover",
-				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
 				expectedWorkspace: "dancelover",
 				expectedErrCode:   404,
 			},
 			"signup not ready yet": {
 				username: "movie.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "movielover", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -248,27 +246,29 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
-					),
+					)}
 				},
 				expectedErr:       "",
 				expectedWorkspace: "movielover",
 			},
 			"get nstemplatetier error": {
 				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedWs:      nil,
 				expectedErr:     "nstemplatetier error",
 				expectedErrCode: 500,
-				overrideInformerFunc: func() service.InformerService {
-					informerFunc := fake.GetInformerService(fakeClient, fake.WithGetNSTemplateTierFunc(func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
-						return nil, fmt.Errorf("nstemplatetier error")
-					}))
-					return informerFunc()
+				mockFakeClient: func(fakeClient *test.FakeClient) {
+					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
+						if key.Name == "base1ns" {
+							return fmt.Errorf("nstemplatetier error")
+						}
+						return fakeClient.Client.Get(ctx, key, obj, opts...)
+					}
 				},
 				expectedWorkspace: "dancelover",
 			},
 			"get signup error": {
 				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedWs:      nil,
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
 				overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
@@ -278,63 +278,61 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			},
 			"signup has no compliant username set": {
 				username:          "racing.lover",
-				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"racinglover\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWorkspace: "racinglover",
 			},
 			"list spacebindings error": {
 				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedWs:      nil,
 				expectedErr:     "list spacebindings error",
 				expectedErrCode: 500,
-				overrideInformerFunc: func() service.InformerService {
-					listSpaceBindingFunc := func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-						return nil, fmt.Errorf("list spacebindings error")
+				mockFakeClient: func(fakeClient *test.FakeClient) {
+					fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
+						return fmt.Errorf("list spacebindings error")
 					}
-					return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
 				},
 				expectedWorkspace: "dancelover",
 			},
 			"unable to get space": {
 				username:        "dance.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedWs:      nil,
 				expectedErr:     "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
 				expectedErrCode: 404,
-				overrideInformerFunc: func() service.InformerService {
-					getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
-						return nil, fmt.Errorf("no space")
+				mockFakeClient: func(fakeClient *test.FakeClient) {
+					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
+						if key.Name == "dancelover" {
+							return fmt.Errorf("no space")
+						}
+						return fakeClient.Client.Get(ctx, key, obj, opts...)
 					}
-					return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 				},
 				expectedWorkspace: "dancelover",
 			},
 			"unable to get parent-space": {
 				username:        "food.lover",
-				expectedWs:      []toolchainv1alpha1.Workspace{},
+				expectedWs:      nil,
 				expectedErr:     "Internal error occurred: unable to get parent-space: parent-space error",
 				expectedErrCode: 500,
-				overrideInformerFunc: func() service.InformerService {
-					getSpaceFunc := func(name string) (*toolchainv1alpha1.Space, error) {
-						if name == "dancelover" {
-							// return the error only when trying to get the parent space
-							return nil, fmt.Errorf("parent-space error")
+				mockFakeClient: func(fakeClient *test.FakeClient) {
+					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
+						if key.Name == "dancelover" {
+							return fmt.Errorf("parent-space error")
 						}
-						// return the foodlover space
-						return fake.NewSpace("foodlover", "member-2", "foodlover", spacetest.WithSpecParentSpace("dancelover")), nil
+						return fakeClient.Client.Get(ctx, key, obj, opts...)
 					}
-					return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 				},
 				expectedWorkspace: "foodlover",
 			},
 			"error spaceBinding request has no name": {
 				username: "anime.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "animelover", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "animelover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
-					),
+					)}
 				},
 				expectedErr:       "Internal error occurred: SpaceBindingRequest name not found on binding: carlover-sb-from-sbr",
 				expectedErrCode:   500,
@@ -342,12 +340,12 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			},
 			"error spaceBinding request has no namespace set": {
 				username: "car.lover",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "carlover", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "carlover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
-					),
+					)}
 				},
 				expectedErr:       "Internal error occurred: SpaceBindingRequest namespace not found on binding: animelover-sb-from-sbr",
 				expectedErrCode:   500,
@@ -355,8 +353,8 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			},
 			"parent can list parentspace": {
 				username: "parent.space",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "parentspace", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "parentspace", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -367,14 +365,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string(nil), // this is system generated so no actions for the user
 							},
 						}),
-					),
+					)}
 				},
 				expectedWorkspace: "parentspace",
 			},
 			"parent can list childspace": {
 				username: "parent.space",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "childspace", "admin", false,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "childspace", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -390,14 +388,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"},
 							},
 						}),
-					),
+					)}
 				},
 				expectedWorkspace: "childspace",
 			},
 			"parent can list grandchildspace": {
 				username: "parent.space",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -418,13 +416,13 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"},
 							},
 						}),
-					),
+					)}
 				},
 				expectedWorkspace: "grandchildspace",
 			},
 			"child cannot list parentspace": {
 				username:          "child.space",
-				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWorkspace: "parentspace",
@@ -432,8 +430,8 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			"child can list childspace": {
 				username:          "child.space",
 				expectedWorkspace: "childspace",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "childspace", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "childspace", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -449,14 +447,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"},
 							},
 						}),
-					),
+					)}
 				},
 			},
 			"child can list grandchildspace": {
 				username:          "child.space",
 				expectedWorkspace: "grandchildspace",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -477,13 +475,13 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"},
 							},
 						}),
-					),
+					)}
 				},
 			},
 			"grandchild can list grandchildspace": {
 				username: "grandchild.space",
-				expectedWs: []toolchainv1alpha1.Workspace{
-					workspaceFor(t, fakeClient, "grandchildspace", "admin", true,
+				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
+					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
 							"admin", "viewer",
 						}),
@@ -504,7 +502,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 								AvailableActions: []string{"override"},
 							},
 						}),
-					),
+					)}
 				},
 				expectedWorkspace: "grandchildspace",
 			},
@@ -513,14 +511,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "parentspace",
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
 				expectedErrCode:   404,
-				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedWs:        nil,
 			},
 			"grandchild cannot list childspace": {
 				username:          "grandchild.space",
 				expectedWorkspace: "childspace",
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"childspace\\\" not found\"",
 				expectedErrCode:   404,
-				expectedWs:        []toolchainv1alpha1.Workspace{},
+				expectedWs:        nil,
 			},
 			"no member clusters found": {
 				username:          "movie.lover",
@@ -543,22 +541,24 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 		for k, tc := range tests {
 			t.Run(k, func(t *testing.T) {
 				// given
+				fakeSignupService, fakeClient := buildSpaceListerFakes(t)
+				if tc.mockFakeClient != nil {
+					tc.mockFakeClient(fakeClient)
+				}
+
 				signupProvider := fakeSignupService.GetSignupFromInformer
 				if tc.overrideSignupFunc != nil {
 					signupProvider = tc.overrideSignupFunc
 				}
 
-				informerFunc := fake.GetInformerService(fakeClient)
-				if tc.overrideInformerFunc != nil {
-					informerFunc = tc.overrideInformerFunc
-				}
-
 				proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 				s := &handlers.SpaceLister{
-					GetSignupFunc:          signupProvider,
-					GetInformerServiceFunc: informerFunc,
-					ProxyMetrics:           proxyMetrics,
+					GetSignupFunc: signupProvider,
+					GetInformerServiceFunc: func() service.InformerService {
+						return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+					},
+					ProxyMetrics: proxyMetrics,
 				}
 
 				e := echo.New()
@@ -592,10 +592,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 					// get workspace case
 					workspace, decodeErr := decodeResponseToWorkspace(rec.Body.Bytes())
 					require.NoError(t, decodeErr)
-					require.Len(t, tc.expectedWs, 1, "test case should have exactly one expected item since it's a get request")
-					for i := range tc.expectedWs {
-						assert.Equal(t, tc.expectedWs[i].Name, workspace.Name)
-						assert.Equal(t, tc.expectedWs[i].Status, workspace.Status)
+					var expectedWorkspaces []toolchainv1alpha1.Workspace
+					if tc.expectedWs != nil {
+						expectedWorkspaces = tc.expectedWs(t, fakeClient)
+					}
+					require.Len(t, expectedWorkspaces, 1, "test case should have exactly one expected item since it's a get request")
+					for i := range expectedWorkspaces {
+						assert.Equal(t, expectedWorkspaces[i].Name, workspace.Name)
+						assert.Equal(t, expectedWorkspaces[i].Status, workspace.Status)
 					}
 				}
 			})
@@ -610,32 +614,20 @@ func TestGetUserWorkspace(t *testing.T) {
 		newSignup("robin", "robin.space", true),
 	)
 
-	fakeClient := fake.InitClient(t,
-		// space
-		fake.NewSpace("batman", "member-1", "batman"),
-		fake.NewSpace("robin", "member-1", "robin"),
-
-		fake.NewSpaceBinding("robin-1", "robin", "robin", "admin"),
-		// 2 spacebindings to force the error
-		fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
-		fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
-		fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
-	)
-
-	robinWS := workspaceFor(t, fakeClient, "robin", "admin", true)
-
 	tests := map[string]struct {
-		username             string
-		expectedErr          string
-		workspaceRequest     string
-		expectedWorkspace    *toolchainv1alpha1.Workspace
-		overrideInformerFunc func() service.InformerService
-		overrideSignupFunc   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+		username           string
+		expectedErr        string
+		workspaceRequest   string
+		expectedWorkspace  func(t *testing.T, fakeClient *test.FakeClient) toolchainv1alpha1.Workspace
+		mockFakeClient     func(fakeClient *test.FakeClient)
+		overrideSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 	}{
 		"get robin workspace": {
-			username:          "robin.space",
-			workspaceRequest:  "robin",
-			expectedWorkspace: &robinWS,
+			username:         "robin.space",
+			workspaceRequest: "robin",
+			expectedWorkspace: func(t *testing.T, fakeClient *test.FakeClient) toolchainv1alpha1.Workspace {
+				return workspaceFor(t, fakeClient, "robin", "admin", true)
+			},
 		},
 		"invalid number of spacebindings": {
 			username:         "batman.space",
@@ -654,22 +646,26 @@ func TestGetUserWorkspace(t *testing.T) {
 		"space not found": {
 			username:         "invalid.user",
 			workspaceRequest: "batman",
-			overrideInformerFunc: func() service.InformerService {
-				getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
-					return nil, fmt.Errorf("no space")
+			mockFakeClient: func(fakeClient *test.FakeClient) {
+				fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
+					if obj.GetObjectKind().GroupVersionKind().Kind == "Space" {
+						return fmt.Errorf("no space")
+					}
+					return fakeClient.Client.Get(ctx, key, obj, opts...)
 				}
-				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 			},
 			expectedWorkspace: nil, // user is not authorized
 		},
 		"error getting usersignup": {
 			username:         "invalid.user",
 			workspaceRequest: "batman",
-			overrideInformerFunc: func() service.InformerService {
-				getSpaceFunc := func(_ string) (*toolchainv1alpha1.Space, error) {
-					return nil, fmt.Errorf("no space")
+			mockFakeClient: func(fakeClient *test.FakeClient) {
+				fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
+					if obj.GetObjectKind().GroupVersionKind().Kind == "Space" {
+						return fmt.Errorf("no space")
+					}
+					return fakeClient.Client.Get(ctx, key, obj, opts...)
 				}
-				return fake.GetInformerService(fakeClient, fake.WithGetSpaceFunc(getSpaceFunc))()
 			},
 			expectedWorkspace: nil, // user is not authorized
 		},
@@ -686,11 +682,10 @@ func TestGetUserWorkspace(t *testing.T) {
 			username:         "robin.space",
 			workspaceRequest: "robin",
 			expectedErr:      "list spacebindings error",
-			overrideInformerFunc: func() service.InformerService {
-				listSpaceBindingFunc := func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-					return nil, fmt.Errorf("list spacebindings error")
+			mockFakeClient: func(fakeClient *test.FakeClient) {
+				fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
+					return fmt.Errorf("list spacebindings error")
 				}
-				return fake.GetInformerService(fakeClient, fake.WithListSpaceBindingFunc(listSpaceBindingFunc))()
 			},
 			expectedWorkspace: nil,
 		},
@@ -711,20 +706,33 @@ func TestGetUserWorkspace(t *testing.T) {
 	for k, tc := range tests {
 		t.Run(k, func(t *testing.T) {
 			// given
+			fakeClient := test.NewFakeClient(t,
+				// space
+				fake.NewSpace("batman", "member-1", "batman"),
+				fake.NewSpace("robin", "member-1", "robin"),
+
+				fake.NewSpaceBinding("robin-1", "robin", "robin", "admin"),
+				// 2 spacebindings to force the error
+				fake.NewSpaceBinding("batman-1", "batman", "batman", "admin"),
+				fake.NewSpaceBinding("batman-2", "batman", "batman", "maintainer"),
+				fake.NewSpaceBinding("community-robin", toolchainv1alpha1.KubesawAuthenticatedUsername, "robin", "viewer"),
+			)
+			if tc.mockFakeClient != nil {
+				tc.mockFakeClient(fakeClient)
+			}
+
 			signupProvider := fakeSignupService.GetSignupFromInformer
 			if tc.overrideSignupFunc != nil {
 				signupProvider = tc.overrideSignupFunc
 			}
-			informerFunc := fake.GetInformerService(fakeClient)
-			if tc.overrideInformerFunc != nil {
-				informerFunc = tc.overrideInformerFunc
-			}
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
-				GetSignupFunc:          signupProvider,
-				GetInformerServiceFunc: informerFunc,
-				ProxyMetrics:           proxyMetrics,
+				GetSignupFunc: signupProvider,
+				GetInformerServiceFunc: func() service.InformerService {
+					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+				},
+				ProxyMetrics: proxyMetrics,
 			}
 
 			e := echo.New()
@@ -748,7 +756,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			}
 
 			if tc.expectedWorkspace != nil {
-				require.Equal(t, tc.expectedWorkspace, wrk)
+				require.Equal(t, tc.expectedWorkspace(t, fakeClient), *wrk)
 			} else {
 				require.Nil(t, wrk) // user is not authorized to get this workspace
 			}
@@ -764,7 +772,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 		newSignup("gordon", "gordon.no-space", false),
 	)
 
-	fakeClient := fake.InitClient(t,
+	fakeClient := test.NewFakeClient(t,
 		// space
 		fake.NewSpace("robin", "member-1", "robin"),
 		fake.NewSpace("batman", "member-1", "batman"),
@@ -826,13 +834,14 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignupFromInformer
-			informerFunc := fake.GetInformerService(fakeClient)
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
-				GetSignupFunc:          signupProvider,
-				GetInformerServiceFunc: informerFunc,
-				ProxyMetrics:           proxyMetrics,
+				GetSignupFunc: signupProvider,
+				GetInformerServiceFunc: func() service.InformerService {
+					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+				},
+				ProxyMetrics: proxyMetrics,
 			}
 
 			e := echo.New()
@@ -868,7 +877,7 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 		newSignup("gordon", "gordon.no-space", false),
 	)
 
-	fakeClient := fake.InitClient(t,
+	fakeClient := test.NewFakeClient(t,
 		// NSTemplateTiers
 		fake.NewBase1NSTemplateTier(),
 
@@ -962,13 +971,14 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignupFromInformer
-			informerFunc := fake.GetInformerService(fakeClient)
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
-				GetSignupFunc:          signupProvider,
-				GetInformerServiceFunc: informerFunc,
-				ProxyMetrics:           proxyMetrics,
+				GetSignupFunc: signupProvider,
+				GetInformerServiceFunc: func() service.InformerService {
+					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
+				},
+				ProxyMetrics: proxyMetrics,
 			}
 
 			e := echo.New()
@@ -984,7 +994,7 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 			getMembersFuncMock := func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 				return []*commoncluster.CachedToolchainCluster{
 					{
-						Client: fake.InitClient(t),
+						Client: test.NewFakeClient(t),
 						Config: &commoncluster.Config{
 							Name: "not-me",
 						},

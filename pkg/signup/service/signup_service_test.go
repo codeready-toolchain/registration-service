@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"bytes"
+	gocontext "context"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -15,15 +16,17 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
@@ -36,7 +39,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
@@ -52,7 +54,7 @@ func TestRunSignupServiceSuite(t *testing.T) {
 func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verificationEnabled bool,
 	excludedDomains string, verificationCodeExpiresInMin int) {
 
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, namespace)
+	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, namespace)
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
@@ -62,7 +64,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 }
 
 func (s *TestSignupServiceSuite) TestSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 	// given
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -74,7 +76,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.NoError(s.T(), err)
 		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 		require.NoError(s.T(), err)
 
 		userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -82,7 +84,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Len(s.T(), userSignups.Items, 1)
 
 		val := userSignups.Items[0]
-		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
+		require.Equal(s.T(), commontest.HostOperatorNs, val.Namespace)
 		require.Equal(s.T(), username, val.Name)
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
@@ -132,7 +134,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey] = "member-3" // assume the user was targeted to member-3
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, commontest.HostOperatorNs)
 		require.NoError(s.T(), err)
 
 		// when
@@ -154,7 +156,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey)
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, commontest.HostOperatorNs)
 		require.NoError(s.T(), err)
 
 		// when
@@ -173,7 +175,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS := existing.DeepCopy()
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
+		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, commontest.HostOperatorNs)
 		require.NoError(s.T(), err)
 		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 			if signup.Name == "jsmith" {
@@ -262,14 +264,15 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == "000" {
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+		fakeClient := commontest.NewFakeClient(t)
+		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			if key.Name != "000" {
+				return errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
 			}
-			return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
+			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
 
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -287,7 +290,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 }
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -315,7 +318,7 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -327,7 +330,7 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 }
 
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
+	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
 	// captcha is enabled
 	serviceOption := func(svc *service.ServiceImpl) {
@@ -373,7 +376,7 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -385,7 +388,7 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -412,7 +415,7 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -462,7 +465,7 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -484,7 +487,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -496,7 +499,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -516,7 +519,7 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -524,7 +527,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{},
 	})
@@ -541,7 +544,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -554,7 +557,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
@@ -584,7 +587,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -596,7 +599,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
@@ -618,7 +621,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -627,7 +630,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
@@ -649,7 +652,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -661,7 +664,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
 			},
@@ -685,7 +688,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.NoError(s.T(), err)
 	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
 
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
+	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, commontest.HostOperatorNs)
 	require.NoError(s.T(), err)
 
 	userSignups := values.(*toolchainv1alpha1.UserSignupList)
@@ -693,7 +696,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), configuration.Namespace(), val.Namespace)
+	require.Equal(s.T(), commontest.HostOperatorNs, val.Namespace)
 	require.Equal(s.T(), "jsmith", val.Name)
 	require.False(s.T(), states.ApprovedManually(&val))
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
@@ -719,14 +722,15 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == username {
-				return nil, errors.New("an error occurred")
+		fakeClient := commontest.NewFakeClient(t)
+		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			if key.Name != username {
+				return errors.New("an error occurred")
 			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
 
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -755,12 +759,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
+		fakeClient := commontest.NewFakeClient(t)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -780,18 +780,18 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	userSignupNotComplete := toolchainv1alpha1.UserSignup{
+	userSignupNotComplete := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
@@ -815,9 +815,9 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			},
 		},
 	}
-	states.SetVerificationRequired(&userSignupNotComplete, true)
+	states.SetVerificationRequired(userSignupNotComplete, true)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&userSignupNotComplete)
+	err = s.FakeUserSignupClient.Tracker.Add(userSignupNotComplete)
 	require.NoError(s.T(), err)
 
 	// when
@@ -846,14 +846,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == userID.String() {
-				return &userSignupNotComplete, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
+		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -887,7 +881,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 	s.T().Run("informer - with no check for UserSignup complete condition", func(t *testing.T) {
 		// given
-		states.SetVerificationRequired(&userSignupNotComplete, false)
+		states.SetVerificationRequired(userSignupNotComplete, false)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
 				CrtClient: s,
@@ -910,28 +904,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
 		require.NoError(t, err)
 
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == userID.String() {
-				return &userSignupNotComplete, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return toolchainStatus, nil
-		}
+		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete, mur, space, spacebinding, toolchainStatus)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 
 		// when
@@ -961,7 +935,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	noCondition := toolchainv1alpha1.UserSignupStatus{}
 	pendingApproval := toolchainv1alpha1.UserSignupStatus{
@@ -994,11 +968,11 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-		userSignup := toolchainv1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
-				Namespace: configuration.Namespace(),
+				Namespace: commontest.HostOperatorNs,
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
 				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
@@ -1008,9 +982,9 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Status: status,
 		}
 
-		states.SetVerificationRequired(&userSignup, true)
+		states.SetVerificationRequired(userSignup, true)
 
-		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
+		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
 		require.NoError(s.T(), err)
 
 		// when
@@ -1037,14 +1011,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 		s.T().Run("informer", func(t *testing.T) {
 			// given
-			inf := fake.NewFakeInformer()
-			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-				if name == userID.String() {
-					return &userSignup, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-
+			fakeClient := commontest.NewFakeClient(t, userSignup)
+			inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 			s.Application.MockInformerService(inf)
 			svc := service.NewSignupService(
 				fake.MemberClusterServiceContext{
@@ -1080,7 +1048,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	us.Status.Conditions = deactivated()
@@ -1098,14 +1066,8 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
+		fakeClient := commontest.NewFakeClient(t, us)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -1128,7 +1090,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	for _, appsSubDomain := range []string{".apps.", ".apps-"} {
 		s.SetupTest()
 		s.T().Run("for apps subdomain: "+appsSubDomain, func(t *testing.T) {
-			s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+			s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 			us := s.newUserSignupComplete()
 			err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1179,29 +1141,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 			s.T().Run("informer", func(t *testing.T) {
 				// given
-				inf := fake.NewFakeInformer()
-				inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-					if name == us.Name {
-						return us, nil
-					}
-					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-				}
-				inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-					if name == mur.Name {
-						return mur, nil
-					}
-					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-				}
-				inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-					return toolchainStatus, nil
-				}
-				inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-					return space, nil
-				}
-				inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-					return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-				}
-
+				fakeClient := commontest.NewFakeClient(t, us, mur, toolchainStatus, space, spacebinding)
+				inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 				s.Application.MockInformerService(inf)
 				svc := service.NewSignupService(
 					fake.MemberClusterServiceContext{
@@ -1237,7 +1178,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
@@ -1307,29 +1248,8 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return toolchainStatus, nil
-		}
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
-
+		fakeClient := commontest.NewFakeClient(t, us, mur, toolchainStatus, space, spacebinding)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -1367,7 +1287,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Status: toolchainv1alpha1.ToolchainStatusStatus{
 			Members: []toolchainv1alpha1.Member{
@@ -1402,7 +1322,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
@@ -1424,29 +1344,8 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			if name == space.Name {
-				return space, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, "toolchain-status")
-		}
-
+		fakeClient := commontest.NewFakeClient(t, us, mur, space)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -1459,13 +1358,13 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
 
 		// then
-		require.EqualError(t, err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
+		require.EqualError(t, err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
 	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1489,20 +1388,14 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
+		fakeClient := commontest.NewFakeClient(t, us)
+		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			if key.Name == us.Status.CompliantUsername {
+				return returnedErr
 			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
+			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == us.Status.CompliantUsername {
-				return nil, returnedErr
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -1521,7 +1414,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 
 func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1533,7 +1426,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 	}
 
@@ -1610,29 +1503,8 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 
 			// informer case
 			// given
-			inf := fake.NewFakeInformer()
-			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-				if name == us.Name {
-					return us, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-				if name == mur.Name {
-					return mur, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-				if name == space.Name {
-					return space, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-				return toolchainStatus, nil
-			}
-
+			fakeClient := commontest.NewFakeClient(t, us, mur, toolchainStatus, space)
+			inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 			s.Application.MockInformerService(inf)
 			svc := service.NewSignupService(
 				fake.MemberClusterServiceContext{
@@ -1657,7 +1529,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 
 func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newBannedUserSignup()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1680,14 +1552,8 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
+		fakeClient := commontest.NewFakeClient(t, us)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(inf)
 		svc := service.NewSignupService(
 			fake.MemberClusterServiceContext{
@@ -1709,7 +1575,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	space := s.newSpace("dave")
 	err := s.FakeSpaceClient.Tracker.Add(space)
@@ -1724,10 +1590,8 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
+		fakeClient := commontest.NewFakeClient(t, space)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 		// when
 		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
@@ -1742,7 +1606,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 // This is valuable when user doesn't have default home space created, but has access to some shared spaces
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 	// space created for userA
 	space := s.newSpace("userA")
 	err := s.FakeSpaceClient.Tracker.Add(space)
@@ -1772,13 +1636,8 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebindingB, *spaceCindingC}, nil
-		}
+		fakeClient := commontest.NewFakeClient(t, space, spacebindingB, spaceCindingC)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 		// when
 		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
@@ -1792,7 +1651,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 // TestGetDefaultUserNamespaceMultiSpace tests that the home Space created for the user is prioritized when there are multiple spaces
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	// space1 created by userA
 	space1 := s.newSpace("userA")
@@ -1824,20 +1683,8 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			switch name {
-			case space1.Name:
-				return space1, nil
-			case space2.Name:
-				return space2, nil
-			default:
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding1, *spacebinding2}, nil
-		}
+		fakeClient := commontest.NewFakeClient(t, space1, space2, spacebinding1, spacebinding2)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 		// when
 		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
@@ -1850,7 +1697,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpaceBinding() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	space := s.newSpace("dave")
 	err := s.FakeSpaceClient.Tracker.Add(space)
@@ -1865,13 +1712,11 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
+		fakeClient := commontest.NewFakeClient(t, space)
+		fakeClient.MockList = func(_ gocontext.Context, _ client.ObjectList, _ ...client.ListOption) error {
+			return apierrors.NewInternalError(fmt.Errorf("something went wrong"))
 		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return nil, apierrors.NewInternalError(fmt.Errorf("something went wrong"))
-		}
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 		// when
 		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
@@ -1884,7 +1729,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	// when
 	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "dave", "dave")
@@ -1895,10 +1740,8 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
+		fakeClient := commontest.NewFakeClient(t)
+		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 		// when
 		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
@@ -1910,7 +1753,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	s.Run("getusersignup ok", func() {
 		us := s.newUserSignupComplete()
@@ -1942,7 +1785,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, true, "", 5)
 
 	us := s.newUserSignupComplete()
 	err := s.FakeUserSignupClient.Tracker.Add(us)
@@ -1975,7 +1818,7 @@ func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
 }
 
 func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
+	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
 	s.Run("phone verification is required", func() {
 		s.Run("captcha verification is disabled", func() {
@@ -2094,7 +1937,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() {
 
-	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
+	s.ServiceConfiguration(commontest.HostOperatorNs, false, "", 5)
 
 	// Create a new UserSignup, set its UserID and AccountID annotations
 	userSignup := s.newUserSignupComplete()
@@ -2106,7 +1949,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userSignup.Status.CompliantUsername,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -2235,7 +2078,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "90cb861692508c36933b85dfe43f5369",
 			},
@@ -2282,7 +2125,7 @@ func (s *TestSignupServiceSuite) newBannedUserSignup() *toolchainv1alpha1.UserSi
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
@@ -2325,7 +2168,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alph
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -2352,7 +2195,7 @@ func (s *TestSignupServiceSuite) newSpace(name string) *toolchainv1alpha1.Space 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceCreatorLabelKey: name,
 			},
@@ -2382,7 +2225,7 @@ func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *too
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            spaceName,
 				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName,

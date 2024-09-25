@@ -172,8 +172,11 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					expectedErr:     "list spacebindings error",
 					expectedErrCode: 500,
 					mockFakeClient: func(fakeClient *test.FakeClient) {
-						fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
-							return fmt.Errorf("list spacebindings error")
+						fakeClient.MockList = func(ctx context.Context, list runtimeclient.ObjectList, opts ...runtimeclient.ListOption) error {
+							if _, ok := list.(*toolchainv1alpha1.SpaceBindingList); ok {
+								return fmt.Errorf("list spacebindings error")
+							}
+							return fakeClient.Client.List(ctx, list, opts...)
 						}
 					},
 				},

@@ -164,7 +164,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			s.Run("unable to get space", func() {
 				s.Run("informer service returns error", func() {
 					fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						if key.Name == "smith2" {
+						if _, ok := obj.(*toolchainv1alpha1.Space); ok && key.Name == "smith2" {
 							return fmt.Errorf("oopsi woopsi")
 						}
 						return fakeClient.Client.Get(ctx, key, obj, opts...)

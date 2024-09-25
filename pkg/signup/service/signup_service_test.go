@@ -266,7 +266,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		// given
 		fakeClient := commontest.NewFakeClient(t)
 		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-			if key.Name != "000" {
+			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && key.Name != "000" {
 				return errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
 			}
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -1390,7 +1390,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 		// given
 		fakeClient := commontest.NewFakeClient(t, us)
 		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-			if key.Name == us.Status.CompliantUsername {
+			if _, ok := obj.(*toolchainv1alpha1.MasterUserRecord); ok && key.Name == us.Status.CompliantUsername {
 				return returnedErr
 			}
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -1713,8 +1713,11 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		fakeClient := commontest.NewFakeClient(t, space)
-		fakeClient.MockList = func(_ gocontext.Context, _ client.ObjectList, _ ...client.ListOption) error {
-			return apierrors.NewInternalError(fmt.Errorf("something went wrong"))
+		fakeClient.MockList = func(ctx gocontext.Context, list client.ObjectList, opts ...client.ListOption) error {
+			if _, ok := list.(*toolchainv1alpha1.SpaceBindingList); ok {
+				return apierrors.NewInternalError(fmt.Errorf("something went wrong"))
+			}
+			return fakeClient.Client.List(ctx, list, opts...)
 		}
 		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 

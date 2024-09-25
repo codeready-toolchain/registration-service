@@ -258,7 +258,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedErrCode: 500,
 				mockFakeClient: func(fakeClient *test.FakeClient) {
 					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
-						if key.Name == "base1ns" {
+						if _, ok := obj.(*toolchainv1alpha1.NSTemplateTier); ok && key.Name == "base1ns" {
 							return fmt.Errorf("nstemplatetier error")
 						}
 						return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -289,8 +289,11 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedErr:     "list spacebindings error",
 				expectedErrCode: 500,
 				mockFakeClient: func(fakeClient *test.FakeClient) {
-					fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
-						return fmt.Errorf("list spacebindings error")
+					fakeClient.MockList = func(ctx context.Context, list runtimeclient.ObjectList, opts ...runtimeclient.ListOption) error {
+						if _, ok := list.(*toolchainv1alpha1.SpaceBindingList); ok {
+							return fmt.Errorf("list spacebindings error")
+						}
+						return fakeClient.Client.List(ctx, list, opts...)
 					}
 				},
 				expectedWorkspace: "dancelover",
@@ -302,7 +305,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedErrCode: 404,
 				mockFakeClient: func(fakeClient *test.FakeClient) {
 					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
-						if key.Name == "dancelover" {
+						if _, ok := obj.(*toolchainv1alpha1.Space); ok && key.Name == "dancelover" {
 							return fmt.Errorf("no space")
 						}
 						return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -317,7 +320,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedErrCode: 500,
 				mockFakeClient: func(fakeClient *test.FakeClient) {
 					fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
-						if key.Name == "dancelover" {
+						if _, ok := obj.(*toolchainv1alpha1.Space); ok && key.Name == "dancelover" {
 							return fmt.Errorf("parent-space error")
 						}
 						return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -648,7 +651,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			workspaceRequest: "batman",
 			mockFakeClient: func(fakeClient *test.FakeClient) {
 				fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
-					if obj.GetObjectKind().GroupVersionKind().Kind == "Space" {
+					if _, ok := obj.(*toolchainv1alpha1.Space); ok {
 						return fmt.Errorf("no space")
 					}
 					return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -661,7 +664,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			workspaceRequest: "batman",
 			mockFakeClient: func(fakeClient *test.FakeClient) {
 				fakeClient.MockGet = func(ctx context.Context, key runtimeclient.ObjectKey, obj runtimeclient.Object, opts ...runtimeclient.GetOption) error {
-					if obj.GetObjectKind().GroupVersionKind().Kind == "Space" {
+					if _, ok := obj.(*toolchainv1alpha1.Space); ok {
 						return fmt.Errorf("no space")
 					}
 					return fakeClient.Client.Get(ctx, key, obj, opts...)
@@ -683,8 +686,11 @@ func TestGetUserWorkspace(t *testing.T) {
 			workspaceRequest: "robin",
 			expectedErr:      "list spacebindings error",
 			mockFakeClient: func(fakeClient *test.FakeClient) {
-				fakeClient.MockList = func(_ context.Context, _ runtimeclient.ObjectList, _ ...runtimeclient.ListOption) error {
-					return fmt.Errorf("list spacebindings error")
+				fakeClient.MockList = func(ctx context.Context, list runtimeclient.ObjectList, opts ...runtimeclient.ListOption) error {
+					if _, ok := list.(*toolchainv1alpha1.SpaceBindingList); ok {
+						return fmt.Errorf("list spacebindings error")
+					}
+					return fakeClient.Client.List(ctx, list, opts...)
 				}
 			},
 			expectedWorkspace: nil,

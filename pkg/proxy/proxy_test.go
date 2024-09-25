@@ -240,6 +240,23 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
 		})
 
+		s.Run("unauthorized if can't extract email from a valid token", func() {
+			// when
+			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), req)
+			userID := uuid.New()
+			req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithEmailClaim("")))
+			resp, err := http.DefaultClient.Do(req)
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), resp)
+			defer resp.Body.Close()
+			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: email missing")
+		})
+
 		s.Run("unauthorized if workspace context is invalid", func() {
 			// when
 			req := s.request()

@@ -683,6 +683,7 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 	req := ctx.Request()
 	targetQuery := target.APIURL().RawQuery
 	username, _ := ctx.Get(context.UsernameKey).(string)
+	// set username in context for logging purposes
 	ctx.Set(context.ImpersonateUser, target.Username())
 
 	director := func(req *http.Request) {

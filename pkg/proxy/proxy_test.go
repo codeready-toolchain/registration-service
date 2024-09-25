@@ -19,7 +19,7 @@ import (
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -31,6 +31,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -44,7 +45,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,7 +62,7 @@ var (
 	bannedUser = toolchainv1alpha1.BannedUser{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "alice",
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString("alice@redhat.com"),
 			},
@@ -92,24 +92,24 @@ func (s *TestProxySuite) TestProxy() {
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 
-			inf := fake.GetInformerService(
-				fake.InitClient(s.T()),
-				fake.WithGetBannedUsersByEmailFunc(func(email string) ([]toolchainv1alpha1.BannedUser, error) {
-					switch email {
-					case bannedUser.Spec.Email:
-						return []toolchainv1alpha1.BannedUser{bannedUser}, nil
-					case bannedUserListErrorEmailValue:
-						return nil, fmt.Errorf("list banned user error")
-					default:
-						return nil, nil
-					}
-				}))()
+			fakeClient := commontest.NewFakeClient(s.T(), &bannedUser)
+			fakeClient.MockList = func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				listOptions := &client.ListOptions{}
+				for _, opt := range opts {
+					opt.ApplyToList(listOptions)
+				}
+				if strings.Contains(listOptions.LabelSelector.String(), hash.EncodeString(bannedUserListErrorEmailValue)) {
+					return fmt.Errorf("list banned user error")
+				}
+				return fakeClient.Client.List(ctx, list, opts...)
+			}
+			inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 			fakeApp := &fake.ProxyFakeApp{
 				InformerServiceMock: inf,
 			}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
+			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)
@@ -136,7 +136,7 @@ func (s *TestProxySuite) TestProxy() {
 func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
 	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 	p, err := newProxyWithClusterClient(
-		fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(fake.InitClient(s.T())))
+		fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 	require.NoError(s.T(), err)
 
 	server := p.StartProxy(port)
@@ -830,49 +830,28 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										}),
 									)
 									s.Application.MockSignupService(fakeApp.SignupServiceMock)
-									inf := fake.NewFakeInformer()
-									inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-										switch name {
-										case "mycoolworkspace":
-											return fake.NewSpace("mycoolworkspace", "member-2", "smith2"), nil
-										}
-										return nil, fmt.Errorf("space not found error")
+
+									proxyPlugin := &toolchainv1alpha1.ProxyPlugin{
+										ObjectMeta: metav1.ObjectMeta{
+											Namespace: commontest.HostOperatorNs,
+											Name:      "myplugin",
+										},
+										Spec: toolchainv1alpha1.ProxyPluginSpec{
+											OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
+												Namespace: commontest.HostOperatorNs,
+												Name:      "proxy-plugin",
+											},
+										},
+										Status: toolchainv1alpha1.ProxyPluginStatus{},
 									}
-									inf.ListSpaceBindingFunc = func(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-										// always return a spacebinding for the purposes of the proxy tests, actual testing of the space lister is covered in the space lister tests
-										spaceBindings := []toolchainv1alpha1.SpaceBinding{}
-										for _, req := range reqs {
-											if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
-												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin")}
-											}
-										}
-										return spaceBindings, nil
-									}
-									inf.GetProxyPluginConfigFunc = func(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
-										switch name {
-										case "myplugin":
-											return &toolchainv1alpha1.ProxyPlugin{
-												ObjectMeta: metav1.ObjectMeta{
-													Namespace: metav1.NamespaceDefault,
-													Name:      "myplugin",
-												},
-												Spec: toolchainv1alpha1.ProxyPluginSpec{
-													OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
-														Namespace: metav1.NamespaceDefault,
-														Name:      metav1.NamespaceDefault,
-													},
-												},
-												Status: toolchainv1alpha1.ProxyPluginStatus{},
-											}, nil
-										}
-										return nil, fmt.Errorf("proxy plugin not found")
-									}
-									inf.GetNSTemplateTierFunc = func(_ string) (*toolchainv1alpha1.NSTemplateTier, error) {
-										return fake.NewBase1NSTemplateTier(), nil
-									}
-									inf.ListBannedUsersByEmailFunc = func(_ string) ([]toolchainv1alpha1.BannedUser, error) {
-										return nil, nil
-									}
+									require.NoError(s.T(), routev1.Install(scheme.Scheme))
+									fakeClient := commontest.NewFakeClient(s.T(),
+										fake.NewSpace("mycoolworkspace", "member-2", "smith2"),
+										fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"),
+										proxyPlugin,
+										fake.NewBase1NSTemplateTier())
+									inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+
 									s.Application.MockInformerService(inf)
 									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
 									fakeApp.InformerServiceMock = inf
@@ -923,7 +902,6 @@ type headerToAdd struct {
 }
 
 func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {
-	fakeClient := commontest.NewFakeClient(s.T())
 	serverHost := serverURL
 	switch {
 	case strings.HasPrefix(serverURL, "http://"):
@@ -931,21 +909,24 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 	case strings.HasPrefix(serverURL, "https://"):
 		serverHost = strings.TrimPrefix(serverURL, "https://")
 	}
-	fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-		route, ok := obj.(*routev1.Route)
-		if ok && key.Namespace == metav1.NamespaceDefault && key.Name == metav1.NamespaceDefault {
-			route.Namespace = key.Namespace
-			route.Name = key.Name
-			route.Spec.Port = &routev1.RoutePort{TargetPort: intstr.FromString("http")}
-			route.Status.Ingress = []routev1.RouteIngress{
+
+	route := &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: commontest.HostOperatorNs,
+			Name:      "proxy-plugin",
+		},
+		Spec: routev1.RouteSpec{
+			Port: &routev1.RoutePort{TargetPort: intstr.FromString("http")},
+		},
+		Status: routev1.RouteStatus{
+			Ingress: []routev1.RouteIngress{
 				{
 					Host: serverHost,
 				},
-			}
-			return nil
-		}
-		return fakeClient.Client.Get(ctx, key, obj, opts...)
+			},
+		},
 	}
+	fakeClient := commontest.NewFakeClient(s.T(), route)
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
 			CrtClient: s,

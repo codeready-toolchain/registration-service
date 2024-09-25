@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
@@ -100,9 +99,8 @@ func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, 
 		//nstemplatetier
 		fake.NewBase1NSTemplateTier(),
 	)
-	fakeClient := fake.InitClient(t, oo...)
 
-	return fakeSignupService, fakeClient
+	return fakeSignupService, test.NewFakeClient(t, oo...)
 }
 
 func newSignup(signupName, username string, ready bool) fake.SignupDef {
@@ -146,7 +144,7 @@ func decodeResponseToWorkspaceList(data []byte) (*toolchainv1alpha1.WorkspaceLis
 func workspaceFor(t *testing.T, fakeClient client.Client, name, role string, isHomeWorkspace bool, additionalWSOptions ...commonproxy.WorkspaceOption) toolchainv1alpha1.Workspace {
 	// get the space for the user
 	space := &toolchainv1alpha1.Space{}
-	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: configuration.Namespace()}, space)
+	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: test.HostOperatorNs}, space)
 	require.NoError(t, err)
 
 	// create the workspace based on the space

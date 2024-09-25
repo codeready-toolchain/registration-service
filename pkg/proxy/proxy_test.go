@@ -128,7 +128,7 @@ func (s *TestProxySuite) TestProxy() {
 			s.checkPlainHTTPErrors(fakeApp)
 			s.checkWebsocketsError()
 			s.checkWebLogin()
-			s.checkProxyOK(fakeApp, p, false)
+			s.checkProxyOK(fakeApp, p)
 		})
 	}
 }
@@ -495,7 +495,7 @@ func (s *TestProxySuite) checkWebLogin() {
 	})
 }
 
-func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publicViewerEnabled bool) {
+func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 	s.Run("successfully proxy", func() {
 		userID := uuid.New()
 
@@ -844,9 +844,6 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy, publ
 										for _, req := range reqs {
 											if req.Values().List()[0] == "smith2" || req.Values().List()[0] == "mycoolworkspace" {
 												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin")}
-											}
-											if publicViewerEnabled && req.Values().List()[0] == toolchainv1alpha1.KubesawAuthenticatedUsername {
-												spaceBindings = []toolchainv1alpha1.SpaceBinding{*fake.NewSpaceBinding("communityspace-publicviewer", "publicviewer", "communityspace", "viewer")}
 											}
 										}
 										return spaceBindings, nil

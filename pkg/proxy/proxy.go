@@ -119,8 +119,8 @@ func (p *Proxy) StartProxy(port string) *http.Server {
 				return next(ctx)
 			}
 		},
-		p.addPublicViewerContext(),
 		p.ensureUserIsNotBanned(),
+		p.addPublicViewerContext(),
 	)
 
 	// middleware after routing

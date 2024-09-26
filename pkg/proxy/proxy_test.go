@@ -687,7 +687,6 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 					"Authorization": {"Bearer clusterSAToken"},
 				},
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
-				// ExpectedResponse:            "invalid workspace request: access to workspace 'alice-private' is forbidden",
 				OverrideGetSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("test error")
 				},

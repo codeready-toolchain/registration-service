@@ -28,6 +28,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -38,7 +40,6 @@ import (
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/google/uuid"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,46 +118,11 @@ func (s *TestProxySuite) TestProxy() {
 				_ = server.Close()
 			}()
 
-			// Wait up to N seconds for the Proxy server to start
-			ready := false
-			sec := 10
-			for i := 0; i < sec; i++ {
-				log.Println("Checking if Proxy is started...")
-				req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					time.Sleep(time.Second)
-					continue
-				}
-				_, _ = io.Copy(io.Discard, resp.Body)
-				_ = resp.Body.Close()
-				if resp.StatusCode != http.StatusUnauthorized {
-					// The server may be running but still not fully ready to accept requests
-					time.Sleep(time.Second)
-					continue
-				}
-				// Server is up and running!
-				ready = true
-				break
-			}
-			require.True(s.T(), ready, "Proxy is not ready after %d seconds", sec)
-
+			s.Run("is alive", func() {
+				s.waitForProxyToBeAlive(DefaultPort)
+			})
 			s.Run("health check ok", func() {
-				req, err := http.NewRequest("GET", "http://localhost:8081/proxyhealth", nil)
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), req)
-
-				// when
-				resp, err := http.DefaultClient.Do(req)
-
-				// then
-				require.NoError(s.T(), err)
-				require.NotNil(s.T(), resp)
-				defer resp.Body.Close()
-				assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
-				s.assertResponseBody(resp, `{"alive": true}`)
+				s.checkProxyIsHealthy(DefaultPort)
 			})
 
 			s.checkPlainHTTPErrors(fakeApp)
@@ -165,6 +131,62 @@ func (s *TestProxySuite) TestProxy() {
 			s.checkProxyOK(fakeApp, p)
 		})
 	}
+}
+
+func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
+	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
+	p, err := newProxyWithClusterClient(
+		fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+	require.NoError(s.T(), err)
+
+	server := p.StartProxy(port)
+	require.NotNil(s.T(), server)
+
+	return p, server
+}
+
+func (s *TestProxySuite) waitForProxyToBeAlive(port string) {
+	// Wait up to N seconds for the Proxy server to start
+	ready := false
+	sec := 10
+	for i := 0; i < sec; i++ {
+		log.Println("Checking if Proxy is started...")
+		req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%s/api/mycoolworkspace/pods", port), nil)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), req)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusUnauthorized {
+			// The server may be running but still not fully ready to accept requests
+			time.Sleep(time.Second)
+			continue
+		}
+		// Server is up and running!
+		ready = true
+		break
+	}
+	require.True(s.T(), ready, "Proxy is not ready after %d seconds", sec)
+}
+
+func (s *TestProxySuite) checkProxyIsHealthy(port string) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://localhost:%s/proxyhealth", port), nil)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), req)
+
+	// when
+	resp, err := http.DefaultClient.Do(req)
+
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), resp)
+	defer resp.Body.Close()
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+	s.assertResponseBody(resp, `{"alive": true}`)
 }
 
 func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
@@ -216,6 +238,23 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
+		})
+
+		s.Run("unauthorized if can't extract email from a valid token", func() {
+			// when
+			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), req)
+			userID := uuid.New()
+			req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithEmailClaim("")))
+			resp, err := http.DefaultClient.Do(req)
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), resp)
+			defer resp.Body.Close()
+			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: email missing")
 		})
 
 		s.Run("unauthorized if workspace context is invalid", func() {
@@ -476,11 +515,15 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 
 		tests := map[string]struct {
 			ProxyRequestMethod              string
+			ProxyRequestPaths               map[string]string
 			ProxyRequestHeaders             http.Header
 			ExpectedAPIServerRequestHeaders http.Header
 			ExpectedProxyResponseHeaders    http.Header
 			ExpectedProxyResponseStatus     int
 			Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
+
+			OverrideGetSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+			ExpectedResponse      *string
 		}{
 			"plain http cors preflight request with no request method": {
 				ProxyRequestMethod: "OPTIONS",
@@ -569,6 +612,16 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 			},
+			"proxy plain http actual request as not provisioned user": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(uuid.New())}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {"smith3"},
+				},
+				ExpectedResponse:            ptr("unable to get target cluster: user is not provisioned (yet)"),
+				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+			},
 			"proxy plain http actual request": {
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
@@ -627,6 +680,54 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 			},
+			"error retrieving user workspaces": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+				OverrideGetSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+					return nil, fmt.Errorf("test error")
+				},
+				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),
+			},
+			"unauthorized if workspace not exists": {
+				ProxyRequestPaths: map[string]string{
+					"not existing workspace namespace": "http://localhost:8081/workspaces/not-existing-workspace/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("unable to get target cluster: access to workspace 'not-existing-workspace' is forbidden"),
+				ExpectedProxyResponseStatus: http.StatusInternalServerError,
+			},
+			"unauthorized if namespace does not exist in implicit workspace": {
+				ProxyRequestPaths: map[string]string{
+					"not existing namespace": "http://localhost:8081/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+			},
+			"unauthorized if namespace does not exist in explicit workspace": {
+				ProxyRequestPaths: map[string]string{
+					"not existing namespace": "http://localhost:8081/workspaces/mycoolworkspace/api/namespaces/not-existing-namespace/pods",
+				},
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization": {"Bearer clusterSAToken"},
+				},
+				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
+				ExpectedProxyResponseStatus: http.StatusForbidden,
+			},
 		}
 
 		rejectedHeaders := []headerToAdd{
@@ -645,6 +746,14 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 
 		for k, tc := range tests {
 			s.Run(k, func() {
+				paths := tc.ProxyRequestPaths
+				if len(paths) == 0 {
+					paths = map[string]string{
+						"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
+						"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+						"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
+					}
+				}
 
 				for _, firstHeader := range rejectedHeaders {
 					rejectedHeadersToAdd := []headerToAdd{firstHeader}
@@ -653,11 +762,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 
 						// Test each request using both the default workspace URL and a URL that uses the
 						// workspace context. Both should yield the same results.
-						for workspaceContext, reqPath := range map[string]string{
-							"default workspace":    "http://localhost:8081/api/mycoolworkspace/pods",
-							"workspace context":    "http://localhost:8081/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-							"proxy plugin context": "http://localhost:8081/plugins/myplugin/workspaces/mycoolworkspace/api/mycoolworkspace/pods",
-						} {
+						for workspaceContext, reqPath := range paths {
 							s.Run(workspaceContext, func() {
 								// given
 								req, err := http.NewRequest(tc.ProxyRequestMethod, reqPath, nil)
@@ -748,6 +853,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 
 									s.Application.MockInformerService(inf)
 									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+									fakeApp.InformerServiceMock = inf
 
 									p.spaceLister = &handlers.SpaceLister{
 										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
@@ -755,6 +861,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 											return inf
 										},
 										ProxyMetrics: p.metrics,
+									}
+									if tc.OverrideGetSignupFunc != nil {
+										p.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc
 									}
 								}
 
@@ -767,7 +876,9 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 								require.NotNil(s.T(), resp)
 								defer resp.Body.Close()
 								assert.Equal(s.T(), tc.ExpectedProxyResponseStatus, resp.StatusCode)
-								if !tc.Standalone {
+								if tc.ExpectedResponse != nil {
+									s.assertResponseBody(resp, *tc.ExpectedResponse)
+								} else if !tc.Standalone {
 									s.assertResponseBody(resp, "my response")
 								}
 								for hk, hv := range tc.ExpectedProxyResponseHeaders {
@@ -853,6 +964,10 @@ var noCORSHeaders = map[string][]string{
 	"Access-Control-Allow-Headers":     {},
 	"Access-Control-Allow-Methods":     {},
 	"Vary":                             {},
+}
+
+func ptr[T any](t T) *T {
+	return &t
 }
 
 func upgradeToWebsocket(req *http.Request) {
@@ -1100,7 +1215,7 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 
 	for k, tc := range tests {
 		s.T().Run(k, func(t *testing.T) {
-			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces)
+			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces...)
 			if tc.expectedErr == "" {
 				require.NoError(t, err)
 			} else {

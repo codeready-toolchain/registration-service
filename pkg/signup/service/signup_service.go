@@ -57,7 +57,7 @@ func NewSignupService(context servicecontext.ServiceContext, opts ...SignupServi
 
 	s := &ServiceImpl{
 		BaseService:     base.NewBaseService(context),
-		defaultProvider: crtClientProvider{context.CRTClient()},
+		defaultProvider: CrtClientProvider{context.CRTClient()},
 		CaptchaChecker:  captcha.Helper{},
 	}
 

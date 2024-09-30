@@ -321,6 +321,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	doUpdate := func() error {
 		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 		if err != nil {
+			log.Error(ctx, err, fmt.Sprintf("error getting signup from identifier. user_id: %s | username: %s", userID, username))
 			return err
 		}
 
@@ -342,6 +343,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 		_, err = s.Services().SignupService().UpdateUserSignup(signup)
 		if err != nil {
+			log.Error(ctx, err, fmt.Sprintf("error updating usesrsignup: %s", signup.Name))
 			return err
 		}
 

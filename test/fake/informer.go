@@ -3,6 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	spacetest "github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,6 +98,21 @@ func NewMasterUserRecord(name string) *toolchainv1alpha1.MasterUserRecord {
 					Status: "blah-blah-blah",
 				},
 			},
+		},
+	}
+}
+
+func NewBannedUser(name, email string) *toolchainv1alpha1.BannedUser {
+	return &toolchainv1alpha1.BannedUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: configuration.Namespace(),
+			Labels: map[string]string{
+				toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString(email),
+			},
+		},
+		Spec: toolchainv1alpha1.BannedUserSpec{
+			Email: email,
 		},
 	}
 }

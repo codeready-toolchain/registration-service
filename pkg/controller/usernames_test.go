@@ -1,21 +1,24 @@
 package controller_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
+	"github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/username"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type TestUsernamesSuite struct {
@@ -31,13 +34,13 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/usernames", nil)
 	require.NoError(s.T(), err)
 
-	fakeClient := fake.InitClient(s.T(),
+	fakeClient := commontest.NewFakeClient(s.T(),
 		fake.NewMasterUserRecord("johnny"),
 	)
 
 	s.Run("success", func() {
 
-		fakeInformer := fake.GetInformerService(fakeClient)()
+		fakeInformer := service.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(fakeInformer)
 
 		// Create Usernames controller instance.
@@ -97,9 +100,11 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 
 	s.Run("error", func() {
 		// force error while retrieving MUR
-		fakeInformer := fake.GetInformerService(fakeClient, fake.WithGetMurFunc(func(_ string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			return nil, fmt.Errorf("mock error")
-		}))()
+		fakeClient := commontest.NewFakeClient(s.T())
+		fakeClient.MockGet = func(_ context.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+			return fmt.Errorf("mock error")
+		}
+		fakeInformer := service.NewInformerService(fakeClient, commontest.HostOperatorNs)
 		s.Application.MockInformerService(fakeInformer)
 
 		// Create Usernames controller instance.

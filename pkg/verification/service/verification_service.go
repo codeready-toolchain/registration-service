@@ -343,7 +343,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 		_, err = s.Services().SignupService().UpdateUserSignup(signup)
 		if err != nil {
-			log.Error(ctx, err, fmt.Sprintf("error updating usesrsignup: %s", signup.Name))
+			log.Error(ctx, err, fmt.Sprintf("error updating usersignup: %s", signup.Name))
 			return err
 		}
 

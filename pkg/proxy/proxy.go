@@ -871,16 +871,3 @@ func validateWorkspaceRequest(requestedWorkspace string, workspaces ...toolchain
 
 	return nil
 }
-
-func namespaceFromCtx(ctx echo.Context) string {
-	path := ctx.Request().URL.Path
-	if strings.Index(path, "/namespaces/") > 0 {
-		segments := strings.Split(path, "/")
-		for i, segment := range segments {
-			if segment == "namespaces" && i+1 < len(segments) {
-				return segments[i+1]
-			}
-		}
-	}
-	return ""
-}

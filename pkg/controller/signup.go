@@ -139,7 +139,6 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 
 	err := s.app.VerificationService().VerifyPhoneCode(ctx, userID, username, code)
 	if err != nil {
-		log.Error(ctx, err, "error validating user verification phone code")
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):

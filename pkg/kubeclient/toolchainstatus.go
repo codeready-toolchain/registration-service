@@ -4,7 +4,7 @@ import (
 	"context"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type toolchainStatusClient struct {
@@ -19,14 +19,8 @@ type ToolchainStatusInterface interface {
 // If not found then NotFound error returned
 func (c *toolchainStatusClient) Get() (*crtapi.ToolchainStatus, error) {
 	result := &crtapi.ToolchainStatus{}
-	err := c.restClient.Get().
-		Namespace(c.ns).
-		Resource(resources.ToolchainStatusPlural).
-		Name(resources.ToolchainStatusName).
-		Do(context.TODO()).
-		Into(result)
-	if err != nil {
+	if err := c.client.Get(context.TODO(), types.NamespacedName{Namespace: c.ns, Name: "toolchain-status"}, result); err != nil {
 		return nil, err
 	}
-	return result, err
+	return result, nil
 }

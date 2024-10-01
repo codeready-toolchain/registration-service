@@ -4,7 +4,7 @@ import (
 	"context"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type masterUserRecordClient struct {
@@ -18,11 +18,8 @@ type MasterUserRecordInterface interface {
 // Get returns the MasterUserRecord with the specified name, or an error if something went wrong while attempting to retrieve it
 func (c *masterUserRecordClient) Get(name string) (*crtapi.MasterUserRecord, error) {
 	result := &crtapi.MasterUserRecord{}
-	err := c.restClient.Get().
-		Namespace(c.ns).
-		Resource(resources.MurResourcePlural).
-		Name(name).
-		Do(context.TODO()).
-		Into(result)
-	return result, err
+	if err := c.client.Get(context.TODO(), types.NamespacedName{Namespace: c.ns, Name: name}, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

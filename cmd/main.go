@@ -6,29 +6,27 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
-
 	errs "github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	runtimecluster "sigs.k8s.io/controller-runtime/pkg/cluster"
 	controllerlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -63,16 +61,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// create runtime client
-	cl, err := configClient(cfg)
+	ctx := controllerruntime.SetupSignalHandler()
+
+	// create cached runtime client
+	cl, err := newCachedClient(ctx, cfg)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	crtConfig, err := configuration.ForceLoadRegistrationServiceConfig(cl)
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize configuration: %s", err.Error()))
-	}
+	configuration.SetClient(cl)
+	crtConfig := configuration.GetRegistrationServiceConfig()
 	crtConfig.Print()
 
 	if crtConfig.Verification().CaptchaEnabled() {
@@ -86,12 +84,7 @@ func main() {
 		}
 	}
 
-	informer, informerShutdown, err := informers.StartInformer(cfg)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	app, err := server.NewInClusterApplication(*informer)
+	app, err := server.NewInClusterApplication(cl)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -122,11 +115,6 @@ func main() {
 	}
 	proxySrv := p.StartProxy(proxy.DefaultPort)
 
-	// stop the informer when proxy server shuts down
-	proxySrv.RegisterOnShutdown(func() {
-		informerShutdown <- struct{}{}
-	})
-
 	// ---------------------------------------------
 	// Registration Service
 	// ---------------------------------------------
@@ -154,35 +142,17 @@ func main() {
 		}
 	}()
 
-	// update cache every 2 seconds
-	go func() {
-		for {
-			if _, err := configuration.ForceLoadRegistrationServiceConfig(cl); err != nil {
-				log.Error(nil, err, "failed to update the configuration cache")
-			}
-			time.Sleep(2 * time.Second)
-		}
-	}()
-
-	gracefulShutdown(configuration.GracefulTimeout, regsvcSrv.HTTPServer(), regsvcMetricsSrv, proxySrv, proxyMetricsSrv)
+	gracefulShutdown(ctx, configuration.GracefulTimeout, regsvcSrv.HTTPServer(), regsvcMetricsSrv, proxySrv, proxyMetricsSrv)
 }
 
-func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {
-	// For a channel used for notification of just one signal value, a buffer of
-	// size 1 is sufficient.
-	stop := make(chan os.Signal, 1)
-
-	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C) or SIGTERM
-	// (Ctrl+/). SIGKILL, SIGQUIT will not be caught.
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	sigReceived := <-stop
-	log.Infof(nil, "Signal received: %+v", sigReceived.String())
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func gracefulShutdown(ctx context.Context, timeout time.Duration, hs ...*http.Server) {
+	<-ctx.Done()
+	// We are done
+	ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	log.Infof(nil, "Shutdown with timeout: %s", timeout.String())
 	for _, s := range hs {
-		if err := s.Shutdown(ctx); err != nil {
+		if err := s.Shutdown(ctxTimeout); err != nil {
 			log.Errorf(nil, err, "Shutdown error")
 		} else {
 			log.Info(nil, "Server stopped.")
@@ -190,7 +160,7 @@ func gracefulShutdown(timeout time.Duration, hs ...*http.Server) {
 	}
 }
 
-func configClient(cfg *rest.Config) (client.Client, error) {
+func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, error) {
 	scheme := runtime.NewScheme()
 	var AddToSchemes runtime.SchemeBuilder
 	addToSchemes := append(AddToSchemes,
@@ -200,9 +170,51 @@ func configClient(cfg *rest.Config) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return client.New(cfg, client.Options{
-		Scheme: scheme,
+
+	hostCluster, err := runtimecluster.New(cfg, func(options *runtimecluster.Options) {
+		options.Scheme = scheme
+		// cache only in the host-operator namespace
+		options.Namespace = configuration.Namespace()
 	})
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		if err := hostCluster.Start(ctx); err != nil {
+			panic(fmt.Errorf("failed to create cached client: %w", err))
+		}
+	}()
+
+	if !hostCluster.GetCache().WaitForCacheSync(ctx) {
+		return nil, fmt.Errorf("unable to sync the cache of the client")
+	}
+
+	// populate the cache backed by shared informers that are initialized lazily on the first call
+	// for the given GVK with all resources we are interested in from the host-operator namespace
+	objectsToList := map[string]client.ObjectList{
+		"MasterUserRecord": &toolchainv1alpha1.MasterUserRecordList{},
+		"Space":            &toolchainv1alpha1.SpaceList{},
+		"SpaceBinding":     &toolchainv1alpha1.SpaceBindingList{},
+		"ToolchainStatus":  &toolchainv1alpha1.ToolchainStatusList{},
+		"UserSignup":       &toolchainv1alpha1.UserSignupList{},
+		"ProxyPlugin":      &toolchainv1alpha1.ProxyPluginList{},
+		"NSTemplateTier":   &toolchainv1alpha1.NSTemplateTierList{},
+		"ToolchainConfig":  &toolchainv1alpha1.ToolchainConfigList{},
+		"BannedUser":       &toolchainv1alpha1.BannedUserList{},
+		"ToolchainCluster": &toolchainv1alpha1.ToolchainClusterList{},
+		"Secret":           &corev1.SecretList{}}
+
+	for resourceName := range objectsToList {
+		log.Infof(nil, "Syncing informer cache with %s resources", resourceName)
+		if err := hostCluster.GetClient().List(ctx, objectsToList[resourceName], client.InNamespace(configuration.Namespace())); err != nil {
+			log.Errorf(nil, err, "Informer cache sync failed for %s", resourceName)
+			return nil, err
+		}
+	}
+
+	log.Info(nil, "Informer caches synced")
+
+	return hostCluster.GetClient(), nil
 }
 
 func createCaptchaFileFromSecret(cfg configuration.RegistrationServiceConfig) error {

@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
+
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 
@@ -31,6 +33,9 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
+	s.OverrideApplicationDefault(testconfig.RegistrationService().
+		RegistrationServiceURL("https://signup.domain.com"))
+	defer s.DefaultConfig()
 	cfg := configuration.GetRegistrationServiceConfig()
 
 	// Create handler instance.
@@ -114,6 +119,10 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 				assert.True(s.T(), ok, "returned 'public-client' value is not of type 'bool'")
 				assert.Equal(s.T(), config["public-client"], valBool, "wrong 'public-client' in authconfig response")
 			})
+		})
+
+		s.Run("envelope signup url", func() {
+			assert.Equal(s.T(), "https://signup.domain.com", dataEnvelope.SignupURL)
 		})
 	})
 }

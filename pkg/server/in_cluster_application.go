@@ -5,22 +5,16 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NewInClusterApplication creates a new in-cluster application with the specified configuration and options.  This
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication(informer informers.Informer) (application.Application, error) {
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, informer, configuration.Namespace())
+func NewInClusterApplication(client client.Client) (application.Application, error) {
+	kubeClient, err := kubeclient.NewCRTRESTClient(client, configuration.Namespace())
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +22,7 @@ func NewInClusterApplication(informer informers.Informer) (application.Applicati
 	return &InClusterApplication{
 		serviceFactory: factory.NewServiceFactory(
 			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient),
-				factory.InformerOption(informer),
+				factory.InformerOption(client),
 			)),
 	}, nil
 }

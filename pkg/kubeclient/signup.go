@@ -5,10 +5,11 @@ import (
 	"regexp"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient/resources"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -31,48 +32,28 @@ type UserSignupInterface interface {
 // If not found then NotFound error returned
 func (c *userSignupClient) Get(name string) (*crtapi.UserSignup, error) {
 	result := &crtapi.UserSignup{}
-	err := c.restClient.Get().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Name(name).
-		Do(context.TODO()).
-		Into(result)
-	if err != nil {
+	if err := c.client.Get(context.TODO(), types.NamespacedName{Namespace: c.ns, Name: name}, result); err != nil {
 		return nil, err
 	}
-	return result, err
+	return result, nil
 }
 
 // Create creates a new UserSignup resource in the cluster, and returns the resulting UserSignup that was created, or
 // an error if something went wrong
 func (c *userSignupClient) Create(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
-	err := c.restClient.Post().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Body(obj).
-		Do(context.TODO()).
-		Into(result)
-	if err != nil {
+	if err := c.client.Create(context.TODO(), obj); err != nil {
 		return nil, err
 	}
-	return result, err
+	return obj, nil
 }
 
 // Update will update an existing UserSignup resource in the cluster, returning an error if something went wrong
 func (c *userSignupClient) Update(obj *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	result := &crtapi.UserSignup{}
-	err := c.restClient.Put().
-		Namespace(c.ns).
-		Resource(resources.UserSignupResourcePlural).
-		Name(obj.Name).
-		Body(obj).
-		Do(context.TODO()).
-		Into(result)
+	err := c.client.Update(context.TODO(), obj)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return obj, nil
 }
 
 // ListActiveSignupsByPhoneNumberOrHash will return a list of non-deactivated UserSignups that have a phone number hash
@@ -98,26 +79,29 @@ func (c *userSignupClient) listActiveSignupsByLabelForHashedValue(labelKey, valu
 // label matching the specified label
 func (c *userSignupClient) listActiveSignupsByLabel(labelKey, labelValue string) ([]*crtapi.UserSignup, error) {
 
-	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotEquals, []string{crtapi.UserSignupStateLabelValueDeactivated})
+	// TODO add unit tests checking that the label selection works as expected. Right now, it's not possible to do that thanks to the great abstraction and multiple level of layers, mocks, and services.
+	selector := labels.NewSelector()
+	stateRequirement, err := labels.NewRequirement(crtapi.UserSignupStateLabelKey, selection.NotIn, []string{crtapi.UserSignupStateLabelValueDeactivated, crtapi.UserSignupStateLabelValueNotReady})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*stateRequirement)
 	labelRequirement, err := labels.NewRequirement(labelKey, selection.Equals, []string{labelValue})
 	if err != nil {
 		return nil, err
 	}
+	selector = selector.Add(*labelRequirement)
 
-	userSignups, err := c.informer.UserSignup.ByNamespace(c.ns).List(labels.NewSelector().Add(*stateRequirement).Add(*labelRequirement))
+	userSignups := &crtapi.UserSignupList{}
+	err = c.client.List(context.TODO(), userSignups, client.InNamespace(c.ns), client.MatchingLabelsSelector{Selector: selector})
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*crtapi.UserSignup, len(userSignups))
+	result := make([]*crtapi.UserSignup, len(userSignups.Items))
 
-	for i := range userSignups {
-		userSignup := &crtapi.UserSignup{}
-		err = c.crtClient.scheme.Convert(userSignups[i], userSignup, nil)
-		result[i] = userSignup
+	for i := range userSignups.Items {
+		result[i] = &userSignups.Items[i]
 	}
 
 	return result, err

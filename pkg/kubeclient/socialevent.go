@@ -4,10 +4,7 @@ import (
 	"context"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-)
-
-const (
-	socialeventResourcePlural = "socialevents"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type socialeventClient struct {
@@ -21,11 +18,8 @@ type SocialEventInterface interface {
 // Get returns the SocialEvent with the specified name, or an error if something went wrong while attempting to retrieve it
 func (c *socialeventClient) Get(name string) (*crtapi.SocialEvent, error) {
 	result := &crtapi.SocialEvent{}
-	err := c.restClient.Get().
-		Namespace(c.ns).
-		Resource(socialeventResourcePlural).
-		Name(name).
-		Do(context.TODO()).
-		Into(result)
-	return result, err
+	if err := c.client.Get(context.TODO(), types.NamespacedName{Namespace: c.ns, Name: name}, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

@@ -942,8 +942,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 	fakeClient := commontest.NewFakeClient(s.T(), route)
 	return service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
-			CrtClient: s,
-			Svcs:      s.Application,
+			Svcs: s.Application,
 		},
 		func(si *service.ServiceImpl) {
 			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {

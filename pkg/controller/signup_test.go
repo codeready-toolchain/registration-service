@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"bytes"
+	gocontext "context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,11 +22,13 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
+	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -36,10 +39,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
-	kubetesting "k8s.io/client-go/testing"
 )
 
 type TestSignupSuite struct {
@@ -51,19 +51,19 @@ func TestRunSignupSuite(t *testing.T) {
 	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}, nil})
 }
 
-func (s *TestSignupSuite) SetHTTPClientFactoryOption() {
-	s.httpClient = &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(s.httpClient)
+func httpClientFactoryOption() func(serviceFactory *factory.ServiceFactory) {
+	httpClient := &http.Client{Transport: &http.Transport{}}
+	gock.InterceptClient(httpClient)
 
 	serviceOption := func(svc *verification_service.ServiceImpl) {
-		svc.HTTPClient = s.httpClient
+		svc.HTTPClient = httpClient
 	}
 
 	opt := func(serviceFactory *factory.ServiceFactory) {
 		serviceFactory.WithVerificationServiceOption(serviceOption)
 	}
 
-	s.WithFactoryOption(opt)
+	return opt
 }
 
 func (s *TestSignupSuite) TestSignupPostHandler() {
@@ -73,13 +73,16 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	require.NoError(s.T(), err)
 
 	svc := &FakeSignupService{}
-	s.Application.MockSignupService(svc)
+
+	_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
+		serviceFactory.WithSignupService(svc)
+	})
 
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
 	// Create signup instance.
-	signupCtrl := controller.NewSignup(s.Application)
+	signupCtrl := controller.NewSignup(application)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 	userID, err := uuid.NewV4()
@@ -172,7 +175,9 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 	// Create a mock SignupService
 	svc := &FakeSignupService{}
-	s.Application.MockSignupService(svc)
+	_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
+		serviceFactory.WithSignupService(svc)
+	})
 
 	// Create UserSignup
 	ob, err := uuid.NewV4()
@@ -180,7 +185,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	userID := ob.String()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application)
+	ctrl := controller.NewSignup(application)
 	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
@@ -258,11 +263,6 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 }
 
 func (s *TestSignupSuite) TestInitVerificationHandler() {
-	// Setup gock to intercept calls made to the Twilio API
-	s.SetHTTPClientFactoryOption()
-
-	defer gock.Off()
-
 	// call override config to ensure the factory option takes effect
 	s.OverrideApplicationDefault()
 
@@ -287,11 +287,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	}
 	states.SetVerificationRequired(userSignup, true)
 
-	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-	require.NoError(s.T(), err)
+	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+	defer gock.Off()
 
 	// Create Signup controller instance.
-	ctrl := controller.NewSignup(s.Application)
+	ctrl := controller.NewSignup(application)
 	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 	assertInitVerificationSuccess := func(phoneNumber, expectedHash string, expectedCounter int) {
@@ -303,7 +303,8 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		updatedUserSignup := &crtapi.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
@@ -395,11 +396,10 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		}
 		states.SetVerificationRequired(userSignup, false)
 
-		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
@@ -447,10 +447,12 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			},
 		}
 
-		s.Application.MockSignupService(svc)
+		_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
+			serviceFactory.WithSignupService(svc)
+		}, userSignup)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
@@ -483,12 +485,10 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		Status: crtapi.UserSignupStatus{},
 	}
 
-	err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-	require.NoError(s.T(), err)
-
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -500,7 +500,8 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		updatedUserSignup := &crtapi.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
@@ -512,13 +513,13 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 	s.Run("getsignup returns error", func() {
 		// Simulate returning an error
-		s.FakeUserSignupClient.MockGet = func(string) (userSignup *crtapi.UserSignup, e error) {
-			return nil, errors.New("no user")
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+		fakeClient.MockGet = func(_ gocontext.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+			return errors.New("no user")
 		}
-		defer func() { s.FakeUserSignupClient.MockGet = nil }()
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -541,14 +542,10 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 	})
 
 	s.Run("getsignup returns nil", func() {
-
-		s.FakeUserSignupClient.MockGet = func(userID string) (userSignup *crtapi.UserSignup, e error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, userID)
-		}
-		defer func() { s.FakeUserSignupClient.MockGet = nil }()
+		_, application := testutil.PrepareInClusterApp(s.T())
 
 		// Create Signup controller instance and handle the verification request
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -566,18 +563,17 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.InDelta(s.T(), float64(404), bodyParams["code"], 0.01)
-		require.Equal(s.T(), " \"jsmith\" not found: user not found", bodyParams["message"])
+		require.Equal(s.T(), "usersignups.toolchain.dev.openshift.com \"jsmith\" not found: user not found", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
 
 	s.Run("update usersignup returns error", func() {
-		s.FakeUserSignupClient.MockUpdate = func(*crtapi.UserSignup) (*crtapi.UserSignup, error) {
-			return nil, apierrors.NewServiceUnavailable("service unavailable")
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+		fakeClient.MockUpdate = func(_ gocontext.Context, _ client.Object, _ ...client.UpdateOption) error {
+			return apierrors.NewServiceUnavailable("service unavailable")
 		}
-		defer func() { s.FakeUserSignupClient.MockUpdate = nil }()
-
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -608,13 +604,10 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		userSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey] = time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
 		userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(service.TimestampLayout)
 
-		err := s.FakeUserSignupClient.Delete(userSignup.Name, nil)
-		require.NoError(s.T(), err)
-		err = s.FakeUserSignupClient.Tracker.Add(userSignup)
-		require.NoError(s.T(), err)
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -638,7 +631,8 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 	s.Run("no code provided", func() {
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -677,11 +671,10 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Status: crtapi.UserSignupStatus{},
 		}
 
-		err = s.FakeUserSignupClient.Tracker.Add(otherUserSignup)
-		require.NoError(s.T(), err)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), otherUserSignup, userSignup)
 
 		// Create Signup controller instance.
-		ctrl := controller.NewSignup(s.Application)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
 
 		param := gin.Param{
@@ -693,7 +686,8 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(otherUserSignup.Name)
+		updatedUserSignup := &crtapi.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(otherUserSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
@@ -726,9 +720,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
-		err := s.setupFakeClients(userSignup, event)
-		require.NoError(s.T(), err)
-		ctrl := controller.NewSignup(s.Application)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
+		ctrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 		// when
@@ -736,7 +729,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 		// then
 		require.Equal(s.T(), http.StatusOK, rr.Code)
-		updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		updatedUserSignup := &crtapi.UserSignup{}
+		err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 		require.False(s.T(), states.VerificationRequired(updatedUserSignup))
 		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
@@ -751,9 +745,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 				testusersignup.VerificationRequired(time.Second),                                                                       // just signed up
 				testusersignup.WithVerificationAttempts(configuration.GetRegistrationServiceConfig().Verification().AttemptsAllowed()), // already reached max attempts
 			)
-			err := s.setupFakeClients(userSignup)
-			require.NoError(s.T(), err)
-			ctrl := controller.NewSignup(s.Application)
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 			// when
@@ -761,7 +754,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 			// then
 			require.Equal(s.T(), http.StatusTooManyRequests, rr.Code) // should be `Forbidden` as in other cases?
-			updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 			require.NoError(s.T(), err)
 			require.True(s.T(), states.VerificationRequired(updatedUserSignup))
 			require.Equal(s.T(), "3", updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
@@ -770,9 +764,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 		s.Run("invalid code", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
-			err := s.setupFakeClients(userSignup)
-			require.NoError(s.T(), err)
-			ctrl := controller.NewSignup(s.Application)
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 			// when
@@ -780,7 +773,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 			// then
 			require.Equal(s.T(), http.StatusForbidden, rr.Code)
-			updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 			require.NoError(s.T(), err)
 			require.True(s.T(), states.VerificationRequired(updatedUserSignup))
 			require.Equal(s.T(), "1", updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
@@ -790,9 +784,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(60*time.Minute)))
-			err := s.setupFakeClients(userSignup, event)
-			require.NoError(s.T(), err)
-			ctrl := controller.NewSignup(s.Application)
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
+			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 			// when
@@ -801,7 +794,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// then
 			// Check the status code is what we expect.
 			require.Equal(s.T(), http.StatusForbidden, rr.Code)
-			updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 			require.NoError(s.T(), err)
 			// Check that the correct UserSignup is passed into the FakeSignupService for update
 			require.True(s.T(), states.VerificationRequired(updatedUserSignup))
@@ -812,9 +806,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-1*time.Minute)))
-			err := s.setupFakeClients(userSignup, event)
-			require.NoError(s.T(), err)
-			ctrl := controller.NewSignup(s.Application)
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
+			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 			// when
@@ -823,7 +816,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// then
 			// Check the status code is what we expect.
 			require.Equal(s.T(), http.StatusForbidden, rr.Code)
-			updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 			require.NoError(s.T(), err)
 			// Check that the correct UserSignup is passed into the FakeSignupService for update
 			require.True(s.T(), states.VerificationRequired(updatedUserSignup))
@@ -834,9 +828,8 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                         // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10)) // same as `spec.MaxAttendees`
-			err := s.setupFakeClients(userSignup, event)
-			require.NoError(s.T(), err)
-			ctrl := controller.NewSignup(s.Application)
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
+			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
 			// when
@@ -845,38 +838,14 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// then
 			// Check the status code is what we expect.
 			require.Equal(s.T(), http.StatusForbidden, rr.Code)
-			updatedUserSignup, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 			require.NoError(s.T(), err)
 			// Check that the correct UserSignup is passed into the FakeSignupService for update
 			require.True(s.T(), states.VerificationRequired(updatedUserSignup))
 			require.Equal(s.T(), "1", updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
 		})
 	})
-}
-
-func (s *TestSignupSuite) setupFakeClients(objects ...runtime.Object) error {
-	clientScheme := runtime.NewScheme()
-	if err := crtapi.SchemeBuilder.AddToScheme(clientScheme); err != nil {
-		return err
-	}
-	s.FakeUserSignupClient.Tracker = kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
-	s.FakeSocialEventClient.Tracker = kubetesting.NewObjectTracker(clientScheme, scheme.Codecs.UniversalDecoder())
-
-	for _, obj := range objects {
-		switch obj := obj.(type) {
-		case *crtapi.UserSignup:
-			if err := s.FakeUserSignupClient.Tracker.Add(obj); err != nil {
-				return err
-			}
-		case *crtapi.SocialEvent:
-			if err := s.FakeSocialEventClient.Tracker.Add(obj); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unexpected type of object: %T", obj)
-		}
-	}
-	return nil
 }
 
 func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, username, code string) *httptest.ResponseRecorder {

@@ -84,7 +84,7 @@ func main() {
 		}
 	}
 
-	app, err := server.NewInClusterApplication(cl)
+	app, err := server.NewInClusterApplication(cl, configuration.Namespace())
 	if err != nil {
 		panic(err.Error())
 	}

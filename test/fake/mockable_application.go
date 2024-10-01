@@ -40,19 +40,11 @@ func (m *MockableApplication) VerificationService() service.VerificationService 
 	return m.serviceFactory.VerificationService()
 }
 
-func (m *MockableApplication) MockVerificationService(svc service.VerificationService) {
-	m.mockVerificationService = svc
-}
-
 func (m *MockableApplication) MemberClusterService() service.MemberClusterService {
 	if m.mockMemberClusterService != nil {
 		return m.mockMemberClusterService
 	}
 	return m.serviceFactory.MemberClusterService()
-}
-
-func (m *MockableApplication) MockMemberClusterService(svc service.MemberClusterService) {
-	m.mockMemberClusterService = svc
 }
 
 func (m *MockableApplication) InformerService() service.InformerService {

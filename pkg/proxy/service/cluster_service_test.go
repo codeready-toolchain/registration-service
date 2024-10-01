@@ -93,8 +93,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 	svc := service.NewMemberClusterService(
 		fake.MemberClusterServiceContext{
-			CrtClient: s,
-			Svcs:      s.Application,
+			Svcs: s.Application,
 		},
 	)
 
@@ -196,8 +195,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				s.Run("no member clusters", func() {
 					svc := service.NewMemberClusterService(
 						fake.MemberClusterServiceContext{
-							CrtClient: s,
-							Svcs:      s.Application,
+							Svcs: s.Application,
 						},
 						func(si *service.ServiceImpl) {
 							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -225,8 +223,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				s.Run("no member cluster with the given URL", func() {
 					svc := service.NewMemberClusterService(
 						fake.MemberClusterServiceContext{
-							CrtClient: s,
-							Svcs:      s.Application,
+							Svcs: s.Application,
 						},
 						func(si *service.ServiceImpl) {
 							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -287,8 +284,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 				svc := service.NewMemberClusterService(
 					fake.MemberClusterServiceContext{
-						CrtClient: s,
-						Svcs:      s.Application,
+						Svcs: s.Application,
 					},
 					func(si *service.ServiceImpl) {
 						si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
@@ -455,8 +451,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		s.Run("get workspace by name", func() {
 			svc := service.NewMemberClusterService(
 				fake.MemberClusterServiceContext{
-					CrtClient: s,
-					Svcs:      s.Application,
+					Svcs: s.Application,
 				},
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {

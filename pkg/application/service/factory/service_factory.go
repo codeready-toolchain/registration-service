@@ -88,6 +88,12 @@ func (s *ServiceFactory) WithVerificationServiceOption(opt verificationservice.V
 	s.verificationServiceOptions = append(s.verificationServiceOptions, opt)
 }
 
+func (s *ServiceFactory) WithSignupService(signupService service.SignupService) {
+	s.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
+		return signupService
+	}
+}
+
 // Option an option to configure the Service Factory
 type Option func(f *ServiceFactory)
 
@@ -115,8 +121,10 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
 	}
 
-	f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
-		return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
+	if f.signupServiceFunc == nil {
+		f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
+			return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
+		}
 	}
 
 	return f

@@ -32,13 +32,9 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -768,29 +764,6 @@ func singleJoiningSlash(a, b string) string {
 		return a + "/" + b
 	}
 	return a + b
-}
-
-func newClusterClient() (client.Client, error) {
-	scheme := runtime.NewScheme()
-	if err := v1.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
-	if err := toolchainv1alpha1.AddToScheme(scheme); err != nil {
-		return nil, err
-	}
-
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	cl, err := client.New(k8sConfig, client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return nil, errs.Wrap(err, "cannot create ToolchainCluster client")
-	}
-	return cl, nil
 }
 
 var ph = textproto.CanonicalMIMEHeaderKey("Sec-WebSocket-Protocol")

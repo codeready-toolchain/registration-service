@@ -3,11 +3,10 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // This whole service abstraction is such a huge pain. We have to get rid of it!!!
@@ -126,16 +125,12 @@ func (m *SignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 }
 
 type MemberClusterServiceContext struct {
-	CrtClient kubeclient.CRTClient
-	Svcs      service.Services
+	NamespacedClient namespaced.Client
+	Svcs             service.Services
 }
 
-func (sc MemberClusterServiceContext) CRTClient() kubeclient.CRTClient {
-	return sc.CrtClient
-}
-
-func (sc MemberClusterServiceContext) Client() client.Client {
-	panic("shouldn't need informer in mock member cluster service")
+func (sc MemberClusterServiceContext) Client() namespaced.Client {
+	return sc.NamespacedClient
 }
 
 func (sc MemberClusterServiceContext) Services() service.Services {

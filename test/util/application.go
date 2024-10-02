@@ -7,7 +7,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -18,7 +17,6 @@ func PrepareInClusterApp(t *testing.T, objects ...runtime.Object) (*commontest.F
 
 func PrepareInClusterAppWithOption(t *testing.T, option factory.Option, objects ...runtime.Object) (*commontest.FakeClient, application.Application) {
 	fakeClient := commontest.NewFakeClient(t, objects...)
-	app, err := server.NewInClusterApplication(fakeClient, commontest.HostOperatorNs, option)
-	require.NoError(t, err)
+	app := server.NewInClusterApplication(fakeClient, commontest.HostOperatorNs, option)
 	return fakeClient, app
 }

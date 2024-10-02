@@ -43,12 +43,12 @@ func (s *UnitTestSuite) SetupTest() {
 func (s *UnitTestSuite) SetupDefaultApplication() {
 	// initialize the toolchainconfig cache
 	s.DefaultConfig()
-	s.Application = fake.NewMockableApplication(nil, s.factoryOptions...)
+	s.Application = fake.NewMockableApplication(s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainConfigOption) {
 	s.SetConfig(opts...)
-	s.Application = fake.NewMockableApplication(nil, s.factoryOptions...)
+	s.Application = fake.NewMockableApplication(s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) configuration.RegistrationServiceConfig {

@@ -521,6 +521,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 			Namespace: configuration.Namespace(),
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
+				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueApproved,
 			},
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{

@@ -65,7 +65,6 @@ func authorizationEndpointTarget() string {
 
 type Proxy struct {
 	app            application.Application
-	cl             client.Client
 	tokenParser    *auth.TokenParser
 	spaceLister    *handlers.SpaceLister
 	metrics        *metrics.ProxyMetrics
@@ -73,14 +72,6 @@ type Proxy struct {
 }
 
 func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
-	cl, err := newClusterClient()
-	if err != nil {
-		return nil, err
-	}
-	return newProxyWithClusterClient(app, cl, proxyMetrics, getMembersFunc)
-}
-
-func newProxyWithClusterClient(app application.Application, cln client.Client, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
@@ -90,7 +81,6 @@ func newProxyWithClusterClient(app application.Application, cln client.Client, p
 	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
 	return &Proxy{
 		app:            app,
-		cl:             cln,
 		tokenParser:    tokenParser,
 		spaceLister:    spaceLister,
 		metrics:        proxyMetrics,

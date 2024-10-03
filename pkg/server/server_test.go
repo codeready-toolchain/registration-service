@@ -34,7 +34,7 @@ const (
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(fake.NewMockableApplication(nil))
+	srv := server.New(fake.NewMockableApplication())
 
 	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.

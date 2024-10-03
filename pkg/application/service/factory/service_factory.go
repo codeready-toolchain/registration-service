@@ -7,40 +7,28 @@ import (
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	informerservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type serviceContextImpl struct {
-	kubeClient kubeclient.CRTClient
-	client     client.Client
-	services   service.Services
+	client   namespaced.Client
+	services service.Services
 }
 
 type ServiceContextOption = func(ctx *serviceContextImpl)
 
-func CRTClientOption(kubeClient kubeclient.CRTClient) ServiceContextOption {
-	return func(ctx *serviceContextImpl) {
-		ctx.kubeClient = kubeClient
-	}
-}
-
-func InformerOption(client client.Client) ServiceContextOption {
+func NamespacedClientOption(client namespaced.Client) ServiceContextOption {
 	return func(ctx *serviceContextImpl) {
 		ctx.client = client
 	}
 }
 
-func (s *serviceContextImpl) Client() client.Client {
+func (s *serviceContextImpl) Client() namespaced.Client {
 	return s.client
-}
-
-func (s *serviceContextImpl) CRTClient() kubeclient.CRTClient {
-	return s.kubeClient
 }
 
 func (s *serviceContextImpl) Services() service.Services {

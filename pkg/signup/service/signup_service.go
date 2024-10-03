@@ -11,12 +11,9 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -29,9 +26,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -49,22 +44,17 @@ var annotationsToRetain = []string{
 
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint:revive
-	base.BaseService
 	namespaced.Client
-	defaultProvider ResourceProvider
-	CaptchaChecker  captcha.Assessor
+	CaptchaChecker captcha.Assessor
 }
 
 type SignupServiceOption func(svc *ServiceImpl)
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(context servicecontext.ServiceContext, opts ...SignupServiceOption) service.SignupService {
-
+func NewSignupService(client namespaced.Client, opts ...SignupServiceOption) service.SignupService {
 	s := &ServiceImpl{
-		BaseService:     base.NewBaseService(context),
-		defaultProvider: infservice.NewInformerService(context.Client().Client, context.Client().Namespace),
-		CaptchaChecker:  captcha.Helper{},
-		Client:          context.Client(),
+		CaptchaChecker: captcha.Helper{},
+		Client:         client,
 	}
 
 	for _, opt := range opts {
@@ -362,7 +352,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // and MasterUserRecord resources in the host cluster.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.defaultProvider, userID, username, true)
+	return s.DoGetSignup(ctx, s.Client, userID, username, true)
 }
 
 // GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
@@ -370,17 +360,16 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*sig
 // The checkUserSignupCompleted was introduced in order to avoid checking the readiness of the complete condition on the UserSignup in certain situations,
 // such as proxy calls for example.
 func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.Services().InformerService(), userID, username, checkUserSignupCompleted)
+	return s.DoGetSignup(ctx, s.Client, userID, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
-	var err error
 
-	err = signup.PollUpdateSignup(ctx, func() error {
+	err := signup.PollUpdateSignup(ctx, func() error {
 		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
 		var getError error
-		userSignup, getError = s.DoGetUserSignupFromIdentifier(provider, userID, username)
+		userSignup, getError = s.DoGetUserSignupFromIdentifier(cl, userID, username)
 		// If an error was returned, then return here
 		if getError != nil {
 			if apierrors.IsNotFound(getError) {
@@ -471,8 +460,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
-	mur, err := provider.GetMasterUserRecord(userSignup.Status.CompliantUsername)
-	if err != nil {
+	mur := &toolchainv1alpha1.MasterUserRecord{}
+	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
@@ -491,11 +480,12 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, provider ResourceProvider, u
 		signupResponse.StartDate = mur.Status.ProvisionedTime.UTC().Format(time.RFC3339)
 	}
 
-	memberCluster, defaultNamespace := GetDefaultUserTarget(provider, userSignup.Status.HomeSpace, mur.Name)
+	memberCluster, defaultNamespace := GetDefaultUserTarget(cl, userSignup.Status.HomeSpace, mur.Name)
 	if memberCluster != "" {
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
-		status, err := provider.GetToolchainStatus()
-		if err != nil {
+		status := &toolchainv1alpha1.ToolchainStatus{}
+
+		if err := cl.Get(gocontext.TODO(), cl.NamespacedName("toolchain-status"), status); err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
@@ -568,18 +558,17 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 
 // GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
 func (s *ServiceImpl) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	return s.DoGetUserSignupFromIdentifier(s.defaultProvider, userID, username)
+	return s.DoGetUserSignupFromIdentifier(s.Client, userID, username)
 }
 
 // GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) DoGetUserSignupFromIdentifier(provider ResourceProvider, userID, username string) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) DoGetUserSignupFromIdentifier(cl namespaced.Client, userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := provider.GetUserSignup(EncodeUserIdentifier(username))
-	if err != nil {
+	userSignup := &toolchainv1alpha1.UserSignup{}
+	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(username)), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original
-			userSignup, err2 := provider.GetUserSignup(EncodeUserIdentifier(userID))
-			if err2 != nil {
+			if err2 := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(userID)), userSignup); err2 != nil {
 				if apierrors.IsNotFound(err2) {
 					return nil, err
 				}
@@ -654,34 +643,27 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 //  2. the name of the default namespace
 //
 // If the user doesn't have access to any Space, then empty strings are returned
-func GetDefaultUserTarget(provider ResourceProvider, spaceName, murName string) (string, string) {
+func GetDefaultUserTarget(cl namespaced.Client, spaceName, murName string) (string, string) {
 	if spaceName == "" {
-		sbSelector, err := labels.NewRequirement(toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey, selection.Equals, []string{murName})
-		if err != nil {
-			log.Errorf(nil, err, "unable to create spacebindings selector for MUR %s", murName)
-			return "", ""
-		}
-
-		requirements := []labels.Requirement{*sbSelector}
-
-		sbs, err := provider.ListSpaceBindings(requirements...)
-		if err != nil {
+		sbs := &toolchainv1alpha1.SpaceBindingList{}
+		if err := cl.List(gocontext.TODO(), sbs, client.InNamespace(cl.Namespace),
+			client.MatchingLabels{toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName}); err != nil {
 			log.Errorf(nil, err, "unable to list spacebindings for MUR %s", murName)
 			return "", ""
 		}
-		if len(sbs) == 0 {
+		if len(sbs.Items) == 0 {
 			return "", ""
 		}
-		spaceNames := make([]string, len(sbs))
-		for i, sb := range sbs {
+		spaceNames := make([]string, len(sbs.Items))
+		for i, sb := range sbs.Items {
 			spaceNames[i] = sb.Spec.Space
 		}
 		sort.Strings(spaceNames)
 		spaceName = spaceNames[0]
 
 	}
-	space, err := provider.GetSpace(spaceName)
-	if err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(spaceName), space); err != nil {
 		// log error and continue so that the api behaves in a best effort manner
 		// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
 		log.Errorf(nil, err, "unable to get space '%s'", spaceName)

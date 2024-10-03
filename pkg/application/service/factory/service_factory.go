@@ -111,7 +111,7 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 
 	if f.signupServiceFunc == nil {
 		f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
-			return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
+			return signupservice.NewSignupService(f.getContext().Client(), f.signupServiceOptions...)
 		}
 	}
 

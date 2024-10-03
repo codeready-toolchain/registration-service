@@ -11,8 +11,6 @@ import (
 type InformerService interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
-	GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error)
-	GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error)
 	ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
 	GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 	GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTemplateTier, error)

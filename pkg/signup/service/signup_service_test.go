@@ -16,7 +16,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -258,7 +258,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 			}
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		_, err = svc.GetSignupFromInformer(c, "000", "abc", true)
@@ -720,7 +720,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
 
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		_, err = svc.GetSignupFromInformer(c, "johnsmith", "abc", true)
@@ -747,7 +747,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		fakeClient := commontest.NewFakeClient(t)
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		signup, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
@@ -826,7 +826,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
 		// given
 		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete)
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
@@ -860,7 +860,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		toolchainStatus := s.newToolchainStatus(".apps.")
 
 		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete, mur, space, spacebinding, toolchainStatus)
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		// we set checkUserSignupCompleted to false
@@ -965,7 +965,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		s.T().Run("informer", func(t *testing.T) {
 			// given
 			fakeClient := commontest.NewFakeClient(t, userSignup)
-			svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+			svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 			// when
 			response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
@@ -1012,7 +1012,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		signup, err := svc.GetSignupFromInformer(c, us.Name, "", true)
@@ -1068,7 +1068,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			s.T().Run("informer", func(t *testing.T) {
 				// given
 				fakeClient := commontest.NewFakeClient(t, us, mur, toolchainStatus, space, spacebinding)
-				svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+				svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 				// when
 				response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
@@ -1115,7 +1115,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	toolchainStatus := s.newToolchainStatus(".apps.")
 
 	fakeClient := commontest.NewFakeClient(s.T(), us, mur, space, spacebinding, toolchainStatus)
-	svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(s.T(), fakeClient))
+	svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
@@ -1152,7 +1152,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		fakeClient := commontest.NewFakeClient(t, us, mur, toolchainStatus, space, spacebinding)
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.IdentityClaims.PreferredUsername, true)
@@ -1237,7 +1237,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	s.T().Run("informer", func(t *testing.T) {
 		// given
 		fakeClient := commontest.NewFakeClient(t, us, mur, space)
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
@@ -1279,7 +1279,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 			}
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
@@ -1375,7 +1375,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 
 			// informer case
 			// given
-			svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+			svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 			// when
 			_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
@@ -1413,7 +1413,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 
 	s.T().Run("informer", func(t *testing.T) {
 		// given
-		svc := service.NewSignupService(testutil.NewMemberClusterServiceContext(t, fakeClient))
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		response, err := svc.GetSignupFromInformer(ctx, us.Name, "", true)
@@ -1432,10 +1432,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 
 	space := s.newSpace("dave")
 	fakeClient := commontest.NewFakeClient(s.T(), space)
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
@@ -1457,10 +1457,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 	spaceCindingC := s.newSpaceBinding("userB", spaceC.Name)
 
 	fakeClient := commontest.NewFakeClient(s.T(), space, spacebindingB, spaceC, spaceCindingC)
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
@@ -1482,10 +1482,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	spacebinding2 := s.newSpaceBinding("userB", space2.Name)
 
 	fakeClient := commontest.NewFakeClient(s.T(), space1, space2, spacebinding1, spacebinding2)
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
@@ -1499,10 +1499,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 
 	space := s.newSpace("dave")
 	fakeClient := commontest.NewFakeClient(s.T(), space)
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
@@ -1513,10 +1513,10 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
 	s.ServiceConfiguration(true, "", 5)
 	fakeClient := commontest.NewFakeClient(s.T())
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)

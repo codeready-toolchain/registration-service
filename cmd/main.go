@@ -84,10 +84,7 @@ func main() {
 		}
 	}
 
-	app, err := server.NewInClusterApplication(cl, configuration.Namespace())
-	if err != nil {
-		panic(err.Error())
-	}
+	app := server.NewInClusterApplication(cl, configuration.Namespace())
 	// Initialize toolchain cluster cache service
 	// let's cache the member clusters before we start the services,
 	// this will speed up the first request

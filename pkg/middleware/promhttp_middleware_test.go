@@ -33,7 +33,7 @@ func TestPromHTTPMiddlewareSuite(t *testing.T) {
 func (s *PromHTTPMiddlewareSuite) TestPromHTTPMiddleware() {
 	// given
 	tokengenerator := authsupport.NewTokenManager()
-	srv := server.New(fake.NewMockableApplication(nil))
+	srv := server.New(fake.NewMockableApplication())
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 	s.SetConfig(testconfig.RegistrationService().
 		Environment(configuration.UnitTestsEnvironment).

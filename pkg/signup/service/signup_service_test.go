@@ -17,7 +17,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
 	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
@@ -617,6 +616,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueApproved,
 			},
 		},
 	}
@@ -1432,28 +1432,14 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 
 	space := s.newSpace("dave")
 	fakeClient := commontest.NewFakeClient(s.T(), space)
-	crtClient, err := kubeclient.NewCRTRESTClient(fakeClient, commontest.HostOperatorNs)
-	require.NoError(s.T(), err)
-	crtClientProvider := service.CrtClientProvider{Cl: crtClient}
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(crtClientProvider, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
 	assert.Equal(s.T(), "member-123", targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
-
-		// then
-		assert.Equal(t, "dave-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 // TestGetDefaultUserNamespaceFromFirstUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created as the home space.
@@ -1471,28 +1457,14 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 	spaceCindingC := s.newSpaceBinding("userB", spaceC.Name)
 
 	fakeClient := commontest.NewFakeClient(s.T(), space, spacebindingB, spaceC, spaceCindingC)
-	crtClient, err := kubeclient.NewCRTRESTClient(fakeClient, commontest.HostOperatorNs)
-	require.NoError(s.T(), err)
-	crtClientProvider := service.CrtClientProvider{Cl: crtClient}
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(crtClientProvider, "", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
 	assert.Equal(s.T(), "member-123", targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
-
-		// then
-		assert.Equal(t, "userA-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 // TestGetDefaultUserNamespaceMultiSpace tests that the home Space created for the user is prioritized when there are multiple spaces
@@ -1510,29 +1482,15 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	spacebinding2 := s.newSpaceBinding("userB", space2.Name)
 
 	fakeClient := commontest.NewFakeClient(s.T(), space1, space2, spacebinding1, spacebinding2)
-	crtClient, err := kubeclient.NewCRTRESTClient(fakeClient, commontest.HostOperatorNs)
-	require.NoError(s.T(), err)
-	crtClientProvider := service.CrtClientProvider{Cl: crtClient}
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	// get default namespace for userB
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(crtClientProvider, "userB", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
 	assert.Equal(s.T(), "member-123", targetCluster)
 
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
-
-		// then
-		assert.Equal(t, "userB-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpaceBinding() {
@@ -1541,62 +1499,28 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 
 	space := s.newSpace("dave")
 	fakeClient := commontest.NewFakeClient(s.T(), space)
-	crtClient, err := kubeclient.NewCRTRESTClient(fakeClient, commontest.HostOperatorNs)
-	require.NoError(s.T(), err)
-	crtClientProvider := service.CrtClientProvider{Cl: crtClient}
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(crtClientProvider, "", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
 	assert.Empty(s.T(), targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		fakeClient.MockList = func(ctx gocontext.Context, list client.ObjectList, opts ...client.ListOption) error {
-			if _, ok := list.(*toolchainv1alpha1.SpaceBindingList); ok {
-				return apierrors.NewInternalError(fmt.Errorf("something went wrong"))
-			}
-			return fakeClient.Client.List(ctx, list, opts...)
-		}
-		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
-
-		// then
-		assert.Empty(t, defaultUserNamespace)
-		assert.Empty(s.T(), targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
 	s.ServiceConfiguration(true, "", 5)
 	fakeClient := commontest.NewFakeClient(s.T())
-	crtClient, err := kubeclient.NewCRTRESTClient(fakeClient, commontest.HostOperatorNs)
-	require.NoError(s.T(), err)
-	crtClientProvider := service.CrtClientProvider{Cl: crtClient}
+	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(crtClientProvider, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
 	assert.Empty(s.T(), targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
-
-		// then
-		assert.Empty(t, defaultUserNamespace)
-		assert.Empty(s.T(), targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {

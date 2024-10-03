@@ -109,7 +109,7 @@ func (s *TestProxySuite) TestProxy() {
 				InformerServiceMock: inf,
 			}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := newProxyWithClusterClient(fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+			p, err := NewProxy(fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)
@@ -135,8 +135,8 @@ func (s *TestProxySuite) TestProxy() {
 
 func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
 	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-	p, err := newProxyWithClusterClient(
-		fakeApp, nil, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+	p, err := NewProxy(
+		fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 	require.NoError(s.T(), err)
 
 	server := p.StartProxy(port)

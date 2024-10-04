@@ -87,7 +87,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	// Query BannedUsers to check the user has not been banned
 	bannedUsers := &toolchainv1alpha1.BannedUserList{}
-	if err := s.List(gocontext.TODO(), bannedUsers, client.InNamespace(s.Namespace),
+	if err := s.List(ctx, bannedUsers, client.InNamespace(s.Namespace),
 		client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString(userEmail)}); err != nil {
 		return nil, err
 	}
@@ -283,11 +283,11 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(gocontext.TODO(), s.NamespacedName(encodedUserID), userSignup); err != nil {
+	if err := s.Get(ctx, s.NamespacedName(encodedUserID), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
 			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
-			if err := s.Get(gocontext.TODO(), s.NamespacedName(encodedUsername), userSignup); err != nil {
+			if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
 				if apierrors.IsNotFound(err) {
 					// New Signup
 					log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
@@ -319,7 +319,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.Use
 		return nil, err
 	}
 
-	return userSignup, s.Create(gocontext.TODO(), userSignup)
+	return userSignup, s.Create(ctx, userSignup)
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
@@ -345,7 +345,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
-	return existing, s.Update(gocontext.TODO(), existing)
+	return existing, s.Update(ctx, existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -461,7 +461,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userID
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur := &toolchainv1alpha1.MasterUserRecord{}
-	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
+	if err := cl.Get(ctx, cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
@@ -485,7 +485,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userID
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status := &toolchainv1alpha1.ToolchainStatus{}
 
-		if err := cl.Get(gocontext.TODO(), cl.NamespacedName("toolchain-status"), status); err != nil {
+		if err := cl.Get(ctx, cl.NamespacedName("toolchain-status"), status); err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL

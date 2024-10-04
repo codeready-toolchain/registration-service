@@ -1,6 +1,7 @@
 package service
 
 import (
+	gocontext "context"
 	"fmt"
 	"hash/crc32"
 	"regexp"
@@ -15,7 +16,9 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/errors"
+	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/captcha"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
@@ -29,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -46,6 +50,7 @@ var annotationsToRetain = []string{
 // ServiceImpl represents the implementation of the signup service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
+	namespaced.Client
 	defaultProvider ResourceProvider
 	CaptchaChecker  captcha.Assessor
 }
@@ -57,8 +62,9 @@ func NewSignupService(context servicecontext.ServiceContext, opts ...SignupServi
 
 	s := &ServiceImpl{
 		BaseService:     base.NewBaseService(context),
-		defaultProvider: crtClientProvider{context.CRTClient()},
+		defaultProvider: infservice.NewInformerService(context.Client().Client, context.Client().Namespace),
 		CaptchaChecker:  captcha.Helper{},
+		Client:          context.Client(),
 	}
 
 	for _, opt := range opts {
@@ -90,8 +96,9 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	emailHash := hash.EncodeString(userEmail)
 
 	// Query BannedUsers to check the user has not been banned
-	bannedUsers, err := s.CRTClient().V1Alpha1().BannedUsers().ListByEmail(userEmail)
-	if err != nil {
+	bannedUsers := &toolchainv1alpha1.BannedUserList{}
+	if err := s.List(gocontext.TODO(), bannedUsers, client.InNamespace(s.Namespace),
+		client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString(userEmail)}); err != nil {
 		return nil, err
 	}
 
@@ -285,13 +292,12 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
 
 	// Retrieve UserSignup resource from the host cluster
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Get(encodedUserID)
-	if err != nil {
+	userSignup := &toolchainv1alpha1.UserSignup{}
+	if err := s.Get(gocontext.TODO(), s.NamespacedName(encodedUserID), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
 			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
-			userSignup, err = s.CRTClient().V1Alpha1().UserSignups().Get(encodedUsername)
-			if err != nil {
+			if err := s.Get(gocontext.TODO(), s.NamespacedName(encodedUsername), userSignup); err != nil {
 				if apierrors.IsNotFound(err) {
 					// New Signup
 					log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
@@ -323,7 +329,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.Use
 		return nil, err
 	}
 
-	return s.CRTClient().V1Alpha1().UserSignups().Create(userSignup)
+	return userSignup, s.Create(gocontext.TODO(), userSignup)
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
@@ -349,7 +355,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
-	return s.CRTClient().V1Alpha1().UserSignups().Update(existing)
+	return existing, s.Update(gocontext.TODO(), existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -589,33 +595,49 @@ func (s *ServiceImpl) DoGetUserSignupFromIdentifier(provider ResourceProvider, u
 
 // UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
 func (s *ServiceImpl) UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-	userSignup, err := s.CRTClient().V1Alpha1().UserSignups().Update(userSignup)
-	if err != nil {
+	if err := s.Update(gocontext.TODO(), userSignup); err != nil {
 		return nil, err
 	}
 
 	return userSignup, nil
 }
 
+var (
+	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
+)
+
 // PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
-// an internal server error. If not, check if an active (non-deactivated) UserSignup with a different userID and username
+// an internal server error. If not, check if an approved UserSignup with a different userID and username
 // and email address exists. If so, return an internal server error. Otherwise, return without error.
 // Either the actual phone number, or the md5 hash of the phone number may be provided here.
 func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error {
-	bannedUserList, err := s.CRTClient().V1Alpha1().BannedUsers().ListByPhoneNumberOrHash(phoneNumberOrHash)
-	if err != nil {
+	labelValue := hash.EncodeString(phoneNumberOrHash)
+	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
+		labelValue = phoneNumberOrHash
+	}
+
+	bannedUserList := &toolchainv1alpha1.BannedUserList{}
+	if err := s.List(gocontext.TODO(), bannedUserList, client.InNamespace(s.Namespace),
+		client.MatchingLabels{toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue}); err != nil {
 		return errors.NewInternalError(err, "failed listing banned users")
 	}
+
 	if len(bannedUserList.Items) > 0 {
 		return errors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	userSignups, err := s.CRTClient().V1Alpha1().UserSignups().ListActiveSignupsByPhoneNumberOrHash(phoneNumberOrHash)
-	if err != nil {
+	labelSelector := client.MatchingLabels{
+		toolchainv1alpha1.UserSignupStateLabelKey:           toolchainv1alpha1.UserSignupStateLabelValueApproved,
+		toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
+	}
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	if err := s.List(gocontext.TODO(), userSignups, client.InNamespace(s.Namespace), labelSelector); err != nil {
 		return errors.NewInternalError(err, "failed listing userSignups")
 	}
-	for _, signup := range userSignups {
-		if signup.Spec.IdentityClaims.Sub != userID && signup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(signup) { // nolint:gosec
+
+	for _, signup := range userSignups.Items {
+		userSignup := signup // drop with go 1.22
+		if userSignup.Spec.IdentityClaims.Sub != userID && userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
 			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

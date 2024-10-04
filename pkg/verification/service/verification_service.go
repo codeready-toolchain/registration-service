@@ -1,6 +1,7 @@
 package service
 
 import (
+	gocontext "context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -8,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
-
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -37,6 +38,7 @@ const (
 // ServiceImpl represents the implementation of the verification service.
 type ServiceImpl struct { // nolint:revive
 	base.BaseService
+	namespaced.Client
 	HTTPClient          *http.Client
 	NotificationService sender.NotificationSender
 }
@@ -47,6 +49,7 @@ type VerificationServiceOption func(svc *ServiceImpl)
 func NewVerificationService(context servicecontext.ServiceContext, opts ...VerificationServiceOption) service.VerificationService {
 	s := &ServiceImpl{
 		BaseService: base.NewBaseService(context),
+		Client:      context.Client(),
 	}
 
 	for _, opt := range opts {
@@ -321,6 +324,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	doUpdate := func() error {
 		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
 		if err != nil {
+			log.Error(ctx, err, fmt.Sprintf("error getting signup from identifier. user_id: %s | username: %s", userID, username))
 			return err
 		}
 
@@ -342,6 +346,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 
 		_, err = s.Services().SignupService().UpdateUserSignup(signup)
 		if err != nil {
+			log.Error(ctx, err, fmt.Sprintf("error updating usersignup: %s", signup.Name))
 			return err
 		}
 
@@ -442,8 +447,8 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 	annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
 
 	// look-up the SocialEvent
-	event, err := s.CRTClient().V1Alpha1().SocialEvents().Get(code)
-	if err != nil {
+	event := &toolchainv1alpha1.SocialEvent{}
+	if err := s.Get(gocontext.TODO(), s.NamespacedName(code), event); err != nil {
 		if apierrors.IsNotFound(err) {
 			// a SocialEvent was not found for the provided code
 			return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")

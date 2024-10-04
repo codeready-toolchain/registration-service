@@ -3,8 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
@@ -126,16 +125,12 @@ func (m *SignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 }
 
 type MemberClusterServiceContext struct {
-	Client kubeclient.CRTClient
-	Svcs   service.Services
+	NamespacedClient namespaced.Client
+	Svcs             service.Services
 }
 
-func (sc MemberClusterServiceContext) CRTClient() kubeclient.CRTClient {
-	return sc.Client
-}
-
-func (sc MemberClusterServiceContext) Informer() informers.Informer {
-	panic("shouldn't need informer in mock member cluster service")
+func (sc MemberClusterServiceContext) Client() namespaced.Client {
+	return sc.NamespacedClient
 }
 
 func (sc MemberClusterServiceContext) Services() service.Services {

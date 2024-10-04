@@ -7,9 +7,8 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -25,14 +24,16 @@ type Option func(f *ServiceImpl)
 
 // ServiceImpl represents the implementation of the member cluster service.
 type ServiceImpl struct { // nolint:revive
-	base.BaseService
+	namespaced.Client
+	SignupService  service.SignupService
 	GetMembersFunc cluster.GetMemberClustersFunc
 }
 
 // NewMemberClusterService creates a service object for performing toolchain cluster related activities.
-func NewMemberClusterService(context servicecontext.ServiceContext, options ...Option) service.MemberClusterService {
+func NewMemberClusterService(client namespaced.Client, signupService service.SignupService, options ...Option) service.MemberClusterService {
 	si := &ServiceImpl{
-		BaseService:    base.NewBaseService(context),
+		Client:         client,
+		SignupService:  signupService,
 		GetMembersFunc: cluster.GetMemberClusters,
 	}
 	for _, o := range options {
@@ -59,8 +60,8 @@ func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginNam
 	}
 
 	// look up space
-	space, err := s.Services().InformerService().GetSpace(workspace)
-	if err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := s.Get(context.TODO(), s.NamespacedName(workspace), space); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
 		log.Error(nil, err, "unable to get target cluster for workspace "+workspace)
 		return nil, fmt.Errorf("the requested space is not available")
@@ -99,7 +100,7 @@ func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, prox
 func (s *ServiceImpl) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
 	// don't check for usersignup complete status, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := s.SignupService.GetSignupFromInformer(nil, userID, username, false)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +171,8 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 	if member.Client == nil {
 		return nil, errs.New(fmt.Sprintf("client for member %s not set", member.Name))
 	}
-	proxyCfg, err := s.Services().InformerService().GetProxyPluginConfig(proxyPluginName)
-	if err != nil {
+	proxyCfg := &toolchainv1alpha1.ProxyPlugin{}
+	if err := s.Get(context.TODO(), s.NamespacedName(proxyPluginName), proxyCfg); err != nil {
 		return nil, errs.New(fmt.Sprintf("unable to get proxy config %s: %s", proxyPluginName, err.Error()))
 	}
 	if proxyCfg.Spec.OpenShiftRouteTargetEndpoint == nil {
@@ -185,7 +186,7 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 		Namespace: routeNamespace,
 		Name:      routeName,
 	}
-	err = member.Client.Get(context.Background(), key, proxyRoute)
+	err := member.Client.Get(context.Background(), key, proxyRoute)
 	if err != nil {
 		return nil, err
 	}

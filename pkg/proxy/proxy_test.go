@@ -20,6 +20,7 @@ import (
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -850,9 +851,10 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										proxyPlugin,
 										fake.NewBase1NSTemplateTier())
 									inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+									nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 									s.Application.MockInformerService(inf)
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(testServer.URL)
+									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(nsClient, fakeApp.SignupServiceMock, testServer.URL)
 									fakeApp.InformerServiceMock = inf
 
 									p.spaceLister = &handlers.SpaceLister{
@@ -900,7 +902,7 @@ type headerToAdd struct {
 	key, value string
 }
 
-func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) appservice.MemberClusterService {
+func (s *TestProxySuite) newMemberClusterServiceWithMembers(nsClient namespaced.Client, signupService appservice.SignupService, serverURL string) appservice.MemberClusterService {
 	serverHost := serverURL
 	switch {
 	case strings.HasPrefix(serverURL, "http://"):
@@ -911,7 +913,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 
 	route := &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: commontest.HostOperatorNs,
+			Namespace: nsClient.Namespace,
 			Name:      "proxy-plugin",
 		},
 		Spec: routev1.RouteSpec{
@@ -925,11 +927,9 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 			},
 		},
 	}
-	fakeClient := commontest.NewFakeClient(s.T(), route)
 	return service.NewMemberClusterService(
-		fake.MemberClusterServiceContext{
-			Svcs: s.Application,
-		},
+		nsClient,
+		signupService,
 		func(si *service.ServiceImpl) {
 			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 				return []*commoncluster.CachedToolchainCluster{
@@ -949,7 +949,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(serverURL string) ap
 								BearerToken: "clusterSAToken",
 							},
 						},
-						Client: fakeClient,
+						Client: commontest.NewFakeClient(s.T(), route),
 					},
 				}
 			}

@@ -816,7 +816,7 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 }
 
 // validateWorkspaceRequest checks whether the requested workspace is in the list of workspaces the user has visibility on (retrieved via the spaceLister).
-// If `requestedWorkspace` is zero, then the home workspace (the one with `status.Type` set to `home`) is assumed.
+// If `requestedWorkspace` is empty, then the home workspace (the one with `status.Type` set to `home`) is assumed.
 func validateWorkspaceRequest(requestedWorkspace string, workspaces ...toolchainv1alpha1.Workspace) error {
 	// check workspace access
 	isHomeWSRequested := requestedWorkspace == ""

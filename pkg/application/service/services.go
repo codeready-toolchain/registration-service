@@ -12,7 +12,6 @@ type InformerService interface {
 	GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error)
 	GetSpace(name string) (*toolchainv1alpha1.Space, error)
 	ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error)
-	GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error)
 	GetNSTemplateTier(name string) (*toolchainv1alpha1.NSTemplateTier, error)
 	ListBannedUsersByEmail(email string) ([]toolchainv1alpha1.BannedUser, error)
 }

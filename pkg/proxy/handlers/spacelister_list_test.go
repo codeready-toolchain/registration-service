@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/runtime"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -33,7 +32,7 @@ func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
 		additionalSignups   []fake.SignupDef
-		additionalObjects   []runtime.Object
+		additionalObjects   []runtimeclient.Object
 		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
@@ -42,7 +41,7 @@ func TestListUserWorkspaces(t *testing.T) {
 			additionalSignups: []fake.SignupDef{
 				newSignup("communitylover", "community.lover", true),
 			},
-			additionalObjects: []runtime.Object{
+			additionalObjects: []runtimeclient.Object{
 				fake.NewSpace("communitylover", "member-1", "communitylover", space.WithTierName("appstudio")),
 				fake.NewSpaceBinding("communitylover-publicviewer", toolchainv1alpha1.KubesawAuthenticatedUsername, "communitylover", "viewer"),
 			},

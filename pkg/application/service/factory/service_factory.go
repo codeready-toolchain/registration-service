@@ -6,7 +6,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	informerservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
@@ -50,10 +49,6 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 			services: s,
 		}
 	}
-}
-
-func (s *ServiceFactory) InformerService() service.InformerService {
-	return informerservice.NewInformerService(s.getContext().Client(), configuration.Namespace())
 }
 
 func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {

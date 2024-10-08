@@ -10,9 +10,8 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
@@ -557,11 +556,9 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 				s := &handlers.SpaceLister{
+					Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 					GetSignupFunc: signupProvider,
-					GetInformerServiceFunc: func() service.InformerService {
-						return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-					},
-					ProxyMetrics: proxyMetrics,
+					ProxyMetrics:  proxyMetrics,
 				}
 
 				e := echo.New()
@@ -734,11 +731,9 @@ func TestGetUserWorkspace(t *testing.T) {
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
+				Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 				GetSignupFunc: signupProvider,
-				GetInformerServiceFunc: func() service.InformerService {
-					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-				},
-				ProxyMetrics: proxyMetrics,
+				ProxyMetrics:  proxyMetrics,
 			}
 
 			e := echo.New()
@@ -843,11 +838,9 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
+				Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 				GetSignupFunc: signupProvider,
-				GetInformerServiceFunc: func() service.InformerService {
-					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-				},
-				ProxyMetrics: proxyMetrics,
+				ProxyMetrics:  proxyMetrics,
 			}
 
 			e := echo.New()
@@ -980,11 +973,9 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
+				Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 				GetSignupFunc: signupProvider,
-				GetInformerServiceFunc: func() service.InformerService {
-					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-				},
-				ProxyMetrics: proxyMetrics,
+				ProxyMetrics:  proxyMetrics,
 			}
 
 			e := echo.New()

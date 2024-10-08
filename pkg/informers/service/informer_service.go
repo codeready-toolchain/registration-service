@@ -29,13 +29,6 @@ func NewInformerService(client client.Client, namespace string) service.Informer
 	return si
 }
 
-func (s *ServiceImpl) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
-	pluginConfig := &toolchainv1alpha1.ProxyPlugin{}
-	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}
-	err := s.client.Get(context.TODO(), namespacedName, pluginConfig)
-	return pluginConfig, err
-}
-
 func (s *ServiceImpl) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 	mur := &toolchainv1alpha1.MasterUserRecord{}
 	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}

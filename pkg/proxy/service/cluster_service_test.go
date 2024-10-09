@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -88,14 +89,8 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		fake.NewSpace("smith2", "member-2", "smith2"),
 		fake.NewSpace("unknown-cluster", "unknown-cluster", "unknown-cluster"),
 		pp)
-	inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-	s.Application.MockInformerService(inf)
-
-	svc := service.NewMemberClusterService(
-		fake.MemberClusterServiceContext{
-			Svcs: s.Application,
-		},
-	)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+	svc := service.NewMemberClusterService(nsClient, sc)
 
 	tt := map[string]struct {
 		publicViewerEnabled bool
@@ -193,10 +188,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("no member cluster found", func() {
 				s.Run("no member clusters", func() {
-					svc := service.NewMemberClusterService(
-						fake.MemberClusterServiceContext{
-							Svcs: s.Application,
-						},
+					svc := service.NewMemberClusterService(nsClient, sc,
 						func(si *service.ServiceImpl) {
 							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 								return []*commoncluster.CachedToolchainCluster{}
@@ -221,10 +213,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				})
 
 				s.Run("no member cluster with the given URL", func() {
-					svc := service.NewMemberClusterService(
-						fake.MemberClusterServiceContext{
-							Svcs: s.Application,
-						},
+					svc := service.NewMemberClusterService(nsClient, sc,
 						func(si *service.ServiceImpl) {
 							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 								return s.memberClusters()
@@ -282,10 +271,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					},
 				}
 
-				svc := service.NewMemberClusterService(
-					fake.MemberClusterServiceContext{
-						Svcs: s.Application,
-					},
+				svc := service.NewMemberClusterService(nsClient, sc,
 					func(si *service.ServiceImpl) {
 						si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 							return memberArray
@@ -449,10 +435,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		})
 
 		s.Run("get workspace by name", func() {
-			svc := service.NewMemberClusterService(
-				fake.MemberClusterServiceContext{
-					Svcs: s.Application,
-				},
+			svc := service.NewMemberClusterService(nsClient, sc,
 				func(si *service.ServiceImpl) {
 					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
 						return s.memberClusters()

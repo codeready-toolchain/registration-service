@@ -57,7 +57,7 @@ func (s *ServiceFactory) InformerService() service.InformerService {
 }
 
 func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
-	return clusterservice.NewMemberClusterService(s.getContext())
+	return clusterservice.NewMemberClusterService(s.getContext().Client(), s.getContext().Services().SignupService())
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
@@ -111,7 +111,7 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 
 	if f.signupServiceFunc == nil {
 		f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
-			return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
+			return signupservice.NewSignupService(f.getContext().Client(), f.signupServiceOptions...)
 		}
 	}
 

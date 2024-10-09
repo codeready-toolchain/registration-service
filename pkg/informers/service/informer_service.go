@@ -29,13 +29,6 @@ func NewInformerService(client client.Client, namespace string) service.Informer
 	return si
 }
 
-func (s *ServiceImpl) GetProxyPluginConfig(name string) (*toolchainv1alpha1.ProxyPlugin, error) {
-	pluginConfig := &toolchainv1alpha1.ProxyPlugin{}
-	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}
-	err := s.client.Get(context.TODO(), namespacedName, pluginConfig)
-	return pluginConfig, err
-}
-
 func (s *ServiceImpl) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
 	mur := &toolchainv1alpha1.MasterUserRecord{}
 	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}
@@ -48,20 +41,6 @@ func (s *ServiceImpl) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
 	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}
 	err := s.client.Get(context.TODO(), namespacedName, space)
 	return space, err
-}
-
-func (s *ServiceImpl) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
-	status := &toolchainv1alpha1.ToolchainStatus{}
-	namespacedName := types.NamespacedName{Name: "toolchain-status", Namespace: s.namespace}
-	err := s.client.Get(context.TODO(), namespacedName, status)
-	return status, err
-}
-
-func (s *ServiceImpl) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
-	signup := &toolchainv1alpha1.UserSignup{}
-	namespacedName := types.NamespacedName{Name: name, Namespace: s.namespace}
-	err := s.client.Get(context.TODO(), namespacedName, signup)
-	return signup, err
 }
 
 func (s *ServiceImpl) ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {

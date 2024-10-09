@@ -12,11 +12,10 @@ func NewMockableApplication(options ...factory.Option) *MockableApplication {
 }
 
 type MockableApplication struct {
-	serviceFactory           *factory.ServiceFactory
-	mockInformerService      service.InformerService
-	mockSignupService        service.SignupService
-	mockVerificationService  service.VerificationService
-	mockMemberClusterService service.MemberClusterService
+	serviceFactory          *factory.ServiceFactory
+	mockInformerService     service.InformerService
+	mockSignupService       service.SignupService
+	mockVerificationService service.VerificationService
 }
 
 func (m *MockableApplication) SignupService() service.SignupService {
@@ -38,9 +37,6 @@ func (m *MockableApplication) VerificationService() service.VerificationService 
 }
 
 func (m *MockableApplication) MemberClusterService() service.MemberClusterService {
-	if m.mockMemberClusterService != nil {
-		return m.mockMemberClusterService
-	}
 	return m.serviceFactory.MemberClusterService()
 }
 

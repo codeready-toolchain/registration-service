@@ -3,7 +3,6 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
@@ -122,17 +121,4 @@ func (m *SignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*tool
 }
 func (m *SignupService) PhoneNumberAlreadyInUse(_, _, _ string) error {
 	return nil
-}
-
-type MemberClusterServiceContext struct {
-	NamespacedClient namespaced.Client
-	Svcs             service.Services
-}
-
-func (sc MemberClusterServiceContext) Client() namespaced.Client {
-	return sc.NamespacedClient
-}
-
-func (sc MemberClusterServiceContext) Services() service.Services {
-	return sc.Svcs
 }

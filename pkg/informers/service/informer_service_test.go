@@ -136,27 +136,6 @@ func TestInformerService(t *testing.T) {
 		})
 	})
 
-	t.Run("proxy configs", func(t *testing.T) {
-		t.Run("not found", func(t *testing.T) {
-			// when
-			val, err := svc.GetProxyPluginConfig("unknown")
-
-			// then
-			assert.Empty(t, val)
-			assert.EqualError(t, err, "proxyplugins.toolchain.dev.openshift.com \"unknown\" not found")
-		})
-
-		t.Run("found", func(t *testing.T) {
-			// when
-			val, err := svc.GetProxyPluginConfig("tekton-results")
-
-			// then
-			require.NotNil(t, val)
-			require.NoError(t, err)
-			assert.Equal(t, pluginTekton.Spec, val.Spec)
-		})
-	})
-
 	t.Run("bannedusers", func(t *testing.T) {
 		t.Run("not found", func(t *testing.T) {
 			// when

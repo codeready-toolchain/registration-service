@@ -1,7 +1,6 @@
 package service
 
 import (
-	gocontext "context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -448,7 +447,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 
 	// look-up the SocialEvent
 	event := &toolchainv1alpha1.SocialEvent{}
-	if err := s.Get(gocontext.TODO(), s.NamespacedName(code), event); err != nil {
+	if err := s.Get(ctx, s.NamespacedName(code), event); err != nil {
 		if apierrors.IsNotFound(err) {
 			// a SocialEvent was not found for the provided code
 			return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")

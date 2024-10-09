@@ -292,7 +292,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			// It's not up to the proxy to check permissions on the specific namespace.
 			// The target API server will reject the request if the user does not have permissions to access the namespace.
 			// Here the request is successful because the underlying mock target cluster API always server returns OK
-			"plain http request as owner to namespace outside of private workspace": {
+			"plain http request as permitted user to namespace outside of private workspace": {
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{

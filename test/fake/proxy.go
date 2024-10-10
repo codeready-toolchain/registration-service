@@ -15,14 +15,6 @@ type ProxyFakeApp struct {
 	Err                      error
 	SignupServiceMock        service.SignupService
 	MemberClusterServiceMock service.MemberClusterService
-	InformerServiceMock      service.InformerService
-}
-
-func (a *ProxyFakeApp) InformerService() service.InformerService {
-	if a.InformerServiceMock != nil {
-		return a.InformerServiceMock
-	}
-	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {

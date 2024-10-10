@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	gocontext "context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	regsercontext "github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -18,7 +20,6 @@ import (
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -104,12 +105,7 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 // If more than one space bindings are found, then it returns an error.
 func getUserSpaceBinding(spaceLister *SpaceLister, space *toolchainv1alpha1.Space, compliantUsername string) (*toolchainv1alpha1.SpaceBinding, error) {
 	// recursively get all the spacebindings for the current workspace
-	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-		spaceSelector, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName}).Requirements()
-		murSelector, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: compliantUsername}).Requirements()
-		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(spaceSelector[0], murSelector[0])
-	}
-	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
+	spaceBindingLister := NewLister(spaceLister.Client, compliantUsername)
 	userSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
 		return nil, err
@@ -127,6 +123,26 @@ func getUserSpaceBinding(spaceLister *SpaceLister, space *toolchainv1alpha1.Spac
 	return &userSpaceBindings[0], nil
 }
 
+func NewLister(nsClient namespaced.Client, withMurName string) *spacebinding.Lister {
+	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
+		labelSelector := runtimeclient.MatchingLabels{
+			toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName,
+		}
+		if withMurName != "" {
+			labelSelector[toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey] = withMurName
+		}
+		bindings := &toolchainv1alpha1.SpaceBindingList{}
+		if err := nsClient.List(gocontext.TODO(), bindings, runtimeclient.InNamespace(nsClient.Namespace), labelSelector); err != nil {
+			return nil, err
+		}
+		return bindings.Items, nil
+	}
+	return spacebinding.NewLister(listSpaceBindingsFunc, func(spaceName string) (*toolchainv1alpha1.Space, error) {
+		space := &toolchainv1alpha1.Space{}
+		return space, nsClient.Get(gocontext.TODO(), nsClient.NamespacedName(spaceName), space)
+	})
+}
+
 // GetUserWorkspaceWithBindings returns a workspace object with the required fields+bindings (the list with all the users access details).
 func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, workspaceName string, GetMembersFunc cluster.GetMemberClustersFunc) (*toolchainv1alpha1.Workspace, error) {
 	userSignup, space, err := getUserSignupAndSpace(ctx, spaceLister, workspaceName)
@@ -139,11 +155,7 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 	}
 
 	// recursively get all the spacebindings for the current workspace
-	listSpaceBindingsFunc := func(spaceName string) ([]toolchainv1alpha1.SpaceBinding, error) {
-		ss, _ := labels.SelectorFromSet(labels.Set{toolchainv1alpha1.SpaceBindingSpaceLabelKey: spaceName}).Requirements()
-		return spaceLister.GetInformerServiceFunc().ListSpaceBindings(ss[0])
-	}
-	spaceBindingLister := spacebinding.NewLister(listSpaceBindingsFunc, spaceLister.GetInformerServiceFunc().GetSpace)
+	spaceBindingLister := NewLister(spaceLister.Client, "")
 	allSpaceBindings, err := spaceBindingLister.ListForSpace(space, []toolchainv1alpha1.SpaceBinding{})
 	if err != nil {
 		ctx.Logger().Error(err, "failed to list space bindings")
@@ -181,8 +193,8 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 	}
 
 	// add available roles, this field is populated only for the GET workspace request
-	nsTemplateTier, err := spaceLister.GetInformerServiceFunc().GetNSTemplateTier(space.Spec.TierName)
-	if err != nil {
+	nsTemplateTier := &toolchainv1alpha1.NSTemplateTier{}
+	if err := spaceLister.Get(ctx.Request().Context(), spaceLister.NamespacedName(space.Spec.TierName), nsTemplateTier); err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to get nstemplatetier"))
 		return nil, err
 	}
@@ -206,9 +218,8 @@ func getUserSignupAndSpace(ctx echo.Context, spaceLister *SpaceLister, workspace
 			Name:              toolchainv1alpha1.KubesawAuthenticatedUsername,
 		}
 	}
-
-	space, err := spaceLister.GetInformerServiceFunc().GetSpace(workspaceName)
-	if err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := spaceLister.Get(gocontext.TODO(), spaceLister.NamespacedName(workspaceName), space); err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "unable to get space"))
 		return userSignup, nil, nil
 	}

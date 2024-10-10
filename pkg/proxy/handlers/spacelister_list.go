@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	gocontext "context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func HandleSpaceListRequest(spaceLister *SpaceLister) echo.HandlerFunc {
@@ -90,7 +92,12 @@ func listSpaceBindingsForUsers(spaceLister *SpaceLister, murNames []string) ([]t
 	if err != nil {
 		return nil, err
 	}
-	return spaceLister.GetInformerServiceFunc().ListSpaceBindings(*murSelector)
+	selector := runtimeclient.MatchingLabelsSelector{Selector: labels.NewSelector().Add(*murSelector)}
+	bindings := &toolchainv1alpha1.SpaceBindingList{}
+	if err := spaceLister.List(gocontext.TODO(), bindings, runtimeclient.InNamespace(spaceLister.Namespace), selector); err != nil {
+		return nil, err
+	}
+	return bindings.Items, err
 }
 
 func workspacesFromSpaceBindings(ctx echo.Context, spaceLister *SpaceLister, signupName string, spaceBindings []toolchainv1alpha1.SpaceBinding) []toolchainv1alpha1.Workspace {
@@ -116,5 +123,6 @@ func getSpace(spaceLister *SpaceLister, spaceBinding *toolchainv1alpha1.SpaceBin
 		// log error and continue so that the api behaves in a best effort manner
 		return nil, fmt.Errorf("spacebinding has no '%s' label", toolchainv1alpha1.SpaceBindingSpaceLabelKey)
 	}
-	return spaceLister.GetInformerServiceFunc().GetSpace(spaceName)
+	space := &toolchainv1alpha1.Space{}
+	return space, spaceLister.Get(gocontext.TODO(), spaceLister.NamespacedName(spaceName), space)
 }

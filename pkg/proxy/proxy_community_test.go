@@ -6,10 +6,7 @@ import (
 	"net/http/httptest"
 	"time"
 
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
-	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -144,23 +141,20 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		)
 
 		// configure informer
-		inf := infservice.NewInformerService(cli, commontest.HostOperatorNs)
-		nsClient := namespaced.NewClient(cli, commontest.HostOperatorNs)
+		p.Client.Client = cli
 
 		// configure Application
 		fakeApp.Err = nil
-		fakeApp.InformerServiceMock = inf
-		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(nsClient, signupService, testServer.URL)
+		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, signupService, testServer.URL)
 		fakeApp.SignupServiceMock = signupService
 
 		s.Application.MockSignupService(signupService)
-		s.Application.MockInformerService(inf)
 
 		// configure proxy
 		p.spaceLister = &handlers.SpaceLister{
-			GetSignupFunc:          fakeApp.SignupServiceMock.GetSignupFromInformer,
-			GetInformerServiceFunc: func() appservice.InformerService { return inf },
-			ProxyMetrics:           p.metrics,
+			Client:        p.Client,
+			GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+			ProxyMetrics:  p.metrics,
 		}
 
 		// run test cases

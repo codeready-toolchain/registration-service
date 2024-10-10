@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
-	"github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/username"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -40,11 +40,10 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 
 	s.Run("success", func() {
 
-		fakeInformer := service.NewInformerService(fakeClient, commontest.HostOperatorNs)
-		s.Application.MockInformerService(fakeInformer)
+		nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// Create Usernames controller instance.
-		ctrl := controller.NewUsernames(s.Application)
+		ctrl := controller.NewUsernames(nsClient)
 		handler := gin.HandlerFunc(ctrl.GetHandler)
 
 		s.Run("usernames found", func() {
@@ -104,11 +103,10 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 		fakeClient.MockGet = func(_ context.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
 			return fmt.Errorf("mock error")
 		}
-		fakeInformer := service.NewInformerService(fakeClient, commontest.HostOperatorNs)
-		s.Application.MockInformerService(fakeInformer)
+		nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// Create Usernames controller instance.
-		ctrl := controller.NewUsernames(s.Application)
+		ctrl := controller.NewUsernames(nsClient)
 		handler := gin.HandlerFunc(ctrl.GetHandler)
 		s.Run("unable to get mur", func() {
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.

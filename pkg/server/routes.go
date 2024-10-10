@@ -6,6 +6,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 
 	"github.com/gin-contrib/static"
 	errs "github.com/pkg/errors"
@@ -14,7 +15,7 @@ import (
 
 // SetupRoutes registers handlers for various URL paths.
 // proxyPort is the API Proxy Server port to be used to setup a route for the health checker for the proxy.
-func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Registry) error {
+func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Registry, nsClient namespaced.Client) error {
 	var err error
 	_, err = auth.InitializeDefaultTokenParser()
 	if err != nil {
@@ -53,7 +54,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		authConfigCtrl := controller.NewAuthConfig()
 		analyticsCtrl := controller.NewAnalytics()
 		signupCtrl := controller.NewSignup(srv.application)
-		usernamesCtrl := controller.NewUsernames(srv.application)
+		usernamesCtrl := controller.NewUsernames(nsClient)
 
 		// unsecured routes
 		unsecuredV1 := srv.router.Group("/api/v1")

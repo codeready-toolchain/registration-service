@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
@@ -42,7 +44,8 @@ func (s *PromHTTPMiddlewareSuite) TestPromHTTPMiddleware() {
 	cfg := configuration.GetRegistrationServiceConfig()
 	assert.Equal(s.T(), keysEndpointURL, cfg.Auth().AuthClientPublicKeysURL(), "key url not set correctly")
 	reg := prometheus.NewRegistry()
-	err := srv.SetupRoutes(proxy.DefaultPort, reg)
+	nsClient := namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs)
+	err := srv.SetupRoutes(proxy.DefaultPort, reg, nsClient)
 	require.NoError(s.T(), err)
 
 	// making a call on an HTTP endpoint

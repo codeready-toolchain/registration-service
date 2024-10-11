@@ -350,16 +350,10 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
 // and MasterUserRecord resources in the host cluster.
-// Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.Client, userID, username, true)
-}
-
-// GetSignupFromInformer uses the same logic of the 'GetSignup' function, except it uses informers to get resources.
-// This function and the ResourceProvider abstraction can replace the original GetSignup function once it is determined to be stable.
 // The checkUserSignupCompleted was introduced in order to avoid checking the readiness of the complete condition on the UserSignup in certain situations,
 // such as proxy calls for example.
-func (s *ServiceImpl) GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+// Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	return s.DoGetSignup(ctx, s.Client, userID, username, checkUserSignupCompleted)
 }
 
@@ -388,10 +382,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userID
 		// If there is no need to update the UserSignup then break out of the loop here (by returning nil)
 		// otherwise update the UserSignup
 		if updated {
-			var updateErr error
-			userSignup, updateErr = s.UpdateUserSignup(userSignup)
-			if updateErr != nil {
-				return updateErr
+			if err := s.Update(gocontext.TODO(), userSignup); err != nil {
+				return err
 			}
 		}
 
@@ -576,15 +568,6 @@ func (s *ServiceImpl) DoGetUserSignupFromIdentifier(cl namespaced.Client, userID
 			}
 			return userSignup, nil
 		}
-		return nil, err
-	}
-
-	return userSignup, nil
-}
-
-// UpdateUserSignup is used to update the provided UserSignup resource, and returning the updated resource
-func (s *ServiceImpl) UpdateUserSignup(userSignup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-	if err := s.Update(gocontext.TODO(), userSignup); err != nil {
 		return nil, err
 	}
 

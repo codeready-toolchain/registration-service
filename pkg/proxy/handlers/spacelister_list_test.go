@@ -71,7 +71,7 @@ func TestListUserWorkspaces(t *testing.T) {
 
 		t.Run(k, func(t *testing.T) {
 			// given
-			signupProvider := fakeSignupService.GetSignupFromInformer
+			signupProvider := fakeSignupService.GetSignup
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
@@ -196,7 +196,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 						tc.mockFakeClient(fakeClient)
 					}
 
-					signupProvider := fakeSignupService.GetSignupFromInformer
+					signupProvider := fakeSignupService.GetSignup
 					if tc.overrideSignupFunc != nil {
 						signupProvider = tc.overrideSignupFunc
 					}

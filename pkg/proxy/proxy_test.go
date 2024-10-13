@@ -19,7 +19,6 @@ import (
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
@@ -104,13 +103,11 @@ func (s *TestProxySuite) TestProxy() {
 				}
 				return fakeClient.Client.List(ctx, list, opts...)
 			}
-			inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+			nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
-			fakeApp := &fake.ProxyFakeApp{
-				InformerServiceMock: inf,
-			}
+			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := NewProxy(fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+			p, err := NewProxy(nsClient, fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)
@@ -136,7 +133,7 @@ func (s *TestProxySuite) TestProxy() {
 
 func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
 	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-	p, err := NewProxy(
+	p, err := NewProxy(namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs),
 		fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 	require.NoError(s.T(), err)
 
@@ -864,19 +861,13 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"),
 										proxyPlugin,
 										fake.NewBase1NSTemplateTier())
-									inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-									nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-
-									s.Application.MockInformerService(inf)
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(nsClient, fakeApp.SignupServiceMock, testServer.URL)
-									fakeApp.InformerServiceMock = inf
+									p.Client.Client = fakeClient
+									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, fakeApp.SignupServiceMock, testServer.URL)
 
 									p.spaceLister = &handlers.SpaceLister{
+										Client:        p.Client,
 										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
-										GetInformerServiceFunc: func() appservice.InformerService {
-											return inf
-										},
-										ProxyMetrics: p.metrics,
+										ProxyMetrics:  p.metrics,
 									}
 									if tc.OverrideGetSignupFunc != nil {
 										p.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc

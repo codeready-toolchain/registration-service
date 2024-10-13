@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"testing"
 
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
@@ -157,6 +156,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("unable to get space", func() {
 				s.Run("informer service returns error", func() {
+					fakeClient := commontest.NewFakeClient(s.T())
 					fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						if _, ok := obj.(*toolchainv1alpha1.Space); ok && key.Name == "smith2" {
 							return fmt.Errorf("oopsi woopsi")
@@ -166,8 +166,8 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					defer func() {
 						fakeClient.MockGet = nil
 					}()
-					inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-					s.Application.MockInformerService(inf)
+					nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+					svc := service.NewMemberClusterService(nsClient, sc)
 
 					// when
 					_, err := svc.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)

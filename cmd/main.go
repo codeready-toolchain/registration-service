@@ -12,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
@@ -83,8 +84,9 @@ func main() {
 			panic(fmt.Sprintf("cannot set captcha credentials: %s", err.Error()))
 		}
 	}
+	nsClient := namespaced.NewClient(cl, configuration.Namespace())
 
-	app := server.NewInClusterApplication(cl, configuration.Namespace())
+	app := server.NewInClusterApplication(nsClient)
 	// Initialize toolchain cluster cache service
 	// let's cache the member clusters before we start the services,
 	// this will speed up the first request
@@ -106,7 +108,7 @@ func main() {
 	proxyMetrics := metrics.NewProxyMetrics(proxyRegistry)
 	proxyMetricsSrv := proxy.StartMetricsServer(proxyRegistry, proxy.ProxyMetricsPort)
 	// Proxy API server
-	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters)
+	p, err := proxy.NewProxy(nsClient, app, proxyMetrics, cluster.GetMemberClusters)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
@@ -118,7 +120,7 @@ func main() {
 	regsvcRegistry := prometheus.NewRegistry()
 	regsvcMetricsSrv, _ := server.StartMetricsServer(regsvcRegistry, server.RegSvcMetricsPort)
 	regsvcSrv := server.New(app)
-	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry)
+	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry, nsClient)
 	if err != nil {
 		panic(err.Error())
 	}

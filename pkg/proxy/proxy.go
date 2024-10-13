@@ -23,16 +23,19 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
 )
@@ -60,6 +63,7 @@ func authorizationEndpointTarget() string {
 }
 
 type Proxy struct {
+	namespaced.Client
 	app            application.Application
 	tokenParser    *auth.TokenParser
 	spaceLister    *handlers.SpaceLister
@@ -67,15 +71,16 @@ type Proxy struct {
 	getMembersFunc commoncluster.GetMemberClustersFunc
 }
 
-func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func NewProxy(nsClient namespaced.Client, app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
 	}
 
 	// init handlers
-	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
+	spaceLister := handlers.NewSpaceLister(nsClient, app, proxyMetrics)
 	return &Proxy{
+		Client:         nsClient,
 		app:            app,
 		tokenParser:    tokenParser,
 		spaceLister:    spaceLister,
@@ -348,7 +353,8 @@ func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, u
 
 // checkSpaceExists checks whether the Space exists.
 func (p *Proxy) checkSpaceExists(workspaceName string) error {
-	if _, err := p.app.InformerService().GetSpace(workspaceName); err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := p.Get(gocontext.TODO(), p.NamespacedName(workspaceName), space); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
 		log.Errorf(nil, err, "requested space '%s' does not exist", workspaceName)
 		return fmt.Errorf("access to workspace '%s' is forbidden", workspaceName)
@@ -586,14 +592,16 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 			}
 
 			// retrieve banned users
-			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
-			if err != nil {
+			hashedEmail := hash.EncodeString(email)
+			bannedUsers := &toolchainv1alpha1.BannedUserList{}
+			if err := p.List(ctx.Request().Context(), bannedUsers, client.InNamespace(p.Namespace),
+				client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hashedEmail}); err != nil {
 				ctx.Logger().Errorf("error retrieving the list of banned users with email address %s: %v", email, err)
 				return crterrors.NewInternalError(errs.New("user access could not be verified"), "could not define user access")
 			}
 
 			// if a matching Banned user is found, then user is banned
-			if len(uu) > 0 {
+			if len(bannedUsers.Items) > 0 {
 				return crterrors.NewForbiddenError("user access is forbidden", "user access is forbidden")
 			}
 

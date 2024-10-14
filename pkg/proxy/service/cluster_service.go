@@ -100,7 +100,7 @@ func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, prox
 func (s *ServiceImpl) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
 	// don't check for usersignup complete status, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := s.SignupService.GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := s.SignupService.GetSignup(nil, userID, username, false)
 	if err != nil {
 		return nil, err
 	}

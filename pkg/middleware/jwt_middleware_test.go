@@ -14,7 +14,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
@@ -77,7 +77,7 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 
 	// create server
-	srv := server.New(fake.NewMockableApplication())
+	srv := server.New(util.PrepareInClusterApplication(s.T()))
 
 	// set the key service url in the config
 	s.SetConfig(testconfig.RegistrationService().

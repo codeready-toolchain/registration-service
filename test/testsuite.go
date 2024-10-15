@@ -4,10 +4,8 @@ import (
 	"context"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/test/fake"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -23,9 +21,7 @@ import (
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Application    *fake.MockableApplication
-	ConfigClient   *test.FakeClient
-	factoryOptions []factory.Option
+	ConfigClient *test.FakeClient
 }
 
 // SetupSuite sets the suite up and sets testmode.
@@ -36,19 +32,16 @@ func (s *UnitTestSuite) SetupSuite() {
 }
 
 func (s *UnitTestSuite) SetupTest() {
-	s.factoryOptions = nil
 	s.SetupDefaultApplication()
 }
 
 func (s *UnitTestSuite) SetupDefaultApplication() {
 	// initialize the toolchainconfig cache
 	s.DefaultConfig()
-	s.Application = fake.NewMockableApplication(s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainConfigOption) {
 	s.SetConfig(opts...)
-	s.Application = fake.NewMockableApplication(s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) configuration.RegistrationServiceConfig {
@@ -105,5 +98,4 @@ func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig 
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
 	commonconfig.ResetCache()
-	s.Application = nil
 }

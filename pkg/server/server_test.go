@@ -10,6 +10,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/codeready-toolchain/registration-service/test/util"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -36,7 +37,7 @@ const (
 func (s *TestServerSuite) TestServer() {
 	// We're using the example config for the configuration here as the
 	// specific config params do not matter for testing the routes setup.
-	srv := server.New(fake.NewMockableApplication())
+	srv := server.New(util.PrepareInClusterApplication(s.T()))
 
 	fake.MockKeycloakCertsCall(s.T())
 	// Setting up the routes.

@@ -11,6 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func PrepareInClusterApplication(t *testing.T, objects ...runtime.Object) application.Application {
+	_, app := PrepareInClusterApp(t, objects...)
+	return app
+}
+
 func PrepareInClusterApp(t *testing.T, objects ...runtime.Object) (*commontest.FakeClient, application.Application) {
 	return PrepareInClusterAppWithOption(t, func(_ *factory.ServiceFactory) {
 	}, objects...)

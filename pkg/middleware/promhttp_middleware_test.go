@@ -11,7 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/codeready-toolchain/registration-service/test/util"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -35,7 +35,7 @@ func TestPromHTTPMiddlewareSuite(t *testing.T) {
 func (s *PromHTTPMiddlewareSuite) TestPromHTTPMiddleware() {
 	// given
 	tokengenerator := authsupport.NewTokenManager()
-	srv := server.New(fake.NewMockableApplication())
+	srv := server.New(util.PrepareInClusterApplication(s.T()))
 	keysEndpointURL := tokengenerator.NewKeyServer().URL
 	s.SetConfig(testconfig.RegistrationService().
 		Environment(configuration.UnitTestsEnvironment).

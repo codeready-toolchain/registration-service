@@ -68,7 +68,6 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			Ready: true,
 		},
 	}))
-	s.Application.MockSignupService(sc)
 
 	pp := &toolchainv1alpha1.ProxyPlugin{
 		ObjectMeta: metav1.ObjectMeta{

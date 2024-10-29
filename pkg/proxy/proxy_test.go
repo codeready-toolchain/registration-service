@@ -866,7 +866,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 
 									p.spaceLister = &handlers.SpaceLister{
 										Client:        p.Client,
-										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+										GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
 										ProxyMetrics:  p.metrics,
 									}
 									if tc.OverrideGetSignupFunc != nil {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	gocontext "context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -185,8 +186,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 		for k, v := range annotationValues {
 			signup.Annotations[k] = v
 		}
-		_, err = s.Services().SignupService().UpdateUserSignup(signup)
-		if err != nil {
+		if err := s.Update(gocontext.TODO(), signup); err != nil {
 			return err
 		}
 
@@ -343,8 +343,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 			delete(signup.Annotations, annotationName)
 		}
 
-		_, err = s.Services().SignupService().UpdateUserSignup(signup)
-		if err != nil {
+		if err := s.Update(gocontext.TODO(), signup); err != nil {
 			log.Error(ctx, err, fmt.Sprintf("error updating usersignup: %s", signup.Name))
 			return err
 		}
@@ -426,8 +425,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 			if targetCluster != "" {
 				signup.Spec.TargetCluster = targetCluster
 			}
-			_, err = s.Services().SignupService().UpdateUserSignup(signup)
-			if err != nil {
+			if err := s.Update(gocontext.TODO(), signup); err != nil {
 				return err
 			}
 

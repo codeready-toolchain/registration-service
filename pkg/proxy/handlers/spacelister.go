@@ -35,7 +35,7 @@ type SpaceLister struct {
 func NewSpaceLister(client namespaced.Client, app application.Application, proxyMetrics *metrics.ProxyMetrics) *SpaceLister {
 	return &SpaceLister{
 		Client:        client,
-		GetSignupFunc: app.SignupService().GetSignupFromInformer,
+		GetSignupFunc: app.SignupService().GetSignup,
 		ProxyMetrics:  proxyMetrics,
 	}
 }

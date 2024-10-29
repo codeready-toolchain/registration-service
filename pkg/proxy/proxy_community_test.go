@@ -153,7 +153,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		// configure proxy
 		p.spaceLister = &handlers.SpaceLister{
 			Client:        p.Client,
-			GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
+			GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
 			ProxyMetrics:  p.metrics,
 		}
 

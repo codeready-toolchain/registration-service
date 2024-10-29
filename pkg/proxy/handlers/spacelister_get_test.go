@@ -548,7 +548,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 					tc.mockFakeClient(fakeClient)
 				}
 
-				signupProvider := fakeSignupService.GetSignupFromInformer
+				signupProvider := fakeSignupService.GetSignup
 				if tc.overrideSignupFunc != nil {
 					signupProvider = tc.overrideSignupFunc
 				}
@@ -724,7 +724,7 @@ func TestGetUserWorkspace(t *testing.T) {
 				tc.mockFakeClient(fakeClient)
 			}
 
-			signupProvider := fakeSignupService.GetSignupFromInformer
+			signupProvider := fakeSignupService.GetSignup
 			if tc.overrideSignupFunc != nil {
 				signupProvider = tc.overrideSignupFunc
 			}
@@ -834,7 +834,7 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 
 		t.Run(k, func(t *testing.T) {
 			// given
-			signupProvider := fakeSignupService.GetSignupFromInformer
+			signupProvider := fakeSignupService.GetSignup
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{
@@ -969,7 +969,7 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 
 		t.Run(k, func(t *testing.T) {
 			// given
-			signupProvider := fakeSignupService.GetSignupFromInformer
+			signupProvider := fakeSignupService.GetSignup
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 			s := &handlers.SpaceLister{

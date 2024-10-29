@@ -308,9 +308,7 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 	}
 
 	// check whether the user has access to the home workspace
-	// and whether the requestedNamespace -if any- exists in the workspace.
-	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest("", requestedNamespace, workspaces...); err != nil {
+	if err := validateWorkspaceRequest("", workspaces...); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
@@ -333,9 +331,7 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	}
 
 	// check whether the user has access to the workspace
-	// and whether the requestedNamespace -if any- exists in the workspace.
-	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, *workspace); err != nil {
+	if err := validateWorkspaceRequest(workspaceName, *workspace); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
@@ -828,9 +824,8 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 }
 
 // validateWorkspaceRequest checks whether the requested workspace is in the list of workspaces the user has visibility on (retrieved via the spaceLister).
-// If `requestedWorkspace` is zero, this function looks for the home workspace (the one with `status.Type` set to `home`).
-// If `requestedNamespace` is NOT zero, this function checks if the namespace exists in the workspace.
-func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces ...toolchainv1alpha1.Workspace) error {
+// If `requestedWorkspace` is empty, then the home workspace (the one with `status.Type` set to `home`) is assumed.
+func validateWorkspaceRequest(requestedWorkspace string, workspaces ...toolchainv1alpha1.Workspace) error {
 	// check workspace access
 	isHomeWSRequested := requestedWorkspace == ""
 
@@ -845,32 +840,5 @@ func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, wor
 		return fmt.Errorf("access to workspace '%s' is forbidden", requestedWorkspace)
 	}
 
-	// check namespace access
-	if requestedNamespace != "" {
-		allowedNamespace := false
-		namespaces := workspaces[allowedWorkspace].Status.Namespaces
-		for _, ns := range namespaces {
-			if ns.Name == requestedNamespace {
-				allowedNamespace = true
-				break
-			}
-		}
-		if !allowedNamespace {
-			return fmt.Errorf("access to namespace '%s' in workspace '%s' is forbidden", requestedNamespace, workspaces[allowedWorkspace].Name)
-		}
-	}
 	return nil
-}
-
-func namespaceFromCtx(ctx echo.Context) string {
-	path := ctx.Request().URL.Path
-	if strings.Index(path, "/namespaces/") > 0 {
-		segments := strings.Split(path, "/")
-		for i, segment := range segments {
-			if segment == "namespaces" && i+1 < len(segments) {
-				return segments[i+1]
-			}
-		}
-	}
-	return ""
 }

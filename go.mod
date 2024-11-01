@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/common v0.40.0
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.21.0
-	gopkg.in/square/go-jose.v2 v2.3.0
+	gopkg.in/go-jose/go-jose.v2 v2.6.3
 	gotest.tools v2.2.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.70.1

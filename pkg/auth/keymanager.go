@@ -13,7 +13,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
 
-	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/go-jose/go-jose.v2"
 )
 
 // KeyManagerConfiguration represents a partition of the configuration

@@ -148,8 +148,6 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, signupService, testServer.URL)
 		fakeApp.SignupServiceMock = signupService
 
-		s.Application.MockSignupService(signupService)
-
 		// configure proxy
 		p.spaceLister = &handlers.SpaceLister{
 			Client:        p.Client,

@@ -840,7 +840,6 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 											},
 										}),
 									)
-									s.Application.MockSignupService(fakeApp.SignupServiceMock)
 
 									proxyPlugin := &toolchainv1alpha1.ProxyPlugin{
 										ObjectMeta: metav1.ObjectMeta{

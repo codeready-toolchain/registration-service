@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,17 +16,15 @@ import (
 	"testing"
 	"time"
 
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	proxytest "github.com/codeready-toolchain/registration-service/pkg/proxy/test"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
+	"github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -92,7 +89,7 @@ func (s *TestProxySuite) TestProxy() {
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 
-			fakeClient := commontest.NewFakeClient(s.T(), &bannedUser)
+			fakeClient, app := util.PrepareInClusterApp(s.T(), &bannedUser)
 			fakeClient.MockList = func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 				listOptions := &client.ListOptions{}
 				for _, opt := range opts {
@@ -105,12 +102,11 @@ func (s *TestProxySuite) TestProxy() {
 			}
 			nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
-			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := NewProxy(nsClient, fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+			proxy, err := NewProxy(nsClient, app, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 			require.NoError(s.T(), err)
 
-			server := p.StartProxy(DefaultPort)
+			server := proxy.StartProxy(DefaultPort)
 			require.NotNil(s.T(), server)
 			defer func() {
 				_ = server.Close()
@@ -123,24 +119,25 @@ func (s *TestProxySuite) TestProxy() {
 				s.checkProxyIsHealthy(DefaultPort)
 			})
 
-			s.checkPlainHTTPErrors(fakeApp)
+			s.checkPlainHTTPErrors(proxy)
 			s.checkWebsocketsError()
 			s.checkWebLogin()
-			s.checkProxyOK(fakeApp, p)
+			s.checkProxyOK(proxy)
 		})
 	}
 }
 
-func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
+func (s *TestProxySuite) spinUpProxy(port string) (*Proxy, *http.Server) {
 	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-	p, err := NewProxy(namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs),
-		fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+	fakeClient, app := util.PrepareInClusterApp(s.T())
+	proxy, err := NewProxy(namespaced.NewClient(fakeClient, commontest.HostOperatorNs),
+		app, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 	require.NoError(s.T(), err)
 
-	server := p.StartProxy(port)
+	server := proxy.StartProxy(port)
 	require.NotNil(s.T(), server)
 
-	return p, server
+	return proxy, server
 }
 
 func (s *TestProxySuite) waitForProxyToBeAlive(port string) {
@@ -187,7 +184,7 @@ func (s *TestProxySuite) checkProxyIsHealthy(port string) {
 	s.assertResponseBody(resp, `{"alive": true}`)
 }
 
-func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
+func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 	s.Run("plain http error", func() {
 		s.Run("unauthorized if no token present", func() {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
@@ -272,12 +269,16 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			s.assertResponseBody(resp, "unable to get workspace context: workspace request path has too few segments '/workspaces/myworkspace'; expected path format: /workspaces/<workspace_name>/api/...")
 		})
 
-		s.Run("internal error if get accesses returns an error", func() {
+		s.Run("empty set of member clusters", func() {
 			// given
-			fakeApp.Err = errors.New("some-error")
-			defer func() { fakeApp.Err = nil }()
+			origGetMembersFunc := proxy.getMembersFunc
+			proxy.getMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				return nil
+			}
+			defer func() {
+				proxy.getMembersFunc = origGetMembersFunc
+			}()
 			req := s.request()
-			fakeApp.Accesses = map[string]*access.ClusterAccess{}
 
 			// when
 			resp, err := http.DefaultClient.Do(req)
@@ -287,13 +288,11 @@ func (s *TestProxySuite) checkPlainHTTPErrors(fakeApp *fake.ProxyFakeApp) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusInternalServerError, resp.StatusCode)
-			s.assertResponseBody(resp, "unable to get target cluster: some-error")
+			s.assertResponseBody(resp, "unable to get target cluster: user is not provisioned (yet)")
 		})
 
 		s.Run("internal error if accessing incorrect url", func() {
 			// given
-			fakeApp.Err = errors.New("some-error")
-			defer func() { fakeApp.Err = nil }()
 			req := s.request()
 			req.URL.Path = "http://localhost:8081/metrics"
 			require.NotNil(s.T(), req)
@@ -493,7 +492,7 @@ func (s *TestProxySuite) checkWebLogin() {
 	})
 }
 
-func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
+func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 	s.Run("successfully proxy", func() {
 		userID := uuid.New()
 
@@ -792,8 +791,6 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 									}
 								}
 
-								fakeApp.Err = nil
-
 								if !tc.Standalone {
 									testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 										w.Header().Set("Content-Type", "application/json")
@@ -818,7 +815,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 											}
 										}
 									})
-									fakeApp.SignupServiceMock = fake.NewSignupService(
+									proxy.signupService = fake.NewSignupService(
 										fake.Signup("someUserID", &signup.Signup{
 											Name:              "smith1",
 											APIEndpoint:       "https://api.endpoint.member-1.com:6443",
@@ -848,7 +845,7 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										},
 										Spec: toolchainv1alpha1.ProxyPluginSpec{
 											OpenShiftRouteTargetEndpoint: &toolchainv1alpha1.OpenShiftRouteTarget{
-												Namespace: commontest.HostOperatorNs,
+												Namespace: commontest.MemberOperatorNs,
 												Name:      "proxy-plugin",
 											},
 										},
@@ -860,16 +857,16 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"),
 										proxyPlugin,
 										fake.NewBase1NSTemplateTier())
-									p.Client.Client = fakeClient
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, fakeApp.SignupServiceMock, testServer.URL)
 
-									p.spaceLister = &handlers.SpaceLister{
-										Client:        p.Client,
-										GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
-										ProxyMetrics:  p.metrics,
+									proxy.Client.Client = fakeClient
+									proxy.getMembersFunc = s.newMemberClustersFunc(testServer.URL)
+									proxy.spaceLister = &handlers.SpaceLister{
+										Client:        proxy.Client,
+										GetSignupFunc: proxy.signupService.GetSignup,
+										ProxyMetrics:  proxy.metrics,
 									}
 									if tc.OverrideGetSignupFunc != nil {
-										p.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc
+										proxy.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc
 									}
 								}
 
@@ -906,7 +903,7 @@ type headerToAdd struct {
 	key, value string
 }
 
-func (s *TestProxySuite) newMemberClusterServiceWithMembers(nsClient namespaced.Client, signupService appservice.SignupService, serverURL string) appservice.MemberClusterService {
+func (s *TestProxySuite) newMemberClustersFunc(serverURL string) commoncluster.GetMemberClustersFunc {
 	serverHost := serverURL
 	switch {
 	case strings.HasPrefix(serverURL, "http://"):
@@ -917,7 +914,7 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(nsClient namespaced.
 
 	route := &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: nsClient.Namespace,
+			Namespace: commontest.MemberOperatorNs,
 			Name:      "proxy-plugin",
 		},
 		Spec: routev1.RouteSpec{
@@ -931,34 +928,28 @@ func (s *TestProxySuite) newMemberClusterServiceWithMembers(nsClient namespaced.
 			},
 		},
 	}
-	return service.NewMemberClusterService(
-		nsClient,
-		signupService,
-		func(si *service.ServiceImpl) {
-			si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-				return []*commoncluster.CachedToolchainCluster{
-					{
-						Config: &commoncluster.Config{
-							Name:        "member-1",
-							APIEndpoint: "https://api.endpoint.member-1.com:6443",
-							RestConfig:  &rest.Config{},
-						},
+	return func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+		return []*commoncluster.CachedToolchainCluster{
+			{
+				Config: &commoncluster.Config{
+					Name:        "member-1",
+					APIEndpoint: "https://api.endpoint.member-1.com:6443",
+					RestConfig:  &rest.Config{},
+				},
+			},
+			{
+				Config: &commoncluster.Config{
+					Name:              "member-2",
+					APIEndpoint:       serverURL,
+					OperatorNamespace: "member-operator",
+					RestConfig: &rest.Config{
+						BearerToken: "clusterSAToken",
 					},
-					{
-						Config: &commoncluster.Config{
-							Name:              "member-2",
-							APIEndpoint:       serverURL,
-							OperatorNamespace: "member-operator",
-							RestConfig: &rest.Config{
-								BearerToken: "clusterSAToken",
-							},
-						},
-						Client: commontest.NewFakeClient(s.T(), route),
-					},
-				}
-			}
-		},
-	)
+				},
+				Client: commontest.NewFakeClient(s.T(), route),
+			},
+		}
+	}
 }
 
 var noCORSHeaders = map[string][]string{

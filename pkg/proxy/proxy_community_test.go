@@ -42,8 +42,7 @@ func (s *TestProxySuite) TestProxyCommunityEnabled() {
 				testconfig.RegistrationService().Environment(string(environment)),
 				testconfig.PublicViewerConfig(true),
 			)
-			fakeApp := &fake.ProxyFakeApp{}
-			p, server := s.spinUpProxy(fakeApp, port)
+			proxy, server := s.spinUpProxy(port)
 			defer func() {
 				_ = server.Close()
 			}()
@@ -57,12 +56,12 @@ func (s *TestProxySuite) TestProxyCommunityEnabled() {
 			})
 
 			// run community tests
-			s.checkProxyCommunityOK(fakeApp, p, port)
+			s.checkProxyCommunityOK(proxy, port)
 		})
 	}
 }
 
-func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Proxy, port string) {
+func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 	podsRequestURL := func(workspace string) string {
 		return fmt.Sprintf("http://localhost:%s/workspaces/%s/api/pods", port, workspace)
 	}
@@ -140,19 +139,16 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			fake.NewBase1NSTemplateTier(),
 		)
 
-		// configure informer
-		p.Client.Client = cli
-
-		// configure Application
-		fakeApp.Err = nil
-		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, signupService, testServer.URL)
-		fakeApp.SignupServiceMock = signupService
+		// configure proxy to the latest mocks
+		proxy.Client.Client = cli
+		proxy.getMembersFunc = s.newMemberClustersFunc(testServer.URL)
+		proxy.signupService = signupService
 
 		// configure proxy
-		p.spaceLister = &handlers.SpaceLister{
-			Client:        p.Client,
-			GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
-			ProxyMetrics:  p.metrics,
+		proxy.spaceLister = &handlers.SpaceLister{
+			Client:        proxy.Client,
+			GetSignupFunc: proxy.signupService.GetSignup,
+			ProxyMetrics:  proxy.metrics,
 		}
 
 		// run test cases

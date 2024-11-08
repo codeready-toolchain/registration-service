@@ -18,6 +18,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
+	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
@@ -64,7 +65,7 @@ func authorizationEndpointTarget() string {
 
 type Proxy struct {
 	namespaced.Client
-	app            application.Application
+	signupService  service.SignupService
 	tokenParser    *auth.TokenParser
 	spaceLister    *handlers.SpaceLister
 	metrics        *metrics.ProxyMetrics
@@ -81,7 +82,7 @@ func NewProxy(nsClient namespaced.Client, app application.Application, proxyMetr
 	spaceLister := handlers.NewSpaceLister(nsClient, app, proxyMetrics)
 	return &Proxy{
 		Client:         nsClient,
-		app:            app,
+		signupService:  app.SignupService(),
 		tokenParser:    tokenParser,
 		spaceLister:    spaceLister,
 		metrics:        proxyMetrics,
@@ -296,7 +297,8 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 // processHomeWorkspaceRequest process an HTTP Request targeting the user's home workspace.
 func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// retrieves the ClusterAccess for the user and their home workspace
-	cluster, err := p.app.MemberClusterService().GetClusterAccess(userID, username, "", proxyPluginName, false)
+	members := NewMemberClusters(p.Client, p.signupService, p.getMembersFunc)
+	cluster, err := members.GetClusterAccess(userID, username, "", proxyPluginName, false)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
@@ -374,7 +376,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 	//
 	// UserSignup complete status is not checked, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := p.app.SignupService().GetSignup(nil, userID, username, false)
+	userSignup, err := p.signupService.GetSignup(nil, userID, username, false)
 	if err != nil {
 		return err
 	}
@@ -410,7 +412,7 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPlugin
 // this function returns an error.
 func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve the requesting user's UserSignup
-	userSignup, err := p.app.SignupService().GetSignup(nil, userID, username, false)
+	userSignup, err := p.signupService.GetSignup(nil, userID, username, false)
 	if err != nil {
 		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for userID '%s' and username '%s'", userID, username))
 		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")
@@ -418,8 +420,9 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 
 	// proceed as PublicViewer if the feature is enabled and userSignup is nil
 	publicViewerEnabled := context.IsPublicViewerEnabled(ctx)
+	members := NewMemberClusters(p.Client, p.signupService, p.getMembersFunc)
 	if publicViewerEnabled && !userHasDirectAccess(userSignup, workspace) {
-		return p.app.MemberClusterService().GetClusterAccess(
+		return members.GetClusterAccess(
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
 			workspace.Name,
@@ -428,7 +431,7 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 	}
 
 	// otherwise retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
-	return p.app.MemberClusterService().GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
+	return members.GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
 }
 
 // userHasDirectAccess checks if an UserSignup has access to a workspace.

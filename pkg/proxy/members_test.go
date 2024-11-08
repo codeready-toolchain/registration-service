@@ -1,4 +1,4 @@
-package service_test
+package proxy_test
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -29,15 +29,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type TestClusterServiceSuite struct {
+type TestMemberClustersSuite struct {
 	test.UnitTestSuite
 }
 
-func TestRunClusterServiceSuite(t *testing.T) {
-	suite.Run(t, &TestClusterServiceSuite{test.UnitTestSuite{}})
+func TestRunMemberClustersSuite(t *testing.T) {
+	suite.Run(t, &TestMemberClustersSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestClusterServiceSuite) TestGetClusterAccess() {
+func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 	// given
 	sc := fake.NewSignupService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
@@ -88,7 +88,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		fake.NewSpace("unknown-cluster", "unknown-cluster", "unknown-cluster"),
 		pp)
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-	svc := service.NewMemberClusterService(nsClient, sc)
+	svc := proxy.NewMemberClusters(nsClient, sc, commoncluster.GetMemberClusters)
 
 	tt := map[string]struct {
 		publicViewerEnabled bool
@@ -166,7 +166,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 						fakeClient.MockGet = nil
 					}()
 					nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-					svc := service.NewMemberClusterService(nsClient, sc)
+					svc := proxy.NewMemberClusters(nsClient, sc, commoncluster.GetMemberClusters)
 
 					// when
 					_, err := svc.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)
@@ -187,13 +187,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("no member cluster found", func() {
 				s.Run("no member clusters", func() {
-					svc := service.NewMemberClusterService(nsClient, sc,
-						func(si *service.ServiceImpl) {
-							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-								return []*commoncluster.CachedToolchainCluster{}
-							}
-						},
-					)
+					svc := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+						return []*commoncluster.CachedToolchainCluster{}
+					})
 					s.Run("default workspace case", func() {
 						// when
 						_, err := svc.GetClusterAccess("789-ready", "", "", "", publicViewerEnabled)
@@ -212,14 +208,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				})
 
 				s.Run("no member cluster with the given URL", func() {
-					svc := service.NewMemberClusterService(nsClient, sc,
-						func(si *service.ServiceImpl) {
-							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-								return s.memberClusters()
-							}
-						},
-					)
-
+					svc := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+						return s.memberClusters()
+					})
 					s.Run("default workspace case", func() {
 						// when
 						_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "", "", publicViewerEnabled)
@@ -270,14 +261,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					},
 				}
 
-				svc := service.NewMemberClusterService(nsClient, sc,
-					func(si *service.ServiceImpl) {
-						si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-							return memberArray
-						}
-					},
-				)
-
+				svc := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+					return memberArray
+				})
 				s.Run("verify cluster access with route", func() {
 					memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						route, ok := obj.(*routev1.Route)
@@ -434,14 +420,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		})
 
 		s.Run("get workspace by name", func() {
-			svc := service.NewMemberClusterService(nsClient, sc,
-				func(si *service.ServiceImpl) {
-					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-						return s.memberClusters()
-					}
-				},
-			)
-
+			svc := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				return s.memberClusters()
+			})
 			s.Run("public-viewer is disabled", func() {
 				// when
 				ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
@@ -486,14 +467,14 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	})
 }
 
-func (s *TestClusterServiceSuite) assertClusterAccess(expected, actual *access.ClusterAccess) {
+func (s *TestMemberClustersSuite) assertClusterAccess(expected, actual *access.ClusterAccess) {
 	require.NotNil(s.T(), expected)
 	require.NotNil(s.T(), actual)
 	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())
 	assert.Equal(s.T(), expected.ImpersonatorToken(), actual.ImpersonatorToken())
 }
 
-func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolchainCluster {
+func (s *TestMemberClustersSuite) memberClusters() []*commoncluster.CachedToolchainCluster {
 	cls := make([]*commoncluster.CachedToolchainCluster, 0, 3)
 	for i := 0; i < 3; i++ {
 		clusterName := fmt.Sprintf("member-%d", i)

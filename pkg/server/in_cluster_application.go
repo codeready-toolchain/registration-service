@@ -30,7 +30,3 @@ func (r InClusterApplication) SignupService() service.SignupService {
 func (r InClusterApplication) VerificationService() service.VerificationService {
 	return r.serviceFactory.VerificationService()
 }
-
-func (r InClusterApplication) MemberClusterService() service.MemberClusterService {
-	return r.serviceFactory.MemberClusterService()
-}

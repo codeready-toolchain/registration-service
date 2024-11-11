@@ -11,10 +11,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/h2non/gock.v1 v1.0.14
-	k8s.io/api v0.27.2
-	k8s.io/apimachinery v0.27.2
+	k8s.io/api v0.27.7
+	k8s.io/apimachinery v0.27.7
 	k8s.io/apiserver v0.27.2
-	k8s.io/client-go v0.27.2
+	k8s.io/client-go v0.27.3
 	sigs.k8s.io/controller-runtime v0.15.0
 )
 
@@ -46,10 +46,6 @@ require (
 	cloud.google.com/go/auth v0.3.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
-	github.com/BurntSushi/toml v0.4.1 // indirect
-	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.1.1 // indirect
-	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.11.2 // indirect
@@ -71,7 +67,6 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/huandu/xstrings v1.3.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
@@ -81,12 +76,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/migueleliasweb/go-github-mock v0.0.18 // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
-	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/redhat-cop/operator-utils v1.3.3-0.20220121120056-862ef22b8cdf // indirect
-	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/spf13/cast v1.3.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
@@ -102,8 +92,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	k8s.io/apiextensions-apiserver v0.27.2 // indirect
-	k8s.io/component-base v0.27.2 // indirect
-	k8s.io/kubectl v0.24.0 // indirect
+	k8s.io/component-base v0.27.3 // indirect
 	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 // indirect
 )
 
@@ -140,7 +129,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	// using latest commit from 'github.com/openshift/api branch release-4.14'
-	github.com/openshift/api v0.0.0-20240304080513-3e8192a10b13
+	github.com/openshift/api v0.0.0-20241031180523-b1c90a6cf9a3
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
@@ -167,6 +156,6 @@ require (
 )
 
 replace (
-	github.com/codeready-toolchain/api v0.0.0-20240927104325-b5bfcb3cb1b0 => github.com/ranakan19/api v0.0.0-20240923151833-647d61ba6f05
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20240905135929-d55d86fdd41e => github.com/ranakan19/toolchain-common v0.0.0-20240923152117-007ae28d1744
+	github.com/codeready-toolchain/api v0.0.0-20241009095520-331aa861d43b => github.com/ranakan19/api v0.0.0-20241108053314-93842107015c
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20241003135627-55e81430602b => github.com/ranakan19/toolchain-common v0.0.0-20241111060318-c3e2d61d824c
 )

@@ -23,16 +23,19 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commoncluster "github.com/codeready-toolchain/toolchain-common/pkg/cluster"
+	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	glog "github.com/labstack/gommon/log"
 	errs "github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apiserver/pkg/util/wsstream"
 )
@@ -60,6 +63,7 @@ func authorizationEndpointTarget() string {
 }
 
 type Proxy struct {
+	namespaced.Client
 	app            application.Application
 	tokenParser    *auth.TokenParser
 	spaceLister    *handlers.SpaceLister
@@ -67,15 +71,16 @@ type Proxy struct {
 	getMembersFunc commoncluster.GetMemberClustersFunc
 }
 
-func NewProxy(app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
+func NewProxy(nsClient namespaced.Client, app application.Application, proxyMetrics *metrics.ProxyMetrics, getMembersFunc commoncluster.GetMemberClustersFunc) (*Proxy, error) {
 	tokenParser, err := auth.DefaultTokenParser()
 	if err != nil {
 		return nil, err
 	}
 
 	// init handlers
-	spaceLister := handlers.NewSpaceLister(app, proxyMetrics)
+	spaceLister := handlers.NewSpaceLister(nsClient, app, proxyMetrics)
 	return &Proxy{
+		Client:         nsClient,
 		app:            app,
 		tokenParser:    tokenParser,
 		spaceLister:    spaceLister,
@@ -303,9 +308,7 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 	}
 
 	// check whether the user has access to the home workspace
-	// and whether the requestedNamespace -if any- exists in the workspace.
-	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest("", requestedNamespace, workspaces...); err != nil {
+	if err := validateWorkspaceRequest("", workspaces...); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
@@ -328,9 +331,7 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	}
 
 	// check whether the user has access to the workspace
-	// and whether the requestedNamespace -if any- exists in the workspace.
-	requestedNamespace := namespaceFromCtx(ctx)
-	if err := validateWorkspaceRequest(workspaceName, requestedNamespace, *workspace); err != nil {
+	if err := validateWorkspaceRequest(workspaceName, *workspace); err != nil {
 		return nil, crterrors.NewForbiddenError("invalid workspace request", err.Error())
 	}
 
@@ -352,7 +353,8 @@ func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, u
 
 // checkSpaceExists checks whether the Space exists.
 func (p *Proxy) checkSpaceExists(workspaceName string) error {
-	if _, err := p.app.InformerService().GetSpace(workspaceName); err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := p.Get(gocontext.TODO(), p.NamespacedName(workspaceName), space); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
 		log.Errorf(nil, err, "requested space '%s' does not exist", workspaceName)
 		return fmt.Errorf("access to workspace '%s' is forbidden", workspaceName)
@@ -372,7 +374,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 	//
 	// UserSignup complete status is not checked, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := p.app.SignupService().GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := p.app.SignupService().GetSignup(nil, userID, username, false)
 	if err != nil {
 		return err
 	}
@@ -408,7 +410,7 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPlugin
 // this function returns an error.
 func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve the requesting user's UserSignup
-	userSignup, err := p.app.SignupService().GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := p.app.SignupService().GetSignup(nil, userID, username, false)
 	if err != nil {
 		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for userID '%s' and username '%s'", userID, username))
 		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")
@@ -590,14 +592,16 @@ func (p *Proxy) ensureUserIsNotBanned() echo.MiddlewareFunc {
 			}
 
 			// retrieve banned users
-			uu, err := p.app.InformerService().ListBannedUsersByEmail(email)
-			if err != nil {
+			hashedEmail := hash.EncodeString(email)
+			bannedUsers := &toolchainv1alpha1.BannedUserList{}
+			if err := p.List(ctx.Request().Context(), bannedUsers, client.InNamespace(p.Namespace),
+				client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hashedEmail}); err != nil {
 				ctx.Logger().Errorf("error retrieving the list of banned users with email address %s: %v", email, err)
 				return crterrors.NewInternalError(errs.New("user access could not be verified"), "could not define user access")
 			}
 
 			// if a matching Banned user is found, then user is banned
-			if len(uu) > 0 {
+			if len(bannedUsers.Items) > 0 {
 				return crterrors.NewForbiddenError("user access is forbidden", "user access is forbidden")
 			}
 
@@ -820,9 +824,8 @@ func replaceTokenInWebsocketRequest(req *http.Request, newToken string) {
 }
 
 // validateWorkspaceRequest checks whether the requested workspace is in the list of workspaces the user has visibility on (retrieved via the spaceLister).
-// If `requestedWorkspace` is zero, this function looks for the home workspace (the one with `status.Type` set to `home`).
-// If `requestedNamespace` is NOT zero, this function checks if the namespace exists in the workspace.
-func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, workspaces ...toolchainv1alpha1.Workspace) error {
+// If `requestedWorkspace` is empty, then the home workspace (the one with `status.Type` set to `home`) is assumed.
+func validateWorkspaceRequest(requestedWorkspace string, workspaces ...toolchainv1alpha1.Workspace) error {
 	// check workspace access
 	isHomeWSRequested := requestedWorkspace == ""
 
@@ -837,32 +840,5 @@ func validateWorkspaceRequest(requestedWorkspace, requestedNamespace string, wor
 		return fmt.Errorf("access to workspace '%s' is forbidden", requestedWorkspace)
 	}
 
-	// check namespace access
-	if requestedNamespace != "" {
-		allowedNamespace := false
-		namespaces := workspaces[allowedWorkspace].Status.Namespaces
-		for _, ns := range namespaces {
-			if ns.Name == requestedNamespace {
-				allowedNamespace = true
-				break
-			}
-		}
-		if !allowedNamespace {
-			return fmt.Errorf("access to namespace '%s' in workspace '%s' is forbidden", requestedNamespace, workspaces[allowedWorkspace].Name)
-		}
-	}
 	return nil
-}
-
-func namespaceFromCtx(ctx echo.Context) string {
-	path := ctx.Request().URL.Path
-	if strings.Index(path, "/namespaces/") > 0 {
-		segments := strings.Split(path, "/")
-		for i, segment := range segments {
-			if segment == "namespaces" && i+1 < len(segments) {
-				return segments[i+1]
-			}
-		}
-	}
-	return ""
 }

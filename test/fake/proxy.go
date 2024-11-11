@@ -15,14 +15,6 @@ type ProxyFakeApp struct {
 	Err                      error
 	SignupServiceMock        service.SignupService
 	MemberClusterServiceMock service.MemberClusterService
-	InformerServiceMock      service.InformerService
-}
-
-func (a *ProxyFakeApp) InformerService() service.InformerService {
-	if a.InformerServiceMock != nil {
-		return a.InformerServiceMock
-	}
-	panic("InformerService shouldn't be called")
 }
 
 func (a *ProxyFakeApp) SignupService() service.SignupService {
@@ -102,11 +94,7 @@ func (m *SignupService) DefaultMockGetSignup() func(userID, username string) (*s
 	}
 }
 
-func (m *SignupService) GetSignup(_ *gin.Context, userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignup(userID, username)
-}
-
-func (m *SignupService) GetSignupFromInformer(_ *gin.Context, userID, username string, _ bool) (*signup.Signup, error) {
+func (m *SignupService) GetSignup(_ *gin.Context, userID, username string, _ bool) (*signup.Signup, error) {
 	return m.MockGetSignup(userID, username)
 }
 

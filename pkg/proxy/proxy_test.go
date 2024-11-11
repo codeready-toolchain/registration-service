@@ -19,7 +19,6 @@ import (
 
 	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
@@ -104,13 +103,11 @@ func (s *TestProxySuite) TestProxy() {
 				}
 				return fakeClient.Client.List(ctx, list, opts...)
 			}
-			inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
+			nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
-			fakeApp := &fake.ProxyFakeApp{
-				InformerServiceMock: inf,
-			}
+			fakeApp := &fake.ProxyFakeApp{}
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-			p, err := NewProxy(fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
+			p, err := NewProxy(nsClient, fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 			require.NoError(s.T(), err)
 
 			server := p.StartProxy(DefaultPort)
@@ -136,7 +133,7 @@ func (s *TestProxySuite) TestProxy() {
 
 func (s *TestProxySuite) spinUpProxy(fakeApp *fake.ProxyFakeApp, port string) (*Proxy, *http.Server) {
 	proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
-	p, err := NewProxy(
+	p, err := NewProxy(namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs),
 		fakeApp, proxyMetrics, proxytest.NewGetMembersFunc(commontest.NewFakeClient(s.T())))
 	require.NoError(s.T(), err)
 
@@ -705,29 +702,43 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 				ExpectedResponse:            ptr("unable to get target cluster: access to workspace 'not-existing-workspace' is forbidden"),
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
 			},
-			"unauthorized if namespace does not exist in implicit workspace": {
+			"request to namespace which does not belong to implicit workspace is still proxied OK": {
+				// It's not up to the proxy to check permissions on the specific namespace.
+				// The target API server will reject the request if the user does not have permissions to access the namespace.
 				ProxyRequestPaths: map[string]string{
-					"not existing namespace": "http://localhost:8081/api/namespaces/not-existing-namespace/pods",
+					"not existing namespace": "http://localhost:8081/api/namespaces/namespace-outside-of-workspace/pods",
 				},
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
-					"Authorization": {"Bearer clusterSAToken"},
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {"smith2"},
 				},
-				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
-				ExpectedProxyResponseStatus: http.StatusForbidden,
+				ExpectedProxyResponseHeaders: map[string][]string{
+					"Access-Control-Allow-Origin":      {"*"},
+					"Access-Control-Allow-Credentials": {"true"},
+					"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+					"Vary":                             {"Origin"},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
 			},
-			"unauthorized if namespace does not exist in explicit workspace": {
+			"request to namespace which does not belong to explicit workspace is still proxied OK": {
 				ProxyRequestPaths: map[string]string{
-					"not existing namespace": "http://localhost:8081/workspaces/mycoolworkspace/api/namespaces/not-existing-namespace/pods",
+					"not existing namespace": "http://localhost:8081/workspaces/mycoolworkspace/api/namespaces/namespace-outside-of-workspace/pods",
 				},
 				ProxyRequestMethod:  "GET",
 				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
-					"Authorization": {"Bearer clusterSAToken"},
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {"smith2"},
 				},
-				ExpectedResponse:            ptr("invalid workspace request: access to namespace 'not-existing-namespace' in workspace 'mycoolworkspace' is forbidden"),
-				ExpectedProxyResponseStatus: http.StatusForbidden,
+				ExpectedProxyResponseHeaders: map[string][]string{
+					"Access-Control-Allow-Origin":      {"*"},
+					"Access-Control-Allow-Credentials": {"true"},
+					"Access-Control-Expose-Headers":    {"Content-Length, Content-Encoding, Authorization"},
+					"Vary":                             {"Origin"},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
 			},
 		}
 
@@ -829,7 +840,6 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 											},
 										}),
 									)
-									s.Application.MockSignupService(fakeApp.SignupServiceMock)
 
 									proxyPlugin := &toolchainv1alpha1.ProxyPlugin{
 										ObjectMeta: metav1.ObjectMeta{
@@ -850,19 +860,13 @@ func (s *TestProxySuite) checkProxyOK(fakeApp *fake.ProxyFakeApp, p *Proxy) {
 										fake.NewSpaceBinding("mycoolworkspace-smith2", "smith2", "mycoolworkspace", "admin"),
 										proxyPlugin,
 										fake.NewBase1NSTemplateTier())
-									inf := infservice.NewInformerService(fakeClient, commontest.HostOperatorNs)
-									nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-
-									s.Application.MockInformerService(inf)
-									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(nsClient, fakeApp.SignupServiceMock, testServer.URL)
-									fakeApp.InformerServiceMock = inf
+									p.Client.Client = fakeClient
+									fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, fakeApp.SignupServiceMock, testServer.URL)
 
 									p.spaceLister = &handlers.SpaceLister{
-										GetSignupFunc: fakeApp.SignupServiceMock.GetSignupFromInformer,
-										GetInformerServiceFunc: func() appservice.InformerService {
-											return inf
-										},
-										ProxyMetrics: p.metrics,
+										Client:        p.Client,
+										GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
+										ProxyMetrics:  p.metrics,
 									}
 									if tc.OverrideGetSignupFunc != nil {
 										p.spaceLister.GetSignupFunc = tc.OverrideGetSignupFunc
@@ -1118,13 +1122,11 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 	tests := map[string]struct {
 		requestedWorkspace string
-		requestedNamespace string
 		workspaces         []toolchainv1alpha1.Workspace
 		expectedErr        string
 	}{
 		"valid workspace request": {
 			requestedWorkspace: "myworkspace",
-			requestedNamespace: "ns-dev",
 			workspaces: []toolchainv1alpha1.Workspace{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "myworkspace",
@@ -1150,7 +1152,6 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 		},
 		"valid home workspace request": {
 			requestedWorkspace: "", // home workspace is default when no workspace is specified
-			requestedNamespace: "test-1234",
 			workspaces: []toolchainv1alpha1.Workspace{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "homews",
@@ -1166,7 +1167,6 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 		},
 		"workspace not allowed": {
 			requestedWorkspace: "notexist",
-			requestedNamespace: "myns",
 			workspaces: []toolchainv1alpha1.Workspace{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "myworkspace",
@@ -1179,42 +1179,11 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 			}},
 			expectedErr: "access to workspace 'notexist' is forbidden",
 		},
-		"namespace not allowed": {
-			requestedWorkspace: "myworkspace",
-			requestedNamespace: "notexist",
-			workspaces: []toolchainv1alpha1.Workspace{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "myworkspace",
-				},
-				Status: toolchainv1alpha1.WorkspaceStatus{
-					Namespaces: []toolchainv1alpha1.SpaceNamespace{
-						{Name: "ns-dev"},
-					},
-				},
-			}},
-			expectedErr: "access to namespace 'notexist' in workspace 'myworkspace' is forbidden",
-		},
-		"namespace not allowed for home workspace": {
-			requestedWorkspace: "", // home workspace is default when no workspace is specified
-			requestedNamespace: "myns",
-			workspaces: []toolchainv1alpha1.Workspace{{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "homews",
-				},
-				Status: toolchainv1alpha1.WorkspaceStatus{
-					Type: "home", // home workspace
-					Namespaces: []toolchainv1alpha1.SpaceNamespace{
-						{Name: "test-1234"}, // namespace does not match the requested one
-					},
-				},
-			}},
-			expectedErr: "access to namespace 'myns' in workspace 'homews' is forbidden",
-		},
 	}
 
 	for k, tc := range tests {
 		s.T().Run(k, func(t *testing.T) {
-			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.requestedNamespace, tc.workspaces...)
+			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.workspaces...)
 			if tc.expectedErr == "" {
 				require.NoError(t, err)
 			} else {

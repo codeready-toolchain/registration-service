@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,7 +18,6 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -71,16 +70,14 @@ func TestListUserWorkspaces(t *testing.T) {
 
 		t.Run(k, func(t *testing.T) {
 			// given
-			signupProvider := fakeSignupService.GetSignupFromInformer
+			signupProvider := fakeSignupService.GetSignup
 
 			proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 			s := &handlers.SpaceLister{
+				Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 				GetSignupFunc: signupProvider,
-				GetInformerServiceFunc: func() service.InformerService {
-					return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-				},
-				ProxyMetrics: proxyMetrics,
+				ProxyMetrics:  proxyMetrics,
 			}
 
 			e := echo.New()
@@ -198,7 +195,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 						tc.mockFakeClient(fakeClient)
 					}
 
-					signupProvider := fakeSignupService.GetSignupFromInformer
+					signupProvider := fakeSignupService.GetSignup
 					if tc.overrideSignupFunc != nil {
 						signupProvider = tc.overrideSignupFunc
 					}
@@ -206,11 +203,9 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					proxyMetrics := metrics.NewProxyMetrics(prometheus.NewRegistry())
 
 					s := &handlers.SpaceLister{
+						Client:        namespaced.NewClient(fakeClient, test.HostOperatorNs),
 						GetSignupFunc: signupProvider,
-						GetInformerServiceFunc: func() service.InformerService {
-							return infservice.NewInformerService(fakeClient, test.HostOperatorNs)
-						},
-						ProxyMetrics: proxyMetrics,
+						ProxyMetrics:  proxyMetrics,
 					}
 
 					e := echo.New()

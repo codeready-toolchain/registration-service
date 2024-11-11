@@ -6,10 +6,7 @@ import (
 	"net/http/httptest"
 	"time"
 
-	appservice "github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
-	infservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
-	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/handlers"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -144,23 +141,18 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 		)
 
 		// configure informer
-		inf := infservice.NewInformerService(cli, commontest.HostOperatorNs)
-		nsClient := namespaced.NewClient(cli, commontest.HostOperatorNs)
+		p.Client.Client = cli
 
 		// configure Application
 		fakeApp.Err = nil
-		fakeApp.InformerServiceMock = inf
-		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(nsClient, signupService, testServer.URL)
+		fakeApp.MemberClusterServiceMock = s.newMemberClusterServiceWithMembers(p.Client, signupService, testServer.URL)
 		fakeApp.SignupServiceMock = signupService
-
-		s.Application.MockSignupService(signupService)
-		s.Application.MockInformerService(inf)
 
 		// configure proxy
 		p.spaceLister = &handlers.SpaceLister{
-			GetSignupFunc:          fakeApp.SignupServiceMock.GetSignupFromInformer,
-			GetInformerServiceFunc: func() appservice.InformerService { return inf },
-			ProxyMetrics:           p.metrics,
+			Client:        p.Client,
+			GetSignupFunc: fakeApp.SignupServiceMock.GetSignup,
+			ProxyMetrics:  p.metrics,
 		}
 
 		// run test cases
@@ -289,73 +281,103 @@ func (s *TestProxySuite) checkProxyCommunityOK(fakeApp *fake.ProxyFakeApp, p *Pr
 			},
 			// Given user alice exists
 			// And   alice owns a private workspace
-			// When  alice requests the list of pods in a non existing namespace in alice's workspace
-			// Then  the proxy does NOT forward the request
-			// And   the proxy rejects the call with 403 Forbidden
-			"plain http request as owner to not existing namespace in private workspace": {
-				ProxyRequestMethod:          "GET",
-				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
-				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsInNamespaceRequestURL("alice-private", "not-existing"),
-				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'alice-private' is forbidden",
+			// When  alice requests the list of pods in a namespace which does not belong to the alice's workspace
+			// Then  the proxy does forward the request anyway.
+			// It's not up to the proxy to check permissions on the specific namespace.
+			// The target API server will reject the request if the user does not have permissions to access the namespace.
+			// Here the request is successful because the underlying mock target cluster API always server returns OK
+			"plain http request as permitted user to namespace outside of private workspace": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {"alice"},
+					"X-SSO-User":       {"username-" + alice.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 podsInNamespaceRequestURL("alice-private", "outside-of-workspace-namespace"),
+				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
-			// When  smith requests the list of pods in a non existing namespace in workspace smith-community
-			// Then  the request is forwarded from the proxy
-			// And   the request impersonates smith
-			// And   the request's X-SSO-User Header is set to smith's ID
-			// And   the request is successful
-			"plain http request as owner to not existing namespace in community workspace": {
-				ProxyRequestMethod:          "GET",
-				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
-				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
-				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			// When  smith requests the list of pods in a namespace which does not belong to the workspace smith-community
+			// Then  the proxy does forward the request anyway.
+			// It's not up to the proxy to check permissions on the specific namespace.
+			// The target API server will reject the request if the user does not have permissions to access the namespace.
+			// Here the request is successful because the underlying mock target cluster API server returns OK
+			"plain http request as owner to namespace outside of community workspace": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(smith)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {"smith"},
+					"X-SSO-User":       {"username-" + smith.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
+				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
 			// And   user alice exists
-			// When  alice requests the list of pods in a non existing namespace in smith's workspace
-			// Then  the proxy does NOT forward the request
-			// And   the proxy rejects the call with 403 Forbidden
-			"plain http request as community user to not existing namespace in community workspace": {
-				ProxyRequestMethod:          "GET",
-				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
-				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
-				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			// When  alice requests the list of pods in a namespace which does not belong to the smith's workspace
+			// It's not up to the proxy to check permissions on the specific namespace.
+			// The target API server will reject the request if the user does not have permissions to access the namespace.
+			// Here the request is successful because the underlying mock target cluster API server returns OK
+			"plain http request as community user to namespace outside of community workspace": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(alice)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
+					"X-SSO-User":       {"username-" + alice.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
+				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
-			// When  bob requests the list of pods in a non existing namespace in smith's workspace
-			// Then  the proxy does NOT forward the request
-			// And   the proxy rejects the call with 403 Forbidden
-			"plain http request as unsigned user to not existing namespace in community workspace": {
-				ProxyRequestMethod:          "GET",
-				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(bob)}},
-				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
-				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			// When  bob requests the list of pods in a namespace which does not belong to the smith's workspace
+			// It's not up to the proxy to check permissions on the specific namespace.
+			// The target API server will reject the request if the user does not have permissions to access the namespace.
+			// Here the request is successful because the underlying mock target cluster API server returns OK
+			"plain http request as unsigned user to namespace outside of community workspace": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(bob)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
+					"X-SSO-User":       {"username-" + bob.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
+				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
 			// And   not ready user john exists
-			// When  john requests the list of pods in a non existing namespace in smith's workspace
-			// Then  the proxy does NOT forward the request
-			// And   the proxy rejects the call with 403 Forbidden
-			"plain http request as notReadyUser to not existing namespace in community workspace": {
-				ProxyRequestMethod:          "GET",
-				ProxyRequestHeaders:         map[string][]string{"Authorization": {"Bearer " + s.token(john)}},
-				ExpectedProxyResponseStatus: http.StatusForbidden,
-				RequestPath:                 podsInNamespaceRequestURL("smith-community", "not-existing"),
-				ExpectedResponse:            "invalid workspace request: access to namespace 'not-existing' in workspace 'smith-community' is forbidden",
+			// When  john requests the list of pods in a namespace which does not belong to the smith's workspace
+			// It's not up to the proxy to check permissions on the specific namespace.
+			// The target API server will reject the request if the user does not have permissions to access the namespace.
+			// Here the request is successful because the underlying mock target cluster API server returns OK
+			"plain http request as notReadyUser to namespace outside community workspace": {
+				ProxyRequestMethod:  "GET",
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(john)}},
+				ExpectedAPIServerRequestHeaders: map[string][]string{
+					"Authorization":    {"Bearer clusterSAToken"},
+					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
+					"X-SSO-User":       {"username-" + john.String()},
+				},
+				ExpectedProxyResponseStatus: http.StatusOK,
+				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
+				ExpectedResponse:            httpTestServerResponse,
 			},
 			// Given banned user eve exists
 			// And   user smith exists
 			// And   smith owns a workspace named smith-community
 			// And   smith-community is publicly visible (shared with PublicViewer)
-			// When  eve requests the list of pods in a non existing namespace smith's workspace
+			// When  eve requests the list of pods in a non-existing namespace smith's workspace
 			// Then  the proxy does NOT forward the request
 			// And   the proxy rejects the call with 403 Forbidden
 			"plain http actual request as banned user to not existing namespace community workspace": {

@@ -5,8 +5,8 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
@@ -27,16 +27,16 @@ const (
 )
 
 type SpaceLister struct {
-	GetSignupFunc          func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
-	GetInformerServiceFunc func() service.InformerService
-	ProxyMetrics           *metrics.ProxyMetrics
+	namespaced.Client
+	GetSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+	ProxyMetrics  *metrics.ProxyMetrics
 }
 
-func NewSpaceLister(app application.Application, proxyMetrics *metrics.ProxyMetrics) *SpaceLister {
+func NewSpaceLister(client namespaced.Client, app application.Application, proxyMetrics *metrics.ProxyMetrics) *SpaceLister {
 	return &SpaceLister{
-		GetSignupFunc:          app.SignupService().GetSignupFromInformer,
-		GetInformerServiceFunc: app.InformerService,
-		ProxyMetrics:           proxyMetrics,
+		Client:        client,
+		GetSignupFunc: app.SignupService().GetSignup,
+		ProxyMetrics:  proxyMetrics,
 	}
 }
 

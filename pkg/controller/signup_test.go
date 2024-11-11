@@ -207,7 +207,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetSignup = func(_ *gin.Context, id, _ string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, id, _ string, _ bool) (*signup.Signup, error) {
 			if id == userID {
 				return expected, nil
 			}
@@ -234,7 +234,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(_ *gin.Context, _, _ string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
 			return nil, nil
 		}
 
@@ -251,7 +251,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.SubKey, userID)
 
-		svc.MockGetSignup = func(_ *gin.Context, _, _ string) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")
 		}
 
@@ -438,9 +438,6 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 				}
 				states.SetVerificationRequired(&us, true)
 				return &us, nil
-			},
-			MockUpdateUserSignup: func(userSignup *crtapi.UserSignup) (userSignup2 *crtapi.UserSignup, e error) {
-				return userSignup, nil
 			},
 			MockPhoneNumberAlreadyInUse: func(_, _, _ string) error {
 				return nil
@@ -863,20 +860,14 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 }
 
 type FakeSignupService struct {
-	MockGetSignup                   func(ctx *gin.Context, userID, username string) (*signup.Signup, error)
-	MockGetSignupFromInformer       func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+	MockGetSignup                   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 	MockSignup                      func(ctx *gin.Context) (*crtapi.UserSignup, error)
 	MockGetUserSignupFromIdentifier func(userID, username string) (*crtapi.UserSignup, error)
-	MockUpdateUserSignup            func(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error)
 	MockPhoneNumberAlreadyInUse     func(userID, username, value string) error
 }
 
-func (m *FakeSignupService) GetSignup(ctx *gin.Context, userID, username string) (*signup.Signup, error) {
-	return m.MockGetSignup(ctx, userID, username)
-}
-
-func (m *FakeSignupService) GetSignupFromInformer(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
-	return m.MockGetSignupFromInformer(ctx, userID, username, checkUserSignupComplete)
+func (m *FakeSignupService) GetSignup(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+	return m.MockGetSignup(ctx, userID, username, checkUserSignupComplete)
 }
 
 func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {
@@ -885,10 +876,6 @@ func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error)
 
 func (m *FakeSignupService) GetUserSignupFromIdentifier(userID, username string) (*crtapi.UserSignup, error) {
 	return m.MockGetUserSignupFromIdentifier(userID, username)
-}
-
-func (m *FakeSignupService) UpdateUserSignup(userSignup *crtapi.UserSignup) (*crtapi.UserSignup, error) {
-	return m.MockUpdateUserSignup(userSignup)
 }
 
 func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, username, e164phoneNumber string) error {

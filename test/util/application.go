@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-
 func PrepareInClusterApplication(t *testing.T, objects ...client.Object) application.Application {
 	_, app := PrepareInClusterApp(t, objects...)
 	return app

@@ -1,4 +1,4 @@
-package service_test
+package proxy_test
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
@@ -29,15 +29,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type TestClusterServiceSuite struct {
+type TestMemberClustersSuite struct {
 	test.UnitTestSuite
 }
 
-func TestRunClusterServiceSuite(t *testing.T) {
-	suite.Run(t, &TestClusterServiceSuite{test.UnitTestSuite{}})
+func TestRunMemberClustersSuite(t *testing.T) {
+	suite.Run(t, &TestMemberClustersSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestClusterServiceSuite) TestGetClusterAccess() {
+func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 	// given
 	sc := fake.NewSignupService(fake.Signup("123-noise", &signup.Signup{
 		CompliantUsername: "noise1",
@@ -88,7 +88,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		fake.NewSpace("unknown-cluster", "unknown-cluster", "unknown-cluster"),
 		pp)
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-	svc := service.NewMemberClusterService(nsClient, sc)
+	members := proxy.NewMemberClusters(nsClient, sc, commoncluster.GetMemberClusters)
 
 	tt := map[string]struct {
 		publicViewerEnabled bool
@@ -117,7 +117,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 							}
 
 							// when
-							_, err := svc.GetClusterAccess("789-ready", "", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("789-ready", "", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "oopsi woopsi")
@@ -127,7 +127,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 						s.Run("userid is not found", func() {
 							// when
-							_, err := svc.GetClusterAccess("unknown_id", "", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("unknown_id", "", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -135,7 +135,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 						s.Run("username is not found", func() {
 							// when
-							_, err := svc.GetClusterAccess("", "unknown_username", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("", "unknown_username", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -143,7 +143,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 						s.Run("user is not provisioned yet", func() {
 							// when
-							_, err := svc.GetClusterAccess("456-not-ready", "", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("456-not-ready", "", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -154,7 +154,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 			})
 
 			s.Run("unable to get space", func() {
-				s.Run("informer service returns error", func() {
+				s.Run("get Space returns error", func() {
 					fakeClient := commontest.NewFakeClient(s.T())
 					fakeClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						if _, ok := obj.(*toolchainv1alpha1.Space); ok && key.Name == "smith2" {
@@ -166,10 +166,10 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 						fakeClient.MockGet = nil
 					}()
 					nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
-					svc := service.NewMemberClusterService(nsClient, sc)
+					members := proxy.NewMemberClusters(nsClient, sc, commoncluster.GetMemberClusters)
 
 					// when
-					_, err := svc.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)
+					_, err := members.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)
 
 					// then
 					// original error is only logged so that it doesn't reveal information about a space that may not belong to the requestor
@@ -178,7 +178,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 				s.Run("space not found", func() {
 					// when
-					_, err := svc.GetClusterAccess("789-ready", "", "unknown", "", publicViewerEnabled) // unknown workspace requested
+					_, err := members.GetClusterAccess("789-ready", "", "unknown", "", publicViewerEnabled) // unknown workspace requested
 
 					// then
 					require.EqualError(s.T(), err, "the requested space is not available")
@@ -187,16 +187,12 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("no member cluster found", func() {
 				s.Run("no member clusters", func() {
-					svc := service.NewMemberClusterService(nsClient, sc,
-						func(si *service.ServiceImpl) {
-							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-								return []*commoncluster.CachedToolchainCluster{}
-							}
-						},
-					)
+					members := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+						return []*commoncluster.CachedToolchainCluster{}
+					})
 					s.Run("default workspace case", func() {
 						// when
-						_, err := svc.GetClusterAccess("789-ready", "", "", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("789-ready", "", "", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member clusters found")
@@ -204,7 +200,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("workspace context case", func() {
 						// when
-						_, err := svc.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member clusters found")
@@ -212,17 +208,12 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				})
 
 				s.Run("no member cluster with the given URL", func() {
-					svc := service.NewMemberClusterService(nsClient, sc,
-						func(si *service.ServiceImpl) {
-							si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-								return s.memberClusters()
-							}
-						},
-					)
-
+					members := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+						return s.memberClusters()
+					})
 					s.Run("default workspace case", func() {
 						// when
-						_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("012-ready-unknown-cluster", "", "", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -230,7 +221,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("workspace context case", func() {
 						// when
-						_, err := svc.GetClusterAccess("012-ready-unknown-cluster", "", "unknown-cluster", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("012-ready-unknown-cluster", "", "unknown-cluster", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member cluster found for space 'unknown-cluster'")
@@ -270,14 +261,9 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					},
 				}
 
-				svc := service.NewMemberClusterService(nsClient, sc,
-					func(si *service.ServiceImpl) {
-						si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-							return memberArray
-						}
-					},
-				)
-
+				members := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+					return memberArray
+				})
 				s.Run("verify cluster access with route", func() {
 					memberClient.MockGet = func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						route, ok := obj.(*routev1.Route)
@@ -296,7 +282,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					expectedToken := "abc123" // should match member 2 bearer token
 
 					// when
-					ca, err := svc.GetClusterAccess("789-ready", "", "", "tekton-results", publicViewerEnabled)
+					ca, err := members.GetClusterAccess("789-ready", "", "", "tekton-results", publicViewerEnabled)
 
 					// then
 					require.NoError(s.T(), err)
@@ -309,7 +295,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when username provided", func() {
 						// when
-						ca, err := svc.GetClusterAccess("", "smith@", "", "tekton-results", publicViewerEnabled)
+						ca, err := members.GetClusterAccess("", "smith@", "", "tekton-results", publicViewerEnabled)
 
 						// then
 						require.NoError(s.T(), err)
@@ -322,7 +308,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when using workspace context", func() {
 						// when
-						ca, err := svc.GetClusterAccess("789-ready", "", "smith2", "tekton-results", publicViewerEnabled) // workspace-context specified
+						ca, err := members.GetClusterAccess("789-ready", "", "smith2", "tekton-results", publicViewerEnabled) // workspace-context specified
 
 						// then
 						require.NoError(s.T(), err)
@@ -350,7 +336,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 								return memberClient.Client.Get(ctx, key, obj, opts...)
 							}
 							memberArray[0].Client = mC
-							ca, err := svc.GetClusterAccess("789-ready", "", "teamspace", "tekton-results", publicViewerEnabled) // workspace-context specified
+							ca, err := members.GetClusterAccess("789-ready", "", "teamspace", "tekton-results", publicViewerEnabled) // workspace-context specified
 
 							// then
 							require.NoError(s.T(), err)
@@ -368,7 +354,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 					expectedToken := "abc123" // should match member 2 bearer token
 
 					// when
-					ca, err := svc.GetClusterAccess("789-ready", "", "", "", publicViewerEnabled)
+					ca, err := members.GetClusterAccess("789-ready", "", "", "", publicViewerEnabled)
 
 					// then
 					require.NoError(s.T(), err)
@@ -381,7 +367,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when username provided", func() {
 						// when
-						ca, err := svc.GetClusterAccess("", "smith@", "", "", publicViewerEnabled)
+						ca, err := members.GetClusterAccess("", "smith@", "", "", publicViewerEnabled)
 
 						// then
 						require.NoError(s.T(), err)
@@ -394,7 +380,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when using workspace context", func() {
 						// when
-						ca, err := svc.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled) // workspace-context specified
+						ca, err := members.GetClusterAccess("789-ready", "", "smith2", "", publicViewerEnabled) // workspace-context specified
 
 						// then
 						require.NoError(s.T(), err)
@@ -406,7 +392,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 						s.Run("another workspace on another cluster", func() {
 							// when
-							ca, err := svc.GetClusterAccess("789-ready", "", "teamspace", "", publicViewerEnabled) // workspace-context specified
+							ca, err := members.GetClusterAccess("789-ready", "", "teamspace", "", publicViewerEnabled) // workspace-context specified
 
 							// then
 							require.NoError(s.T(), err)
@@ -426,7 +412,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	s.Run("user is public-viewer", func() {
 		s.Run("has no default workspace", func() {
 			// when
-			ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+			ca, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -434,17 +420,12 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 		})
 
 		s.Run("get workspace by name", func() {
-			svc := service.NewMemberClusterService(nsClient, sc,
-				func(si *service.ServiceImpl) {
-					si.GetMembersFunc = func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
-						return s.memberClusters()
-					}
-				},
-			)
-
+			members := proxy.NewMemberClusters(nsClient, sc, func(_ ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster {
+				return s.memberClusters()
+			})
 			s.Run("public-viewer is disabled", func() {
 				// when
-				ca, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
+				ca, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
 
 				// then
 				require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -458,7 +439,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 				expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
 
 				// when
-				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
 
 				// then
 				require.NoError(s.T(), err)
@@ -467,7 +448,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("not-available space", func() {
 				// when
-				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "456-not-ready", "", true)
+				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "456-not-ready", "", true)
 
 				// then
 				require.EqualError(s.T(), err, "the requested space is not available")
@@ -476,7 +457,7 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 
 			s.Run("ready space with unknown cluster", func() {
 				// when
-				clusterAccess, err := svc.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "012-ready-unknown-cluster", "", true)
+				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "012-ready-unknown-cluster", "", true)
 
 				// then
 				require.EqualError(s.T(), err, "the requested space is not available")
@@ -486,19 +467,19 @@ func (s *TestClusterServiceSuite) TestGetClusterAccess() {
 	})
 }
 
-func (s *TestClusterServiceSuite) assertClusterAccess(expected, actual *access.ClusterAccess) {
+func (s *TestMemberClustersSuite) assertClusterAccess(expected, actual *access.ClusterAccess) {
 	require.NotNil(s.T(), expected)
 	require.NotNil(s.T(), actual)
 	assert.Equal(s.T(), expected.APIURL(), actual.APIURL())
 	assert.Equal(s.T(), expected.ImpersonatorToken(), actual.ImpersonatorToken())
 }
 
-func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolchainCluster {
-	cls := make([]*commoncluster.CachedToolchainCluster, 0, 3)
+func (s *TestMemberClustersSuite) memberClusters() []*commoncluster.CachedToolchainCluster {
+	toolchainClusters := make([]*commoncluster.CachedToolchainCluster, 0, 3)
 	for i := 0; i < 3; i++ {
 		clusterName := fmt.Sprintf("member-%d", i)
 
-		cls = append(cls, &commoncluster.CachedToolchainCluster{
+		toolchainClusters = append(toolchainClusters, &commoncluster.CachedToolchainCluster{
 			Config: &commoncluster.Config{
 				Name:              clusterName,
 				APIEndpoint:       fmt.Sprintf("https://api.endpoint.%s.com:6443", clusterName),
@@ -510,5 +491,5 @@ func (s *TestClusterServiceSuite) memberClusters() []*commoncluster.CachedToolch
 			Client: nil,
 		})
 	}
-	return cls
+	return toolchainClusters
 }

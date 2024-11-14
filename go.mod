@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/codeready-toolchain/api v0.0.0-20241009095520-331aa861d43b
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20241003135627-55e81430602b
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20241114123020-f8850b6ff5be
 	github.com/go-logr/logr v1.4.1
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/common v0.42.0
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.24.0
-	gopkg.in/square/go-jose.v2 v2.6.0
+	gopkg.in/go-jose/go-jose.v2 v2.6.3
 	gotest.tools v2.2.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.100.1

@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20240909145803-3b27dcfb3ded
+	github.com/codeready-toolchain/api v0.0.0-20241009095520-331aa861d43b
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20241114123020-f8850b6ff5be
 	github.com/go-logr/logr v1.4.1
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -138,7 +138,7 @@ require (
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
 	github.com/ttacon/libphonenumber v1.2.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
-	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/net v0.24.0 // indirect

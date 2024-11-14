@@ -1,4 +1,4 @@
-package service
+package proxy
 
 import (
 	"context"
@@ -7,9 +7,8 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
@@ -21,27 +20,24 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type Option func(f *ServiceImpl)
-
-// ServiceImpl represents the implementation of the member cluster service.
-type ServiceImpl struct { // nolint:revive
-	base.BaseService
+// MemberClusters is a type that helps with retrieving access to a specific member cluster
+type MemberClusters struct { // nolint:revive
+	namespaced.Client
+	SignupService  service.SignupService
 	GetMembersFunc cluster.GetMemberClustersFunc
 }
 
-// NewMemberClusterService creates a service object for performing toolchain cluster related activities.
-func NewMemberClusterService(context servicecontext.ServiceContext, options ...Option) service.MemberClusterService {
-	si := &ServiceImpl{
-		BaseService:    base.NewBaseService(context),
-		GetMembersFunc: cluster.GetMemberClusters,
-	}
-	for _, o := range options {
-		o(si)
+// NewMemberClusters creates an instance of the MemberClusters type
+func NewMemberClusters(client namespaced.Client, signupService service.SignupService, getMembersFunc cluster.GetMemberClustersFunc) *MemberClusters {
+	si := &MemberClusters{
+		Client:         client,
+		SignupService:  signupService,
+		GetMembersFunc: getMembersFunc,
 	}
 	return si
 }
 
-func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
+func (s *MemberClusters) GetClusterAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// if workspace is not provided then return the default space access
 	if workspace == "" {
 		return s.getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName)
@@ -51,7 +47,7 @@ func (s *ServiceImpl) GetClusterAccess(userID, username, workspace, proxyPluginN
 }
 
 // getSpaceAccess retrieves space access for an user
-func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
+func (s *MemberClusters) getSpaceAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// retrieve the user's complaint name
 	complaintUserName, err := s.getUserSignupComplaintName(userID, username, publicViewerEnabled)
 	if err != nil {
@@ -59,8 +55,8 @@ func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginNam
 	}
 
 	// look up space
-	space, err := s.Services().InformerService().GetSpace(workspace)
-	if err != nil {
+	space := &toolchainv1alpha1.Space{}
+	if err := s.Get(context.TODO(), s.NamespacedName(workspace), space); err != nil {
 		// log the actual error but do not return it so that it doesn't reveal information about a space that may not belong to the requestor
 		log.Error(nil, err, "unable to get target cluster for workspace "+workspace)
 		return nil, fmt.Errorf("the requested space is not available")
@@ -69,7 +65,7 @@ func (s *ServiceImpl) getSpaceAccess(userID, username, workspace, proxyPluginNam
 	return s.accessForSpace(space, complaintUserName, proxyPluginName)
 }
 
-func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
+func (s *MemberClusters) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
 	// if PublicViewer is enabled and the requested user is the PublicViewer, than no lookup is required
 	if publicViewerEnabled && username == toolchainv1alpha1.KubesawAuthenticatedUsername {
 		return username, nil
@@ -85,7 +81,7 @@ func (s *ServiceImpl) getUserSignupComplaintName(userID, username string, public
 }
 
 // getClusterAccessForDefaultWorkspace retrieves the cluster for the user's default workspace
-func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
+func (s *MemberClusters) getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// retrieve the UserSignup from cache
 	userSignup, err := s.getSignupFromInformerForProvisionedUser(userID, username)
 	if err != nil {
@@ -96,10 +92,10 @@ func (s *ServiceImpl) getClusterAccessForDefaultWorkspace(userID, username, prox
 	return s.accessForCluster(userSignup.APIEndpoint, userSignup.ClusterName, userSignup.CompliantUsername, proxyPluginName)
 }
 
-func (s *ServiceImpl) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
+func (s *MemberClusters) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
 	// don't check for usersignup complete status, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := s.Services().SignupService().GetSignupFromInformer(nil, userID, username, false)
+	userSignup, err := s.SignupService.GetSignup(nil, userID, username, false)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +110,7 @@ func (s *ServiceImpl) getSignupFromInformerForProvisionedUser(userID, username s
 	return userSignup, nil
 }
 
-func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, proxyPluginName string) (*access.ClusterAccess, error) {
+func (s *MemberClusters) accessForSpace(space *toolchainv1alpha1.Space, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -137,7 +133,7 @@ func (s *ServiceImpl) accessForSpace(space *toolchainv1alpha1.Space, username, p
 	return nil, errs.New(errMsg)
 }
 
-func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxyPluginName string) (*access.ClusterAccess, error) {
+func (s *MemberClusters) accessForCluster(apiEndpoint, clusterName, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// Get the target member
 	members := s.GetMembersFunc()
 	if len(members) == 0 {
@@ -160,7 +156,7 @@ func (s *ServiceImpl) accessForCluster(apiEndpoint, clusterName, username, proxy
 	return nil, errs.New("no member cluster found for the user")
 }
 
-func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.CachedToolchainCluster) (*url.URL, error) {
+func (s *MemberClusters) getMemberURL(proxyPluginName string, member *cluster.CachedToolchainCluster) (*url.URL, error) {
 	if member == nil {
 		return nil, errs.New("nil member provided")
 	}
@@ -170,8 +166,8 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 	if member.Client == nil {
 		return nil, errs.New(fmt.Sprintf("client for member %s not set", member.Name))
 	}
-	proxyCfg, err := s.Services().InformerService().GetProxyPluginConfig(proxyPluginName)
-	if err != nil {
+	proxyCfg := &toolchainv1alpha1.ProxyPlugin{}
+	if err := s.Get(context.TODO(), s.NamespacedName(proxyPluginName), proxyCfg); err != nil {
 		return nil, errs.New(fmt.Sprintf("unable to get proxy config %s: %s", proxyPluginName, err.Error()))
 	}
 	if proxyCfg.Spec.OpenShiftRouteTargetEndpoint == nil {
@@ -185,7 +181,7 @@ func (s *ServiceImpl) getMemberURL(proxyPluginName string, member *cluster.Cache
 		Namespace: routeNamespace,
 		Name:      routeName,
 	}
-	err = member.Client.Get(context.Background(), key, proxyRoute)
+	err := member.Client.Get(context.Background(), key, proxyRoute)
 	if err != nil {
 		return nil, err
 	}

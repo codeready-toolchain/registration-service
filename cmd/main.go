@@ -11,8 +11,8 @@ import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
@@ -84,16 +84,9 @@ func main() {
 			panic(fmt.Sprintf("cannot set captcha credentials: %s", err.Error()))
 		}
 	}
+	nsClient := namespaced.NewClient(cl, configuration.Namespace())
 
-	informer, informerShutdown, err := informers.StartInformer(cfg)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	app, err := server.NewInClusterApplication(*informer)
-	if err != nil {
-		panic(err.Error())
-	}
+	app := server.NewInClusterApplication(nsClient)
 	// Initialize toolchain cluster cache service
 	// let's cache the member clusters before we start the services,
 	// this will speed up the first request
@@ -115,16 +108,11 @@ func main() {
 	proxyMetrics := metrics.NewProxyMetrics(proxyRegistry)
 	proxyMetricsSrv := proxy.StartMetricsServer(proxyRegistry, proxy.ProxyMetricsPort)
 	// Proxy API server
-	p, err := proxy.NewProxy(app, proxyMetrics, cluster.GetMemberClusters)
+	p, err := proxy.NewProxy(nsClient, app, proxyMetrics, cluster.GetMemberClusters)
 	if err != nil {
 		panic(errs.Wrap(err, "failed to create proxy"))
 	}
 	proxySrv := p.StartProxy(proxy.DefaultPort)
-
-	// stop the informer when proxy server shuts down
-	proxySrv.RegisterOnShutdown(func() {
-		informerShutdown <- struct{}{}
-	})
 
 	// ---------------------------------------------
 	// Registration Service
@@ -132,7 +120,7 @@ func main() {
 	regsvcRegistry := prometheus.NewRegistry()
 	regsvcMetricsSrv, _ := server.StartMetricsServer(regsvcRegistry, server.RegSvcMetricsPort)
 	regsvcSrv := server.New(app)
-	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry)
+	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry, nsClient)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -202,9 +190,23 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 
 	// populate the cache backed by shared informers that are initialized lazily on the first call
 	// for the given GVK with all resources we are interested in from the host-operator namespace
-	objectsToList := []client.ObjectList{&toolchainv1alpha1.ToolchainConfigList{}, &corev1.SecretList{}}
-	for i := range objectsToList {
-		if err := hostCluster.GetClient().List(ctx, objectsToList[i], client.InNamespace(configuration.Namespace())); err != nil {
+	objectsToList := map[string]client.ObjectList{
+		"MasterUserRecord": &toolchainv1alpha1.MasterUserRecordList{},
+		"Space":            &toolchainv1alpha1.SpaceList{},
+		"SpaceBinding":     &toolchainv1alpha1.SpaceBindingList{},
+		"ToolchainStatus":  &toolchainv1alpha1.ToolchainStatusList{},
+		"UserSignup":       &toolchainv1alpha1.UserSignupList{},
+		"ProxyPlugin":      &toolchainv1alpha1.ProxyPluginList{},
+		"NSTemplateTier":   &toolchainv1alpha1.NSTemplateTierList{},
+		"ToolchainConfig":  &toolchainv1alpha1.ToolchainConfigList{},
+		"BannedUser":       &toolchainv1alpha1.BannedUserList{},
+		"ToolchainCluster": &toolchainv1alpha1.ToolchainClusterList{},
+		"Secret":           &corev1.SecretList{}}
+
+	for resourceName := range objectsToList {
+		log.Infof(nil, "Syncing informer cache with %s resources", resourceName)
+		if err := hostCluster.GetClient().List(ctx, objectsToList[resourceName], client.InNamespace(configuration.Namespace())); err != nil {
+			log.Errorf(nil, err, "Informer cache sync failed for %s", resourceName)
 			return nil, err
 		}
 	}

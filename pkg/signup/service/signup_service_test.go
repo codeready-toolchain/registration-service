@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"bytes"
+	gocontext "context"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -15,15 +16,17 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/codeready-toolchain/registration-service/test/fake"
+	testutil "github.com/codeready-toolchain/registration-service/test/util"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-	test2 "github.com/codeready-toolchain/toolchain-common/pkg/test"
+	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
@@ -34,11 +37,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 type TestSignupServiceSuite struct {
@@ -49,10 +48,8 @@ func TestRunSignupServiceSuite(t *testing.T) {
 	suite.Run(t, &TestSignupServiceSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verificationEnabled bool,
+func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
 	excludedDomains string, verificationCodeExpiresInMin int) {
-
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, namespace)
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
@@ -62,27 +59,20 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(namespace string, verifica
 }
 
 func (s *TestSignupServiceSuite) TestSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 	// given
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	assertUserSignupExists := func(userSignup *toolchainv1alpha1.UserSignup, username string) (schema.GroupVersionResource, toolchainv1alpha1.UserSignup) {
-		require.NotNil(s.T(), userSignup)
+	assertUserSignupExists := func(cl client.Client, username string) toolchainv1alpha1.UserSignup {
 
-		gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+		userSignups := &toolchainv1alpha1.UserSignupList{}
+		err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 		require.NoError(s.T(), err)
-		gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-		values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-		require.NoError(s.T(), err)
-
-		userSignups := values.(*toolchainv1alpha1.UserSignupList)
-		require.NotEmpty(s.T(), userSignups.Items)
 		require.Len(s.T(), userSignups.Items, 1)
 
 		val := userSignups.Items[0]
-		require.Equal(s.T(), configuration.Namespace(), val.Namespace)
+		require.Equal(s.T(), commontest.HostOperatorNs, val.Namespace)
 		require.Equal(s.T(), username, val.Name)
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
@@ -99,7 +89,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "original-sub-value", val.Spec.IdentityClaims.OriginalSub)
 		require.Equal(s.T(), "jsmith@gmail.com", val.Spec.IdentityClaims.Email)
 
-		return gvr, val
+		return val
 	}
 
 	rr := httptest.NewRecorder()
@@ -114,8 +104,10 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx.Set(context.UserIDKey, "13349822")
 	ctx.Set(context.AccountIDKey, "45983711")
 
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
 	// when
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	userSignup, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
@@ -123,7 +115,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // at this point, the last target cluster annotation is not set
 	require.Equal(s.T(), "original-sub-value", userSignup.Spec.IdentityClaims.OriginalSub)
 
-	gvr, existing := assertUserSignupExists(userSignup, "jsmith")
+	existing := assertUserSignupExists(fakeClient, "jsmith")
 
 	s.Run("deactivate and reactivate again", func() {
 		// given
@@ -132,16 +124,14 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey] = "member-3" // assume the user was targeted to member-3
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
-		require.NoError(s.T(), err)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
 
 		// when
-		deactivatedUS, err = s.Application.SignupService().Signup(ctx)
+		deactivatedUS, err = application.SignupService().Signup(ctx)
 
 		// then
 		require.NoError(s.T(), err)
-		assertUserSignupExists(deactivatedUS, "jsmith")
-		assert.NotEmpty(s.T(), deactivatedUS.ResourceVersion)
+		assertUserSignupExists(fakeClient, "jsmith")
 		assert.Equal(s.T(), "2", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey])        // value was preserved
 		assert.Equal(s.T(), "member-3", deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // value was preserved
 	})
@@ -154,16 +144,14 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey)
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
-		require.NoError(s.T(), err)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
 
 		// when
-		userSignup, err := s.Application.SignupService().Signup(ctx)
+		userSignup, err := application.SignupService().Signup(ctx)
 
 		// then
 		require.NoError(s.T(), err)
-		assertUserSignupExists(userSignup, "jsmith")
-		assert.NotEmpty(s.T(), userSignup.ResourceVersion)
+		assertUserSignupExists(fakeClient, "jsmith")
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]) // was initially missing, and was not set
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // was initially missing, and was not set
 	})
@@ -173,17 +161,16 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS := existing.DeepCopy()
 		states.SetDeactivated(deactivatedUS, true)
 		deactivatedUS.Status.Conditions = deactivated()
-		err := s.FakeUserSignupClient.Tracker.Update(gvr, deactivatedUS, configuration.Namespace())
-		require.NoError(s.T(), err)
-		s.FakeUserSignupClient.MockUpdate = func(signup *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
-			if signup.Name == "jsmith" {
-				return nil, errors.New("an error occurred")
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
+		fakeClient.MockUpdate = func(ctx gocontext.Context, obj client.Object, opts ...client.UpdateOption) error {
+			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && obj.GetName() == "jsmith" {
+				return errors.New("an error occurred")
 			}
-			return &toolchainv1alpha1.UserSignup{}, nil
+			return fakeClient.Client.Update(ctx, obj, opts...)
 		}
 
 		// when
-		_, err = s.Application.SignupService().Signup(ctx)
+		_, err = application.SignupService().Signup(ctx)
 
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
@@ -205,12 +192,13 @@ func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 	ctx.Set(context.FamilyNameKey, "abernathy")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	s.FakeUserSignupClient.MockGet = func(_ string) (*toolchainv1alpha1.UserSignup, error) {
-		return nil, errors2.NewInternalError(errors.New("an internal error"), "an internal error happened")
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+	fakeClient.MockGet = func(_ gocontext.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+		return errors2.NewInternalError(errors.New("an internal error"), "an internal error happened")
 	}
 
 	// when
-	_, err = s.Application.SignupService().Signup(ctx)
+	_, err = application.SignupService().Signup(ctx)
 	require.EqualError(s.T(), err, "an internal error: an internal error happened")
 }
 
@@ -230,64 +218,40 @@ func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 	ctx.Set(context.FamilyNameKey, "smith")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
-		if id == userID.String() {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+	fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+		if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && key.Name != userID.String() {
+			return errors2.NewInternalError(errors.New("something bad happened"), "something very bad happened")
 		}
-		return nil, errors2.NewInternalError(errors.New("something bad happened"), "something very bad happened")
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 
 	// when
-	_, err = s.Application.SignupService().Signup(ctx)
+	_, err = application.SignupService().Signup(ctx)
 	require.EqualError(s.T(), err, "something bad happened: something very bad happened")
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() {
-
 	// given
-	s.FakeUserSignupClient.MockGet = func(id string) (*toolchainv1alpha1.UserSignup, error) {
-		if id == "000" {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, id)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+	fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+		if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && key.Name != "000" {
+			return errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
 		}
-		return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	_, err := s.Application.SignupService().GetSignup(c, "000", "abc")
+	_, err := application.SignupService().GetSignup(c, "000", "abc", true)
 
 	// then
 	require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == "000" {
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			return nil, errors2.NewInternalError(errors.New("something quite unfortunate happened"), "something bad")
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		_, err := svc.GetSignupFromInformer(c, "000", "abc", true)
-
-		// then
-		require.EqualError(t, err, "something quite unfortunate happened: something bad")
-	})
 }
 
 func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -304,22 +268,18 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	ctx.Set(context.CompanyKey, "red hat")
 	ctx.Request, _ = http.NewRequest("POST", "/?no-space=true", bytes.NewBufferString(""))
 
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
 	// when
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	userSignup, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-	require.NoError(s.T(), err)
-
-	userSignups := values.(*toolchainv1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
@@ -327,7 +287,7 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 }
 
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
+	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
 	// captcha is enabled
 	serviceOption := func(svc *service.ServiceImpl) {
@@ -337,8 +297,6 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	opt := func(serviceFactory *factory.ServiceFactory) {
 		serviceFactory.WithSignupServiceOption(serviceOption)
 	}
-
-	s.WithFactoryOption(opt)
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
@@ -362,22 +320,18 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	ctx.Request, _ = http.NewRequest("POST", "/", bytes.NewBufferString(""))
 	ctx.Request.Header.Set("Recaptcha-Token", "abc")
 
+	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), opt)
+
 	// when
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	userSignup, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-	require.NoError(s.T(), err)
-
-	userSignups := values.(*toolchainv1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
@@ -385,7 +339,7 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 }
 
 func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -402,21 +356,18 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	ctx.Set(context.FamilyNameKey, "jones")
 	ctx.Set(context.CompanyKey, "red hat")
 
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
 	// when
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	userSignup, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
+	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-	require.NoError(s.T(), err)
-
-	userSignups := values.(*toolchainv1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
@@ -462,7 +413,7 @@ func (s *TestSignupServiceSuite) TestEncodeUserID() {
 }
 
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -476,19 +427,18 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	ctx.Set(context.FamilyNameKey, "smith")
 	ctx.Set(context.CompanyKey, "red hat")
 
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
+	// when
+	userSignup, err := application.SignupService().Signup(ctx)
+
+	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-	require.NoError(s.T(), err)
-
-	userSignups := values.(*toolchainv1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
@@ -496,7 +446,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -509,25 +459,29 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "smith")
 	ctx.Set(context.CompanyKey, "red hat")
+	_, application := testutil.PrepareInClusterApp(s.T())
 
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+	// when
+	userSignup, err := application.SignupService().Signup(ctx)
+
+	// then
 	require.EqualError(s.T(), err, "forbidden: failed to create usersignup for jsmith-crtadmin")
 	require.Nil(s.T(), userSignup)
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
+	signup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{},
-	})
+	}
 	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
@@ -535,13 +489,18 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	_, err = s.Application.SignupService().Signup(ctx)
 
+	_, application := testutil.PrepareInClusterApp(s.T(), signup)
+
+	// when
+	_, err = application.SignupService().Signup(ctx)
+
+	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("Operation cannot be fulfilled on  \"\": UserSignup [id: %s; username: jsmith]. Unable to create UserSignup because there is already an active UserSignup with such ID", userID.String()))
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	// given
 	userID, err := uuid.NewV4()
@@ -550,11 +509,11 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
+	bannedUser := &toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
@@ -562,7 +521,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jsmith@gmail.com",
 		},
-	})
+	}
 	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
@@ -571,8 +530,10 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
+	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
+
 	// when
-	_, err = s.Application.SignupService().Signup(ctx)
+	_, err = application.SignupService().Signup(ctx)
 
 	// then
 	require.Error(s.T(), err)
@@ -584,7 +545,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "redhat.com", 5)
+	s.ServiceConfiguration(true, "redhat.com", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -592,11 +553,11 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
+	bannedUser := &toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
@@ -605,7 +566,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
-	})
+	}
 	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
@@ -613,27 +574,34 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "jsmith", "+12268213044")
+
+	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
+
+	// when
+	err = application.SignupService().PhoneNumberAlreadyInUse(bannedUserID.String(), "jsmith", "+12268213044")
+
+	// then
 	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
 }
 
 func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&toolchainv1alpha1.UserSignup{
+	signup := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueApproved,
 			},
 		},
-	})
+	}
 	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
@@ -644,12 +612,18 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 
 	newUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
-	err = s.Application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "jsmith", "+12268213044")
+
+	_, application := testutil.PrepareInClusterApp(s.T(), signup)
+
+	// when
+	err = application.SignupService().PhoneNumberAlreadyInUse(newUserID.String(), "jsmith", "+12268213044")
+
+	// then
 	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
@@ -657,11 +631,11 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	bannedUserID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	err = s.FakeBannedUserClient.Tracker.Add(&toolchainv1alpha1.BannedUser{
+	bannedUser := &toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      bannedUserID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
 			},
@@ -669,7 +643,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 		Spec: toolchainv1alpha1.BannedUserSpec{
 			Email: "jane.doe@gmail.com",
 		},
-	})
+	}
 	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
@@ -677,23 +651,23 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, userID.String())
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
-	userSignup, err := s.Application.SignupService().Signup(ctx)
+
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
+
+	// when
+	userSignup, err := application.SignupService().Signup(ctx)
+
+	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
-	gvk, err := apiutil.GVKForObject(userSignup, s.FakeUserSignupClient.Scheme)
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
-	gvr, _ := meta.UnsafeGuessKindToResource(gvk)
-
-	values, err := s.FakeUserSignupClient.Tracker.List(gvr, gvk, configuration.Namespace())
-	require.NoError(s.T(), err)
-
-	userSignups := values.(*toolchainv1alpha1.UserSignupList)
-	require.NotEmpty(s.T(), userSignups.Items)
 	require.Len(s.T(), userSignups.Items, 1)
 
 	val := userSignups.Items[0]
-	require.Equal(s.T(), configuration.Namespace(), val.Namespace)
+	require.Equal(s.T(), commontest.HostOperatorNs, val.Namespace)
 	require.Equal(s.T(), "jsmith", val.Name)
 	require.False(s.T(), states.ApprovedManually(&val))
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
@@ -704,43 +678,19 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	username := "johnsmith"
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	s.FakeUserSignupClient.MockGet = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-		if name == username {
-			return nil, errors.New("an error occurred")
+	fakeClient, application := testutil.PrepareInClusterApp(s.T())
+	fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+		if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && key.Name != username {
+			return errors.New("an error occurred")
 		}
-		return &toolchainv1alpha1.UserSignup{}, nil
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 
 	// when
-	_, err := s.Application.SignupService().GetSignup(c, "", username)
+	_, err := application.SignupService().GetSignup(c, "", username, true)
 
 	// then
 	require.EqualError(s.T(), err, "an error occurred")
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == username {
-				return nil, errors.New("an error occurred")
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		_, err := svc.GetSignupFromInformer(c, "johnsmith", "abc", true)
-
-		// then
-		require.EqualError(t, err, "an error occurred")
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
@@ -748,50 +698,30 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	_, application := testutil.PrepareInClusterApp(s.T())
 
-	signup, err := s.Application.SignupService().GetSignup(c, userID.String(), "")
+	// when
+	signup, err := application.SignupService().GetSignup(c, userID.String(), "", true)
+
+	// then
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		signup, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
-
-		// then
-		require.Nil(t, signup)
-		require.NoError(t, err)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	userID, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	userSignupNotComplete := toolchainv1alpha1.UserSignup{
+	userSignupNotComplete := &toolchainv1alpha1.UserSignup{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.UserSignupSpec{
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
@@ -815,13 +745,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 			},
 		},
 	}
-	states.SetVerificationRequired(&userSignupNotComplete, true)
+	states.SetVerificationRequired(userSignupNotComplete, true)
 
-	err = s.FakeUserSignupClient.Tracker.Add(&userSignupNotComplete)
-	require.NoError(s.T(), err)
+	_, application := testutil.PrepareInClusterApp(s.T(), userSignupNotComplete)
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(c, userID.String(), "")
+	response, err := application.SignupService().GetSignup(c, userID.String(), "", true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -844,99 +773,20 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	assert.Empty(s.T(), response.StartDate)
 	assert.Empty(s.T(), response.EndDate)
 
-	s.T().Run("informer - with check for usersignup complete condition", func(t *testing.T) {
+	s.T().Run("with no check for UserSignup complete condition", func(t *testing.T) {
 		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == userID.String() {
-				return &userSignupNotComplete, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, response)
-
-		require.Equal(t, userID.String(), response.Name)
-		require.Equal(t, "bill", response.Username)
-		require.Equal(t, "bill", response.CompliantUsername)
-		require.False(t, response.Status.Ready)
-		require.Equal(t, "test_reason", response.Status.Reason)
-		require.Equal(t, "test_message", response.Status.Message)
-		require.True(t, response.Status.VerificationRequired)
-		require.Empty(t, response.ConsoleURL)
-		require.Empty(t, response.CheDashboardURL)
-		require.Empty(t, response.APIEndpoint)
-		require.Empty(t, response.ClusterName)
-		require.Empty(t, response.ProxyURL)
-		assert.Equal(t, "", response.DefaultUserNamespace)
-		assert.Equal(t, "", response.RHODSMemberURL)
-	})
-
-	s.T().Run("informer - with no check for UserSignup complete condition", func(t *testing.T) {
-		// given
-		states.SetVerificationRequired(&userSignupNotComplete, false)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
+		states.SetVerificationRequired(userSignupNotComplete, false)
 		mur := s.newProvisionedMUR("bill")
-		err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-		require.NoError(t, err)
-
 		space := s.newSpace(mur.Name)
-		err = s.FakeSpaceClient.Tracker.Add(space)
-		require.NoError(t, err)
-
 		spacebinding := s.newSpaceBinding(mur.Name, space.Name)
-		err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-		require.NoError(t, err)
-
 		toolchainStatus := s.newToolchainStatus(".apps.")
-		err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-		require.NoError(t, err)
 
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == userID.String() {
-				return &userSignupNotComplete, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return toolchainStatus, nil
-		}
-		s.Application.MockInformerService(inf)
+		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete, mur, space, spacebinding, toolchainStatus)
+		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
 		// we set checkUserSignupCompleted to false
-		response, err := svc.GetSignupFromInformer(c, userID.String(), userSignupNotComplete.Spec.IdentityClaims.PreferredUsername, false)
+		response, err := svc.GetSignup(c, userID.String(), userSignupNotComplete.Spec.IdentityClaims.PreferredUsername, false)
 
 		// then
 		require.NoError(t, err)
@@ -961,7 +811,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	noCondition := toolchainv1alpha1.UserSignupStatus{}
 	pendingApproval := toolchainv1alpha1.UserSignupStatus{
@@ -994,11 +844,11 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-		userSignup := toolchainv1alpha1.UserSignup{
+		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      userID.String(),
-				Namespace: configuration.Namespace(),
+				Namespace: commontest.HostOperatorNs,
 			},
 			Spec: toolchainv1alpha1.UserSignupSpec{
 				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
@@ -1008,13 +858,12 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 			Status: status,
 		}
 
-		states.SetVerificationRequired(&userSignup, true)
+		states.SetVerificationRequired(userSignup, true)
 
-		err = s.FakeUserSignupClient.Tracker.Add(&userSignup)
-		require.NoError(s.T(), err)
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// when
-		response, err := s.Application.SignupService().GetSignup(c, userID.String(), "bill")
+		response, err := application.SignupService().GetSignup(c, userID.String(), "bill", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -1034,93 +883,26 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Empty(s.T(), response.ProxyURL)
 		assert.Equal(s.T(), "", response.DefaultUserNamespace)
 		assert.Equal(s.T(), "", response.RHODSMemberURL)
-
-		s.T().Run("informer", func(t *testing.T) {
-			// given
-			inf := fake.NewFakeInformer()
-			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-				if name == userID.String() {
-					return &userSignup, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-
-			s.Application.MockInformerService(inf)
-			svc := service.NewSignupService(
-				fake.MemberClusterServiceContext{
-					Client: s,
-					Svcs:   s.Application,
-				},
-			)
-
-			// when
-			response, err := svc.GetSignupFromInformer(c, userID.String(), "", true)
-
-			// then
-			require.NoError(t, err)
-			require.NotNil(t, response)
-
-			require.Equal(t, userID.String(), response.Name)
-			require.Equal(t, "bill", response.Username)
-			require.Empty(t, response.CompliantUsername)
-			require.False(t, response.Status.Ready)
-			require.Equal(t, "PendingApproval", response.Status.Reason)
-			require.True(t, response.Status.VerificationRequired)
-			require.Empty(t, response.Status.Message)
-			require.Empty(t, response.ConsoleURL)
-			require.Empty(t, response.CheDashboardURL)
-			require.Empty(t, response.APIEndpoint)
-			require.Empty(t, response.ClusterName)
-			require.Empty(t, response.ProxyURL)
-			assert.Equal(t, "", response.DefaultUserNamespace)
-			assert.Equal(t, "", response.RHODSMemberURL)
-		})
 	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	us := s.newUserSignupComplete()
 	us.Status.Conditions = deactivated()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
+
+	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	signup, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+	signup, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		signup, err := svc.GetSignupFromInformer(c, us.Name, "", true)
-
-		// then
-		require.Nil(t, signup)
-		require.NoError(t, err)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
@@ -1128,32 +910,20 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	for _, appsSubDomain := range []string{".apps.", ".apps-"} {
 		s.SetupTest()
 		s.T().Run("for apps subdomain: "+appsSubDomain, func(t *testing.T) {
-			s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+			s.ServiceConfiguration(true, "", 5)
 
 			us := s.newUserSignupComplete()
-			err := s.FakeUserSignupClient.Tracker.Add(us)
-			require.NoError(t, err)
-
 			mur := s.newProvisionedMUR("ted")
-			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-			require.NoError(t, err)
+			toolchainStatus := s.newToolchainStatus(appsSubDomain)
+			space := s.newSpace(mur.Name)
+			spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+
+			_, application := testutil.PrepareInClusterApp(s.T(), us, mur, toolchainStatus, space, spacebinding)
 
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-			toolchainStatus := s.newToolchainStatus(appsSubDomain)
-			err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-			require.NoError(t, err)
-
-			space := s.newSpace(mur.Name)
-			err = s.FakeSpaceClient.Tracker.Add(space)
-			require.NoError(t, err)
-
-			spacebinding := s.newSpaceBinding(mur.Name, space.Name)
-			err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-			require.NoError(t, err)
-
 			// when
-			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+			response, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 			// then
 			require.NoError(t, err)
@@ -1176,107 +946,36 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
 			assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
 			assert.Equal(t, fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
-
-			s.T().Run("informer", func(t *testing.T) {
-				// given
-				inf := fake.NewFakeInformer()
-				inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-					if name == us.Name {
-						return us, nil
-					}
-					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-				}
-				inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-					if name == mur.Name {
-						return mur, nil
-					}
-					return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-				}
-				inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-					return toolchainStatus, nil
-				}
-				inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-					return space, nil
-				}
-				inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-					return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-				}
-
-				s.Application.MockInformerService(inf)
-				svc := service.NewSignupService(
-					fake.MemberClusterServiceContext{
-						Client: s,
-						Svcs:   s.Application,
-					},
-				)
-
-				// when
-				response, err := svc.GetSignupFromInformer(c, us.Name, "", true)
-
-				// then
-				require.NoError(t, err)
-				require.NotNil(t, response)
-
-				require.Equal(t, "jsmith", response.Username)
-				require.Equal(t, "ted", response.CompliantUsername)
-				assert.True(t, response.Status.Ready)
-				assert.Equal(t, "mur_ready_reason", response.Status.Reason)
-				assert.Equal(t, "mur_ready_message", response.Status.Message)
-				assert.False(t, response.Status.VerificationRequired)
-				assert.Equal(t, fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
-				assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-				assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
-				assert.Equal(t, "member-123", response.ClusterName)
-				assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
-				assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
-				assert.Equal(t, fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
-			})
 		})
 	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	us := s.newUserSignupComplete()
 	us.Name = service.EncodeUserIdentifier(us.Spec.IdentityClaims.PreferredUsername)
 	// Set the scheduled deactivation timestamp 1 day in the future
 	deactivationTimestamp := time.Now().Add(time.Hour * 24).Round(time.Second).UTC()
 	us.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(deactivationTimestamp))
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
 
 	mur := s.newProvisionedMUR("ted")
 	// Set the provisioned time 29 days in the past
 	provisionedTime := time.Now().Add(-time.Hour * 24 * 29).Round(time.Second)
 	mur.Status.ProvisionedTime = util.Ptr(v1.NewTime(provisionedTime))
-	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-	require.NoError(s.T(), err)
 
-	svc := service.NewSignupService(
-		fake.MemberClusterServiceContext{
-			Client: s,
-			Svcs:   s.Application,
-		},
-	)
+	space := s.newSpace(mur.Name)
+	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
+	toolchainStatus := s.newToolchainStatus(".apps.")
+
+	fakeClient := commontest.NewFakeClient(s.T(), us, mur, space, spacebinding, toolchainStatus)
+	svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	space := s.newSpace(mur.Name)
-	err = s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
-
-	spacebinding := s.newSpaceBinding(mur.Name, space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding)
-	require.NoError(s.T(), err)
-
-	toolchainStatus := s.newToolchainStatus(".apps.")
-	err = s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus)
-	require.NoError(s.T(), err)
-
 	// when
-	response, err := svc.GetSignup(c, "foo", us.Spec.IdentityClaims.PreferredUsername)
+	response, err := svc.GetSignup(c, "foo", us.Spec.IdentityClaims.PreferredUsername, true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -1304,62 +1003,6 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
 	assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
 	assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return toolchainStatus, nil
-		}
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding}, nil
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		response, err := svc.GetSignupFromInformer(c, "foo", us.Spec.IdentityClaims.PreferredUsername, true)
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, response)
-
-		require.Equal(t, us.Name, response.Name)
-		require.Equal(t, "jsmith", response.Username)
-		require.Equal(t, "ted", response.CompliantUsername)
-		assert.True(t, response.Status.Ready)
-		assert.Equal(t, "mur_ready_reason", response.Status.Reason)
-		assert.Equal(t, "mur_ready_message", response.Status.Message)
-		assert.False(t, response.Status.VerificationRequired)
-		assert.Equal(t, "https://console.apps.member-123.com", response.ConsoleURL)
-		assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-		assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
-		assert.Equal(t, "member-123", response.ClusterName)
-		assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
-		assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
-		assert.Equal(t, "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
-	})
 }
 
 func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolchainv1alpha1.ToolchainStatus {
@@ -1367,7 +1010,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "toolchain-status",
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Status: toolchainv1alpha1.ToolchainStatusStatus{
 			Members: []toolchainv1alpha1.Member{
@@ -1402,130 +1045,52 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	us := s.newUserSignupComplete()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
-
 	mur := s.newProvisionedMUR("ted")
-	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-	require.NoError(s.T(), err)
 	space := s.newSpace("ted")
-	require.NoError(s.T(), s.FakeSpaceClient.Tracker.Add(space))
+
+	_, application := testutil.PrepareInClusterApp(s.T(), us, mur, space)
 
 	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	_, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == mur.Name {
-				return mur, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			if name == space.Name {
-				return space, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, "toolchain-status")
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
-
-		// then
-		require.EqualError(t, err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s:  \"toolchain-status\" not found", us.Name))
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	us := s.newUserSignupComplete()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	returnedErr := errors.New("an error occurred")
-	s.FakeMasterUserRecordClient.MockGet = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-		if name == us.Status.CompliantUsername {
-			return nil, returnedErr
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
+	fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+		if _, ok := obj.(*toolchainv1alpha1.MasterUserRecord); ok && key.Name == us.Status.CompliantUsername {
+			return returnedErr
 		}
-		return &toolchainv1alpha1.MasterUserRecord{}, nil
+		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 
 	// when
-	_, err = s.Application.SignupService().GetSignup(c, us.Name, "")
+	_, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-		inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-			if name == us.Status.CompliantUsername {
-				return nil, returnedErr
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		_, err := svc.GetSignupFromInformer(c, us.Name, "", true)
-
-		// then
-		require.EqualError(t, err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	us := s.newUserSignupComplete()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
@@ -1533,14 +1098,12 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "ted",
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 	}
 
 	space := s.newSpace("ted")
-	require.NoError(s.T(), s.FakeSpaceClient.Tracker.Add(space))
 	toolchainStatus := s.newToolchainStatus(".apps.")
-	require.NoError(s.T(), s.FakeToolchainStatusClient.Tracker.Add(toolchainStatus))
 
 	tests := map[string]struct {
 		condition              toolchainv1alpha1.Condition
@@ -1596,72 +1159,26 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 					tc.condition,
 				},
 			}
-			err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-			require.NoError(t, err)
+			_, application := testutil.PrepareInClusterApp(s.T(), us, mur, space, toolchainStatus)
 
 			// when
-			response, err := s.Application.SignupService().GetSignup(c, us.Name, "")
+			response, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 			// then
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedConditionReady, response.Status.Ready)
 			require.Equal(t, tc.condition.Reason, response.Status.Reason)
 			require.Equal(t, tc.condition.Message, response.Status.Message)
-
-			// informer case
-			// given
-			inf := fake.NewFakeInformer()
-			inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-				if name == us.Name {
-					return us, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetMurFunc = func(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-				if name == mur.Name {
-					return mur, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-				if name == space.Name {
-					return space, nil
-				}
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-			inf.GetToolchainStatusFunc = func() (*toolchainv1alpha1.ToolchainStatus, error) {
-				return toolchainStatus, nil
-			}
-
-			s.Application.MockInformerService(inf)
-			svc := service.NewSignupService(
-				fake.MemberClusterServiceContext{
-					Client: s,
-					Svcs:   s.Application,
-				},
-			)
-
-			// when
-			_, err = svc.GetSignupFromInformer(c, us.Name, "", true)
-
-			// then
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedConditionReady, response.Status.Ready)
-			require.Equal(t, tc.condition.Reason, response.Status.Reason)
-			require.Equal(t, tc.condition.Message, response.Status.Message)
-			err = s.FakeMasterUserRecordClient.Delete(mur.Name, nil)
-			require.NoError(t, err)
 		})
 	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	us := s.newBannedUserSignup()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
+	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
@@ -1670,312 +1187,149 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	// when
-	response, err := s.Application.SignupService().GetSignup(ctx, us.Name, "")
+	response, err := application.SignupService().GetSignup(ctx, us.Name, "", true)
 
 	// then
 	// return not found signup
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), response)
 	require.Equal(s.T(), toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetUserSignupFunc = func(name string) (*toolchainv1alpha1.UserSignup, error) {
-			if name == us.Name {
-				return us, nil
-			}
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		s.Application.MockInformerService(inf)
-		svc := service.NewSignupService(
-			fake.MemberClusterServiceContext{
-				Client: s,
-				Svcs:   s.Application,
-			},
-		)
-
-		// when
-		response, err := svc.GetSignupFromInformer(ctx, us.Name, "", true)
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		require.Equal(t, toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
-
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	space := s.newSpace("dave")
-	err := s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
+	fakeClient := commontest.NewFakeClient(s.T(), space)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
 	assert.Equal(s.T(), "member-123", targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
-
-		// then
-		assert.Equal(t, "dave-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 // TestGetDefaultUserNamespaceFromFirstUnownedSpace tests that the default user namespace is returned even if the only accessible Space was not created as the home space.
 // This is valuable when user doesn't have default home space created, but has access to some shared spaces
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 	// space created for userA
 	space := s.newSpace("userA")
-	err := s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
-
 	// space shared with userB
 	spacebindingB := s.newSpaceBinding("userB", space.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebindingB)
-	require.NoError(s.T(), err)
-
 	// space created for userC
 	spaceC := s.newSpace("userC")
-	err = s.FakeSpaceClient.Tracker.Add(spaceC)
-	require.NoError(s.T(), err)
-
 	// spaceC shared with userB
 	spaceCindingC := s.newSpaceBinding("userB", spaceC.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spaceCindingC)
-	require.NoError(s.T(), err)
+
+	fakeClient := commontest.NewFakeClient(s.T(), space, spacebindingB, spaceC, spaceCindingC)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
 	assert.Equal(s.T(), "member-123", targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebindingB, *spaceCindingC}, nil
-		}
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "userB")
-
-		// then
-		assert.Equal(t, "userA-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 // TestGetDefaultUserNamespaceMultiSpace tests that the home Space created for the user is prioritized when there are multiple spaces
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	// space1 created by userA
 	space1 := s.newSpace("userA")
-	err := s.FakeSpaceClient.Tracker.Add(space1)
-	require.NoError(s.T(), err)
-
 	// space1 shared with userB
 	spacebinding1 := s.newSpaceBinding("userB", space1.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding1)
-	require.NoError(s.T(), err)
-
 	// space2 created by userB
 	space2 := s.newSpace("userB")
-	err = s.FakeSpaceClient.Tracker.Add(space2)
-	require.NoError(s.T(), err)
-
 	// space2 shared with userB
 	spacebinding2 := s.newSpaceBinding("userB", space2.Name)
-	err = s.FakeSpaceBindingClient.Tracker.Add(spacebinding2)
-	require.NoError(s.T(), err)
+
+	fakeClient := commontest.NewFakeClient(s.T(), space1, space2, spacebinding1, spacebinding2)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	// get default namespace for userB
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "userB", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
 	assert.Equal(s.T(), "member-123", targetCluster)
 
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			switch name {
-			case space1.Name:
-				return space1, nil
-			case space2.Name:
-				return space2, nil
-			default:
-				return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-			}
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return []toolchainv1alpha1.SpaceBinding{*spacebinding1, *spacebinding2}, nil
-		}
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "userB", "userB")
-
-		// then
-		assert.Equal(t, "userB-dev", defaultUserNamespace)
-		assert.Equal(s.T(), "member-123", targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpaceBinding() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	space := s.newSpace("dave")
-	err := s.FakeSpaceClient.Tracker.Add(space)
-	require.NoError(s.T(), err)
+	fakeClient := commontest.NewFakeClient(s.T(), space)
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
 	assert.Empty(s.T(), targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(_ string) (*toolchainv1alpha1.Space, error) {
-			return space, nil
-		}
-		inf.ListSpaceBindingFunc = func(_ ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-			return nil, apierrors.NewInternalError(fmt.Errorf("something went wrong"))
-		}
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "", "dave")
-
-		// then
-		assert.Empty(t, defaultUserNamespace)
-		assert.Empty(s.T(), targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	// given
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
+	fakeClient := commontest.NewFakeClient(s.T())
+	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(s, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
 	assert.Empty(s.T(), targetCluster)
-
-	s.T().Run("informer", func(t *testing.T) {
-		// given
-		inf := fake.NewFakeInformer()
-		inf.GetSpaceFunc = func(name string) (*toolchainv1alpha1.Space, error) {
-			return nil, apierrors.NewNotFound(schema.GroupResource{}, name)
-		}
-
-		// when
-		targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(inf, "dave", "dave")
-
-		// then
-		assert.Empty(t, defaultUserNamespace)
-		assert.Empty(s.T(), targetCluster)
-	})
 }
 
 func (s *TestSignupServiceSuite) TestGetUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
+	s.ServiceConfiguration(true, "", 5)
 
 	s.Run("getusersignup ok", func() {
 		us := s.newUserSignupComplete()
-		err := s.FakeUserSignupClient.Tracker.Add(us)
-		require.NoError(s.T(), err)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
 
-		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
+		val, err := application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
 		require.NoError(s.T(), err)
 		require.Equal(s.T(), us.Name, val.Name)
 	})
 
 	s.Run("getusersignup returns error", func() {
-		s.FakeUserSignupClient.MockGet = func(_ string) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, errors.New("get failed")
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok {
+				return errors.New("get failed")
+			}
+			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
 
-		val, err := s.Application.SignupService().GetUserSignupFromIdentifier("foo", "")
+		val, err := application.SignupService().GetUserSignupFromIdentifier("foo", "")
 		require.EqualError(s.T(), err, "get failed")
 		require.Nil(s.T(), val)
 	})
 
 	s.Run("getusersignup with unknown user", func() {
-		s.FakeUserSignupClient.MockGet = nil
+		_, application := testutil.PrepareInClusterApp(s.T())
 
-		val, err := s.Application.SignupService().GetUserSignupFromIdentifier("unknown", "")
+		val, err := application.SignupService().GetUserSignupFromIdentifier("unknown", "")
 		require.True(s.T(), apierrors.IsNotFound(err))
 		require.Nil(s.T(), val)
 	})
 }
 
-func (s *TestSignupServiceSuite) TestUpdateUserSignup() {
-	s.ServiceConfiguration(configuration.Namespace(), true, "", 5)
-
-	us := s.newUserSignupComplete()
-	err := s.FakeUserSignupClient.Tracker.Add(us)
-	require.NoError(s.T(), err)
-
-	s.Run("updateusersignup ok", func() {
-		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
-		require.NoError(s.T(), err)
-
-		val.Spec.IdentityClaims.FamilyName = "Johnson"
-
-		updated, err := s.Application.SignupService().UpdateUserSignup(val)
-		require.NoError(s.T(), err)
-
-		require.Equal(s.T(), val.Spec.IdentityClaims.FamilyName, updated.Spec.IdentityClaims.FamilyName)
-	})
-
-	s.Run("updateusersignup returns error", func() {
-		s.FakeUserSignupClient.MockUpdate = func(_ *toolchainv1alpha1.UserSignup) (userSignup *toolchainv1alpha1.UserSignup, e error) {
-			return nil, errors.New("update failed")
-		}
-
-		val, err := s.Application.SignupService().GetUserSignupFromIdentifier(us.Name, "")
-		require.NoError(s.T(), err)
-
-		updated, err := s.Application.SignupService().UpdateUserSignup(val)
-		require.EqualError(s.T(), err, "update failed")
-		require.Nil(s.T(), updated)
-	})
-}
-
 func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
-	test2.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, configuration.Namespace())
+	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
 	s.Run("phone verification is required", func() {
 		s.Run("captcha verification is disabled", func() {
@@ -2094,19 +1448,16 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 
 func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() {
 
-	s.ServiceConfiguration(configuration.Namespace(), false, "", 5)
+	s.ServiceConfiguration(false, "", 5)
 
 	// Create a new UserSignup, set its UserID and AccountID annotations
 	userSignup := s.newUserSignupComplete()
-
-	err := s.FakeUserSignupClient.Tracker.Add(userSignup)
-	require.NoError(s.T(), err)
 
 	mur := &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userSignup.Status.CompliantUsername,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -2120,17 +1471,17 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 			},
 		},
 	}
-	err = s.FakeMasterUserRecordClient.Tracker.Add(mur)
-	require.NoError(s.T(), err)
 
 	s.Run("PreferredUsername property updated when set in context", func() {
 		c, _ := gin.CreateTestContext(httptest.NewRecorder())
 		c.Set(context.UsernameKey, "cocochanel")
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, mur)
 
-		_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+		_, err := application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, true)
 		require.NoError(s.T(), err)
 
-		modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+		modified := &toolchainv1alpha1.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), modified)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
@@ -2149,10 +1500,11 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Set(context.GivenNameKey, "Jonathan")
 
-			_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+			_, err := application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, true)
 			require.NoError(s.T(), err)
 
-			modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+			modified := &toolchainv1alpha1.UserSignup{}
+			err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), modified)
 			require.NoError(s.T(), err)
 
 			require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
@@ -2174,10 +1526,11 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 				c.Set(context.FamilyNameKey, "Smythe")
 				c.Set(context.CompanyKey, "Red Hat")
 
-				_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+				_, err := application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, true)
 				require.NoError(s.T(), err)
 
-				modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+				modified := &toolchainv1alpha1.UserSignup{}
+				err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), modified)
 				require.NoError(s.T(), err)
 
 				require.Equal(s.T(), "Smythe", modified.Spec.IdentityClaims.FamilyName)
@@ -2201,10 +1554,11 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
 					c.Set(context.EmailKey, "jsmythe@redhat.com")
 
-					_, err := s.Application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername)
+					_, err := application.SignupService().GetSignup(c, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, true)
 					require.NoError(s.T(), err)
 
-					modified, err := s.FakeUserSignupClient.Get(userSignup.Name)
+					modified := &toolchainv1alpha1.UserSignup{}
+					err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), modified)
 					require.NoError(s.T(), err)
 
 					require.Equal(s.T(), "987654321", modified.Spec.IdentityClaims.Sub)
@@ -2235,7 +1589,7 @@ func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "90cb861692508c36933b85dfe43f5369",
 			},
@@ -2282,7 +1636,7 @@ func (s *TestSignupServiceSuite) newBannedUserSignup() *toolchainv1alpha1.UserSi
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      userID.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
 			},
@@ -2325,7 +1679,7 @@ func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alph
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 		},
 		Spec: toolchainv1alpha1.MasterUserRecordSpec{
 			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
@@ -2352,7 +1706,7 @@ func (s *TestSignupServiceSuite) newSpace(name string) *toolchainv1alpha1.Space 
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceCreatorLabelKey: name,
 			},
@@ -2382,7 +1736,7 @@ func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *too
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name.String(),
-			Namespace: configuration.Namespace(),
+			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            spaceName,
 				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName,

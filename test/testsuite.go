@@ -2,15 +2,10 @@ package test
 
 import (
 	"context"
-	"os"
-
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/codeready-toolchain/registration-service/test/fake"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	"github.com/codeready-toolchain/registration-service/pkg/log"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
@@ -20,23 +15,13 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 // UnitTestSuite is the base test suite for unit tests.
 type UnitTestSuite struct {
 	suite.Suite
-	Application                *fake.MockableApplication
-	ConfigClient               *test.FakeClient
-	FakeUserSignupClient       *fake.FakeUserSignupClient
-	FakeMasterUserRecordClient *fake.FakeMasterUserRecordClient
-	FakeBannedUserClient       *fake.FakeBannedUserClient
-	FakeToolchainStatusClient  *fake.FakeToolchainStatusClient
-	FakeSocialEventClient      *fake.FakeSocialEventClient
-	FakeSpaceClient            *fake.FakeSpaceClient
-	FakeSpaceBindingClient     *fake.FakeSpaceBindingClient
-	factoryOptions             []factory.Option
+	ConfigClient *test.FakeClient
 }
 
 // SetupSuite sets the suite up and sets testmode.
@@ -47,40 +32,22 @@ func (s *UnitTestSuite) SetupSuite() {
 }
 
 func (s *UnitTestSuite) SetupTest() {
-	s.factoryOptions = nil
 	s.SetupDefaultApplication()
 }
 
 func (s *UnitTestSuite) SetupDefaultApplication() {
 	// initialize the toolchainconfig cache
 	s.DefaultConfig()
-	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), configuration.Namespace())
-	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
-	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
-	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
-	s.FakeSocialEventClient = fake.NewFakeSocialEventClient(s.T(), configuration.Namespace())
-	s.FakeSpaceClient = fake.NewFakeSpaceClient(s.T(), configuration.Namespace())
-	s.FakeSpaceBindingClient = fake.NewFakeSpaceBindingClient(s.T(), configuration.Namespace())
-	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainConfigOption) {
 	s.SetConfig(opts...)
-	s.FakeUserSignupClient = fake.NewFakeUserSignupClient(s.T(), configuration.Namespace())
-	s.FakeMasterUserRecordClient = fake.NewFakeMasterUserRecordClient(s.T(), configuration.Namespace())
-	s.FakeBannedUserClient = fake.NewFakeBannedUserClient(s.T(), configuration.Namespace())
-	s.FakeToolchainStatusClient = fake.NewFakeToolchainStatusClient(s.T(), configuration.Namespace())
-	s.FakeSpaceBindingClient = fake.NewFakeSpaceBindingClient(s.T(), configuration.Namespace())
-	s.Application = fake.NewMockableApplication(s, s.factoryOptions...)
 }
 
 func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) configuration.RegistrationServiceConfig {
 
-	namespace, found := os.LookupEnv(commonconfig.WatchNamespaceEnvVar)
-	require.Truef(s.T(), found, "%s env var is not", commonconfig.WatchNamespaceEnvVar)
-
 	current := &toolchainv1alpha1.ToolchainConfig{}
-	err := s.ConfigClient.Get(context.TODO(), types.NamespacedName{Name: "config", Namespace: namespace}, current)
+	err := s.ConfigClient.Get(context.TODO(), types.NamespacedName{Name: "config", Namespace: test.HostOperatorNs}, current)
 
 	if err == nil {
 		err = s.ConfigClient.Delete(context.TODO(), current)
@@ -127,71 +94,8 @@ func (s *UnitTestSuite) DefaultConfig() configuration.RegistrationServiceConfig 
 	return configuration.GetRegistrationServiceConfig()
 }
 
-func (s *UnitTestSuite) WithFactoryOption(opt factory.Option) {
-	s.factoryOptions = append(s.factoryOptions, opt)
-}
-
 // TearDownSuite tears down the test suite.
 func (s *UnitTestSuite) TearDownSuite() {
 	// summon the GC!
 	commonconfig.ResetCache()
-	s.Application = nil
-	s.FakeUserSignupClient = nil
-	s.FakeMasterUserRecordClient = nil
-	s.FakeBannedUserClient = nil
-	s.FakeToolchainStatusClient = nil
-	s.FakeSpaceClient = nil
-	s.FakeSpaceBindingClient = nil
-}
-
-func (s *UnitTestSuite) V1Alpha1() kubeclient.V1Alpha1 {
-	return s
-}
-
-func (s *UnitTestSuite) UserSignups() kubeclient.UserSignupInterface {
-	return s.FakeUserSignupClient
-}
-
-func (s *UnitTestSuite) MasterUserRecords() kubeclient.MasterUserRecordInterface {
-	return s.FakeMasterUserRecordClient
-}
-
-func (s *UnitTestSuite) BannedUsers() kubeclient.BannedUserInterface {
-	return s.FakeBannedUserClient
-}
-
-func (s *UnitTestSuite) ToolchainStatuses() kubeclient.ToolchainStatusInterface {
-	return s.FakeToolchainStatusClient
-}
-
-func (s *UnitTestSuite) SocialEvents() kubeclient.SocialEventInterface {
-	return s.FakeSocialEventClient
-}
-
-func (s *UnitTestSuite) Spaces() kubeclient.SpaceInterface {
-	return s.FakeSpaceClient
-}
-
-func (s *UnitTestSuite) SpaceBindings() kubeclient.SpaceBindingInterface {
-	return s.FakeSpaceBindingClient
-}
-
-func (s *UnitTestSuite) GetMasterUserRecord(name string) (*toolchainv1alpha1.MasterUserRecord, error) {
-	return s.MasterUserRecords().Get(name)
-}
-
-func (s *UnitTestSuite) GetToolchainStatus() (*toolchainv1alpha1.ToolchainStatus, error) {
-	return s.ToolchainStatuses().Get()
-}
-
-func (s *UnitTestSuite) GetUserSignup(name string) (*toolchainv1alpha1.UserSignup, error) {
-	return s.UserSignups().Get(name)
-}
-
-func (s *UnitTestSuite) GetSpace(name string) (*toolchainv1alpha1.Space, error) {
-	return s.Spaces().Get(name)
-}
-
-func (s *UnitTestSuite) ListSpaceBindings(reqs ...labels.Requirement) ([]toolchainv1alpha1.SpaceBinding, error) {
-	return s.SpaceBindings().ListSpaceBindings(reqs...)
 }

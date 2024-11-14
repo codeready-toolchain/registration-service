@@ -6,41 +6,27 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
-	informerservice "github.com/codeready-toolchain/registration-service/pkg/informers/service"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 )
 
 type serviceContextImpl struct {
-	kubeClient kubeclient.CRTClient
-	informer   informers.Informer
-	services   service.Services
+	client   namespaced.Client
+	services service.Services
 }
 
 type ServiceContextOption = func(ctx *serviceContextImpl)
 
-func CRTClientOption(kubeClient kubeclient.CRTClient) ServiceContextOption {
+func NamespacedClientOption(client namespaced.Client) ServiceContextOption {
 	return func(ctx *serviceContextImpl) {
-		ctx.kubeClient = kubeClient
+		ctx.client = client
 	}
 }
 
-func InformerOption(informer informers.Informer) ServiceContextOption {
-	return func(ctx *serviceContextImpl) {
-		ctx.informer = informer
-	}
-}
-
-func (s *serviceContextImpl) Informer() informers.Informer {
-	return s.informer
-}
-
-func (s *serviceContextImpl) CRTClient() kubeclient.CRTClient {
-	return s.kubeClient
+func (s *serviceContextImpl) Client() namespaced.Client {
+	return s.client
 }
 
 func (s *serviceContextImpl) Services() service.Services {
@@ -64,14 +50,6 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 	}
 }
 
-func (s *ServiceFactory) InformerService() service.InformerService {
-	return informerservice.NewInformerService(s.getContext())
-}
-
-func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
-	return clusterservice.NewMemberClusterService(s.getContext())
-}
-
 func (s *ServiceFactory) SignupService() service.SignupService {
 	return s.signupServiceFunc(s.signupServiceOptions...)
 }
@@ -86,6 +64,12 @@ func (s *ServiceFactory) VerificationService() service.VerificationService {
 
 func (s *ServiceFactory) WithVerificationServiceOption(opt verificationservice.VerificationServiceOption) {
 	s.verificationServiceOptions = append(s.verificationServiceOptions, opt)
+}
+
+func (s *ServiceFactory) WithSignupService(signupService service.SignupService) {
+	s.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
+		return signupService
+	}
 }
 
 // Option an option to configure the Service Factory
@@ -115,8 +99,10 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
 	}
 
-	f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
-		return signupservice.NewSignupService(f.getContext(), f.signupServiceOptions...)
+	if f.signupServiceFunc == nil {
+		f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
+			return signupservice.NewSignupService(f.getContext().Client(), f.signupServiceOptions...)
+		}
 	}
 
 	return f

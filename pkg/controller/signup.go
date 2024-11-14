@@ -111,7 +111,7 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	// Get the UserSignup resource from the service by the userID
 	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
-	signupResource, err := s.app.SignupService().GetSignup(ctx, userID, username)
+	signupResource, err := s.app.SignupService().GetSignup(ctx, userID, username, true)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
@@ -139,7 +139,6 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 
 	err := s.app.VerificationService().VerifyPhoneCode(ctx, userID, username, code)
 	if err != nil {
-		log.Error(ctx, err, "error validating user verification phone code")
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):

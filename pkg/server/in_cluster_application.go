@@ -4,41 +4,23 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/codeready-toolchain/registration-service/pkg/informers"
-	"github.com/codeready-toolchain/registration-service/pkg/kubeclient"
-	"k8s.io/client-go/rest"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 )
 
 // NewInClusterApplication creates a new in-cluster application with the specified configuration and options.  This
 // application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
 // function to determine which Kubernetes configuration to use to create the REST client that interacts with the
 // Kubernetes service endpoints.
-func NewInClusterApplication(informer informers.Informer) (application.Application, error) {
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubeclient.NewCRTRESTClient(k8sConfig, informer, configuration.Namespace())
-	if err != nil {
-		return nil, err
-	}
-
+func NewInClusterApplication(client namespaced.Client, options ...factory.Option) application.Application {
 	return &InClusterApplication{
-		serviceFactory: factory.NewServiceFactory(
-			factory.WithServiceContextOptions(factory.CRTClientOption(kubeClient),
-				factory.InformerOption(informer),
-			)),
-	}, nil
+		serviceFactory: factory.NewServiceFactory(append(options,
+			factory.WithServiceContextOptions(
+				factory.NamespacedClientOption(client)))...),
+	}
 }
 
 type InClusterApplication struct {
 	serviceFactory *factory.ServiceFactory
-}
-
-func (r InClusterApplication) InformerService() service.InformerService {
-	return r.serviceFactory.InformerService()
 }
 
 func (r InClusterApplication) SignupService() service.SignupService {
@@ -47,8 +29,4 @@ func (r InClusterApplication) SignupService() service.SignupService {
 
 func (r InClusterApplication) VerificationService() service.VerificationService {
 	return r.serviceFactory.VerificationService()
-}
-
-func (r InClusterApplication) MemberClusterService() service.MemberClusterService {
-	return r.serviceFactory.MemberClusterService()
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
-	clusterservice "github.com/codeready-toolchain/registration-service/pkg/proxy/service"
 	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 )
@@ -49,10 +48,6 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 			services: s,
 		}
 	}
-}
-
-func (s *ServiceFactory) MemberClusterService() service.MemberClusterService {
-	return clusterservice.NewMemberClusterService(s.getContext().Client(), s.getContext().Services().SignupService())
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {

@@ -2,46 +2,11 @@ package fake
 
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/proxy/access"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/gin-gonic/gin"
 )
 
 // This whole service abstraction is such a huge pain. We have to get rid of it!!!
-
-type ProxyFakeApp struct {
-	Accesses                 map[string]*access.ClusterAccess
-	Err                      error
-	SignupServiceMock        service.SignupService
-	MemberClusterServiceMock service.MemberClusterService
-}
-
-func (a *ProxyFakeApp) SignupService() service.SignupService {
-	if a.SignupServiceMock != nil {
-		return a.SignupServiceMock
-	}
-	return NewSignupService()
-}
-
-func (a *ProxyFakeApp) VerificationService() service.VerificationService {
-	panic("VerificationService shouldn't be called")
-}
-
-func (a *ProxyFakeApp) MemberClusterService() service.MemberClusterService {
-	if a.MemberClusterServiceMock != nil {
-		return a.MemberClusterServiceMock
-	}
-	return &fakeClusterService{a}
-}
-
-type fakeClusterService struct {
-	fakeApp *ProxyFakeApp
-}
-
-func (f *fakeClusterService) GetClusterAccess(userID, _, _, _ string, _ bool) (*access.ClusterAccess, error) {
-	return f.fakeApp.Accesses[userID], f.fakeApp.Err
-}
 
 type SignupDef func() (string, *signup.Signup)
 

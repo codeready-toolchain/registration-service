@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -67,7 +68,7 @@ func (s *TestServerSuite) TestServer() {
 			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
 		}(t)
 
-		err := wait.Poll(DefaultRetryInterval, DefaultTimeout, func() (done bool, err error) {
+		err := wait.PollUntilContextTimeout(context.TODO(), DefaultRetryInterval, DefaultTimeout, false, func(context.Context) (done bool, err error) {
 			req, err := http.NewRequest("GET", "http://localhost:8080/api/v1/health", nil)
 			if err != nil {
 				return false, err

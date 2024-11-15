@@ -173,7 +173,7 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 	hostCluster, err := runtimecluster.New(cfg, func(options *runtimecluster.Options) {
 		options.Scheme = scheme
 		// cache only in the host-operator namespace
-		options.Namespace = configuration.Namespace()
+		options.Cache.Namespaces = []string{configuration.Namespace()}
 	})
 	if err != nil {
 		return nil, err

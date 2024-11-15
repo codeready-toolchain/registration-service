@@ -23,7 +23,7 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 	return buildSpaceListerFakesWithResources(t, nil, nil)
 }
 
-func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, objs []runtime.Object) (*fake.SignupService, *test.FakeClient) {
+func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, objs []client.Object) (*fake.SignupService, *test.FakeClient) {
 	ss := append(signups,
 		newSignup("dancelover", "dance.lover", true),
 		newSignup("movielover", "movie.lover", true),

@@ -62,11 +62,11 @@ func (s *TestServerSuite) TestServer() {
 		},
 	}
 
-	s.T().Run("CORS", func(t *testing.T) {
+	s.Run("CORS", func() {
 		go func(t *testing.T) {
 			err := srv.Engine().Run()
 			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
-		}(t)
+		}(s.T())
 
 		err := wait.PollUntilContextTimeout(context.TODO(), DefaultRetryInterval, DefaultTimeout, false, func(context.Context) (done bool, err error) {
 			req, err := http.NewRequest("GET", "http://localhost:8080/api/v1/health", nil)

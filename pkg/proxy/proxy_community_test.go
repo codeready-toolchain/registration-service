@@ -392,16 +392,16 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				// given
 				testServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					v := testServerInvoked.Swap(true)
-					require.False(s.T(), v, "expected handler to be invoked just one time")
+					assert.False(s.T(), v, "expected handler to be invoked just one time")
 
 					w.Header().Set("Content-Type", "application/json")
 					// Set the Access-Control-Allow-Origin header to make sure it's overridden by the proxy response modifier
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
 					w.WriteHeader(http.StatusOK)
 					_, err := w.Write([]byte(httpTestServerResponse))
-					require.NoError(s.T(), err)
+					assert.NoError(s.T(), err)
 					for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
-						require.Len(s.T(), r.Header.Values(hk), len(hv))
+						assert.Len(s.T(), r.Header.Values(hk), len(hv))
 						for i := range hv {
 							assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i], "header %s", hk)
 						}

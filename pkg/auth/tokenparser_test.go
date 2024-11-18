@@ -362,17 +362,17 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 		}
 
 		for k, tc := range tests {
-			s.T().Run(k, func(t *testing.T) {
+			s.Run(k, func() {
 				// generate non-serialized token
 				jwt0 := tokengenerator.GenerateToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithAudClaim(tc.aud))
 
 				// serialize
 				jwt0string, err := tokengenerator.SignToken(jwt0, kid0)
-				require.NoError(t, err)
+				require.NoError(s.T(), err)
 				// validate token
 				parsed, err := tokenParser.FromString(jwt0string)
-				require.NoError(t, err)
-				require.Equal(t, jwt.ClaimStrings(tc.aud), parsed.Audience)
+				require.NoError(s.T(), err)
+				require.Equal(s.T(), jwt.ClaimStrings(tc.aud), parsed.Audience)
 			})
 		}
 	})

@@ -288,7 +288,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 	states.SetVerificationRequired(userSignup, true)
 
-	s.T().Run("when client GET call fails should return error", func(t *testing.T) {
+	s.Run("when client GET call fails should return error", func() {
 		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 		// Cause the client GET call to fail
@@ -301,10 +301,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(t, err, "get failed: error retrieving usersignup: 123", err.Error())
+		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: 123", err.Error())
 	})
 
-	s.T().Run("when client UPDATE call fails indefinitely should return error", func(t *testing.T) {
+	s.Run("when client UPDATE call fails indefinitely should return error", func() {
 		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 		fakeClient.MockUpdate = func(ctx gocontext.Context, obj client.Object, opts ...client.UpdateOption) error {
 			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok {
@@ -315,12 +315,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(t, err, "there was an error while updating your account - please wait a moment before "+
+		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
 			"for assistance: error while verifying phone code")
 	})
 
-	s.T().Run("when client UPDATE call fails twice should return ok", func(t *testing.T) {
+	s.Run("when client UPDATE call fails twice should return ok", func() {
 		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 		failCount := 0
@@ -335,26 +335,26 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
 
-		require.NotEmpty(t, signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		require.NotEmpty(s.T(), signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 
 		buf := new(bytes.Buffer)
 		_, err = buf.ReadFrom(reqBody)
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		reqValue := buf.String()
 
 		params, err := url.ParseQuery(reqValue)
-		require.NoError(t, err)
-		require.Equal(t, fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
 			signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 			params.Get("Body"))
-		require.Equal(t, "CodeReady", params.Get("From"))
-		require.Equal(t, "+1NUMBER", params.Get("To"))
+		require.Equal(s.T(), "CodeReady", params.Get("From"))
+		require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 	})
 }
 
@@ -629,7 +629,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	// given
 	now := time.Now()
 
-	s.T().Run("verification ok", func(t *testing.T) {
+	s.Run("verification ok", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -657,16 +657,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
 
-		require.False(t, states.VerificationRequired(signup))
+		require.False(s.T(), states.VerificationRequired(signup))
 	})
 
-	s.T().Run("verification ok for usersignup with username identifier", func(t *testing.T) {
+	s.Run("verification ok for usersignup with username identifier", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -694,16 +694,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, "", "employee085", "654321")
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
 
-		require.False(t, states.VerificationRequired(signup))
+		require.False(s.T(), states.VerificationRequired(signup))
 	})
 
-	s.T().Run("when verification code is invalid", func(t *testing.T) {
+	s.Run("when verification code is invalid", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -729,14 +729,14 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.Error(t, err)
+		require.Error(s.T(), err)
 		e := &crterrors.Error{}
-		require.ErrorAs(t, err, &e)
-		require.Equal(t, "invalid code: the provided code is invalid", e.Error())
-		require.Equal(t, http.StatusForbidden, int(e.Code))
+		require.ErrorAs(s.T(), err, &e)
+		require.Equal(s.T(), "invalid code: the provided code is invalid", e.Error())
+		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
-	s.T().Run("when verification code has expired", func(t *testing.T) {
+	s.Run("when verification code has expired", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -763,12 +763,12 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		e := &crterrors.Error{}
-		require.ErrorAs(t, err, &e)
-		require.Equal(t, "expired: verification code expired", e.Error())
-		require.Equal(t, http.StatusForbidden, int(e.Code))
+		require.ErrorAs(s.T(), err, &e)
+		require.Equal(s.T(), "expired: verification code expired", e.Error())
+		require.Equal(s.T(), http.StatusForbidden, int(e.Code))
 	})
 
-	s.T().Run("when verifications exceeded maximum attempts", func(t *testing.T) {
+	s.Run("when verifications exceeded maximum attempts", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -794,10 +794,10 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(t, err, "too many verification attempts", err.Error())
+		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
 
-	s.T().Run("when verifications attempts has invalid value", func(t *testing.T) {
+	s.Run("when verifications attempts has invalid value", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -823,16 +823,16 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(t, err, "too many verification attempts", err.Error())
+		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
 
-		require.Equal(t, "3", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
+		require.Equal(s.T(), "3", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
 	})
 
-	s.T().Run("when verifications expiry is corrupt", func(t *testing.T) {
+	s.Run("when verifications expiry is corrupt", func() {
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -858,10 +858,10 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
-		require.EqualError(t, err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
+		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 
-	s.T().Run("captcha configuration ", func(t *testing.T) {
+	s.Run("captcha configuration ", func() {
 		tests := map[string]struct {
 			activationCounterAnnotationValue       string
 			captchaScoreAnnotationValue            string
@@ -932,7 +932,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 			},
 		}
 		for k, tc := range tests {
-			t.Run(k, func(t *testing.T) {
+			s.Run(k, func() {
 				// when
 				s.OverrideApplicationDefault(
 					testconfig.RegistrationService().Verification().CaptchaRequiredScore("0.6"),
@@ -974,10 +974,10 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				signup := &toolchainv1alpha1.UserSignup{}
 				require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup))
 				if tc.expectedErr != "" {
-					require.EqualError(t, err, tc.expectedErr)
+					require.EqualError(s.T(), err, tc.expectedErr)
 				} else {
-					require.NoError(t, err)
-					require.False(t, states.VerificationRequired(signup))
+					require.NoError(s.T(), err)
+					require.False(s.T(), states.VerificationRequired(signup))
 				}
 			})
 		}
@@ -995,7 +995,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 	cfg := configuration.GetRegistrationServiceConfig()
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 
-	s.T().Run("verification ok", func(t *testing.T) {
+	s.Run("verification ok", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
@@ -1005,15 +1005,15 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.False(t, states.VerificationRequired(signup))
-		assert.Equal(t, targetCluster, signup.Spec.TargetCluster)
+		require.False(s.T(), states.VerificationRequired(signup))
+		assert.Equal(s.T(), targetCluster, signup.Spec.TargetCluster)
 	})
 
-	s.T().Run("last user to signup", func(t *testing.T) {
+	s.Run("last user to signup", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                          // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9), testsocialevent.WithTargetCluster(targetCluster)) // one seat left
@@ -1023,15 +1023,15 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.NoError(t, err)
+		require.NoError(s.T(), err)
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.False(t, states.VerificationRequired(signup))
-		assert.Equal(t, targetCluster, signup.Spec.TargetCluster)
+		require.False(s.T(), states.VerificationRequired(signup))
+		assert.Equal(s.T(), targetCluster, signup.Spec.TargetCluster)
 	})
 
-	s.T().Run("when too many attempts made", func(t *testing.T) {
+	s.Run("when too many attempts made", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.VerificationRequired(time.Second), // just signed up
@@ -1043,17 +1043,17 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.EqualError(t, err, "too many verification attempts: 3")
+		require.EqualError(s.T(), err, "too many verification attempts: 3")
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.True(t, states.VerificationRequired(signup)) // unchanged
-		assert.Empty(t, signup.Spec.TargetCluster)
+		require.True(s.T(), states.VerificationRequired(signup)) // unchanged
+		assert.Empty(s.T(), signup.Spec.TargetCluster)
 	})
 
-	s.T().Run("when invalid code", func(t *testing.T) {
+	s.Run("when invalid code", func() {
 
-		t.Run("first attempt", func(t *testing.T) {
+		s.Run("first attempt", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
@@ -1062,15 +1062,15 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
-			require.EqualError(t, err, "invalid code: the provided code is invalid")
+			require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
 			signup := &toolchainv1alpha1.UserSignup{}
 			err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 			require.NoError(s.T(), err)
-			require.True(t, states.VerificationRequired(signup))                                              // unchanged
-			assert.Equal(t, "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+			require.True(s.T(), states.VerificationRequired(signup))                                              // unchanged
+			assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
 		})
 
-		t.Run("second attempt", func(t *testing.T) {
+		s.Run("second attempt", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(
 				testusersignup.VerificationRequired(time.Second), // just signed up
@@ -1081,16 +1081,16 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
-			require.EqualError(t, err, "invalid code: the provided code is invalid")
+			require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
 			signup := &toolchainv1alpha1.UserSignup{}
 			err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 			require.NoError(s.T(), err)
-			require.True(t, states.VerificationRequired(signup))                                              // unchanged
-			assert.Equal(t, "3", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+			require.True(s.T(), states.VerificationRequired(signup))                                              // unchanged
+			assert.Equal(s.T(), "3", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
 		})
 	})
 
-	s.T().Run("when max attendees reached", func(t *testing.T) {
+	s.Run("when max attendees reached", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                           // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10), testsocialevent.WithTargetCluster(targetCluster)) // same as default `spec.MaxAttendees`
@@ -1100,16 +1100,16 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.EqualError(t, err, "invalid code: the event is full")
+		require.EqualError(s.T(), err, "invalid code: the event is full")
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.True(t, states.VerificationRequired(signup))
-		assert.Equal(t, "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(t, signup.Spec.TargetCluster)
+		require.True(s.T(), states.VerificationRequired(signup))
+		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(s.T(), signup.Spec.TargetCluster)
 	})
 
-	s.T().Run("when event not open yet", func(t *testing.T) {
+	s.Run("when event not open yet", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                            // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // starting in 1hr
@@ -1119,16 +1119,16 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.True(t, states.VerificationRequired(signup))
-		assert.Equal(t, "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(t, signup.Spec.TargetCluster)
+		require.True(s.T(), states.VerificationRequired(signup))
+		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(s.T(), signup.Spec.TargetCluster)
 	})
 
-	s.T().Run("when event already closed", func(t *testing.T) {
+	s.Run("when event already closed", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                           // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // ended 1hr ago
@@ -1138,12 +1138,12 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
-		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
 		signup := &toolchainv1alpha1.UserSignup{}
 		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
 		require.NoError(s.T(), err)
-		require.True(t, states.VerificationRequired(signup))
-		assert.Equal(t, "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(t, signup.Spec.TargetCluster)
+		require.True(s.T(), states.VerificationRequired(signup))
+		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
+		assert.Empty(s.T(), signup.Spec.TargetCluster)
 	})
 }

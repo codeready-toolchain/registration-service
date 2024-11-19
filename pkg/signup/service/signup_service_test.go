@@ -773,7 +773,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	assert.Empty(s.T(), response.StartDate)
 	assert.Empty(s.T(), response.EndDate)
 
-	s.T().Run("with no check for UserSignup complete condition", func(t *testing.T) {
+	s.Run("with no check for UserSignup complete condition", func() {
 		// given
 		states.SetVerificationRequired(userSignupNotComplete, false)
 		mur := s.newProvisionedMUR("bill")
@@ -781,7 +781,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		spacebinding := s.newSpaceBinding(mur.Name, space.Name)
 		toolchainStatus := s.newToolchainStatus(".apps.")
 
-		fakeClient := commontest.NewFakeClient(t, userSignupNotComplete, mur, space, spacebinding, toolchainStatus)
+		fakeClient := commontest.NewFakeClient(s.T(), userSignupNotComplete, mur, space, spacebinding, toolchainStatus)
 		svc := service.NewSignupService(namespaced.NewClient(fakeClient, commontest.HostOperatorNs))
 
 		// when
@@ -789,23 +789,23 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		response, err := svc.GetSignup(c, userID.String(), userSignupNotComplete.Spec.IdentityClaims.PreferredUsername, false)
 
 		// then
-		require.NoError(t, err)
-		require.NotNil(t, response)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
 
-		require.Equal(t, userID.String(), response.Name)
-		require.Equal(t, "bill", response.Username)
-		require.Equal(t, "bill", response.CompliantUsername)
-		require.True(t, response.Status.Ready)
-		require.Equal(t, "mur_ready_reason", response.Status.Reason)
-		require.Equal(t, "mur_ready_message", response.Status.Message)
-		require.False(t, response.Status.VerificationRequired)
-		require.Equal(t, "https://console.apps.member-123.com", response.ConsoleURL)
-		require.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-		require.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
-		require.Equal(t, "member-123", response.ClusterName)
-		require.Equal(t, "https://proxy-url.com", response.ProxyURL)
-		assert.Equal(t, "bill-dev", response.DefaultUserNamespace)
-		assert.Equal(t, "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
+		require.Equal(s.T(), userID.String(), response.Name)
+		require.Equal(s.T(), "bill", response.Username)
+		require.Equal(s.T(), "bill", response.CompliantUsername)
+		require.True(s.T(), response.Status.Ready)
+		require.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+		require.Equal(s.T(), "mur_ready_message", response.Status.Message)
+		require.False(s.T(), response.Status.VerificationRequired)
+		require.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
+		require.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		require.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+		require.Equal(s.T(), "member-123", response.ClusterName)
+		require.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+		assert.Equal(s.T(), "bill-dev", response.DefaultUserNamespace)
+		assert.Equal(s.T(), "https://rhods-dashboard-redhat-ods-applications.apps.member-123.com", response.RHODSMemberURL)
 	})
 }
 
@@ -909,7 +909,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 	// given
 	for _, appsSubDomain := range []string{".apps.", ".apps-"} {
 		s.SetupTest()
-		s.T().Run("for apps subdomain: "+appsSubDomain, func(t *testing.T) {
+		s.Run("for apps subdomain: "+appsSubDomain, func() {
 			s.ServiceConfiguration(true, "", 5)
 
 			us := s.newUserSignupComplete()
@@ -926,26 +926,26 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			response, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 			// then
-			require.NoError(t, err)
-			require.NotNil(t, response)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), response)
 
-			require.Equal(t, us.Name, response.Name)
-			require.Equal(t, "jsmith", response.Username)
-			require.Equal(t, "ted", response.CompliantUsername)
+			require.Equal(s.T(), us.Name, response.Name)
+			require.Equal(s.T(), "jsmith", response.Username)
+			require.Equal(s.T(), "ted", response.CompliantUsername)
 
-			require.Equal(t, mur.Status.ProvisionedTime.UTC().Format(time.RFC3339), response.StartDate)
-			require.Equal(t, us.Status.ScheduledDeactivationTimestamp.UTC().Format(time.RFC3339), response.EndDate)
-			assert.True(t, response.Status.Ready)
-			assert.Equal(t, "mur_ready_reason", response.Status.Reason)
-			assert.Equal(t, "mur_ready_message", response.Status.Message)
-			assert.False(t, response.Status.VerificationRequired)
-			assert.Equal(t, fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
-			assert.Equal(t, "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
-			assert.Equal(t, "http://api.devcluster.openshift.com", response.APIEndpoint)
-			assert.Equal(t, "member-123", response.ClusterName)
-			assert.Equal(t, "https://proxy-url.com", response.ProxyURL)
-			assert.Equal(t, "ted-dev", response.DefaultUserNamespace)
-			assert.Equal(t, fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
+			require.Equal(s.T(), mur.Status.ProvisionedTime.UTC().Format(time.RFC3339), response.StartDate)
+			require.Equal(s.T(), us.Status.ScheduledDeactivationTimestamp.UTC().Format(time.RFC3339), response.EndDate)
+			assert.True(s.T(), response.Status.Ready)
+			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
+			assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
+			assert.False(s.T(), response.Status.VerificationRequired)
+			assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
+			assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+			assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
+			assert.Equal(s.T(), "member-123", response.ClusterName)
+			assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
+			assert.Equal(s.T(), "ted-dev", response.DefaultUserNamespace)
+			assert.Equal(s.T(), fmt.Sprintf("https://rhods-dashboard-redhat-ods-applications%smember-123.com", appsSubDomain), response.RHODSMemberURL)
 		})
 	}
 }
@@ -1151,7 +1151,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 	}
 
 	for tcName, tc := range tests {
-		s.T().Run(tcName, func(t *testing.T) {
+		s.Run(tcName, func() {
 
 			// given
 			mur.Status = toolchainv1alpha1.MasterUserRecordStatus{
@@ -1165,10 +1165,10 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			response, err := application.SignupService().GetSignup(c, us.Name, "", true)
 
 			// then
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedConditionReady, response.Status.Ready)
-			require.Equal(t, tc.condition.Reason, response.Status.Reason)
-			require.Equal(t, tc.condition.Message, response.Status.Message)
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), tc.expectedConditionReady, response.Status.Ready)
+			require.Equal(s.T(), tc.condition.Reason, response.Status.Reason)
+			require.Equal(s.T(), tc.condition.Message, response.Status.Message)
 		})
 	}
 }

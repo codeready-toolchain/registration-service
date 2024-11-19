@@ -425,13 +425,13 @@ func (s *TestProxySuite) checkWebLogin() {
 			switch p := r.URL.Path; p {
 			case "/auth/realms/sandbox-dev/.well-known/openid-configuration":
 				_, err := w.Write([]byte("mock SSO configuration"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			case "/auth/anything":
 				_, err := w.Write([]byte("mock auth"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			default:
 				_, err := w.Write([]byte("unknown"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			}
 		}))
 		defer testServer.Close()
@@ -506,7 +506,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			w.Header().Set("Access-Control-Allow-Origin", "dummy")
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("my response"))
-			require.NoError(s.T(), err)
+			assert.NoError(s.T(), err)
 		}))
 		defer testServer.Close()
 
@@ -798,9 +798,9 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 										w.Header().Set("Access-Control-Allow-Origin", "dummy")
 										w.WriteHeader(http.StatusOK)
 										_, err := w.Write([]byte("my response"))
-										require.NoError(s.T(), err)
+										assert.NoError(s.T(), err)
 										for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
-											require.Len(s.T(), r.Header.Values(hk), len(hv))
+											assert.Len(s.T(), r.Header.Values(hk), len(hv))
 											for i := range hv {
 												assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
 											}
@@ -885,7 +885,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 									s.assertResponseBody(resp, "my response")
 								}
 								for hk, hv := range tc.ExpectedProxyResponseHeaders {
-									require.Len(s.T(), resp.Header.Values(hk), len(hv), fmt.Sprintf("Actual Header %s: %v", hk, resp.Header.Values(hk)))
+									require.Lenf(s.T(), resp.Header.Values(hk), len(hv), "Actual Header %s: %v", hk, resp.Header.Values(hk))
 									for i := range hv {
 										assert.Equal(s.T(), hv[i], resp.Header.Values(hk)[i])
 									}
@@ -1091,7 +1091,7 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 	}
 
 	for k, tc := range tests {
-		s.T().Run(k, func(t *testing.T) {
+		s.Run(k, func() {
 			req := &http.Request{
 				URL: &url.URL{
 					Path: tc.path,
@@ -1099,13 +1099,13 @@ func (s *TestProxySuite) TestGetWorkspaceContext() {
 			}
 			proxy, workspace, err := getWorkspaceContext(req)
 			if tc.expectedErr == "" {
-				require.NoError(t, err, fmt.Sprintf("failed for tc %s", k))
+				require.NoErrorf(s.T(), err, "failed for tc %s", k)
 			} else {
-				require.EqualError(t, err, tc.expectedErr, fmt.Sprintf("failed for tc %s", k))
+				require.EqualErrorf(s.T(), err, tc.expectedErr, "failed for tc %s", k)
 			}
-			assert.Equal(t, tc.expectedWorkspace, workspace, fmt.Sprintf("failed for tc %s", k))
-			assert.Equal(t, tc.expectedPath, req.URL.Path, fmt.Sprintf("failed for tc %s", k))
-			assert.Equal(t, tc.expectedPlugin, proxy, fmt.Sprintf("failed for tc %s", k))
+			assert.Equalf(s.T(), tc.expectedWorkspace, workspace, "failed for tc %s", k)
+			assert.Equalf(s.T(), tc.expectedPath, req.URL.Path, "failed for tc %s", k)
+			assert.Equalf(s.T(), tc.expectedPlugin, proxy, "failed for tc %s", k)
 		})
 	}
 }
@@ -1173,12 +1173,12 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 	}
 
 	for k, tc := range tests {
-		s.T().Run(k, func(t *testing.T) {
+		s.Run(k, func() {
 			err := validateWorkspaceRequest(tc.requestedWorkspace, tc.workspaces...)
 			if tc.expectedErr == "" {
-				require.NoError(t, err)
+				require.NoError(s.T(), err)
 			} else {
-				require.EqualError(t, err, tc.expectedErr)
+				require.EqualError(s.T(), err, tc.expectedErr)
 			}
 		})
 	}
@@ -1186,9 +1186,9 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 
 func (s *TestProxySuite) TestGetTransport() {
 
-	s.T().Run("when not prod", func(_ *testing.T) {
+	s.Run("when not prod", func() {
 		for _, envName := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev} {
-			s.T().Run("env "+string(envName), func(t *testing.T) {
+			s.Run("env "+string(envName), func() {
 				// given
 				env := s.DefaultConfig().Environment()
 				defer s.SetConfig(testconfig.RegistrationService().
@@ -1204,12 +1204,12 @@ func (s *TestProxySuite) TestGetTransport() {
 				expectedTransport.TLSClientConfig = &tls.Config{
 					InsecureSkipVerify: true, // nolint:gosec
 				}
-				assertTransport(t, expectedTransport, transport)
+				assertTransport(s.T(), expectedTransport, transport)
 			})
 		}
 	})
 
-	s.T().Run("for prod", func(_ *testing.T) {
+	s.Run("for prod", func() {
 		// given
 		env := s.DefaultConfig().Environment()
 		defer s.SetConfig(testconfig.RegistrationService().
@@ -1217,7 +1217,7 @@ func (s *TestProxySuite) TestGetTransport() {
 		s.SetConfig(testconfig.RegistrationService().
 			Environment(string(testconfig.Prod)))
 
-		s.T().Run("upgrade header is set to 'SPDY/3.1'", func(t *testing.T) {
+		s.Run("upgrade header is set to 'SPDY/3.1'", func() {
 			// when
 			transport := getTransport(map[string][]string{
 				"Connection": {"Upgrade"},
@@ -1229,10 +1229,10 @@ func (s *TestProxySuite) TestGetTransport() {
 			expectedTransport.TLSClientConfig.NextProtos = []string{"http/1.1"}
 			expectedTransport.ForceAttemptHTTP2 = false
 
-			assertTransport(t, expectedTransport, transport)
+			assertTransport(s.T(), expectedTransport, transport)
 		})
 
-		s.T().Run("upgrade header is set to 'websocket'", func(t *testing.T) {
+		s.Run("upgrade header is set to 'websocket'", func() {
 			// when
 			transport := getTransport(map[string][]string{
 				"Connection": {"Upgrade"},
@@ -1240,19 +1240,19 @@ func (s *TestProxySuite) TestGetTransport() {
 			})
 
 			// then
-			assertTransport(t, noTimeoutDefaultTransport(), transport)
+			assertTransport(s.T(), noTimeoutDefaultTransport(), transport)
 		})
 
-		s.T().Run("no upgrade header is set", func(t *testing.T) {
+		s.Run("no upgrade header is set", func() {
 			// when
 			transport := getTransport(map[string][]string{})
 
 			// then
-			assertTransport(t, noTimeoutDefaultTransport(), transport)
+			assertTransport(s.T(), noTimeoutDefaultTransport(), transport)
 		})
 	})
 
-	s.T().Run("default transport should be same except for DailContext", func(t *testing.T) {
+	s.Run("default transport should be same except for DailContext", func() {
 		// when
 		transport := http.DefaultTransport.(interface {
 			Clone() *http.Transport
@@ -1260,7 +1260,7 @@ func (s *TestProxySuite) TestGetTransport() {
 		transport.DialContext = noTimeoutDialerProxy
 
 		// then
-		assertTransport(t, noTimeoutDefaultTransport(), transport)
+		assertTransport(s.T(), noTimeoutDefaultTransport(), transport)
 	})
 }
 

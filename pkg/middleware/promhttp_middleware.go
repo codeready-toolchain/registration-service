@@ -42,7 +42,7 @@ func InstrumentRoundTripperDuration(histVec *prometheus.HistogramVec) gin.Handle
 				"code":   strconv.Itoa(c.Writer.Status()),
 				"method": c.Request.Method,
 				"path":   c.Request.URL.Path,
-			}).Observe(float64(duration.Milliseconds()))
+			}).Observe(float64(duration.Seconds()))
 		}()
 		c.Next()
 	}

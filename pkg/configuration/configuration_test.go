@@ -48,7 +48,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Analytics().DevSpacesSegmentWriteKey())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/json; charset=utf-8", regServiceCfg.Auth().AuthClientConfigContentType())
-		assert.Equal(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`,
+		assert.JSONEq(t, `{"realm": "sandbox-dev","auth-server-url": "https://sso.devsandbox.dev/auth","ssl-required": "none","resource": "sandbox-public","clientId": "sandbox-public","public-client": true, "confidential-port": 0}`,
 			regServiceCfg.Auth().AuthClientConfigRaw())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/realms/sandbox-dev/protocol/openid-connect/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
 		assert.Equal(t, "https://sso.devsandbox.dev", regServiceCfg.Auth().SSOBaseURL())
@@ -127,7 +127,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "keyabc", regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Equal(t, "https://sso.openshift.com/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
 		assert.Equal(t, "application/xml", regServiceCfg.Auth().AuthClientConfigContentType())
-		assert.Equal(t, `{"realm": "toolchain-private"}`, regServiceCfg.Auth().AuthClientConfigRaw())
+		assert.JSONEq(t, `{"realm": "toolchain-private"}`, regServiceCfg.Auth().AuthClientConfigRaw()) //using as per linter suggestion encoded-compare: use assert.JSONEq (testifylint)
 		assert.Equal(t, "https://sso.openshift.com/certs", regServiceCfg.Auth().AuthClientPublicKeysURL())
 		assert.Equal(t, "https://sso.test.org", regServiceCfg.Auth().SSOBaseURL())
 		assert.Equal(t, "my-realm", regServiceCfg.Auth().SSORealm())

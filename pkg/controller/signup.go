@@ -60,7 +60,6 @@ func (s *Signup) PostHandler(ctx *gin.Context) {
 // invokes the Verification service with an E.164 formatted phone number value derived from the country code and phone number
 // provided by the user.
 func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
-	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
 	// Read the Body content
@@ -87,9 +86,9 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
-	err = s.app.VerificationService().InitVerification(ctx, userID, username, e164Number, strconv.Itoa(countryCode))
+	err = s.app.VerificationService().InitVerification(ctx, username, e164Number, strconv.Itoa(countryCode))
 	if err != nil {
-		log.Errorf(ctx, err, "Verification for %s could not be sent", userID)
+		log.Errorf(ctx, err, "Verification for %s could not be sent", username)
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):
@@ -100,7 +99,7 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 		return
 	}
 
-	log.Infof(ctx, "phone verification has been sent for userID %s", userID)
+	log.Infof(ctx, "phone verification has been sent for username %s", username)
 	ctx.Status(http.StatusNoContent)
 	ctx.Writer.WriteHeaderNow()
 }
@@ -108,16 +107,15 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
 
-	// Get the UserSignup resource from the service by the userID
-	userID := ctx.GetString(context.SubKey)
+	// Get the UserSignup resource from the service by the username
 	username := ctx.GetString(context.UsernameKey)
-	signupResource, err := s.app.SignupService().GetSignup(ctx, userID, username, true)
+	signupResource, err := s.app.SignupService().GetSignup(ctx, username, true)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
-		log.Infof(ctx, "UserSignup resource for userID: %s, username: %s resource not found", userID, username)
+		log.Infof(ctx, "UserSignup resource for username '%s' resource not found", username)
 		ctx.AbortWithStatus(http.StatusNotFound)
 	} else {
 		ctx.JSON(http.StatusOK, signupResource)
@@ -134,10 +132,9 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
 		return
 	}
 
-	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	err := s.app.VerificationService().VerifyPhoneCode(ctx, userID, username, code)
+	err := s.app.VerificationService().VerifyPhoneCode(ctx, username, code)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
@@ -167,10 +164,9 @@ func (s *Signup) VerifyActivationCodeHandler(ctx *gin.Context) {
 		return
 	}
 
-	userID := ctx.GetString(context.SubKey)
 	username := ctx.GetString(context.UsernameKey)
 
-	err := s.app.VerificationService().VerifyActivationCode(ctx, userID, username, code)
+	err := s.app.VerificationService().VerifyActivationCode(ctx, username, code)
 	if err != nil {
 		log.Error(ctx, err, "error validating activation code")
 		e := &crterrors.Error{}

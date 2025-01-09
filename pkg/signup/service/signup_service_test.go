@@ -240,7 +240,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	_, err := application.SignupService().GetSignup(c, "", "abc", true)
+	_, err := application.SignupService().GetSignup(c, "abc", true)
 
 	// then
 	require.EqualError(s.T(), err, "something quite unfortunate happened: something bad")
@@ -434,7 +434,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	_, err := application.SignupService().Signup(ctx)
 
 	// then
-	require.EqualError(s.T(), err, "Operation cannot be fulfilled on  \"\": UserSignup [id: userid; username: jsmith@kubesaw]. Unable to create UserSignup because there is already an active UserSignup with such ID")
+	require.EqualError(s.T(), err, "Operation cannot be fulfilled on  \"\": UserSignup [username: jsmith@kubesaw]. Unable to create UserSignup because there is already an active UserSignup with such a username")
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
@@ -495,7 +495,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
 	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
 
 	// when
-	err := application.SignupService().PhoneNumberAlreadyInUse("", "jsmith", "+12268213044")
+	err := application.SignupService().PhoneNumberAlreadyInUse("jsmith", "+12268213044")
 
 	// then
 	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -513,7 +513,7 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 	// when
-	err := application.SignupService().PhoneNumberAlreadyInUse("", "jsmith", "+12268213044")
+	err := application.SignupService().PhoneNumberAlreadyInUse("jsmith", "+12268213044")
 
 	// then
 	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -522,16 +522,10 @@ func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	s.ServiceConfiguration(true, "", 5)
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
-	bannedUserID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
 	bannedUser := &toolchainv1alpha1.BannedUser{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      bannedUserID.String(),
+			Name:      "banneduser",
 			Namespace: commontest.HostOperatorNs,
 			Labels: map[string]string{
 				toolchainv1alpha1.BannedUserEmailHashLabelKey: "1df66fbb427ff7e64ac46af29cc74b71",
@@ -541,12 +535,11 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 			Email: "jane.doe@gmail.com",
 		},
 	}
-	require.NoError(s.T(), err)
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
-	ctx.Set(context.UsernameKey, "jsmith")
-	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.UsernameKey, "jsmith@gmail")
+	ctx.Set(context.SubKey, "userid")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
@@ -565,7 +558,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 
 	val := userSignups.Items[0]
 	require.Equal(s.T(), commontest.HostOperatorNs, val.Namespace)
-	require.Equal(s.T(), "jsmith", val.Name)
+	require.Equal(s.T(), signupcommon.EncodeUserIdentifier("jsmith@gmail"), val.Name)
 	require.False(s.T(), states.ApprovedManually(&val))
 	require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 }
@@ -584,7 +577,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	}
 
 	// when
-	_, err := application.SignupService().GetSignup(c, "", username, true)
+	_, err := application.SignupService().GetSignup(c, username, true)
 
 	// then
 	require.EqualError(s.T(), err, "an error occurred")
@@ -595,7 +588,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
 	_, application := testutil.PrepareInClusterApp(s.T())
 
 	// when
-	signup, err := application.SignupService().GetSignup(c, "", "does-not-exist", true)
+	signup, err := application.SignupService().GetSignup(c, "does-not-exist", true)
 
 	// then
 	require.Nil(s.T(), signup)
@@ -614,13 +607,12 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		testusersignup.SignupIncomplete("test_reason", "test_message"),
 		testusersignup.ApprovedAutomaticallyAgo(0),
 	)
-
 	states.SetVerificationRequired(userSignupNotComplete, true)
 
 	_, application := testutil.PrepareInClusterApp(s.T(), userSignupNotComplete)
 
 	// when
-	response, err := application.SignupService().GetSignup(c, "", "not-complete@kubesaw", true)
+	response, err := application.SignupService().GetSignup(c, "not-complete@kubesaw", true)
 
 	// then
 	require.NoError(s.T(), err)
@@ -656,7 +648,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 
 		// when
 		// we set checkUserSignupCompleted to false
-		response, err := svc.GetSignup(c, "", "not-complete@kubesaw", false)
+		response, err := svc.GetSignup(c, "not-complete@kubesaw", false)
 
 		// then
 		require.NoError(s.T(), err)
@@ -730,7 +722,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// when
-		response, err := application.SignupService().GetSignup(c, "", "bill", true)
+		response, err := application.SignupService().GetSignup(c, "bill", true)
 
 		// then
 		require.NoError(s.T(), err)
@@ -765,7 +757,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 	// when
-	signup, err := application.SignupService().GetSignup(c, "", username, true)
+	signup, err := application.SignupService().GetSignup(c, username, true)
 
 	// then
 	require.Nil(s.T(), signup)
@@ -790,7 +782,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 
 			// when
-			response, err := application.SignupService().GetSignup(c, "", username, true)
+			response, err := application.SignupService().GetSignup(c, username, true)
 
 			// then
 			require.NoError(s.T(), err)
@@ -868,7 +860,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	_, application := testutil.PrepareInClusterApp(s.T(), us, mur, space)
 
 	// when
-	_, err := application.SignupService().GetSignup(c, "", username, true)
+	_, err := application.SignupService().GetSignup(c, username, true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
@@ -892,7 +884,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 	}
 
 	// when
-	_, err := application.SignupService().GetSignup(c, "", username, true)
+	_, err := application.SignupService().GetSignup(c, username, true)
 
 	// then
 	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s: an error occurred", us.Name))
@@ -974,7 +966,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 			_, application := testutil.PrepareInClusterApp(s.T(), us, mur, space, toolchainStatus)
 
 			// when
-			response, err := application.SignupService().GetSignup(c, "", username, true)
+			response, err := application.SignupService().GetSignup(c, username, true)
 
 			// then
 			require.NoError(s.T(), err)
@@ -1004,7 +996,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	// when
-	response, err := application.SignupService().GetSignup(ctx, "", "ted@kubesaw", true)
+	response, err := application.SignupService().GetSignup(ctx, "ted@kubesaw", true)
 
 	// then
 	// return not found signup
@@ -1232,7 +1224,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 
 	s.ServiceConfiguration(false, "", 5)
 
-	// Create a new UserSignup, set its UserID and AccountID annotations
+	// Create a new UserSignup
 	username, userSignup := s.newUserSignupComplete()
 
 	mur := &toolchainv1alpha1.MasterUserRecord{
@@ -1259,7 +1251,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		c.Set(context.UsernameKey, "cocochanel")
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, mur)
 
-		_, err := application.SignupService().GetSignup(c, "", username, true)
+		_, err := application.SignupService().GetSignup(c, username, true)
 		require.NoError(s.T(), err)
 
 		modified := &toolchainv1alpha1.UserSignup{}
@@ -1282,7 +1274,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Set(context.GivenNameKey, "Jonathan")
 
-			_, err := application.SignupService().GetSignup(c, "", username, true)
+			_, err := application.SignupService().GetSignup(c, username, true)
 			require.NoError(s.T(), err)
 
 			modified := &toolchainv1alpha1.UserSignup{}
@@ -1308,7 +1300,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 				c.Set(context.FamilyNameKey, "Smythe")
 				c.Set(context.CompanyKey, "Red Hat")
 
-				_, err := application.SignupService().GetSignup(c, "", username, true)
+				_, err := application.SignupService().GetSignup(c, username, true)
 				require.NoError(s.T(), err)
 
 				modified := &toolchainv1alpha1.UserSignup{}
@@ -1336,7 +1328,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
 					c.Set(context.EmailKey, "jsmythe@redhat.com")
 
-					_, err := application.SignupService().GetSignup(c, "", username, true)
+					_, err := application.SignupService().GetSignup(c, username, true)
 					require.NoError(s.T(), err)
 
 					modified := &toolchainv1alpha1.UserSignup{}

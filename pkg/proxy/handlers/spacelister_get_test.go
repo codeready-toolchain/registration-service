@@ -76,7 +76,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			expectedErr            string
 			expectedErrCode        int
 			expectedWorkspace      string
-			overrideSignupFunc     func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+			overrideSignupFunc     func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 			mockFakeClient         func(fakeClient *test.FakeClient)
 			overrideGetMembersFunc func(conditions ...commoncluster.Condition) []*commoncluster.CachedToolchainCluster
 			overrideMemberClient   *test.FakeClient
@@ -270,7 +270,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWs:      nil,
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
-				overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+				overrideSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("signup error")
 				},
 				expectedWorkspace: "dancelover",
@@ -620,7 +620,7 @@ func TestGetUserWorkspace(t *testing.T) {
 		workspaceRequest   string
 		expectedWorkspace  func(t *testing.T, fakeClient *test.FakeClient) toolchainv1alpha1.Workspace
 		mockFakeClient     func(fakeClient *test.FakeClient)
-		overrideSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+		overrideSignupFunc func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 	}{
 		"get robin workspace": {
 			username:         "robin",
@@ -673,7 +673,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			username:         "batman",
 			workspaceRequest: "batman",
 			expectedErr:      "signup error",
-			overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+			overrideSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 				return nil, fmt.Errorf("signup error")
 			},
 			expectedWorkspace: nil,

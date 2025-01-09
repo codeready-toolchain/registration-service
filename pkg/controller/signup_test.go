@@ -193,7 +193,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetSignup = func(_ *gin.Context, _, name string, _ bool) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, name string, _ bool) (*signup.Signup, error) {
 			if name == username {
 				return expected, nil
 			}
@@ -220,7 +220,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.UsernameKey, username)
 
-		svc.MockGetSignup = func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 			return nil, nil
 		}
 
@@ -237,7 +237,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		ctx.Request = req
 		ctx.Set(context.UsernameKey, username)
 
-		svc.MockGetSignup = func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+		svc.MockGetSignup = func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 			return nil, errors.New("oopsie woopsie")
 		}
 
@@ -451,7 +451,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.InDelta(s.T(), float64(500), bodyParams["code"], 0.01)
-		require.Equal(s.T(), "no user: error retrieving usersignup: ", bodyParams["message"])
+		require.Equal(s.T(), "no user: error retrieving usersignup with username 'johnny@kubesaw'", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
 
@@ -724,24 +724,19 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 }
 
 type FakeSignupService struct {
-	MockGetSignup                   func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-	MockSignup                      func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockGetUserSignupFromIdentifier func(userID, username string) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse     func(userID, username, value string) error
+	MockGetSignup               func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
+	MockPhoneNumberAlreadyInUse func(username, value string) error
 }
 
-func (m *FakeSignupService) GetSignup(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
-	return m.MockGetSignup(ctx, userID, username, checkUserSignupComplete)
+func (m *FakeSignupService) GetSignup(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
+	return m.MockGetSignup(ctx, username, checkUserSignupComplete)
 }
 
 func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {
 	return m.MockSignup(ctx)
 }
 
-func (m *FakeSignupService) GetUserSignupFromIdentifier(userID, username string) (*crtapi.UserSignup, error) {
-	return m.MockGetUserSignupFromIdentifier(userID, username)
-}
-
-func (m *FakeSignupService) PhoneNumberAlreadyInUse(userID, username, e164phoneNumber string) error {
-	return m.MockPhoneNumberAlreadyInUse(userID, username, e164phoneNumber)
+func (m *FakeSignupService) PhoneNumberAlreadyInUse(username, e164phoneNumber string) error {
+	return m.MockPhoneNumberAlreadyInUse(username, e164phoneNumber)
 }

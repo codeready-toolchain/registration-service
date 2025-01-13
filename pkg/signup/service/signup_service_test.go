@@ -20,7 +20,11 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/util"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test/masteruserrecord"
+	"github.com/codeready-toolchain/toolchain-common/pkg/test/space"
+	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -472,31 +476,21 @@ func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 	s.ServiceConfiguration(true, "", 5)
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	signup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: commontest.HostOperatorNs,
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{},
-	}
-	require.NoError(s.T(), err)
+	signup := testusersignup.NewUserSignup(testusersignup.WithName("jsmith"))
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
 	ctx.Set(context.UsernameKey, "jsmith")
-	ctx.Set(context.SubKey, userID.String())
+	ctx.Set(context.SubKey, "userid")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
 	_, application := testutil.PrepareInClusterApp(s.T(), signup)
 
 	// when
-	_, err = application.SignupService().Signup(ctx)
+	_, err := application.SignupService().Signup(ctx)
 
 	// then
-	require.EqualError(s.T(), err, fmt.Sprintf("Operation cannot be fulfilled on  \"\": UserSignup [id: %s; username: jsmith]. Unable to create UserSignup because there is already an active UserSignup with such ID", userID.String()))
+	require.EqualError(s.T(), err, "Operation cannot be fulfilled on  \"\": UserSignup [id: userid; username: jsmith]. Unable to create UserSignup because there is already an active UserSignup with such ID")
 }
 
 func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
@@ -930,7 +924,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.NotNil(s.T(), response)
 
 			require.Equal(s.T(), us.Name, response.Name)
-			require.Equal(s.T(), "jsmith", response.Username)
+			require.Equal(s.T(), "ted", response.Username)
 			require.Equal(s.T(), "ted", response.CompliantUsername)
 
 			require.Equal(s.T(), mur.Status.ProvisionedTime.UTC().Format(time.RFC3339), response.StartDate)
@@ -990,7 +984,7 @@ func (s *TestSignupServiceSuite) TestGetSignupByUsernameOK() {
 	require.Equal(s.T(), deactivationTimestamp, responseEndDate)
 
 	require.Equal(s.T(), us.Name, response.Name)
-	require.Equal(s.T(), "jsmith", response.Username)
+	require.Equal(s.T(), "ted", response.Username)
 	require.Equal(s.T(), "ted", response.CompliantUsername)
 	assert.True(s.T(), response.Status.Ready)
 	assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
@@ -1177,7 +1171,14 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	// given
 	s.ServiceConfiguration(true, "", 5)
 
-	us := s.newBannedUserSignup()
+	us := testusersignup.NewUserSignup(
+		testusersignup.WithName("ted"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupUserEmailHashLabelKey, "a7b1b413c1cbddbcd19a51222ef8e20a"),
+		testusersignup.ApprovedAutomaticallyAgo(time.Second),
+		testusersignup.BannedAgo(time.Second),
+		func(signup *toolchainv1alpha1.UserSignup) {
+			signup.Status.CompliantUsername = "ted"
+		})
 	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
 	rr := httptest.NewRecorder()
@@ -1485,16 +1486,16 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
-		require.Equal(s.T(), "John", modified.Spec.IdentityClaims.GivenName)
-		require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
-		require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+		require.Equal(s.T(), "Foo", modified.Spec.IdentityClaims.GivenName)
+		require.Equal(s.T(), "Bar", modified.Spec.IdentityClaims.FamilyName)
+		require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
 
-		require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
-		require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
-		require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
-		require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
-		require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
-		require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+		require.Equal(s.T(), "5647382910", modified.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "UserID123", modified.Spec.IdentityClaims.Sub)
+		require.Equal(s.T(), "0192837465", modified.Spec.IdentityClaims.UserID)
+		require.Equal(s.T(), "original-sub-value", modified.Spec.IdentityClaims.OriginalSub)
+		require.Equal(s.T(), "foo@redhat.com", modified.Spec.IdentityClaims.Email)
+		require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 		s.Run("GivenName property updated when set in context", func() {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -1511,15 +1512,15 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 
 			// Confirm that some other properties were not changed
 			require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
-			require.Equal(s.T(), "Smith", modified.Spec.IdentityClaims.FamilyName)
-			require.Equal(s.T(), "Acme Inc", modified.Spec.IdentityClaims.Company)
+			require.Equal(s.T(), "Bar", modified.Spec.IdentityClaims.FamilyName)
+			require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
 
-			require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
-			require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
-			require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
-			require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
-			require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
-			require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+			require.Equal(s.T(), "5647382910", modified.Spec.IdentityClaims.AccountID)
+			require.Equal(s.T(), "UserID123", modified.Spec.IdentityClaims.Sub)
+			require.Equal(s.T(), "0192837465", modified.Spec.IdentityClaims.UserID)
+			require.Equal(s.T(), "original-sub-value", modified.Spec.IdentityClaims.OriginalSub)
+			require.Equal(s.T(), "foo@redhat.com", modified.Spec.IdentityClaims.Email)
+			require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 			s.Run("FamilyName and Company properties updated when set in context", func() {
 				c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -1539,12 +1540,12 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 				require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
 				require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
 
-				require.Equal(s.T(), "65432111", modified.Spec.IdentityClaims.AccountID)
-				require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.Sub)
-				require.Equal(s.T(), "54321666", modified.Spec.IdentityClaims.UserID)
-				require.Equal(s.T(), "jsmith-original-sub", modified.Spec.IdentityClaims.OriginalSub)
-				require.Equal(s.T(), "jsmith@redhat.com", modified.Spec.IdentityClaims.Email)
-				require.Equal(s.T(), "90cb861692508c36933b85dfe43f5369", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+				require.Equal(s.T(), "5647382910", modified.Spec.IdentityClaims.AccountID)
+				require.Equal(s.T(), "UserID123", modified.Spec.IdentityClaims.Sub)
+				require.Equal(s.T(), "0192837465", modified.Spec.IdentityClaims.UserID)
+				require.Equal(s.T(), "original-sub-value", modified.Spec.IdentityClaims.OriginalSub)
+				require.Equal(s.T(), "foo@redhat.com", modified.Spec.IdentityClaims.Email)
+				require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 				s.Run("Remaining properties updated when set in context", func() {
 					c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -1579,175 +1580,50 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 }
 
 func (s *TestSignupServiceSuite) newUserSignupComplete() *toolchainv1alpha1.UserSignup {
-	return s.newUserSignupCompleteWithReason("")
-}
-
-func (s *TestSignupServiceSuite) newUserSignupCompleteWithReason(reason string) *toolchainv1alpha1.UserSignup {
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	return &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: commontest.HostOperatorNs,
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "90cb861692508c36933b85dfe43f5369",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
-					Sub:         "123456789",
-					UserID:      "54321666",
-					AccountID:   "65432111",
-					OriginalSub: "jsmith-original-sub",
-					Email:       "jsmith@redhat.com",
-				},
-				PreferredUsername: "jsmith",
-				GivenName:         "John",
-				FamilyName:        "Smith",
-				Company:           "Acme Inc",
-			},
-		},
-		Status: toolchainv1alpha1.UserSignupStatus{
-			ScheduledDeactivationTimestamp: util.Ptr(v1.NewTime(time.Now().Add(30 * time.Hour * 24))),
-			Conditions: []toolchainv1alpha1.Condition{
-				{
-					Type:   toolchainv1alpha1.UserSignupComplete,
-					Status: apiv1.ConditionTrue,
-					Reason: reason,
-				},
-				{
-					Type:   toolchainv1alpha1.UserSignupApproved,
-					Status: apiv1.ConditionTrue,
-					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
-				},
-			},
-			CompliantUsername: "ted",
-			HomeSpace:         "ted",
-		},
-	}
-}
-
-func (s *TestSignupServiceSuite) newBannedUserSignup() *toolchainv1alpha1.UserSignup {
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	return &toolchainv1alpha1.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID.String(),
-			Namespace: commontest.HostOperatorNs,
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: "a7b1b413c1cbddbcd19a51222ef8e20a",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
-					Sub:         "123456789",
-					UserID:      "54321666",
-					AccountID:   "65432111",
-					OriginalSub: "jsmith-original-sub",
-					Email:       "jsmith@gmail.com",
-				},
-				PreferredUsername: "jsmith",
-				GivenName:         "John",
-				FamilyName:        "Smith",
-				Company:           "Acme Inc",
-			},
-		},
-		Status: toolchainv1alpha1.UserSignupStatus{
-			Conditions: []toolchainv1alpha1.Condition{
-				{
-					Type:   toolchainv1alpha1.UserSignupApproved,
-					Status: apiv1.ConditionTrue,
-					Reason: toolchainv1alpha1.UserSignupApprovedAutomaticallyReason,
-				},
-				{
-					Type:   toolchainv1alpha1.UserSignupComplete,
-					Status: apiv1.ConditionTrue,
-					Reason: toolchainv1alpha1.UserSignupUserBannedReason,
-				},
-			},
-			CompliantUsername: "jsmith",
-		},
-	}
+	return testusersignup.NewUserSignup(
+		testusersignup.WithName("ted"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupUserEmailHashLabelKey, "90cb861692508c36933b85dfe43f5369"),
+		testusersignup.SignupComplete(""),
+		testusersignup.ApprovedAutomaticallyAgo(time.Second),
+		func(signup *toolchainv1alpha1.UserSignup) {
+			signup.Status.CompliantUsername = "ted"
+			signup.Status.HomeSpace = "ted"
+			signup.Status.ScheduledDeactivationTimestamp = util.Ptr(v1.NewTime(time.Now().Add(30 * time.Hour * 24)))
+		})
 }
 
 func (s *TestSignupServiceSuite) newProvisionedMUR(name string) *toolchainv1alpha1.MasterUserRecord {
-	return &toolchainv1alpha1.MasterUserRecord{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
-			Namespace: commontest.HostOperatorNs,
-		},
-		Spec: toolchainv1alpha1.MasterUserRecordSpec{
-			UserAccounts: []toolchainv1alpha1.UserAccountEmbedded{{TargetCluster: "member-123"}},
-		},
-		Status: toolchainv1alpha1.MasterUserRecordStatus{
-			ProvisionedTime: util.Ptr(v1.NewTime(time.Now())),
-			Conditions: []toolchainv1alpha1.Condition{
-				{
-					Type:    toolchainv1alpha1.MasterUserRecordReady,
-					Status:  apiv1.ConditionTrue,
-					Reason:  "mur_ready_reason",
-					Message: "mur_ready_message",
-				},
-			},
-			UserAccounts: []toolchainv1alpha1.UserAccountStatusEmbedded{{Cluster: toolchainv1alpha1.Cluster{
-				Name: "member-123",
-			}}},
-		},
-	}
+	return masteruserrecord.NewMasterUserRecord(s.T(), name,
+		masteruserrecord.ProvisionedMur(util.Ptr(v1.NewTime(time.Now()))),
+		masteruserrecord.StatusCondition(toolchainv1alpha1.Condition{
+			Type:    toolchainv1alpha1.MasterUserRecordReady,
+			Status:  apiv1.ConditionTrue,
+			Reason:  "mur_ready_reason",
+			Message: "mur_ready_message",
+		}),
+		masteruserrecord.StatusUserAccount("member-123"))
 }
 
 func (s *TestSignupServiceSuite) newSpace(name string) *toolchainv1alpha1.Space {
-	return &toolchainv1alpha1.Space{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
-			Namespace: commontest.HostOperatorNs,
-			Labels: map[string]string{
-				toolchainv1alpha1.SpaceCreatorLabelKey: name,
+	return space.NewSpace(commontest.HostOperatorNs, name,
+		space.WithLabel(toolchainv1alpha1.SpaceCreatorLabelKey, name),
+		space.WithSpecTargetCluster("member-123"),
+		space.WithSpecTargetClusterRoles([]string{"cluster-role.toolchain.dev.openshift.com/tenant"}),
+		space.WithTierName("base1ns"),
+		space.WithStatusTargetCluster("member-123"),
+		space.WithStatusProvisionedNamespaces([]toolchainv1alpha1.SpaceNamespace{
+			{
+				Name: fmt.Sprintf("%s-dev", name),
+				Type: "default",
 			},
-		},
-		Spec: toolchainv1alpha1.SpaceSpec{
-			TargetCluster:      "member-123",
-			TargetClusterRoles: []string{"cluster-role.toolchain.dev.openshift.com/tenant"},
-			TierName:           "base1ns",
-		},
-		Status: toolchainv1alpha1.SpaceStatus{
-			TargetCluster: "member-123",
-			ProvisionedNamespaces: []toolchainv1alpha1.SpaceNamespace{
-				{
-					Name: fmt.Sprintf("%s-dev", name),
-					Type: "default",
-				},
-			},
-		},
-	}
+		}))
 }
 
 func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *toolchainv1alpha1.SpaceBinding {
 	name, err := uuid.NewV4()
 	require.NoError(s.T(), err)
 
-	return &toolchainv1alpha1.SpaceBinding{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name.String(),
-			Namespace: commontest.HostOperatorNs,
-			Labels: map[string]string{
-				toolchainv1alpha1.SpaceBindingSpaceLabelKey:            spaceName,
-				toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName,
-			},
-		},
-		Spec: toolchainv1alpha1.SpaceBindingSpec{
-			MasterUserRecord: murName,
-			Space:            spaceName,
-			SpaceRole:        "admin",
-		},
-	}
+	return fake.NewSpaceBinding(name.String(), murName, spaceName, "admin")
 }
 
 func deactivated() []toolchainv1alpha1.Condition {

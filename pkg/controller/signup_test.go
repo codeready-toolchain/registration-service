@@ -38,7 +38,6 @@ import (
 	"gopkg.in/h2non/gock.v1"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -85,9 +84,6 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	signupCtrl := controller.NewSignup(application)
 	handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
-	userID, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-
 	s.Run("signup created", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
@@ -99,32 +95,24 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		require.NoError(s.T(), err)
 		expectedUserID := ob.String()
 		ctx.Set(context.SubKey, expectedUserID)
+		ctx.Set(context.UsernameKey, "bill")
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
-		signup := &crtapi.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      userID.String(),
-				Namespace: "namespace-foo",
-			},
-			Spec: crtapi.UserSignupSpec{
-				IdentityClaims: crtapi.IdentityClaimsEmbedded{
-					PreferredUsername: "bill",
-				},
-			},
-			Status: crtapi.UserSignupStatus{
-				Conditions: []crtapi.Condition{
+		signup := testusersignup.NewUserSignup(
+			testusersignup.WithName("bill"),
+			func(userSignup *crtapi.UserSignup) {
+				userSignup.Status.Conditions = []crtapi.Condition{
 					{
 						Type:    crtapi.UserSignupComplete,
 						Status:  apiv1.ConditionFalse,
 						Reason:  "test_reason",
 						Message: "test_message",
 					},
-				},
-			},
-		}
+				}
+			})
 
 		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
 			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
+			assert.Equal(s.T(), "bill", ctx.GetString(context.UsernameKey))
 			assert.Equal(s.T(), expectedUserID+"@test.com", ctx.GetString(context.EmailKey))
 			return signup, nil
 		}
@@ -267,25 +255,12 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	s.OverrideApplicationDefault()
 
 	// Create UserSignup
-	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	userID := ob.String()
-
-	userSignup := &crtapi.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID,
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				crtapi.UserSignupVerificationCounterAnnotationKey: "0",
-				crtapi.UserSignupVerificationCodeAnnotationKey:    "",
-			},
-			Labels: map[string]string{},
-		},
-		Spec:   crtapi.UserSignupSpec{},
-		Status: crtapi.UserSignupStatus{},
-	}
-	states.SetVerificationRequired(userSignup, true)
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCounterAnnotationKey, "0"),
+		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, ""),
+		testusersignup.VerificationRequiredAgo(time.Second))
+	userID := userSignup.Spec.IdentityClaims.UserID
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 	defer gock.Off()
@@ -300,11 +275,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			BodyString("")
 
 		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phoneNumber))
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 
 		updatedUserSignup := &crtapi.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
+		err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		require.NotEmpty(s.T(), updatedUserSignup.Annotations[crtapi.UserSignupVerificationCodeAnnotationKey])
@@ -334,11 +309,11 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 			BodyString("")
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
@@ -348,13 +323,13 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 	s.Run("init verification request body could not be read", func() {
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		messageLines := strings.Split(bodyParams["message"].(string), "\n")
@@ -369,11 +344,10 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		cfg := configuration.GetRegistrationServiceConfig()
 		originalValue := cfg.Verification().DailyLimit()
 		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
-		require.NoError(s.T(), err)
 		defer s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(originalValue))
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
@@ -381,20 +355,8 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 	s.Run("init verification handler fails when verification not required", func() {
 		// Create UserSignup
-		ob, err := uuid.NewV4()
-		require.NoError(s.T(), err)
-		userID := ob.String()
-
-		userSignup := &crtapi.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      userID,
-				Namespace: configuration.Namespace(),
-			},
-			Spec:   crtapi.UserSignupSpec{},
-			Status: crtapi.UserSignupStatus{},
-		}
-		states.SetVerificationRequired(userSignup, false)
+		userSignup := testusersignup.NewUserSignup(testusersignup.WithName("johny"))
+		userID := userSignup.Spec.IdentityClaims.UserID
 
 		_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -403,13 +365,13 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Bad Request", bodyParams["status"])
@@ -427,17 +389,9 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		// Create a mock SignupService
 		svc := &FakeSignupService{
 			MockGetUserSignupFromIdentifier: func(_, _ string) (userSignup *crtapi.UserSignup, e error) {
-				us := crtapi.UserSignup{
-					TypeMeta: v1.TypeMeta{},
-					ObjectMeta: v1.ObjectMeta{
-						Name:   userID,
-						Labels: map[string]string{},
-					},
-					Spec:   crtapi.UserSignupSpec{},
-					Status: crtapi.UserSignupStatus{},
-				}
-				states.SetVerificationRequired(&us, true)
-				return &us, nil
+				return testusersignup.NewUserSignup(
+					testusersignup.WithName("johny"),
+					testusersignup.VerificationRequiredAgo(time.Second)), nil
 			},
 			MockPhoneNumberAlreadyInUse: func(_, _, _ string) error {
 				return nil
@@ -454,7 +408,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		data := []byte(`{"phone_number": "!226%213044", "country_code": "1"}`)
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, userID, "johny", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
@@ -463,24 +417,12 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 
 func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 	// Create UserSignup
-	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	userID := ob.String()
-
-	userSignup := &crtapi.UserSignup{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      userID,
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				crtapi.UserVerificationAttemptsAnnotationKey:   "0",
-				crtapi.UserSignupVerificationCodeAnnotationKey: "999888",
-				crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
-			},
-		},
-		Spec:   crtapi.UserSignupSpec{},
-		Status: crtapi.UserSignupStatus{},
-	}
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithAnnotation(crtapi.UserVerificationAttemptsAnnotationKey, "0"),
+		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, "999888"),
+		testusersignup.WithAnnotation(crtapi.UserVerificationExpiryAnnotationKey, time.Now().Add(10*time.Second).Format(service.TimestampLayout)))
+	userID := userSignup.Spec.IdentityClaims.UserID
 
 	s.Run("verification successful", func() {
 		// Create Signup controller instance.
@@ -492,13 +434,13 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "999888",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "johny", http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		updatedUserSignup := &crtapi.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
+		err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update
@@ -523,18 +465,18 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "111233",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "johny", http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
 		require.InDelta(s.T(), float64(500), bodyParams["code"], 0.01)
-		require.Equal(s.T(), fmt.Sprintf("no user: error retrieving usersignup: %s", userSignup.Name), bodyParams["message"])
+		require.Equal(s.T(), fmt.Sprintf("no user: error retrieving usersignup: %s", userID), bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})
 
@@ -555,7 +497,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.Equal(s.T(), http.StatusNotFound, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
@@ -577,14 +519,14 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "555555",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet,
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "johny", http.MethodGet,
 			"/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Internal Server Error", bodyParams["status"])
@@ -611,13 +553,13 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 			Key:   "code",
 			Value: "333333",
 		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "", http.MethodGet, "/api/v1/signup/verification/333333")
+		rr := initPhoneVerification(s.T(), handler, param, nil, userID, "johny", http.MethodGet, "/api/v1/signup/verification/333333")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusTooManyRequests, rr.Code)
 
 		bodyParams := make(map[string]interface{})
-		err = json.Unmarshal(rr.Body.Bytes(), &bodyParams)
+		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
 		require.NoError(s.T(), err)
 
 		require.Equal(s.T(), "Too Many Requests", bodyParams["status"])
@@ -644,29 +586,11 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 	s.Run("usersignup stored by its username", func() {
 		// Create another UserSignup
-		otherUserID := uuid.Must(uuid.NewV4()).String()
-
-		otherUserSignup := &crtapi.UserSignup{
-			TypeMeta: v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{
-				Name:      "jsmith",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					crtapi.UserVerificationAttemptsAnnotationKey:   "0",
-					crtapi.UserSignupVerificationCodeAnnotationKey: "999127",
-					crtapi.UserVerificationExpiryAnnotationKey:     time.Now().Add(10 * time.Second).Format(service.TimestampLayout),
-				},
-			},
-			Spec: crtapi.UserSignupSpec{
-				IdentityClaims: crtapi.IdentityClaimsEmbedded{
-					PreferredUsername: "jsmith",
-					PropagatedClaims: crtapi.PropagatedClaims{
-						Sub: otherUserID,
-					},
-				},
-			},
-			Status: crtapi.UserSignupStatus{},
-		}
+		otherUserSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("jsmith"),
+			testusersignup.WithAnnotation(crtapi.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, "999127"),
+			testusersignup.WithAnnotation(crtapi.UserVerificationExpiryAnnotationKey, time.Now().Add(10*time.Second).Format(service.TimestampLayout)))
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), otherUserSignup, userSignup)
 
@@ -684,7 +608,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
 		updatedUserSignup := &crtapi.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(otherUserSignup), updatedUserSignup)
+		err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(otherUserSignup), updatedUserSignup)
 		require.NoError(s.T(), err)
 
 		// Check that the correct UserSignup is passed into the FakeSignupService for update

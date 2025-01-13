@@ -137,14 +137,14 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	userSignup := testusersignup.NewUserSignup(
 		testusersignup.WithName("johny"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	// Create a second UserSignup which we will test by username lookup instead of UserID lookup.  This will also function
 	// as some additional noise for the test
 	userSignup2 := testusersignup.NewUserSignup(
 		testusersignup.WithName("jsmith"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+61NUMBER"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	// Add both UserSignups to the fake client
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup, userSignup2)
@@ -247,7 +247,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	userSignup := testusersignup.NewUserSignup(
 		testusersignup.WithName("johny"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	s.Run("when client GET call fails should return error", func() {
 		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
@@ -342,7 +342,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "3"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -383,7 +383,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, "abc"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -409,7 +409,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, strconv.Itoa(cfg.Verification().DailyLimit())),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -441,7 +441,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 
 	bravoUserSignup := testusersignup.NewUserSignup(
 		testusersignup.WithName("bravo"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
@@ -481,7 +481,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 
 	bravoUserSignup := testusersignup.NewUserSignup(
 		testusersignup.WithName("bravo"),
-		testusersignup.VerificationRequired(0))
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
@@ -511,8 +511,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.8"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
-
-			testusersignup.VerificationRequired(0))
+			testusersignup.VerificationRequiredAgo(time.Second))
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -536,7 +535,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.7"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "654321"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
-			testusersignup.VerificationRequired(0))
+			testusersignup.VerificationRequiredAgo(time.Second))
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -733,7 +732,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 					testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 					testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
 					testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
-					testusersignup.VerificationRequired(0))
+					testusersignup.VerificationRequiredAgo(time.Second))
 				if tc.activationCounterAnnotationValue != "" {
 					userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = tc.activationCounterAnnotationValue
 				}
@@ -773,7 +772,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("verification ok", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -791,7 +790,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("last user to signup", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                          // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                       // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9), testsocialevent.WithTargetCluster(targetCluster)) // one seat left
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -810,7 +809,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 	s.Run("when too many attempts made", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.VerificationRequired(time.Second), // just signed up
+			testusersignup.VerificationRequiredAgo(time.Second), // just signed up
 			testusersignup.WithVerificationAttempts(cfg.Verification().AttemptsAllowed()))
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
@@ -831,7 +830,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 		s.Run("first attempt", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
@@ -849,8 +848,8 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		s.Run("second attempt", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(
-				testusersignup.VerificationRequired(time.Second), // just signed up
-				testusersignup.WithVerificationAttempts(2))       // already tried twice before
+				testusersignup.VerificationRequiredAgo(time.Second), // just signed up
+				testusersignup.WithVerificationAttempts(2))          // already tried twice before
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
@@ -868,7 +867,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when max attendees reached", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                           // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                        // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10), testsocialevent.WithTargetCluster(targetCluster)) // same as default `spec.MaxAttendees`
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -887,7 +886,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when event not open yet", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                            // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                         // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // starting in 1hr
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -906,7 +905,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when event already closed", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                           // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                        // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // ended 1hr ago
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 

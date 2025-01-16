@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20241119094246-f6581d52dc80
+	github.com/codeready-toolchain/api v0.0.0-20250116110936-14cd9cc79fc6
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20250113092648-1078d683961b
 	github.com/go-logr/logr v1.4.1
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -138,7 +138,7 @@ require (
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.19.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect

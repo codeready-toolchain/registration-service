@@ -134,43 +134,17 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	gock.Observe(obs)
 
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "sbryzak@redhat.com",
-			},
-		},
-	}
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	// Create a second UserSignup which we will test by username lookup instead of UserID lookup.  This will also function
 	// as some additional noise for the test
-	userSignup2 := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "jsmith",
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+61NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "jsmith",
-			},
-		},
-	}
-
-	// Require verification for both UserSignups
-	states.SetVerificationRequired(userSignup, true)
-	states.SetVerificationRequired(userSignup2, true)
+	userSignup2 := testusersignup.NewUserSignup(
+		testusersignup.WithName("jsmith"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+61NUMBER"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	// Add both UserSignups to the fake client
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup, userSignup2)
@@ -270,23 +244,10 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 	gock.Observe(obs)
 
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "shane@redhat.com",
-			},
-		},
-	}
-
-	states.SetVerificationRequired(userSignup, true)
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	s.Run("when client GET call fails should return error", func() {
 		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
@@ -301,7 +262,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: 123", err.Error())
+		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: johny", err.Error())
 	})
 
 	s.Run("when client UPDATE call fails indefinitely should return error", func() {
@@ -375,27 +336,13 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	gock.Observe(obs)
 
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Add(-25 * time.Hour).Format(verificationservice.TimestampLayout),
-				toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:            "3",
-				toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey:          "123456",
-			},
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "shane@redhat.com",
-			},
-		},
-	}
-	states.SetVerificationRequired(userSignup, true)
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Add(-25*time.Hour).Format(verificationservice.TimestampLayout)),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, "3"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -431,26 +378,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 
 	now := time.Now()
 
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       "abc",
-				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
-			},
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "shane@redhat.com",
-			},
-		},
-	}
-	states.SetVerificationRequired(userSignup, true)
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, "abc"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -471,26 +404,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 	now := time.Now()
 
-	userSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "123",
-			Namespace: configuration.Namespace(),
-			Annotations: map[string]string{
-				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey:       strconv.Itoa(cfg.Verification().DailyLimit()),
-				toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey: now.Format(verificationservice.TimestampLayout),
-			},
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "shane@redhat.com",
-			},
-		},
-	}
-	states.SetVerificationRequired(userSignup, true)
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("johny"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, strconv.Itoa(cfg.Verification().DailyLimit())),
+		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
@@ -514,38 +433,15 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	// calculate the phone number hash
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
-	alphaUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "alpha",
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
-				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueApproved,
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "alpha@foxtrot.com",
-			},
-		},
-	}
-	states.SetApprovedManually(alphaUserSignup, true)
+	alphaUserSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("alpha"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, phoneHash),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueApproved),
+		testusersignup.ApprovedManually())
 
-	bravoUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bravo",
-			Namespace: configuration.Namespace(),
-			Labels:    map[string]string{},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "bravo@foxtrot.com",
-			},
-		},
-	}
-	states.SetVerificationRequired(bravoUserSignup, true)
+	bravoUserSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("bravo"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
@@ -576,39 +472,16 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	// calculate the phone number hash
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
-	alphaUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "alpha",
-			Namespace: configuration.Namespace(),
-			Labels: map[string]string{
-				toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: phoneHash,
-				toolchainv1alpha1.UserSignupStateLabelKey:         toolchainv1alpha1.UserSignupStateLabelValueDeactivated,
-			},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "alpha@foxtrot.com",
-			},
-		},
-	}
-	states.SetApprovedManually(alphaUserSignup, true)
-	states.SetDeactivated(alphaUserSignup, true)
+	alphaUserSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("alpha"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, phoneHash),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueDeactivated),
+		testusersignup.ApprovedManually(),
+		testusersignup.Deactivated())
 
-	bravoUserSignup := &toolchainv1alpha1.UserSignup{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bravo",
-			Namespace: configuration.Namespace(),
-			Labels:    map[string]string{},
-		},
-		Spec: toolchainv1alpha1.UserSignupSpec{
-			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-				PreferredUsername: "bravo@foxtrot.com",
-			},
-		},
-	}
-	states.SetVerificationRequired(bravoUserSignup, true)
+	bravoUserSignup := testusersignup.NewUserSignup(
+		testusersignup.WithName("bravo"),
+		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
@@ -631,27 +504,14 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("verification ok", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.8",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
-		states.SetVerificationRequired(userSignup, true)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.8"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+			testusersignup.VerificationRequiredAgo(time.Second))
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -668,27 +528,14 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("verification ok for usersignup with username identifier", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "employee085",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey:     "0.7",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "654321",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "employee085@redhat.com",
-				},
-			},
-		}
-		states.SetVerificationRequired(userSignup, true)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("employee085"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.7"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "654321"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+			testusersignup.VerificationRequiredAgo(time.Second))
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -705,25 +552,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("when verification code is invalid", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "000000",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "000000"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+		)
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -738,25 +573,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("when verification code has expired", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(-10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(-10*time.Second).Format(verificationservice.TimestampLayout)),
+		)
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -770,25 +593,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("when verifications exceeded maximum attempts", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "3",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "3"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+		)
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -799,25 +610,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("when verifications attempts has invalid value", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "ABC",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Second).Format(verificationservice.TimestampLayout),
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "ABC"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+		)
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -834,25 +633,13 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 	s.Run("when verifications expiry is corrupt", func() {
 
-		userSignup := &toolchainv1alpha1.UserSignup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "123",
-				Namespace: configuration.Namespace(),
-				Annotations: map[string]string{
-					toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-					toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-					toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     "ABC",
-				},
-				Labels: map[string]string{
-					toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-				},
-			},
-			Spec: toolchainv1alpha1.UserSignupSpec{
-				IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-					PreferredUsername: "shane@redhat.com",
-				},
-			},
-		}
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithName("johny"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, "ABC"),
+		)
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -938,32 +725,20 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 					testconfig.RegistrationService().Verification().CaptchaRequiredScore("0.6"),
 					testconfig.RegistrationService().Verification().CaptchaAllowLowScoreReactivation(tc.allowLowScoreReactivationConfiguration),
 				)
-				userSignup := &toolchainv1alpha1.UserSignup{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "123",
-						Namespace: configuration.Namespace(),
-						Annotations: map[string]string{
-							toolchainv1alpha1.UserVerificationAttemptsAnnotationKey:   "0",
-							toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey: "123456",
-							toolchainv1alpha1.UserVerificationExpiryAnnotationKey:     now.Add(10 * time.Minute).Format(verificationservice.TimestampLayout),
-						},
-						Labels: map[string]string{
-							toolchainv1alpha1.UserSignupUserPhoneHashLabelKey: "+1NUMBER",
-						},
-					},
-					Spec: toolchainv1alpha1.UserSignupSpec{
-						IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
-							PreferredUsername: "shane@redhat.com",
-						},
-					},
-				}
+
+				userSignup := testusersignup.NewUserSignup(
+					testusersignup.WithName("johny"),
+					testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
+					testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
+					testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
+					testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
+					testusersignup.VerificationRequiredAgo(time.Second))
 				if tc.activationCounterAnnotationValue != "" {
 					userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = tc.activationCounterAnnotationValue
 				}
 				if tc.captchaScoreAnnotationValue != "" {
 					userSignup.Annotations[toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey] = tc.captchaScoreAnnotationValue
 				}
-				states.SetVerificationRequired(userSignup, true)
 
 				fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -997,7 +772,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("verification ok", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -1015,7 +790,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("last user to signup", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                          // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                       // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9), testsocialevent.WithTargetCluster(targetCluster)) // one seat left
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -1034,7 +809,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 	s.Run("when too many attempts made", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.VerificationRequired(time.Second), // just signed up
+			testusersignup.VerificationRequiredAgo(time.Second), // just signed up
 			testusersignup.WithVerificationAttempts(cfg.Verification().AttemptsAllowed()))
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithTargetCluster(targetCluster))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
@@ -1055,7 +830,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 		s.Run("first attempt", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
@@ -1073,8 +848,8 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		s.Run("second attempt", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(
-				testusersignup.VerificationRequired(time.Second), // just signed up
-				testusersignup.WithVerificationAttempts(2))       // already tried twice before
+				testusersignup.VerificationRequiredAgo(time.Second), // just signed up
+				testusersignup.WithVerificationAttempts(2))          // already tried twice before
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
@@ -1092,7 +867,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when max attendees reached", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                           // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                        // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10), testsocialevent.WithTargetCluster(targetCluster)) // same as default `spec.MaxAttendees`
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -1111,7 +886,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when event not open yet", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                            // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                         // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // starting in 1hr
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
@@ -1130,7 +905,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 	s.Run("when event already closed", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                                                                                           // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                        // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // ended 1hr ago
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 

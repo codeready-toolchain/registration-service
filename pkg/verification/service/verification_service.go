@@ -103,17 +103,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 
 	labelValues[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
 
-	// read the current time
-	now := time.Now()
-
-	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
-	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey])
-	if parseErr != nil || now.After(ts.Add(24*time.Hour)) {
-		// Set a new timestamp
-		annotationValues[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
-		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
-	}
-
 	// get the verification counter (i.e. the number of times the user has initiated phone verification within
 	// the last 24 hours)
 	verificationCounter := signup.Annotations[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey]
@@ -132,6 +121,18 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(dailyLimit)
 			counter = dailyLimit
 		}
+	}
+
+	// read the current time
+	now := time.Now()
+
+	// If 24 hours has passed since the verification timestamp, then reset the timestamp and verification attempts
+	ts, parseErr := time.Parse(TimestampLayout, signup.Annotations[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey])
+	if parseErr != nil || now.After(ts.Add(24*time.Hour)) {
+		// Set a new timestamp
+		annotationValues[toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey] = now.Format(TimestampLayout)
+		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = "0"
+		counter = 0
 	}
 
 	var initError error

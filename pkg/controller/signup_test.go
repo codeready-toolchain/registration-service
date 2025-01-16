@@ -715,7 +715,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 	s.Run("verification successful", func() {
 		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 		ctrl := controller.NewSignup(application)
@@ -739,7 +739,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 		s.Run("too many attempts", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(
-				testusersignup.VerificationRequired(time.Second),                                                                       // just signed up
+				testusersignup.VerificationRequiredAgo(time.Second),                                                                    // just signed up
 				testusersignup.WithVerificationAttempts(configuration.GetRegistrationServiceConfig().Verification().AttemptsAllowed()), // already reached max attempts
 			)
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
@@ -760,7 +760,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 		s.Run("invalid code", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 			ctrl := controller.NewSignup(application)
 			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
@@ -779,7 +779,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 		s.Run("inactive code", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(60*time.Minute)))
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
@@ -801,7 +801,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 		s.Run("expired code", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second)) // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-1*time.Minute)))
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
@@ -823,7 +823,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 		s.Run("overbooked code", func() {
 			// given
-			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequired(time.Second))                         // just signed up
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                      // just signed up
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10)) // same as `spec.MaxAttendees`
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)

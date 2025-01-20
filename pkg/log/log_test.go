@@ -220,7 +220,7 @@ func TestLog(t *testing.T) {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(req.Body)
 		require.NoError(t, err, "it should still be possible to read the body after it was passed to the logs")
-		assert.Equal(t, `{"testing-body":"test"}`, buf.String(), "body contents should be unchanged")
+		assert.JSONEq(t, `{"testing-body":"test"}`, buf.String(), "body contents should be unchanged")
 	})
 
 	t.Run("log infof withValues", func(t *testing.T) {

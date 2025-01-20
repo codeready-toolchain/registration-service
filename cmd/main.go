@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -173,7 +174,7 @@ func newCachedClient(ctx context.Context, cfg *rest.Config) (client.Client, erro
 	hostCluster, err := runtimecluster.New(cfg, func(options *runtimecluster.Options) {
 		options.Scheme = scheme
 		// cache only in the host-operator namespace
-		options.Cache.Namespaces = []string{configuration.Namespace()}
+		options.Cache.DefaultNamespaces = map[string]cache.Config{configuration.Namespace(): {}}
 	})
 	if err != nil {
 		return nil, err

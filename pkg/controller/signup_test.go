@@ -28,6 +28,7 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
+	apiv1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gin-gonic/gin"
@@ -36,7 +37,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
-	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -99,16 +99,8 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
 		signup := testusersignup.NewUserSignup(
 			testusersignup.WithName("bill"),
-			func(userSignup *crtapi.UserSignup) {
-				userSignup.Status.Conditions = []crtapi.Condition{
-					{
-						Type:    crtapi.UserSignupComplete,
-						Status:  apiv1.ConditionFalse,
-						Reason:  "test_reason",
-						Message: "test_message",
-					},
-				}
-			})
+			IncompleteUserSignupCondition(),
+		)
 
 		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
 			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
@@ -153,6 +145,19 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		// Check the error is what we expect.
 		test.AssertError(s.T(), rr, http.StatusForbidden, "forbidden: forbidden test error", "error creating UserSignup resource")
 	})
+}
+
+func IncompleteUserSignupCondition() testusersignup.Modifier {
+	return func(userSignup *crtapi.UserSignup) {
+		userSignup.Status.Conditions = []crtapi.Condition{
+			{
+				Type:    crtapi.UserSignupComplete,
+				Status:  apiv1.ConditionFalse,
+				Reason:  "test_reason",
+				Message: "test_message",
+			},
+		}
+	}
 }
 
 func (s *TestSignupSuite) TestSignupGetHandler() {

@@ -12,7 +12,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	authsupport "github.com/codeready-toolchain/toolchain-common/pkg/test/auth"
-	"github.com/google/uuid"
 	"go.uber.org/atomic"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -72,15 +71,15 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 
 	s.Run("successfully proxy", func() {
 		// user with public workspace
-		smith := uuid.New()
+		smith := "smith"
 		// user with private workspace
-		alice := uuid.New()
+		alice := "alice"
 		// unsigned user
-		bob := uuid.New()
+		bob := "bob"
 		// not ready
-		john := uuid.New()
+		john := "john"
 		// banned user
-		eve, eveEmail := uuid.New(), "eve@somecorp.com"
+		eve, eveEmail := "eve", "eve@somecorp.com"
 
 		// Start the member-2 API Server
 		httpTestServerResponse := "my response"
@@ -89,43 +88,43 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 
 		// initialize SignupService
 		signupService := fake.NewSignupService(
-			fake.Signup(smith.String(), &signup.Signup{
-				Name:              "smith",
+			&signup.Signup{
+				Name:              smith,
 				APIEndpoint:       testServer.URL,
 				ClusterName:       "member-2",
-				CompliantUsername: "smith",
+				CompliantUsername: smith,
 				Username:          "smith@",
 				Status: signup.Status{
 					Ready: true,
 				},
-			}),
-			fake.Signup(alice.String(), &signup.Signup{
-				Name:              "alice",
+			},
+			&signup.Signup{
+				Name:              alice,
 				APIEndpoint:       testServer.URL,
 				ClusterName:       "member-2",
-				CompliantUsername: "alice",
+				CompliantUsername: alice,
 				Username:          "alice@",
 				Status: signup.Status{
 					Ready: true,
 				},
-			}),
-			fake.Signup(john.String(), &signup.Signup{
-				Name:              "john",
-				CompliantUsername: "john",
+			},
+			&signup.Signup{
+				Name:              john,
+				CompliantUsername: john,
 				Username:          "john@",
 				Status: signup.Status{
 					Ready: false,
 				},
-			}),
-			fake.Signup(eve.String(), &signup.Signup{
-				Name:              "eve",
-				CompliantUsername: "eve",
+			},
+			&signup.Signup{
+				Name:              eve,
+				CompliantUsername: eve,
 				Username:          "eve@",
 				Status: signup.Status{
 					Ready:  false,
 					Reason: toolchainv1alpha1.UserSignupUserBannedReason,
 				},
-			}),
+			},
 		)
 
 		// init fakeClient
@@ -173,7 +172,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith"},
-					"X-SSO-User":       {"username-" + smith.String()},
+					"X-SSO-User":       {smith},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestURL("smith-community"),
@@ -191,7 +190,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + john.String()},
+					"X-SSO-User":       {john},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestURL("smith-community"),
@@ -209,7 +208,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + bob.String()},
+					"X-SSO-User":       {bob},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestURL("smith-community"),
@@ -230,7 +229,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + alice.String()},
+					"X-SSO-User":       {alice},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsRequestURL("smith-community"),
@@ -288,7 +287,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"alice"},
-					"X-SSO-User":       {"username-" + alice.String()},
+					"X-SSO-User":       {alice},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsInNamespaceRequestURL("alice-private", "outside-of-workspace-namespace"),
@@ -307,7 +306,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith"},
-					"X-SSO-User":       {"username-" + smith.String()},
+					"X-SSO-User":       {smith},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
@@ -326,7 +325,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + alice.String()},
+					"X-SSO-User":       {alice},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
@@ -344,7 +343,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + bob.String()},
+					"X-SSO-User":       {bob},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),
@@ -363,7 +362,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {toolchainv1alpha1.KubesawAuthenticatedUsername},
-					"X-SSO-User":       {"username-" + john.String()},
+					"X-SSO-User":       {john},
 				},
 				ExpectedProxyResponseStatus: http.StatusOK,
 				RequestPath:                 podsInNamespaceRequestURL("smith-community", "outside-of-workspace-namespace"),

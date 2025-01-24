@@ -8,19 +8,10 @@ import (
 
 // This whole service abstraction is such a huge pain. We have to get rid of it!!!
 
-type SignupDef func() (string, *signup.Signup)
-
-func Signup(identifier string, userSignup *signup.Signup) SignupDef {
-	return func() (string, *signup.Signup) {
-		return identifier, userSignup
-	}
-}
-
-func NewSignupService(signupDefs ...SignupDef) *SignupService {
+func NewSignupService(signups ...*signup.Signup) *SignupService {
 	sc := newFakeSignupService()
-	for _, signupDef := range signupDefs {
-		identifier, signup := signupDef()
-		sc.addSignup(identifier, signup)
+	for _, signup := range signups {
+		sc.addSignup(signup.Name, signup)
 	}
 	return sc
 }
@@ -45,17 +36,8 @@ type SignupService struct {
 }
 
 func (m *SignupService) DefaultMockGetSignup() func(userID, username string) (*signup.Signup, error) {
-	return func(userID, username string) (userSignup *signup.Signup, e error) {
-		us := m.userSignups[userID]
-		if us != nil {
-			return us, nil
-		}
-		for _, v := range m.userSignups {
-			if v.Username == username {
-				return v, nil
-			}
-		}
-		return nil, nil
+	return func(_, username string) (userSignup *signup.Signup, e error) {
+		return m.userSignups[username], nil
 	}
 }
 

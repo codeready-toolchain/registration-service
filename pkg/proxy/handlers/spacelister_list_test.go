@@ -30,15 +30,15 @@ import (
 func TestListUserWorkspaces(t *testing.T) {
 	tests := map[string]struct {
 		username            string
-		additionalSignups   []fake.SignupDef
+		additionalSignups   []*signup.Signup
 		additionalObjects   []runtimeclient.Object
 		expectedWorkspaces  func(*test.FakeClient) []toolchainv1alpha1.Workspace
 		publicViewerEnabled bool
 	}{
 		"dancelover lists spaces with public-viewer enabled": {
-			username: "dance.lover",
-			additionalSignups: []fake.SignupDef{
-				newSignup("communitylover", "community.lover", true),
+			username: "dancelover",
+			additionalSignups: []*signup.Signup{
+				newSignup("communitylover", true),
 			},
 			additionalObjects: []runtimeclient.Object{
 				fake.NewSpace("communitylover", "member-1", "communitylover", space.WithTierName("appstudio")),
@@ -54,7 +54,7 @@ func TestListUserWorkspaces(t *testing.T) {
 			publicViewerEnabled: true,
 		},
 		"dancelover lists spaces with public-viewer disabled": {
-			username: "dance.lover",
+			username: "dancelover",
 			expectedWorkspaces: func(fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 				return []toolchainv1alpha1.Workspace{
 					workspaceFor(t, fakeClient, "dancelover", "admin", true),
@@ -126,7 +126,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				mockFakeClient     func(fakeClient *test.FakeClient)
 			}{
 				"dancelover lists spaces": {
-					username: "dance.lover",
+					username: "dancelover",
 					expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 						return []toolchainv1alpha1.Workspace{
 							workspaceFor(t, fakeClient, "dancelover", "admin", true),
@@ -136,7 +136,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					expectedErr: "",
 				},
 				"movielover lists spaces": {
-					username: "movie.lover",
+					username: "movielover",
 					expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 						return []toolchainv1alpha1.Workspace{
 							workspaceFor(t, fakeClient, "movielover", "admin", true),
@@ -145,25 +145,25 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					expectedErr: "",
 				},
 				"signup has no compliant username set": {
-					username:        "racing.lover",
+					username:        "racinglover",
 					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"space not initialized yet": {
-					username:        "panda.lover",
+					username:        "pandalover",
 					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"no spaces found": {
-					username:        "user.nospace",
+					username:        "usernospace",
 					expectedWs:      nil,
 					expectedErr:     "",
 					expectedErrCode: 200,
 				},
 				"informer error": {
-					username:        "dance.lover",
+					username:        "dancelover",
 					expectedWs:      nil,
 					expectedErr:     "list spacebindings error",
 					expectedErrCode: 500,
@@ -177,7 +177,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					},
 				},
 				"get signup error": {
-					username:        "dance.lover",
+					username:        "dancelover",
 					expectedWs:      nil,
 					expectedErr:     "signup error",
 					expectedErrCode: 500,

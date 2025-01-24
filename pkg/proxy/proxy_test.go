@@ -223,8 +223,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
-			userID := uuid.New()
-			req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithSubClaim("")))
+			req.Header.Set("Authorization", "Bearer "+s.token("unauthorized-user", authsupport.WithSubClaim("")))
 			resp, err := http.DefaultClient.Do(req)
 
 			// then
@@ -240,8 +239,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
-			userID := uuid.New()
-			req.Header.Set("Authorization", "Bearer "+s.token(userID, authsupport.WithEmailClaim("")))
+			req.Header.Set("Authorization", "Bearer "+s.token("unauthorized-user", authsupport.WithEmailClaim("")))
 			resp, err := http.DefaultClient.Do(req)
 
 			// then
@@ -312,8 +310,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
-			userID := uuid.New()
-			token := s.token(userID, authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUser.Spec.Email))
+			token := s.token("alice", authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUser.Spec.Email))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 			resp, err := http.DefaultClient.Do(req)
 
@@ -330,8 +327,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), req)
-			userID := uuid.New()
-			token := s.token(userID, authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUserListErrorEmailValue))
+			token := s.token("alice", authsupport.WithSubClaim("alice"), authsupport.WithEmailClaim(bannedUserListErrorEmailValue))
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 			resp, err := http.DefaultClient.Do(req)
 
@@ -494,10 +490,10 @@ func (s *TestProxySuite) checkWebLogin() {
 
 func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 	s.Run("successfully proxy", func() {
-		userID := uuid.New()
+		username := "smith2"
 
 		encodedSAToken := base64.RawURLEncoding.EncodeToString([]byte("clusterSAToken"))
-		encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(userID)))
+		encodedSSOToken := base64.RawURLEncoding.EncodeToString([]byte(s.token(username)))
 
 		// Start the member-2 API Server
 		testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -596,7 +592,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			},
 			"plain http actual request": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith2"},
@@ -611,7 +607,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			},
 			"proxy plain http actual request as not provisioned user": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(uuid.New())}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token("not-provisioned")}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith3"},
@@ -621,7 +617,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			},
 			"proxy plain http actual request": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith2"},
@@ -637,7 +633,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			"plain http upgrade POST request": {
 				ProxyRequestMethod: "POST",
 				ProxyRequestHeaders: map[string][]string{
-					"Authorization": {"Bearer " + s.token(userID)},
+					"Authorization": {"Bearer " + s.token(username)},
 					"Connection":    {"Upgrade"},
 					"Upgrade":       {"SPDY/3.1"},
 				},
@@ -679,7 +675,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			},
 			"error retrieving user workspaces": {
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization": {"Bearer clusterSAToken"},
 				},
@@ -694,7 +690,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 					"not existing workspace namespace": "http://localhost:8081/workspaces/not-existing-workspace/api/namespaces/not-existing-namespace/pods",
 				},
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization": {"Bearer clusterSAToken"},
 				},
@@ -708,7 +704,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 					"not existing namespace": "http://localhost:8081/api/namespaces/namespace-outside-of-workspace/pods",
 				},
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith2"},
@@ -726,7 +722,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 					"not existing namespace": "http://localhost:8081/workspaces/mycoolworkspace/api/namespaces/namespace-outside-of-workspace/pods",
 				},
 				ProxyRequestMethod:  "GET",
-				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(userID)}},
+				ProxyRequestHeaders: map[string][]string{"Authorization": {"Bearer " + s.token(username)}},
 				ExpectedAPIServerRequestHeaders: map[string][]string{
 					"Authorization":    {"Bearer clusterSAToken"},
 					"Impersonate-User": {"smith2"},
@@ -816,8 +812,8 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 										}
 									})
 									proxy.signupService = fake.NewSignupService(
-										fake.Signup("someUserID", &signup.Signup{
-											Name:              "smith1",
+										&signup.Signup{
+											Name:              "someUsername",
 											APIEndpoint:       "https://api.endpoint.member-1.com:6443",
 											ClusterName:       "member-1",
 											CompliantUsername: "smith1",
@@ -825,8 +821,8 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 											Status: signup.Status{
 												Ready: true,
 											},
-										}),
-										fake.Signup(userID.String(), &signup.Signup{
+										},
+										&signup.Signup{
 											Name:              "smith2",
 											APIEndpoint:       testServer.URL,
 											ClusterName:       "member-2",
@@ -835,7 +831,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 											Status: signup.Status{
 												Ready: true,
 											},
-										}),
+										},
 									)
 
 									proxyPlugin := &toolchainv1alpha1.ProxyPlugin{
@@ -1288,16 +1284,16 @@ func (s *TestProxySuite) request() *http.Request {
 	req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), req)
-	userID := uuid.New()
-	req.Header.Set("Authorization", "Bearer "+s.token(userID))
+	username := uuid.New()
+	req.Header.Set("Authorization", "Bearer "+s.token(username.String()))
 
 	return req
 }
 
-func (s *TestProxySuite) token(userID uuid.UUID, extraClaims ...authsupport.ExtraClaim) string {
+func (s *TestProxySuite) token(username string, extraClaims ...authsupport.ExtraClaim) string {
 	userIdentity := &authsupport.Identity{
-		ID:       userID,
-		Username: "username-" + userID.String(),
+		ID:       uuid.New(),
+		Username: username,
 	}
 
 	// if an email address is not explicitly set, someemail@comp.com is used

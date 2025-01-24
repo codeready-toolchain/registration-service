@@ -38,7 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"k8s.io/apiserver/pkg/util/wsstream"
+	"k8s.io/apimachinery/pkg/util/httpstream/wsstream"
 )
 
 const (

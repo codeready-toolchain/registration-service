@@ -398,7 +398,7 @@ func (s *TestProxySuite) checkProxyCommunityOK(proxy *Proxy, port string) {
 					w.Header().Set("Access-Control-Allow-Origin", "dummy")
 					w.WriteHeader(http.StatusOK)
 					_, err := w.Write([]byte(httpTestServerResponse))
-					assert.NoError(s.T(), err)
+					require.NoError(s.T(), err)
 					for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 						assert.Len(s.T(), r.Header.Values(hk), len(hv))
 						for i := range hv {

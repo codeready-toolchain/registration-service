@@ -41,10 +41,9 @@ func NewSpaceLister(client namespaced.Client, app application.Application, proxy
 }
 
 func (s *SpaceLister) GetProvisionedUserSignup(ctx echo.Context) (*signup.Signup, error) {
-	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 
-	userSignup, err := s.GetSignupFunc(nil, userID, username, false)
+	userSignup, err := s.GetSignupFunc(nil, "", username, false)
 	if err != nil {
 		ctx.Logger().Error(errs.Wrap(err, "error retrieving signup"))
 		return nil, err

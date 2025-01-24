@@ -18,6 +18,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.15.0
 )
 
+replace github.com/codeready-toolchain/toolchain-common => github.com/matousjobanek/toolchain-common v0.0.0-20250124122648-3070b9b8e676
+
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0
 	github.com/gin-contrib/cors v1.6.0

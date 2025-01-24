@@ -53,8 +53,6 @@ github.com/cloudflare/circl v1.3.7/go.mod h1:sRTcRWXGLrKw6yIGJ+l7amYJFfAXbZG0kBS
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/codeready-toolchain/api v0.0.0-20250121053759-af12adf8e938 h1:cj2H8bhNTjHVMUJnPEpLW8nLV9YMnG2nQ3oTgMJWsbI=
 github.com/codeready-toolchain/api v0.0.0-20250121053759-af12adf8e938/go.mod h1:2KYfJlFwZtiKfa5QDhQfXTFh6RyALilURWBXyfKmKso=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20250121053752-f7e2c17c3c6b h1:AjguQB0pvRBaArWMs6pzdKu0IimYcfK4MIpM+vwf8us=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20250121053752-f7e2c17c3c6b/go.mod h1:YAvlMiumFFmUR8A3eF5TDjyn1KyhKbpdwCMdLKtupGA=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -255,6 +253,8 @@ github.com/lestrrat-go/option v1.0.1/go.mod h1:5ZHFbivi4xwXxhxY9XHDe2FHo6/Z7WWmt
 github.com/magiconair/properties v1.8.5 h1:b6kJs+EmPFMYGkow9GiUyCyOvIwYetYJ3fSaWak/Gls=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
+github.com/matousjobanek/toolchain-common v0.0.0-20250124122648-3070b9b8e676 h1:nhi1a6EJTbDvbB+BDM5r5SB9RN6pwQY4lKBoSDIgAoI=
+github.com/matousjobanek/toolchain-common v0.0.0-20250124122648-3070b9b8e676/go.mod h1:wLXGFyEan+RJHZEEMmvTxNa2BrlizIA+4+Lsi1cyuAk=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215 h1:hDa3vAq/Zo5gjfJ46XMsGFbH+hTizpR4fUzQCk2nxgk=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215/go.mod h1:LH+NgPY9AJpDfqAFtzyer01N9MYNsAKUf3DC9DV1xIY=
 github.com/mattn/go-colorable v0.1.11/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=

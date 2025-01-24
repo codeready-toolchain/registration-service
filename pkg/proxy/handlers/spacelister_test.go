@@ -23,19 +23,19 @@ func buildSpaceListerFakes(t *testing.T) (*fake.SignupService, *test.FakeClient)
 	return buildSpaceListerFakesWithResources(t, nil, nil)
 }
 
-func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, objs []client.Object) (*fake.SignupService, *test.FakeClient) {
+func buildSpaceListerFakesWithResources(t *testing.T, signups []*signup.Signup, objs []client.Object) (*fake.SignupService, *test.FakeClient) {
 	ss := append(signups,
-		newSignup("dancelover", "dance.lover", true),
-		newSignup("movielover", "movie.lover", true),
-		newSignup("pandalover", "panda.lover", true),
-		newSignup("usernospace", "user.nospace", true),
-		newSignup("foodlover", "food.lover", true),
-		newSignup("animelover", "anime.lover", true),
-		newSignup("carlover", "car.lover", true),
-		newSignup("racinglover", "racing.lover", false),
-		newSignup("parentspace", "parent.space", true),
-		newSignup("childspace", "child.space", true),
-		newSignup("grandchildspace", "grandchild.space", true),
+		newSignup("dancelover", true),
+		newSignup("movielover", true),
+		newSignup("pandalover", true),
+		newSignup("usernospace", true),
+		newSignup("foodlover", true),
+		newSignup("animelover", true),
+		newSignup("carlover", true),
+		newSignup("racinglover", false),
+		newSignup("parentspace", true),
+		newSignup("childspace", true),
+		newSignup("grandchildspace", true),
 	)
 	fakeSignupService := fake.NewSignupService(ss...)
 
@@ -103,22 +103,20 @@ func buildSpaceListerFakesWithResources(t *testing.T, signups []fake.SignupDef, 
 	return fakeSignupService, test.NewFakeClient(t, oo...)
 }
 
-func newSignup(signupName, username string, ready bool) fake.SignupDef {
+func newSignup(signupName string, ready bool) *signup.Signup {
 	compliantUsername := signupName
 	if !ready {
 		// signup is not ready, let's set compliant username to blank
 		compliantUsername = ""
 	}
-	us := fake.Signup(signupName, &signup.Signup{
+	return &signup.Signup{
 		Name:              signupName,
-		Username:          username,
+		Username:          signupName,
 		CompliantUsername: compliantUsername,
 		Status: signup.Status{
 			Ready: ready,
 		},
-	})
-
-	return us
+	}
 }
 
 func decodeResponseToWorkspace(data []byte) (*toolchainv1alpha1.Workspace, error) {

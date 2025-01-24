@@ -82,7 +82,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 			overrideMemberClient   *test.FakeClient
 		}{
 			"dancelover gets dancelover space": {
-				username: "dance.lover",
+				username: "dancelover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "dancelover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -120,7 +120,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "dancelover",
 			},
 			"dancelover gets movielover space": {
-				username: "dance.lover",
+				username: "dancelover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "other", false,
 						commonproxy.WithAvailableRoles([]string{
@@ -153,7 +153,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "movielover",
 			},
 			"dancelover gets foodlover space": {
-				username: "dance.lover",
+				username: "dancelover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "foodlover", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
@@ -177,7 +177,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "foodlover",
 			},
 			"movielover gets movielover space": {
-				username: "movie.lover",
+				username: "movielover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -211,14 +211,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "movielover",
 			},
 			"movielover cannot get dancelover space": {
-				username:          "movie.lover",
+				username:          "movielover",
 				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
 				expectedWorkspace: "dancelover",
 				expectedErrCode:   404,
 			},
 			"signup not ready yet": {
-				username: "movie.lover",
+				username: "movielover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "movielover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -251,7 +251,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "movielover",
 			},
 			"get nstemplatetier error": {
-				username:        "dance.lover",
+				username:        "dancelover",
 				expectedWs:      nil,
 				expectedErr:     "nstemplatetier error",
 				expectedErrCode: 500,
@@ -266,7 +266,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "dancelover",
 			},
 			"get signup error": {
-				username:        "dance.lover",
+				username:        "dancelover",
 				expectedWs:      nil,
 				expectedErr:     "signup error",
 				expectedErrCode: 500,
@@ -276,14 +276,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "dancelover",
 			},
 			"signup has no compliant username set": {
-				username:          "racing.lover",
+				username:          "racinglover",
 				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"racinglover\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWorkspace: "racinglover",
 			},
 			"list spacebindings error": {
-				username:        "dance.lover",
+				username:        "dancelover",
 				expectedWs:      nil,
 				expectedErr:     "list spacebindings error",
 				expectedErrCode: 500,
@@ -298,7 +298,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "dancelover",
 			},
 			"unable to get space": {
-				username:        "dance.lover",
+				username:        "dancelover",
 				expectedWs:      nil,
 				expectedErr:     "\"workspaces.toolchain.dev.openshift.com \\\"dancelover\\\" not found\"",
 				expectedErrCode: 404,
@@ -313,7 +313,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "dancelover",
 			},
 			"unable to get parent-space": {
-				username:        "food.lover",
+				username:        "foodlover",
 				expectedWs:      nil,
 				expectedErr:     "Internal error occurred: unable to get parent-space: parent-space error",
 				expectedErrCode: 500,
@@ -328,7 +328,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "foodlover",
 			},
 			"error spaceBinding request has no name": {
-				username: "anime.lover",
+				username: "animelover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "animelover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -341,7 +341,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "animelover",
 			},
 			"error spaceBinding request has no namespace set": {
-				username: "car.lover",
+				username: "carlover",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "carlover", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -354,7 +354,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "carlover",
 			},
 			"parent can list parentspace": {
-				username: "parent.space",
+				username: "parentspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "parentspace", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -372,7 +372,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "parentspace",
 			},
 			"parent can list childspace": {
-				username: "parent.space",
+				username: "parentspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "childspace", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
@@ -395,7 +395,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "childspace",
 			},
 			"parent can list grandchildspace": {
-				username: "parent.space",
+				username: "parentspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
 						commonproxy.WithAvailableRoles([]string{
@@ -423,14 +423,14 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "grandchildspace",
 			},
 			"child cannot list parentspace": {
-				username:          "child.space",
+				username:          "childspace",
 				expectedWs:        nil,
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWorkspace: "parentspace",
 			},
 			"child can list childspace": {
-				username:          "child.space",
+				username:          "childspace",
 				expectedWorkspace: "childspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "childspace", "admin", true,
@@ -453,7 +453,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				},
 			},
 			"child can list grandchildspace": {
-				username:          "child.space",
+				username:          "childspace",
 				expectedWorkspace: "grandchildspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", false,
@@ -481,7 +481,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				},
 			},
 			"grandchild can list grandchildspace": {
-				username: "grandchild.space",
+				username: "grandchildspace",
 				expectedWs: func(t *testing.T, fakeClient *test.FakeClient) []toolchainv1alpha1.Workspace {
 					return []toolchainv1alpha1.Workspace{workspaceFor(t, fakeClient, "grandchildspace", "admin", true,
 						commonproxy.WithAvailableRoles([]string{
@@ -509,21 +509,21 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				expectedWorkspace: "grandchildspace",
 			},
 			"grandchild cannot list parentspace": {
-				username:          "grandchild.space",
+				username:          "grandchildspace",
 				expectedWorkspace: "parentspace",
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"parentspace\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWs:        nil,
 			},
 			"grandchild cannot list childspace": {
-				username:          "grandchild.space",
+				username:          "grandchildspace",
 				expectedWorkspace: "childspace",
 				expectedErr:       "\"workspaces.toolchain.dev.openshift.com \\\"childspace\\\" not found\"",
 				expectedErrCode:   404,
 				expectedWs:        nil,
 			},
 			"no member clusters found": {
-				username:          "movie.lover",
+				username:          "movielover",
 				expectedWorkspace: "movielover",
 				expectedErr:       "no member clusters found",
 				expectedErrCode:   500,
@@ -532,7 +532,7 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 				},
 			},
 			"error listing spacebinding requests": {
-				username:             "movie.lover",
+				username:             "movielover",
 				expectedWorkspace:    "movielover",
 				expectedErr:          "mock list error",
 				expectedErrCode:      500,
@@ -610,8 +610,8 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 func TestGetUserWorkspace(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
-		newSignup("batman", "batman.space", true),
-		newSignup("robin", "robin.space", true),
+		newSignup("batman", true),
+		newSignup("robin", true),
 	)
 
 	tests := map[string]struct {
@@ -623,19 +623,19 @@ func TestGetUserWorkspace(t *testing.T) {
 		overrideSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 	}{
 		"get robin workspace": {
-			username:         "robin.space",
+			username:         "robin",
 			workspaceRequest: "robin",
 			expectedWorkspace: func(t *testing.T, fakeClient *test.FakeClient) toolchainv1alpha1.Workspace {
 				return workspaceFor(t, fakeClient, "robin", "admin", true)
 			},
 		},
 		"invalid number of spacebindings": {
-			username:         "batman.space",
+			username:         "batman",
 			expectedErr:      "invalid number of SpaceBindings found for MUR:batman and Space:batman. Expected 1 got 2",
 			workspaceRequest: "batman",
 		},
 		"user is unauthorized": {
-			username:         "robin.space",
+			username:         "robin",
 			workspaceRequest: "batman",
 		},
 		"usersignup not found": {
@@ -670,7 +670,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			expectedWorkspace: nil, // user is not authorized
 		},
 		"get signup error": {
-			username:         "batman.space",
+			username:         "batman",
 			workspaceRequest: "batman",
 			expectedErr:      "signup error",
 			overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
@@ -679,7 +679,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			expectedWorkspace: nil,
 		},
 		"list spacebindings error": {
-			username:         "robin.space",
+			username:         "robin",
 			workspaceRequest: "robin",
 			expectedErr:      "list spacebindings error",
 			mockFakeClient: func(fakeClient *test.FakeClient) {
@@ -699,7 +699,7 @@ func TestGetUserWorkspace(t *testing.T) {
 			expectedWorkspace: nil,
 		},
 		"batman can not get robin workspace": { // Because public viewer feature is NOT enabled
-			username:          "batman.space",
+			username:          "batman",
 			workspaceRequest:  "robin",
 			expectedErr:       "",
 			expectedWorkspace: nil,
@@ -768,9 +768,9 @@ func TestGetUserWorkspace(t *testing.T) {
 func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
-		newSignup("batman", "batman.space", true),
-		newSignup("robin", "robin.space", true),
-		newSignup("gordon", "gordon.no-space", false),
+		newSignup("batman", true),
+		newSignup("robin", true),
+		newSignup("gordon", false),
 	)
 
 	fakeClient := test.NewFakeClient(t,
@@ -799,32 +799,32 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
 		"robin can get robin workspace": {
-			username:          "robin.space",
+			username:          "robin",
 			workspaceRequest:  "robin",
 			expectedWorkspace: &robinWS,
 		},
 		"batman can get batman workspace": {
-			username:          "batman.space",
+			username:          "batman",
 			workspaceRequest:  "batman",
 			expectedWorkspace: &batmanWS,
 		},
 		"batman can get robin workspace as public-viewer": {
-			username:          "batman.space",
+			username:          "batman",
 			workspaceRequest:  "robin",
 			expectedWorkspace: publicRobinWS,
 		},
 		"robin can not get batman workspace": {
-			username:          "robin.space",
+			username:          "robin",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 		},
 		"gordon can get robin workspace as public-viewer": {
-			username:          "gordon.no-space",
+			username:          "gordon",
 			workspaceRequest:  "robin",
 			expectedWorkspace: publicRobinWS,
 		},
 		"gordon can not get batman workspace": {
-			username:          "gordon.no-space",
+			username:          "gordon",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 		},
@@ -871,9 +871,9 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 
 	fakeSignupService := fake.NewSignupService(
-		newSignup("batman", "batman.space", true),
-		newSignup("robin", "robin.space", true),
-		newSignup("gordon", "gordon.no-space", false),
+		newSignup("batman", true),
+		newSignup("robin", true),
+		newSignup("gordon", false),
 	)
 
 	fakeClient := test.NewFakeClient(t,
@@ -924,17 +924,17 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 		expectedWorkspace *toolchainv1alpha1.Workspace
 	}{
 		"robin can get robin workspace": {
-			username:          "robin.space",
+			username:          "robin",
 			workspaceRequest:  "robin",
 			expectedWorkspace: &robinWS,
 		},
 		"batman can get batman workspace": {
-			username:          "batman.space",
+			username:          "batman",
 			workspaceRequest:  "batman",
 			expectedWorkspace: &batmanWS,
 		},
 		"batman can get robin workspace": {
-			username:         "batman.space",
+			username:         "batman",
 			workspaceRequest: "robin",
 			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
 				batmansRobinWS := robinWS.DeepCopy()
@@ -944,17 +944,17 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 			}(),
 		},
 		"robin can not get batman workspace": {
-			username:          "robin.space",
+			username:          "robin",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 		},
 		"gordon can not get batman workspace": {
-			username:          "gordon.no-space",
+			username:          "gordon",
 			workspaceRequest:  "batman",
 			expectedWorkspace: nil,
 		},
 		"gordon can get robin workspace": {
-			username:         "gordon.no-space",
+			username:         "gordon",
 			workspaceRequest: "robin",
 			expectedWorkspace: func() *toolchainv1alpha1.Workspace {
 				batmansRobinWS := robinWS.DeepCopy()

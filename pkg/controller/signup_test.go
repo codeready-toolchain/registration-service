@@ -28,6 +28,7 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
+	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gin-gonic/gin"
@@ -70,20 +71,15 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
-	svc := &FakeSignupService{}
-
-	_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithSignupService(svc)
-	})
-
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 
-	// Create signup instance.
-	signupCtrl := controller.NewSignup(application)
-	handler := gin.HandlerFunc(signupCtrl.PostHandler)
-
 	s.Run("signup created", func() {
+		// given
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+		signupCtrl := controller.NewSignup(application)
+		handler := gin.HandlerFunc(signupCtrl.PostHandler)
+
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -96,33 +92,35 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx.Set(context.SubKey, expectedUserID)
 		ctx.Set(context.UsernameKey, "bill@kubesaw")
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
-		signup := testusersignup.NewUserSignup(
-			testusersignup.WithEncodedName("bill@kubesaw"),
-			testusersignup.SignupIncomplete("test_reason", "test_message"),
-		)
 
-		svc.MockSignup = func(ctx *gin.Context) (*crtapi.UserSignup, error) {
-			assert.Equal(s.T(), expectedUserID, ctx.GetString(context.SubKey))
-			assert.Equal(s.T(), "bill@kubesaw", ctx.GetString(context.UsernameKey))
-			assert.Equal(s.T(), expectedUserID+"@test.com", ctx.GetString(context.EmailKey))
-			return signup, nil
-		}
+		// when
 		handler(ctx)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusAccepted, rr.Code)
+		userSignup := &crtapi.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(ctx,
+			commontest.NamespacedName(commontest.HostOperatorNs, usersignup.EncodeUserIdentifier("bill@kubesaw")), userSignup))
+		assert.Equal(s.T(), expectedUserID, userSignup.Spec.IdentityClaims.Sub)
+		assert.Equal(s.T(), "bill@kubesaw", userSignup.Spec.IdentityClaims.PreferredUsername)
+		assert.Equal(s.T(), expectedUserID+"@test.com", userSignup.Spec.IdentityClaims.Email)
 	})
 
 	s.Run("signup error", func() {
+		// given
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+		signupCtrl := controller.NewSignup(application)
+		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
-		svc.MockSignup = func(_ *gin.Context) (*crtapi.UserSignup, error) {
-			return nil, errors.New("blah")
+		fakeClient.MockCreate = func(_ gocontext.Context, _ client.Object, _ ...client.CreateOption) error {
+			return errors.New("blah")
 		}
 
+		// when
 		handler(ctx)
 
 		// Check the error is what we expect.
@@ -130,11 +128,20 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 	})
 
 	s.Run("signup forbidden error", func() {
+		// given
+		svc := &FakeSignupService{}
+		_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
+			serviceFactory.WithSignupService(svc)
+		})
+
+		signupCtrl := controller.NewSignup(application)
+		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
 
+		// when
 		svc.MockSignup = func(_ *gin.Context) (*crtapi.UserSignup, error) {
 			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
 		}

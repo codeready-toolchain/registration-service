@@ -477,6 +477,7 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		require.Equal(s.T(), "Not Found", bodyParams["status"])
 		require.InDelta(s.T(), float64(404), bodyParams["code"], 0.01)
+		// the fdebf2d6-jsmithkubesaw is an encoded version of the jsmith@kubesaw username (removed @ and prefixed with crc32 hash of the original value)
 		require.Equal(s.T(), "usersignups.toolchain.dev.openshift.com \"fdebf2d6-jsmithkubesaw\" not found: user not found", bodyParams["message"])
 		require.Equal(s.T(), "error while verifying phone code", bodyParams["details"])
 	})

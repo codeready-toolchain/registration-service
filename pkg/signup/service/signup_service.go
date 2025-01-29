@@ -3,7 +3,6 @@ package service
 import (
 	gocontext "context"
 	"fmt"
-	"hash/crc32"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
@@ -103,7 +103,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
+			Name:      signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
@@ -233,60 +233,17 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// EncodeUserIdentifier transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
-// by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
-// ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
-// resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
-// to the new value
-func EncodeUserIdentifier(subject string) string {
-	// Sanitize subject to be compliant with DNS labels format (RFC-1123)
-	encoded := sanitizeDNS1123(subject)
-
-	// Add a checksum prefix if the encoded value is different to the original subject value
-	if encoded != subject {
-		encoded = fmt.Sprintf("%x-%s", crc32.Checksum([]byte(subject), crc32.IEEETable), encoded)
-	}
-
-	// Trim if the length exceeds the maximum
-	if len(encoded) > DNS1123NameMaximumLength {
-		encoded = encoded[0:DNS1123NameMaximumLength]
-	}
-
-	return encoded
-}
-
-func sanitizeDNS1123(str string) string {
-	// convert to lowercase
-	lstr := strings.ToLower(str)
-
-	// remove unwanted characters
-	b := strings.Builder{}
-	for _, r := range lstr {
-		switch {
-		case r >= '0' && r <= '9':
-			fallthrough
-		case r >= 'a' && r <= 'z':
-			fallthrough
-		case r == '-':
-			b.WriteRune(r)
-		}
-	}
-
-	// remove leading and trailing '-'
-	return strings.Trim(b.String(), "-")
-}
-
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
+	encodedUserID := signupcommon.EncodeUserIdentifier(ctx.GetString(context.SubKey))
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
 	if err := s.Get(ctx, s.NamespacedName(encodedUserID), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
-			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
+			encodedUsername := signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
 			if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
 				if apierrors.IsNotFound(err) {
 					// New Signup
@@ -557,10 +514,10 @@ func (s *ServiceImpl) GetUserSignupFromIdentifier(userID, username string) (*too
 func (s *ServiceImpl) DoGetUserSignupFromIdentifier(cl namespaced.Client, userID, username string) (*toolchainv1alpha1.UserSignup, error) {
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(username)), userSignup); err != nil {
+	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Capture any error here in a separate var, as we need to preserve the original
-			if err2 := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(userID)), userSignup); err2 != nil {
+			if err2 := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(userID)), userSignup); err2 != nil {
 				if apierrors.IsNotFound(err2) {
 					return nil, err
 				}

@@ -12,6 +12,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -64,15 +65,15 @@ func NewVerificationService(context servicecontext.ServiceContext, opts ...Verif
 // InitVerification sends a verification message to the specified user, using the Twilio service.  If successful,
 // the user will receive a verification SMS.  The UserSignup resource is updated with a number of annotations in order
 // to manage the phone verification process and protect against system abuse.
-func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164PhoneNumber, countryCode string) error {
-	signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-	if err != nil {
+func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumber, countryCode string) error {
+	signup := &toolchainv1alpha1.UserSignup{}
+	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			return crterrors.NewNotFoundError(err, "usersignup not found")
 		}
 		log.Error(ctx, err, "error retrieving usersignup")
-		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 	}
 
 	labelValues := map[string]string{}
@@ -80,12 +81,12 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 
 	// check that verification is required before proceeding
 	if !states.VerificationRequired(signup) {
-		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: %s", userID))
+		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: '%s'", signup.Name))
 		return crterrors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
 
 	// Check if the provided phone number is already being used by another user
-	err = s.Services().SignupService().PhoneNumberAlreadyInUse(userID, username, e164PhoneNumber)
+	err := s.Services().SignupService().PhoneNumberAlreadyInUse(username, e164PhoneNumber)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
@@ -168,8 +169,8 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, userID, username, e164P
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-		if err != nil {
+		signup := &toolchainv1alpha1.UserSignup{}
+		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			return err
 		}
 		if signup.Labels == nil {
@@ -221,18 +222,18 @@ func generateVerificationCode() (string, error) {
 
 // VerifyPhoneCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
-func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code string) (verificationErr error) {
+func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (verificationErr error) {
 
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
-	signup, lookupErr := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-	if lookupErr != nil {
-		if apierrors.IsNotFound(lookupErr) {
-			log.Error(ctx, lookupErr, "usersignup not found")
-			return crterrors.NewNotFoundError(lookupErr, "user not found")
+	signup := &toolchainv1alpha1.UserSignup{}
+	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Error(ctx, err, "usersignup not found")
+			return crterrors.NewNotFoundError(err, "user not found")
 		}
-		log.Error(ctx, lookupErr, "error retrieving usersignup")
-		return crterrors.NewInternalError(lookupErr, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		log.Error(ctx, err, "error retrieving usersignup")
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 	}
 
 	// check if it's a reactivation
@@ -262,7 +263,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
 
-	err := s.Services().SignupService().PhoneNumberAlreadyInUse(userID, username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+	err := s.Services().SignupService().PhoneNumberAlreadyInUse(username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
 		return crterrors.NewBadRequest("phone number already in use",
@@ -322,9 +323,9 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, userID, username, code s
 	}
 
 	doUpdate := func() error {
-		signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-		if err != nil {
-			log.Error(ctx, err, fmt.Sprintf("error getting signup from identifier. user_id: %s | username: %s", userID, username))
+		signup := &toolchainv1alpha1.UserSignup{}
+		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+			log.Error(ctx, err, fmt.Sprintf("error getting signup with username '%s'", username))
 			return err
 		}
 
@@ -385,15 +386,15 @@ func checkRequiredManualApproval(ctx *gin.Context, signup *toolchainv1alpha1.Use
 // VerifyActivationCode verifies the activation code:
 // - checks that the SocialEvent resource named after the activation code exists
 // - checks that the SocialEvent has enough capacity to approve the user
-func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, code string) error {
+func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code string) error {
 	log.Infof(ctx, "verifying activation code '%s'", code)
 	// look-up the UserSignup
-	signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-	if err != nil {
+	signup := &toolchainv1alpha1.UserSignup{}
+	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			return crterrors.NewNotFoundError(err, "user not found")
 		}
-		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup: %s", userID))
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 	}
 	annotationValues := map[string]string{}
 	annotationsToDelete := []string{}
@@ -402,8 +403,8 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, userID, username, c
 
 	defer func() {
 		doUpdate := func() error {
-			signup, err := s.Services().SignupService().GetUserSignupFromIdentifier(userID, username)
-			if err != nil {
+			signup := &toolchainv1alpha1.UserSignup{}
+			if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 				return err
 			}
 			if unsetVerificationRequired {

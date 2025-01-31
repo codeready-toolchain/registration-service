@@ -122,7 +122,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErr        string
 				expectedErrCode    int
 				expectedWorkspace  string
-				overrideSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+				overrideSignupFunc func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 				mockFakeClient     func(fakeClient *test.FakeClient)
 			}{
 				"dancelover lists spaces": {
@@ -181,7 +181,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					expectedWs:      nil,
 					expectedErr:     "signup error",
 					expectedErrCode: 500,
-					overrideSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+					overrideSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 						return nil, fmt.Errorf("signup error")
 					},
 				},

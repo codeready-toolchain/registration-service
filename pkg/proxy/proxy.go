@@ -265,7 +265,6 @@ func (p *Proxy) health(ctx echo.Context) error {
 
 func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess, error) {
 	// retrieve required information from the HTTP request
-	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
 	proxyPluginName, workspaceName, err := getWorkspaceContext(ctx.Request())
 	if err != nil {
@@ -278,7 +277,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 	// if the target workspace is NOT explicitly declared in the HTTP request,
 	// process the request against the user's home workspace
 	if workspaceName == "" {
-		cluster, err := p.processHomeWorkspaceRequest(ctx, userID, username, proxyPluginName)
+		cluster, err := p.processHomeWorkspaceRequest(ctx, username, proxyPluginName)
 		if err != nil {
 			return "", nil, err
 		}
@@ -287,7 +286,7 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 
 	// if the target workspace is explicitly declared in the HTTP request,
 	// process the request against the declared workspace
-	cluster, err := p.processWorkspaceRequest(ctx, userID, username, workspaceName, proxyPluginName)
+	cluster, err := p.processWorkspaceRequest(ctx, username, workspaceName, proxyPluginName)
 	if err != nil {
 		return "", nil, err
 	}
@@ -295,10 +294,10 @@ func (p *Proxy) processRequest(ctx echo.Context) (string, *access.ClusterAccess,
 }
 
 // processHomeWorkspaceRequest process an HTTP Request targeting the user's home workspace.
-func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
+func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// retrieves the ClusterAccess for the user and their home workspace
 	members := NewMemberClusters(p.Client, p.signupService, p.getMembersFunc)
-	cluster, err := members.GetClusterAccess(userID, username, "", proxyPluginName, false)
+	cluster, err := members.GetClusterAccess(username, "", proxyPluginName, false)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
@@ -319,10 +318,10 @@ func (p *Proxy) processHomeWorkspaceRequest(ctx echo.Context, userID, username, 
 }
 
 // processWorkspaceRequest process an HTTP Request targeting a specific workspace.
-func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, workspaceName, proxyPluginName string) (*access.ClusterAccess, error) {
+func (p *Proxy) processWorkspaceRequest(ctx echo.Context, username, workspaceName, proxyPluginName string) (*access.ClusterAccess, error) {
 	// check that the user is provisioned and the space exists.
 	// if the PublicViewer support is enabled, user check is skipped.
-	if err := p.checkUserIsProvisionedAndSpaceExists(ctx, userID, username, workspaceName); err != nil {
+	if err := p.checkUserIsProvisionedAndSpaceExists(ctx, username, workspaceName); err != nil {
 		return nil, err
 	}
 
@@ -338,13 +337,13 @@ func (p *Proxy) processWorkspaceRequest(ctx echo.Context, userID, username, work
 	}
 
 	// retrieve the ClusterAccess for the user and the target workspace
-	return p.getClusterAccess(ctx, userID, username, proxyPluginName, workspace)
+	return p.getClusterAccess(ctx, username, proxyPluginName, workspace)
 }
 
 // checkUserIsProvisionedAndSpaceExists checks that the user is provisioned and the Space exists.
 // If the PublicViewer support is enabled, User check is skipped.
-func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, userID, username, workspaceName string) error {
-	if err := p.checkUserIsProvisioned(ctx, userID, username); err != nil {
+func (p *Proxy) checkUserIsProvisionedAndSpaceExists(ctx echo.Context, username, workspaceName string) error {
+	if err := p.checkUserIsProvisioned(ctx, username); err != nil {
 		return crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
 	if err := p.checkSpaceExists(workspaceName); err != nil {
@@ -366,7 +365,7 @@ func (p *Proxy) checkSpaceExists(workspaceName string) error {
 
 // checkUserIsProvisioned checks whether the user is Approved, if they are not an error is returned.
 // If public-viewer is enabled, user validation is skipped.
-func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string) error {
+func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, username string) error {
 	// skip if public-viewer is enabled: read-only operations on community workspaces are always permitted.
 	if context.IsPublicViewerEnabled(ctx) {
 		return nil
@@ -376,7 +375,7 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 	//
 	// UserSignup complete status is not checked, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := p.signupService.GetSignup(nil, userID, username, false)
+	userSignup, err := p.signupService.GetSignup(nil, username, false)
 	if err != nil {
 		return err
 	}
@@ -395,9 +394,9 @@ func (p *Proxy) checkUserIsProvisioned(ctx echo.Context, userID, username string
 // if the user has access to it.
 // Access can be either direct (a SpaceBinding linking the user to the workspace exists)
 // or community (a SpaceBinding linking the PublicViewer user to the workspace exists).
-func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
+func (p *Proxy) getClusterAccess(ctx echo.Context, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve cluster access as requesting user or PublicViewer
-	cluster, err := p.getClusterAccessAsUserOrPublicViewer(ctx, userID, username, proxyPluginName, workspace)
+	cluster, err := p.getClusterAccessAsUserOrPublicViewer(ctx, username, proxyPluginName, workspace)
 	if err != nil {
 		return nil, crterrors.NewInternalError(errs.New("unable to get target cluster"), err.Error())
 	}
@@ -410,11 +409,11 @@ func (p *Proxy) getClusterAccess(ctx echo.Context, userID, username, proxyPlugin
 // this function returns the ClusterAccess impersonating the PublicViewer user.
 // If requesting user does not exists and PublicViewer is disabled or does not have access to the workspace,
 // this function returns an error.
-func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
+func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, username, proxyPluginName string, workspace *toolchainv1alpha1.Workspace) (*access.ClusterAccess, error) {
 	// retrieve the requesting user's UserSignup
-	userSignup, err := p.signupService.GetSignup(nil, userID, username, false)
+	userSignup, err := p.signupService.GetSignup(nil, username, false)
 	if err != nil {
-		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for userID '%s' and username '%s'", userID, username))
+		log.Error(nil, err, fmt.Sprintf("error retrieving user signup for username '%s'", username))
 		return nil, crterrors.NewInternalError(errs.New("unable to get user info"), "error retrieving user")
 	}
 
@@ -424,14 +423,13 @@ func (p *Proxy) getClusterAccessAsUserOrPublicViewer(ctx echo.Context, userID, u
 	if publicViewerEnabled && !userHasDirectAccess(userSignup, workspace) {
 		return members.GetClusterAccess(
 			toolchainv1alpha1.KubesawAuthenticatedUsername,
-			toolchainv1alpha1.KubesawAuthenticatedUsername,
 			workspace.Name,
 			proxyPluginName,
 			publicViewerEnabled)
 	}
 
 	// otherwise retrieve the ClusterAccess for the cluster hosting the workspace and the given user.
-	return members.GetClusterAccess(userID, username, workspace.Name, proxyPluginName, publicViewerEnabled)
+	return members.GetClusterAccess(username, workspace.Name, proxyPluginName, publicViewerEnabled)
 }
 
 // userHasDirectAccess checks if an UserSignup has access to a workspace.
@@ -545,8 +543,8 @@ func customHTTPErrorHandler(cause error, ctx echo.Context) {
 	}
 }
 
-// addUserContext updates echo.Context with the User ID extracted from the Bearer token.
-// To be used for storing the user ID and logging only.
+// addUserContext updates echo.Context with the claims extracted from the Bearer token.
+// To be used for storing the claims and logging only.
 func (p *Proxy) addUserContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
@@ -658,7 +656,7 @@ func (p *Proxy) extractUserToken(req *http.Request) (*auth.TokenClaims, error) {
 
 	token, err := p.tokenParser.FromString(userToken)
 	if err != nil {
-		return nil, crterrors.NewUnauthorizedError("unable to extract userID from token", err.Error())
+		return nil, crterrors.NewUnauthorizedError("unable to extract claims from token", err.Error())
 	}
 	return token, nil
 }

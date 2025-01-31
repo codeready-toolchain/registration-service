@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/codeready-toolchain/api v0.0.0-20250121053759-af12adf8e938
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20250121053752-f7e2c17c3c6b
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20250127073039-8ef21eb833fa
 	github.com/go-logr/logr v1.4.1
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1

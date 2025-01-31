@@ -135,14 +135,13 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	gock.Observe(obs)
 
 	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("johny"),
+		testusersignup.WithEncodedName("johnny@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	// Create a second UserSignup which we will test by username lookup instead of UserID lookup.  This will also function
-	// as some additional noise for the test
+	// Create a second UserSignup as some additional noise for the test
 	userSignup2 := testusersignup.NewUserSignup(
-		testusersignup.WithName("jsmith"),
+		testusersignup.WithEncodedName("jsmith@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+61NUMBER"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
@@ -151,7 +150,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	// Test the init verification for the first UserSignup
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+	err := application.VerificationService().InitVerification(ctx, "johnny@kubesaw", "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	signup := &toolchainv1alpha1.UserSignup{}
@@ -186,8 +185,8 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	gock.Observe(obs)
 
 	ctx, _ = gin.CreateTestContext(httptest.NewRecorder())
-	// This time we won't pass in the UserID, just the username yet still expect the UserSignup to be found
-	err = application.VerificationService().InitVerification(ctx, "", userSignup2.Spec.IdentityClaims.PreferredUsername, "+61NUMBER", "1")
+	// for the second usersignup
+	err = application.VerificationService().InitVerification(ctx, "jsmith@kubesaw", "+61NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	signup2 := &toolchainv1alpha1.UserSignup{}
@@ -245,7 +244,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	gock.Observe(obs)
 
 	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("johny"),
+		testusersignup.WithEncodedName("johnny@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
@@ -261,8 +260,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		}
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
-		require.EqualError(s.T(), err, "get failed: error retrieving usersignup: johny", err.Error())
+		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+		require.EqualError(s.T(), err, "get failed: error retrieving usersignup with username 'johnny@kubesaw'", err.Error())
 	})
 
 	s.Run("when client UPDATE call fails indefinitely should return error", func() {
@@ -275,7 +274,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		}
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
 			"for assistance: error while verifying phone code")
@@ -295,7 +294,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		}
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -337,7 +336,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	gock.Observe(obs)
 
 	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("johny"),
+		testusersignup.WithEncodedName("johny@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Add(-25*time.Hour).Format(verificationservice.TimestampLayout)),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, "3"),
@@ -347,7 +346,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
 	signup := &toolchainv1alpha1.UserSignup{}
@@ -379,7 +378,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	now := time.Now()
 
 	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("johny"),
+		testusersignup.WithEncodedName("johny@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, "abc"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
@@ -388,7 +387,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code")
 }
 
@@ -405,7 +404,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	now := time.Now()
 
 	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("johny"),
+		testusersignup.WithEncodedName("johny@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey, strconv.Itoa(cfg.Verification().DailyLimit())),
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
@@ -414,7 +413,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code", err.Error())
 	require.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 }
@@ -434,19 +433,19 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
 	alphaUserSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("alpha"),
+		testusersignup.WithEncodedName("alpha@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, phoneHash),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueApproved),
 		testusersignup.ApprovedManually())
 
 	bravoUserSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("bravo"),
+		testusersignup.WithEncodedName("bravo@kubesaw"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
+	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use: cannot register using phone number: +19875551122", err.Error())
 
@@ -473,20 +472,20 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
 	alphaUserSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("alpha"),
+		testusersignup.WithEncodedName("alpha@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, phoneHash),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueDeactivated),
 		testusersignup.ApprovedManually(),
 		testusersignup.Deactivated())
 
 	bravoUserSignup := testusersignup.NewUserSignup(
-		testusersignup.WithName("bravo"),
+		testusersignup.WithEncodedName("bravo@kubesaw"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
 	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Name, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
+	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.NoError(s.T(), err)
 
 	// Reload bravoUserSignup
@@ -505,7 +504,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("verification ok", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.8"),
@@ -516,7 +515,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -529,7 +528,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("verification ok for usersignup with username identifier", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("employee085"),
+			testusersignup.WithEncodedName("employee085@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.7"),
@@ -540,7 +539,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, "", "employee085", "654321")
+		err := application.VerificationService().VerifyPhoneCode(ctx, "employee085@kubesaw", "654321")
 		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -553,7 +552,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("when verification code is invalid", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "000000"),
@@ -563,7 +562,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
 		require.ErrorAs(s.T(), err, &e)
@@ -574,7 +573,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("when verification code has expired", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
@@ -584,7 +583,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		e := &crterrors.Error{}
 		require.ErrorAs(s.T(), err, &e)
 		require.Equal(s.T(), "expired: verification code expired", e.Error())
@@ -594,7 +593,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("when verifications exceeded maximum attempts", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "3"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
@@ -604,14 +603,14 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
 
 	s.Run("when verifications attempts has invalid value", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "ABC"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
@@ -621,7 +620,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -634,7 +633,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	s.Run("when verifications expiry is corrupt", func() {
 
 		userSignup := testusersignup.NewUserSignup(
-			testusersignup.WithName("johny"),
+			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
@@ -644,7 +643,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
 
@@ -727,7 +726,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				)
 
 				userSignup := testusersignup.NewUserSignup(
-					testusersignup.WithName("johny"),
+					testusersignup.WithEncodedName("johny@kubesaw"),
 					testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 					testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationAttemptsAnnotationKey, "0"),
 					testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
@@ -743,7 +742,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 				fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
-				err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+				err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 
 				// then
 				signup := &toolchainv1alpha1.UserSignup{}
@@ -777,7 +776,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.NoError(s.T(), err)
@@ -795,7 +794,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.NoError(s.T(), err)
@@ -815,7 +814,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(s.T(), err, "too many verification attempts: 3")
@@ -834,7 +833,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
-			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
+			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
 			require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
@@ -853,7 +852,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when
-			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
+			err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "invalid")
 
 			// then
 			require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
@@ -872,7 +871,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(s.T(), err, "invalid code: the event is full")
@@ -891,7 +890,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
@@ -910,7 +909,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 
 		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Name, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
+		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
 
 		// then
 		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")

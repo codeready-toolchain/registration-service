@@ -215,10 +215,10 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token is malformed: token contains an invalid number of segments")
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract claims from token: token is malformed: token contains an invalid number of segments")
 		})
 
-		s.Run("unauthorized if can't extract userID from a valid token", func() {
+		s.Run("unauthorized if can't extract claims from a valid token", func() {
 			// when
 			req, err := http.NewRequest("GET", "http://localhost:8081/api/mycoolworkspace/pods", nil)
 			require.NoError(s.T(), err)
@@ -231,7 +231,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: subject missing")
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract claims from token: token does not comply to expected claims: subject missing")
 		})
 
 		s.Run("unauthorized if can't extract email from a valid token", func() {
@@ -247,7 +247,7 @@ func (s *TestProxySuite) checkPlainHTTPErrors(proxy *Proxy) {
 			require.NotNil(s.T(), resp)
 			defer resp.Body.Close()
 			assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-			s.assertResponseBody(resp, "invalid bearer token: unable to extract userID from token: token does not comply to expected claims: email missing")
+			s.assertResponseBody(resp, "invalid bearer token: unable to extract claims from token: token does not comply to expected claims: email missing")
 		})
 
 		s.Run("unauthorized if workspace context is invalid", func() {
@@ -353,7 +353,7 @@ func (s *TestProxySuite) checkWebsocketsError() {
 			},
 			"not a jwt token": {
 				ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.dG9rZW4,dummy"},
-				ExpectedError:   "invalid bearer token: unable to extract userID from token: token is malformed: token contains an invalid number of segments",
+				ExpectedError:   "invalid bearer token: unable to extract claims from token: token is malformed: token contains an invalid number of segments",
 			},
 			"invalid token is not base64 encoded": {
 				ProtocolHeaders: []string{"base64url.bearer.authorization.k8s.io.token,dummy"},
@@ -515,7 +515,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			ExpectedProxyResponseStatus     int
 			Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
 
-			OverrideGetSignupFunc func(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+			OverrideGetSignupFunc func(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 			ExpectedResponse      *string
 		}{
 			"plain http cors preflight request with no request method": {
@@ -680,7 +680,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 					"Authorization": {"Bearer clusterSAToken"},
 				},
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
-				OverrideGetSignupFunc: func(_ *gin.Context, _, _ string, _ bool) (*signup.Signup, error) {
+				OverrideGetSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("test error")
 				},
 				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),

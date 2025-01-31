@@ -3,7 +3,6 @@ package service
 import (
 	gocontext "context"
 	"fmt"
-	"hash/crc32"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
+	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"github.com/gin-gonic/gin"
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
@@ -31,8 +31,6 @@ import (
 )
 
 const (
-	DNS1123NameMaximumLength = 63
-
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
 )
@@ -64,7 +62,7 @@ func NewSignupService(client namespaced.Client, opts ...SignupServiceOption) ser
 	return s
 }
 
-// newUserSignup generates a new UserSignup resource with the specified username and userID.
+// newUserSignup generates a new UserSignup resource with the specified username and available claims.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
 func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
@@ -78,7 +76,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	if isCRTAdmin(username) {
-		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup - the UserID is: '%s'", ctx.GetString(context.UsernameKey), ctx.GetString(context.SubKey)))
+		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup", ctx.GetString(context.UsernameKey)))
 		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
 	}
 
@@ -103,7 +101,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
+			Name:      signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
@@ -233,71 +231,21 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
-// EncodeUserIdentifier transforms a subject value (the user's UserID) to make it DNS-1123 compliant,
-// by removing invalid characters, trimming the length and prefixing with a CRC32 checksum if required.
-// ### WARNING ### changing this function will cause breakage, as it is used to lookup existing UserSignup
-// resources.  If a change is absolutely required, then all existing UserSignup instances must be migrated
-// to the new value
-func EncodeUserIdentifier(subject string) string {
-	// Sanitize subject to be compliant with DNS labels format (RFC-1123)
-	encoded := sanitizeDNS1123(subject)
-
-	// Add a checksum prefix if the encoded value is different to the original subject value
-	if encoded != subject {
-		encoded = fmt.Sprintf("%x-%s", crc32.Checksum([]byte(subject), crc32.IEEETable), encoded)
-	}
-
-	// Trim if the length exceeds the maximum
-	if len(encoded) > DNS1123NameMaximumLength {
-		encoded = encoded[0:DNS1123NameMaximumLength]
-	}
-
-	return encoded
-}
-
-func sanitizeDNS1123(str string) string {
-	// convert to lowercase
-	lstr := strings.ToLower(str)
-
-	// remove unwanted characters
-	b := strings.Builder{}
-	for _, r := range lstr {
-		switch {
-		case r >= '0' && r <= '9':
-			fallthrough
-		case r >= 'a' && r <= 'z':
-			fallthrough
-		case r == '-':
-			b.WriteRune(r)
-		}
-	}
-
-	// remove leading and trailing '-'
-	return strings.Trim(b.String(), "-")
-}
-
-// Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username and userID
+// Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	encodedUserID := EncodeUserIdentifier(ctx.GetString(context.SubKey))
+	username := ctx.GetString(context.UsernameKey)
+	encodedUsername := signupcommon.EncodeUserIdentifier(username)
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(ctx, s.NamespacedName(encodedUserID), userSignup); err != nil {
+	if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
-			// The UserSignup could not be located by its encoded UserID, attempt to load it using its encoded PreferredUsername instead
-			encodedUsername := EncodeUserIdentifier(ctx.GetString(context.UsernameKey))
-			if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
-				if apierrors.IsNotFound(err) {
-					// New Signup
-					log.WithValues(map[string]interface{}{"encoded_user_id": encodedUserID}).Info(ctx, "user not found, creating a new one")
-					return s.createUserSignup(ctx)
-				}
-				return nil, err
-			}
-		} else {
-			return nil, err
+			// New Signup
+			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
+			return s.createUserSignup(ctx)
 		}
+		return nil, err
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
@@ -307,12 +255,11 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 		return s.reactivateUserSignup(ctx, userSignup)
 	}
 
-	username := ctx.GetString(context.UsernameKey)
 	return nil, apierrors.NewConflict(schema.GroupResource{}, "", fmt.Errorf(
-		"UserSignup [id: %s; username: %s]. Unable to create UserSignup because there is already an active UserSignup with such ID", encodedUserID, username))
+		"UserSignup [username: %s]. Unable to create UserSignup because there is already an active UserSignup with such a username", username))
 }
 
-// createUserSignup creates a new UserSignup resource with the specified username and userID
+// createUserSignup creates a new UserSignup resource with the specified username
 func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.newUserSignup(ctx)
 	if err != nil {
@@ -322,7 +269,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.Use
 	return userSignup, s.Create(ctx, userSignup)
 }
 
-// reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username and userID
+// reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username
 func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
@@ -353,24 +300,23 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // The checkUserSignupCompleted was introduced in order to avoid checking the readiness of the complete condition on the UserSignup in certain situations,
 // such as proxy calls for example.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(ctx *gin.Context, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.Client, userID, username, checkUserSignupCompleted)
+func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	return s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userID, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 
 	err := signup.PollUpdateSignup(ctx, func() error {
-		// Retrieve UserSignup resource from the host cluster, using the specified UserID and username
-		var getError error
-		userSignup, getError = s.DoGetUserSignupFromIdentifier(cl, userID, username)
-		// If an error was returned, then return here
-		if getError != nil {
-			if apierrors.IsNotFound(getError) {
+		// Retrieve UserSignup resource from the host cluster
+		us := &toolchainv1alpha1.UserSignup{}
+		if err := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), us); err != nil {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			return getError
+			return err
 		}
+		userSignup = us
 
 		// Otherwise if the returned userSignup is nil, return here also
 		if userSignup == nil || ctx == nil {
@@ -548,41 +494,15 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 	return updated
 }
 
-// GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) GetUserSignupFromIdentifier(userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	return s.DoGetUserSignupFromIdentifier(s.Client, userID, username)
-}
-
-// GetUserSignupFromIdentifier is used to return the actual UserSignup resource instance, rather than the Signup DTO
-func (s *ServiceImpl) DoGetUserSignupFromIdentifier(cl namespaced.Client, userID, username string) (*toolchainv1alpha1.UserSignup, error) {
-	// Retrieve UserSignup resource from the host cluster
-	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(username)), userSignup); err != nil {
-		if apierrors.IsNotFound(err) {
-			// Capture any error here in a separate var, as we need to preserve the original
-			if err2 := cl.Get(gocontext.TODO(), cl.NamespacedName(EncodeUserIdentifier(userID)), userSignup); err2 != nil {
-				if apierrors.IsNotFound(err2) {
-					return nil, err
-				}
-				return nil, err2
-			}
-			return userSignup, nil
-		}
-		return nil, err
-	}
-
-	return userSignup, nil
-}
-
 var (
 	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
 )
 
 // PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
-// an internal server error. If not, check if an approved UserSignup with a different userID and username
+// an internal server error. If not, check if an approved UserSignup with a different username
 // and email address exists. If so, return an internal server error. Otherwise, return without error.
 // Either the actual phone number, or the md5 hash of the phone number may be provided here.
-func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHash string) error {
+func (s *ServiceImpl) PhoneNumberAlreadyInUse(username, phoneNumberOrHash string) error {
 	labelValue := hash.EncodeString(phoneNumberOrHash)
 	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
 		labelValue = phoneNumberOrHash
@@ -609,7 +529,7 @@ func (s *ServiceImpl) PhoneNumberAlreadyInUse(userID, username, phoneNumberOrHas
 
 	for _, signup := range userSignups.Items {
 		userSignup := signup // drop with go 1.22
-		if userSignup.Spec.IdentityClaims.Sub != userID && userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
+		if userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
 			return errors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

@@ -116,12 +116,12 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 				for k, tc := range tt {
 					s.Run(k, func() {
 						s.Run("signup service returns error", func() {
-							sc.MockGetSignup = func(_, _ string) (*signup.Signup, error) {
+							sc.MockGetSignup = func(_ string) (*signup.Signup, error) {
 								return nil, errors.New("oopsi woopsi")
 							}
 
 							// when
-							_, err := members.GetClusterAccess("", "789-ready", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("789-ready", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "oopsi woopsi")
@@ -131,7 +131,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 						s.Run("username is not found", func() {
 							// when
-							_, err := members.GetClusterAccess("", "unknown_username", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("unknown_username", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -139,7 +139,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 						s.Run("user is not provisioned yet", func() {
 							// when
-							_, err := members.GetClusterAccess("", "456-not-ready", tc.workspace, "", publicViewerEnabled)
+							_, err := members.GetClusterAccess("456-not-ready", tc.workspace, "", publicViewerEnabled)
 
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -165,7 +165,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 					members := proxy.NewMemberClusters(nsClient, sc, commoncluster.GetMemberClusters)
 
 					// when
-					_, err := members.GetClusterAccess("", "789-ready", "smith2", "", publicViewerEnabled)
+					_, err := members.GetClusterAccess("789-ready", "smith2", "", publicViewerEnabled)
 
 					// then
 					// original error is only logged so that it doesn't reveal information about a space that may not belong to the requestor
@@ -174,7 +174,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 				s.Run("space not found", func() {
 					// when
-					_, err := members.GetClusterAccess("", "789-ready", "unknown", "", publicViewerEnabled) // unknown workspace requested
+					_, err := members.GetClusterAccess("789-ready", "unknown", "", publicViewerEnabled) // unknown workspace requested
 
 					// then
 					require.EqualError(s.T(), err, "the requested space is not available")
@@ -188,7 +188,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 					})
 					s.Run("default workspace case", func() {
 						// when
-						_, err := members.GetClusterAccess("", "789-ready", "", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("789-ready", "", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member clusters found")
@@ -196,7 +196,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 					s.Run("workspace context case", func() {
 						// when
-						_, err := members.GetClusterAccess("", "789-ready", "smith2", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("789-ready", "smith2", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member clusters found")
@@ -209,7 +209,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 					})
 					s.Run("default workspace case", func() {
 						// when
-						_, err := members.GetClusterAccess("", "012-ready-unknown-cluster", "", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("012-ready-unknown-cluster", "", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member cluster found for the user")
@@ -217,7 +217,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 					s.Run("workspace context case", func() {
 						// when
-						_, err := members.GetClusterAccess("", "012-ready-unknown-cluster", "unknown-cluster", "", publicViewerEnabled)
+						_, err := members.GetClusterAccess("012-ready-unknown-cluster", "unknown-cluster", "", publicViewerEnabled)
 
 						// then
 						require.EqualError(s.T(), err, "no member cluster found for space 'unknown-cluster'")
@@ -278,7 +278,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 					expectedToken := "abc123" // should match member 2 bearer token
 
 					// when
-					ca, err := members.GetClusterAccess("", "789-ready", "", "tekton-results", publicViewerEnabled)
+					ca, err := members.GetClusterAccess("789-ready", "", "tekton-results", publicViewerEnabled)
 
 					// then
 					require.NoError(s.T(), err)
@@ -291,7 +291,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when using workspace context", func() {
 						// when
-						ca, err := members.GetClusterAccess("", "789-ready", "smith2", "tekton-results", publicViewerEnabled) // workspace-context specified
+						ca, err := members.GetClusterAccess("789-ready", "smith2", "tekton-results", publicViewerEnabled) // workspace-context specified
 
 						// then
 						require.NoError(s.T(), err)
@@ -319,7 +319,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 								return memberClient.Client.Get(ctx, key, obj, opts...)
 							}
 							memberArray[0].Client = mC
-							ca, err := members.GetClusterAccess("", "789-ready", "teamspace", "tekton-results", publicViewerEnabled) // workspace-context specified
+							ca, err := members.GetClusterAccess("789-ready", "teamspace", "tekton-results", publicViewerEnabled) // workspace-context specified
 
 							// then
 							require.NoError(s.T(), err)
@@ -337,7 +337,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 					expectedToken := "abc123" // should match member 2 bearer token
 
 					// when
-					ca, err := members.GetClusterAccess("", "789-ready", "", "", publicViewerEnabled)
+					ca, err := members.GetClusterAccess("789-ready", "", "", publicViewerEnabled)
 
 					// then
 					require.NoError(s.T(), err)
@@ -350,7 +350,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 					s.Run("cluster access correct when using workspace context", func() {
 						// when
-						ca, err := members.GetClusterAccess("", "789-ready", "smith2", "", publicViewerEnabled) // workspace-context specified
+						ca, err := members.GetClusterAccess("789-ready", "smith2", "", publicViewerEnabled) // workspace-context specified
 
 						// then
 						require.NoError(s.T(), err)
@@ -362,7 +362,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 						s.Run("another workspace on another cluster", func() {
 							// when
-							ca, err := members.GetClusterAccess("", "789-ready", "teamspace", "", publicViewerEnabled) // workspace-context specified
+							ca, err := members.GetClusterAccess("789-ready", "teamspace", "", publicViewerEnabled) // workspace-context specified
 
 							// then
 							require.NoError(s.T(), err)
@@ -382,7 +382,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 	s.Run("user is public-viewer", func() {
 		s.Run("has no default workspace", func() {
 			// when
-			ca, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
+			ca, err := members.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, "", "", true)
 
 			// then
 			require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -395,7 +395,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 			})
 			s.Run("public-viewer is disabled", func() {
 				// when
-				ca, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
+				ca, err := members.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", false)
 
 				// then
 				require.EqualError(s.T(), err, "user is not provisioned (yet)")
@@ -409,7 +409,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 				expectedClusterAccess := access.NewClusterAccess(*expectedURL, "token", toolchainv1alpha1.KubesawAuthenticatedUsername)
 
 				// when
-				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
+				clusterAccess, err := members.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, "smith2", "", true)
 
 				// then
 				require.NoError(s.T(), err)
@@ -418,7 +418,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 			s.Run("not-available space", func() {
 				// when
-				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "456-not-ready", "", true)
+				clusterAccess, err := members.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, "456-not-ready", "", true)
 
 				// then
 				require.EqualError(s.T(), err, "the requested space is not available")
@@ -427,7 +427,7 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 
 			s.Run("ready space with unknown cluster", func() {
 				// when
-				clusterAccess, err := members.GetClusterAccess("", toolchainv1alpha1.KubesawAuthenticatedUsername, "012-ready-unknown-cluster", "", true)
+				clusterAccess, err := members.GetClusterAccess(toolchainv1alpha1.KubesawAuthenticatedUsername, "012-ready-unknown-cluster", "", true)
 
 				// then
 				require.EqualError(s.T(), err, "the requested space is not available")

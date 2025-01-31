@@ -37,19 +37,19 @@ func NewMemberClusters(client namespaced.Client, signupService service.SignupSer
 	return si
 }
 
-func (s *MemberClusters) GetClusterAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
+func (s *MemberClusters) GetClusterAccess(username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// if workspace is not provided then return the default space access
 	if workspace == "" {
-		return s.getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName)
+		return s.getClusterAccessForDefaultWorkspace(username, proxyPluginName)
 	}
 
-	return s.getSpaceAccess(userID, username, workspace, proxyPluginName, publicViewerEnabled)
+	return s.getSpaceAccess(username, workspace, proxyPluginName, publicViewerEnabled)
 }
 
 // getSpaceAccess retrieves space access for an user
-func (s *MemberClusters) getSpaceAccess(userID, username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
+func (s *MemberClusters) getSpaceAccess(username, workspace, proxyPluginName string, publicViewerEnabled bool) (*access.ClusterAccess, error) {
 	// retrieve the user's complaint name
-	complaintUserName, err := s.getUserSignupComplaintName(userID, username, publicViewerEnabled)
+	complaintUserName, err := s.getUserSignupComplaintName(username, publicViewerEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +65,14 @@ func (s *MemberClusters) getSpaceAccess(userID, username, workspace, proxyPlugin
 	return s.accessForSpace(space, complaintUserName, proxyPluginName)
 }
 
-func (s *MemberClusters) getUserSignupComplaintName(userID, username string, publicViewerEnabled bool) (string, error) {
+func (s *MemberClusters) getUserSignupComplaintName(username string, publicViewerEnabled bool) (string, error) {
 	// if PublicViewer is enabled and the requested user is the PublicViewer, than no lookup is required
 	if publicViewerEnabled && username == toolchainv1alpha1.KubesawAuthenticatedUsername {
 		return username, nil
 	}
 
 	// retrieve the UserSignup from cache
-	userSignup, err := s.getSignupFromInformerForProvisionedUser(userID, username)
+	userSignup, err := s.getSignupFromInformerForProvisionedUser(username)
 	if err != nil {
 		return "", err
 	}
@@ -81,9 +81,9 @@ func (s *MemberClusters) getUserSignupComplaintName(userID, username string, pub
 }
 
 // getClusterAccessForDefaultWorkspace retrieves the cluster for the user's default workspace
-func (s *MemberClusters) getClusterAccessForDefaultWorkspace(userID, username, proxyPluginName string) (*access.ClusterAccess, error) {
+func (s *MemberClusters) getClusterAccessForDefaultWorkspace(username, proxyPluginName string) (*access.ClusterAccess, error) {
 	// retrieve the UserSignup from cache
-	userSignup, err := s.getSignupFromInformerForProvisionedUser(userID, username)
+	userSignup, err := s.getSignupFromInformerForProvisionedUser(username)
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +92,10 @@ func (s *MemberClusters) getClusterAccessForDefaultWorkspace(userID, username, p
 	return s.accessForCluster(userSignup.APIEndpoint, userSignup.ClusterName, userSignup.CompliantUsername, proxyPluginName)
 }
 
-func (s *MemberClusters) getSignupFromInformerForProvisionedUser(userID, username string) (*signup.Signup, error) {
+func (s *MemberClusters) getSignupFromInformerForProvisionedUser(username string) (*signup.Signup, error) {
 	// don't check for usersignup complete status, since it might cause the proxy blocking the request
 	// and returning an error when quick transitions from ready to provisioning are happening.
-	userSignup, err := s.SignupService.GetSignup(nil, userID, username, false)
+	userSignup, err := s.SignupService.GetSignup(nil, username, false)
 	if err != nil {
 		return nil, err
 	}

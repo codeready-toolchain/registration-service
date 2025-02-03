@@ -421,13 +421,13 @@ func (s *TestProxySuite) checkWebLogin() {
 			switch p := r.URL.Path; p {
 			case "/auth/realms/sandbox-dev/.well-known/openid-configuration":
 				_, err := w.Write([]byte("mock SSO configuration"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			case "/auth/anything":
 				_, err := w.Write([]byte("mock auth"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			default:
 				_, err := w.Write([]byte("unknown"))
-				require.NoError(s.T(), err)
+				assert.NoError(s.T(), err)
 			}
 		}))
 		defer testServer.Close()
@@ -794,7 +794,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 										w.Header().Set("Access-Control-Allow-Origin", "dummy")
 										w.WriteHeader(http.StatusOK)
 										_, err := w.Write([]byte("my response"))
-										require.NoError(s.T(), err)
+										assert.NoError(s.T(), err)
 										for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 											assert.Len(s.T(), r.Header.Values(hk), len(hv))
 											for i := range hv {

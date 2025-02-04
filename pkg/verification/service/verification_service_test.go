@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	senderpkg "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -920,4 +921,122 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
 		assert.Empty(s.T(), signup.Spec.TargetCluster)
 	})
+}
+
+func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
+	bannedUser := &toolchainv1alpha1.BannedUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "banneduser",
+			Namespace: commontest.HostOperatorNs,
+			Labels: map[string]string{
+				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
+				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
+			},
+		},
+		Spec: toolchainv1alpha1.BannedUserSpec{
+			Email: "jane.doe@gmail.com",
+		},
+	}
+
+	userSignupApproved := testusersignup.NewUserSignup(
+		testusersignup.WithEncodedName("johnny@kubesaw"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserEmailHashLabelKey, "a7b1b413c1cbddbcd19a51222ef8e20a"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
+		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueApproved))
+
+	s.Run("when phone is not used yet", func() {
+		// given
+		fakeClient := commontest.NewFakeClient(s.T(), userSignupApproved, bannedUser)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+
+		// then
+		require.NoError(s.T(), err)
+	})
+
+	s.Run("when phone is used but not by approved user", func() {
+		for _, state := range []string{"", toolchainv1alpha1.StateLabelValuePending, toolchainv1alpha1.UserSignupStateLabelValueDeactivated, toolchainv1alpha1.UserSignupStateLabelValueNotReady} {
+			s.Run(fmt.Sprintf("state: %s", state), func() {})
+			// given
+			userSignup := testusersignup.NewUserSignup(
+				testusersignup.WithEncodedName("johnny@kubesaw"),
+				testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserEmailHashLabelKey, "a7b1b413c1cbddbcd19a51222ef8e20a"),
+				testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
+				testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, state))
+
+			fakeClient := commontest.NewFakeClient(s.T(), userSignup)
+			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+			// when
+			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+
+			// then
+			require.NoError(s.T(), err)
+		}
+	})
+
+	s.Run("when used by banned user", func() {
+		// given
+		fakeClient := commontest.NewFakeClient(s.T(), bannedUser)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+		// then
+		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
+	})
+
+	s.Run("when used by another user", func() {
+		// given
+		fakeClient := commontest.NewFakeClient(s.T(), userSignupApproved)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+		// then
+		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
+	})
+
+	s.Run("failures", func() {
+		s.Run("fails when lists banned users", func() {
+			// given
+			fakeClient := commontest.NewFakeClient(s.T(), userSignupApproved)
+			fakeClient.MockList = func(ctx gocontext.Context, list client.ObjectList, opts ...client.ListOption) error {
+				if _, ok := list.(*toolchainv1alpha1.BannedUserList); ok {
+					return fmt.Errorf("list error")
+				}
+				return fakeClient.Client.List(ctx, list, opts...)
+			}
+			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+			// when
+			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+			// then
+			require.EqualError(s.T(), err, "list error: failed listing banned users")
+		})
+
+		s.Run("fails when lists usersignups", func() {
+			// given
+			fakeClient := commontest.NewFakeClient(s.T(), userSignupApproved)
+			fakeClient.MockList = func(ctx gocontext.Context, list client.ObjectList, opts ...client.ListOption) error {
+				if _, ok := list.(*toolchainv1alpha1.UserSignupList); ok {
+					return fmt.Errorf("list error")
+				}
+				return fakeClient.Client.List(ctx, list, opts...)
+			}
+			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+			// when
+			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+			// then
+			require.EqualError(s.T(), err, "list error: failed listing userSignups")
+		})
+	})
+
 }

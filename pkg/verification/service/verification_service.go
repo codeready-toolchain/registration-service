@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -86,7 +88,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	// Check if the provided phone number is already being used by another user
-	err := s.Services().SignupService().PhoneNumberAlreadyInUse(username, e164PhoneNumber)
+	err := PhoneNumberAlreadyInUse(s.Client, username, e164PhoneNumber)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
@@ -263,7 +265,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
 
-	err := s.Services().SignupService().PhoneNumberAlreadyInUse(username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+	err := PhoneNumberAlreadyInUse(s.Client, username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
 		return crterrors.NewBadRequest("phone number already in use",
@@ -469,6 +471,50 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 	// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
 	unsetVerificationRequired = true
 	annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
+	return nil
+}
+
+var (
+	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
+)
+
+// PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
+// an internal server error. If not, check if an approved UserSignup with a different username
+// and email address exists. If so, return an internal server error. Otherwise, return without error.
+// Either the actual phone number, or the md5 hash of the phone number may be provided here.
+func PhoneNumberAlreadyInUse(cl namespaced.Client, username, phoneNumberOrHash string) error {
+	labelValue := hash.EncodeString(phoneNumberOrHash)
+	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
+		labelValue = phoneNumberOrHash
+	}
+
+	bannedUserList := &toolchainv1alpha1.BannedUserList{}
+	if err := cl.List(gocontext.TODO(), bannedUserList, client.InNamespace(cl.Namespace),
+		client.MatchingLabels{toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue}); err != nil {
+		return crterrors.NewInternalError(err, "failed listing banned users")
+	}
+
+	if len(bannedUserList.Items) > 0 {
+		return crterrors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
+	}
+
+	labelSelector := client.MatchingLabels{
+		toolchainv1alpha1.UserSignupStateLabelKey:           toolchainv1alpha1.UserSignupStateLabelValueApproved,
+		toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
+	}
+	userSignups := &toolchainv1alpha1.UserSignupList{}
+	if err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(cl.Namespace), labelSelector); err != nil {
+		return crterrors.NewInternalError(err, "failed listing userSignups")
+	}
+
+	for _, signup := range userSignups.Items {
+		userSignup := signup // drop with go 1.22
+		if userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
+			return crterrors.NewForbiddenError("cannot re-register with phone number",
+				"phone number already in use")
+		}
+	}
+
 	return nil
 }
 

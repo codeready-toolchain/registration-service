@@ -38,7 +38,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type TestSignupSuite struct {
@@ -129,10 +128,7 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 
 	s.Run("signup forbidden error", func() {
 		// given
-		svc := &FakeSignupService{}
-		_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
-			serviceFactory.WithSignupService(svc)
-		})
+		_, application := testutil.PrepareInClusterApp(s.T())
 
 		signupCtrl := controller.NewSignup(application)
 		handler := gin.HandlerFunc(signupCtrl.PostHandler)
@@ -140,35 +136,31 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
+		ctx.Set(context.UsernameKey, "kubesaw-crtadmin")
 
 		// when
-		svc.MockSignup = func(_ *gin.Context) (*crtapi.UserSignup, error) {
-			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errors.New("forbidden test error"))
-		}
-
 		handler(ctx)
 
-		// Check the error is what we expect.
-		test.AssertError(s.T(), rr, http.StatusForbidden, "forbidden: forbidden test error", "error creating UserSignup resource")
+		// then
+		test.AssertError(s.T(), rr, http.StatusForbidden, "forbidden: failed to create usersignup for kubesaw-crtadmin", "error creating UserSignup resource")
 	})
 }
 
 func (s *TestSignupSuite) TestSignupGetHandler() {
+	// given
 	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 	// pass 'nil' as the third parameter.
 	req, err := http.NewRequest(http.MethodGet, "/api/v1/signup", nil)
 	require.NoError(s.T(), err)
 
-	// Create a mock SignupService
-	svc := &FakeSignupService{}
-	_, application := testutil.PrepareInClusterAppWithOption(s.T(), func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithSignupService(svc)
-	})
+	userSignup := testusersignup.NewUserSignup(
+		testusersignup.WithEncodedName("ted@kubesaw"),
+		testusersignup.SignupIncomplete("Provisioning", ""),
+		testusersignup.ApprovedAutomaticallyAgo(time.Second),
+		testusersignup.WithCompliantUsername("ted"),
+		testusersignup.WithHomeSpace("ted"))
 
-	// Create UserSignup
-	ob, err := uuid.NewV4()
-	require.NoError(s.T(), err)
-	username := ob.String()
+	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 	// Create Signup controller instance.
 	ctrl := controller.NewSignup(application)
@@ -179,30 +171,21 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(context.UsernameKey, username)
-
-		targetCluster, err := uuid.NewV4()
-		require.NoError(s.T(), err)
+		ctx.Set(context.UsernameKey, "ted@kubesaw")
 
 		expected := &signup.Signup{
-			ConsoleURL:      "https://console." + targetCluster.String(),
-			CheDashboardURL: "http://che-toolchain-che.member-123.com",
-			APIEndpoint:     "http://api.devcluster.openshift.com",
-			Username:        "jsmith",
+			Name:              usersignup.EncodeUserIdentifier("ted@kubesaw"),
+			Username:          "ted@kubesaw",
+			CompliantUsername: "ted",
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},
 		}
-		svc.MockGetSignup = func(_ *gin.Context, name string, _ bool) (*signup.Signup, error) {
-			if name == username {
-				return expected, nil
-			}
-			return nil, nil
-		}
 
+		// when
 		handler(ctx)
 
-		// Check the status code is what we expect.
+		// then
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
@@ -218,12 +201,9 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(context.UsernameKey, username)
+		ctx.Set(context.UsernameKey, "dummy")
 
-		svc.MockGetSignup = func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
-			return nil, nil
-		}
-
+		// when
 		handler(ctx)
 
 		// Check the status code is what we expect.
@@ -231,19 +211,22 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	})
 
 	s.Run("signups service error", func() {
+		// given
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
 		ctx.Request = req
-		ctx.Set(context.UsernameKey, username)
+		ctx.Set(context.UsernameKey, "username")
 
-		svc.MockGetSignup = func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
-			return nil, errors.New("oopsie woopsie")
+		fakeClient.MockGet = func(_ gocontext.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+			return errors.New("oopsie woopsie")
 		}
 
-		handler(ctx)
+		// when
+		gin.HandlerFunc(controller.NewSignup(application).GetHandler)(ctx)
 
-		// Check the error is what we expect.
+		// then
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
 	})
 }
@@ -721,22 +704,4 @@ func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, usern
 	ctx.Set(context.UsernameKey, username)
 	handler(ctx)
 	return rr
-}
-
-type FakeSignupService struct {
-	MockGetSignup               func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
-	MockSignup                  func(ctx *gin.Context) (*crtapi.UserSignup, error)
-	MockPhoneNumberAlreadyInUse func(username, value string) error
-}
-
-func (m *FakeSignupService) GetSignup(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error) {
-	return m.MockGetSignup(ctx, username, checkUserSignupComplete)
-}
-
-func (m *FakeSignupService) Signup(ctx *gin.Context) (*crtapi.UserSignup, error) {
-	return m.MockSignup(ctx)
-}
-
-func (m *FakeSignupService) PhoneNumberAlreadyInUse(username, e164phoneNumber string) error {
-	return m.MockPhoneNumberAlreadyInUse(username, e164phoneNumber)
 }

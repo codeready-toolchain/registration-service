@@ -51,6 +51,3 @@ func (m *SignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, e
 func (m *SignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
-func (m *SignupService) PhoneNumberAlreadyInUse(_, _ string) error {
-	return nil
-}

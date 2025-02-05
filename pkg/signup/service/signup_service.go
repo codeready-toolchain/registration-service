@@ -12,7 +12,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
@@ -492,50 +491,6 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 	}
 
 	return updated
-}
-
-var (
-	md5Matcher = regexp.MustCompile("(?i)[a-f0-9]{32}$")
-)
-
-// PhoneNumberAlreadyInUse checks if the phone number has been banned. If so, return
-// an internal server error. If not, check if an approved UserSignup with a different username
-// and email address exists. If so, return an internal server error. Otherwise, return without error.
-// Either the actual phone number, or the md5 hash of the phone number may be provided here.
-func (s *ServiceImpl) PhoneNumberAlreadyInUse(username, phoneNumberOrHash string) error {
-	labelValue := hash.EncodeString(phoneNumberOrHash)
-	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
-		labelValue = phoneNumberOrHash
-	}
-
-	bannedUserList := &toolchainv1alpha1.BannedUserList{}
-	if err := s.List(gocontext.TODO(), bannedUserList, client.InNamespace(s.Namespace),
-		client.MatchingLabels{toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue}); err != nil {
-		return errors.NewInternalError(err, "failed listing banned users")
-	}
-
-	if len(bannedUserList.Items) > 0 {
-		return errors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
-	}
-
-	labelSelector := client.MatchingLabels{
-		toolchainv1alpha1.UserSignupStateLabelKey:           toolchainv1alpha1.UserSignupStateLabelValueApproved,
-		toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
-	}
-	userSignups := &toolchainv1alpha1.UserSignupList{}
-	if err := s.List(gocontext.TODO(), userSignups, client.InNamespace(s.Namespace), labelSelector); err != nil {
-		return errors.NewInternalError(err, "failed listing userSignups")
-	}
-
-	for _, signup := range userSignups.Items {
-		userSignup := signup // drop with go 1.22
-		if userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
-			return errors.NewForbiddenError("cannot re-register with phone number",
-				"phone number already in use")
-		}
-	}
-
-	return nil
 }
 
 // GetDefaultUserTarget retrieves the target cluster and the default namespace from the Space a user has access to.

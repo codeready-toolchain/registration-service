@@ -474,51 +474,6 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 
-func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseBannedUser() {
-	s.ServiceConfiguration(true, "redhat.com", 5)
-
-	bannedUser := &toolchainv1alpha1.BannedUser{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "banneduser",
-			Namespace: commontest.HostOperatorNs,
-			Labels: map[string]string{
-				toolchainv1alpha1.BannedUserEmailHashLabelKey:       "a7b1b413c1cbddbcd19a51222ef8e20a",
-				toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: "fd276563a8232d16620da8ec85d0575f",
-			},
-		},
-		Spec: toolchainv1alpha1.BannedUserSpec{
-			Email: "jane.doe@gmail.com",
-		},
-	}
-
-	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
-
-	// when
-	err := application.SignupService().PhoneNumberAlreadyInUse("jsmith", "+12268213044")
-
-	// then
-	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
-}
-
-func (s *TestSignupServiceSuite) TestPhoneNumberAlreadyInUseUserSignup() {
-	s.ServiceConfiguration(true, "", 5)
-
-	userSignup := testusersignup.NewUserSignup(
-		testusersignup.WithEncodedName("johnny@kubesaw"),
-		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserEmailHashLabelKey, "a7b1b413c1cbddbcd19a51222ef8e20a"),
-		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
-		testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueApproved))
-
-	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
-
-	// when
-	err := application.SignupService().PhoneNumberAlreadyInUse("jsmith", "+12268213044")
-
-	// then
-	require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
-}
-
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 	s.ServiceConfiguration(true, "", 5)
 

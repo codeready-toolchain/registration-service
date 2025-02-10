@@ -34,12 +34,9 @@ func (s *serviceContextImpl) Services() service.Services {
 }
 
 type ServiceFactory struct {
-	contextProducer            servicecontext.ServiceContextProducer
-	serviceContextOptions      []ServiceContextOption
-	verificationServiceFunc    func(opts ...verificationservice.VerificationServiceOption) service.VerificationService
-	verificationServiceOptions []verificationservice.VerificationServiceOption
-	signupServiceFunc          func(opts ...signupservice.SignupServiceOption) service.SignupService
-	signupServiceOptions       []signupservice.SignupServiceOption
+	contextProducer       servicecontext.ServiceContextProducer
+	serviceContextOptions []ServiceContextOption
+	signupServiceOptions  []signupservice.SignupServiceOption
 }
 
 func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceContextProducer {
@@ -51,7 +48,7 @@ func (s *ServiceFactory) defaultServiceContextProducer() servicecontext.ServiceC
 }
 
 func (s *ServiceFactory) SignupService() service.SignupService {
-	return s.signupServiceFunc(s.signupServiceOptions...)
+	return signupservice.NewSignupService(s.getContext().Client(), s.signupServiceOptions...)
 }
 
 func (s *ServiceFactory) WithSignupServiceOption(opt signupservice.SignupServiceOption) {
@@ -59,11 +56,7 @@ func (s *ServiceFactory) WithSignupServiceOption(opt signupservice.SignupService
 }
 
 func (s *ServiceFactory) VerificationService() service.VerificationService {
-	return s.verificationServiceFunc(s.verificationServiceOptions...)
-}
-
-func (s *ServiceFactory) WithVerificationServiceOption(opt verificationservice.VerificationServiceOption) {
-	s.verificationServiceOptions = append(s.verificationServiceOptions, opt)
+	return verificationservice.NewVerificationService(s.getContext())
 }
 
 // Option an option to configure the Service Factory
@@ -86,15 +79,6 @@ func NewServiceFactory(options ...Option) *ServiceFactory {
 
 	if !configuration.IsTestingMode() {
 		log.Info(nil, fmt.Sprintf("configuring a new service factory with %d options", len(options)))
-	}
-
-	// default function to return an instance of Verification service
-	f.verificationServiceFunc = func(_ ...verificationservice.VerificationServiceOption) service.VerificationService {
-		return verificationservice.NewVerificationService(f.getContext(), f.verificationServiceOptions...)
-	}
-
-	f.signupServiceFunc = func(_ ...signupservice.SignupServiceOption) service.SignupService {
-		return signupservice.NewSignupService(f.getContext().Client(), f.signupServiceOptions...)
 	}
 
 	return f

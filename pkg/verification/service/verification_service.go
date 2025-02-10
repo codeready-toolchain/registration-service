@@ -49,19 +49,16 @@ type ServiceImpl struct { // nolint:revive
 type VerificationServiceOption func(svc *ServiceImpl)
 
 // NewVerificationService creates a service object for performing user verification
-func NewVerificationService(context servicecontext.ServiceContext, opts ...VerificationServiceOption) service.VerificationService {
-	s := &ServiceImpl{
-		BaseService: base.NewBaseService(context),
-		Client:      context.Client(),
+func NewVerificationService(context servicecontext.ServiceContext) service.VerificationService {
+	httpClient := &http.Client{
+		Timeout:   30*time.Second + 500*time.Millisecond, // taken from twilio code
+		Transport: http.DefaultTransport,
 	}
-
-	for _, opt := range opts {
-		opt(s)
+	return &ServiceImpl{
+		BaseService:         base.NewBaseService(context),
+		Client:              context.Client(),
+		NotificationService: sender.CreateNotificationSender(httpClient),
 	}
-
-	s.NotificationService = sender.CreateNotificationSender(s.HTTPClient)
-
-	return s
 }
 
 // InitVerification sends a verification message to the specified user, using the Twilio service.  If successful,

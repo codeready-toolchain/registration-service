@@ -113,7 +113,6 @@ func TestHandleSpaceListRequest(t *testing.T) {
 	}
 
 	for k, rtc := range tt {
-
 		t.Run(k, func(t *testing.T) {
 			// given
 			tests := map[string]struct {

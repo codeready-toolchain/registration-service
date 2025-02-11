@@ -14,13 +14,11 @@ import (
 	"time"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
@@ -47,21 +45,6 @@ type TestSignupSuite struct {
 
 func TestRunSignupSuite(t *testing.T) {
 	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}, nil})
-}
-
-func httpClientFactoryOption() func(serviceFactory *factory.ServiceFactory) {
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
-
-	serviceOption := func(svc *verification_service.ServiceImpl) {
-		svc.HTTPClient = httpClient
-	}
-
-	opt := func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithVerificationServiceOption(serviceOption)
-	}
-
-	return opt
 }
 
 func (s *TestSignupSuite) TestSignupPostHandler() {
@@ -241,7 +224,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCounterAnnotationKey, "0"),
 		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, ""),
 		testusersignup.VerificationRequiredAgo(time.Second))
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 	defer gock.Off()
 
 	// Create Signup controller instance.
@@ -336,7 +319,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		// Create UserSignup
 		userSignup := testusersignup.NewUserSignup(testusersignup.WithEncodedName("johnny@kubesaw"))
 
-		_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(application)

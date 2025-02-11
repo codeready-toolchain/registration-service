@@ -3,30 +3,28 @@ package server
 import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	signupservice "github.com/codeready-toolchain/registration-service/pkg/signup/service"
+	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 )
 
-// NewInClusterApplication creates a new in-cluster application with the specified configuration and options.  This
-// application type is intended to run inside a Kubernetes cluster, where it makes use of the rest.InClusterConfig()
-// function to determine which Kubernetes configuration to use to create the REST client that interacts with the
-// Kubernetes service endpoints.
-func NewInClusterApplication(client namespaced.Client, options ...factory.Option) application.Application {
+// NewInClusterApplication creates a new in-cluster application.
+func NewInClusterApplication(client namespaced.Client) application.Application {
 	return &InClusterApplication{
-		serviceFactory: factory.NewServiceFactory(append(options,
-			factory.WithServiceContextOptions(
-				factory.NamespacedClientOption(client)))...),
+		signupService:       signupservice.NewSignupService(client),
+		verificationService: verificationservice.NewVerificationService(client),
 	}
 }
 
 type InClusterApplication struct {
-	serviceFactory *factory.ServiceFactory
+	signupService       service.SignupService
+	verificationService service.VerificationService
 }
 
 func (r InClusterApplication) SignupService() service.SignupService {
-	return r.serviceFactory.SignupService()
+	return r.signupService
 }
 
 func (r InClusterApplication) VerificationService() service.VerificationService {
-	return r.serviceFactory.VerificationService()
+	return r.verificationService
 }

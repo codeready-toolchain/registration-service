@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -282,14 +281,10 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
+	nsdClient := namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs)
+	signupService := service.NewSignupService(nsdClient)
 	// captcha is enabled
-	serviceOption := func(svc *service.ServiceImpl) {
-		svc.CaptchaChecker = FakeCaptchaChecker{score: 0.9} // score is above threshold
-	}
-
-	opt := func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithSignupServiceOption(serviceOption)
-	}
+	signupService.CaptchaChecker = FakeCaptchaChecker{score: 0.9} // score is above threshold
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
@@ -310,17 +305,15 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	ctx.Request, _ = http.NewRequest("POST", "/", bytes.NewBufferString(""))
 	ctx.Request.Header.Set("Recaptcha-Token", "abc")
 
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), opt)
-
 	// when
-	userSignup, err := application.SignupService().Signup(ctx)
+	userSignup, err := signupService.Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
 	userSignups := &toolchainv1alpha1.UserSignupList{}
-	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
+	err = nsdClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), userSignups.Items, 1)
 

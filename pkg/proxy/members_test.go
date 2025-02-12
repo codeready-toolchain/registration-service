@@ -105,7 +105,6 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 		publicViewerEnabled := tc.publicViewerEnabled
 
 		s.Run(k, func() {
-
 			s.Run("unable to get signup", func() {
 				tt := map[string]struct {
 					workspace string
@@ -144,7 +143,6 @@ func (s *TestMemberClustersSuite) TestGetClusterAccess() {
 							// then
 							require.EqualError(s.T(), err, "user is not provisioned (yet)")
 						})
-
 					})
 				}
 			})

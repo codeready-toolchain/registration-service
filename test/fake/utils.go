@@ -10,7 +10,6 @@ import (
 )
 
 func NewSpace(name, targetCluster, compliantUserName string, spaceTestOptions ...spacetest.Option) *toolchainv1alpha1.Space {
-
 	spaceTestOptions = append(spaceTestOptions,
 		spacetest.WithLabel(toolchainv1alpha1.SpaceCreatorLabelKey, compliantUserName),
 		spacetest.WithSpecTargetCluster(targetCluster),

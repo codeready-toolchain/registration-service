@@ -43,7 +43,6 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
-
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)

@@ -54,7 +54,6 @@ func TestRunSignupServiceSuite(t *testing.T) {
 
 func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
 	excludedDomains string, verificationCodeExpiresInMin int) {
-
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
 			Verification().Enabled(verificationEnabled).
@@ -66,7 +65,6 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	s.ServiceConfiguration(true, "", 5)
 	// given
 	assertUserSignupExists := func(cl client.Client, username string) toolchainv1alpha1.UserSignup {
-
 		userSignups := &toolchainv1alpha1.UserSignupList{}
 		err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 		require.NoError(s.T(), err)
@@ -178,7 +176,6 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	})
 }
 func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
-
 	// given
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
@@ -201,7 +198,6 @@ func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 }
 
 func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
-
 	// given
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
@@ -904,7 +900,6 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 
 	for tcName, tc := range tests {
 		s.Run(tcName, func() {
-
 			// given
 			mur.Status = toolchainv1alpha1.MasterUserRecordStatus{
 				Conditions: []toolchainv1alpha1.Condition{
@@ -1017,7 +1012,6 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
 	assert.Equal(s.T(), "member-123", targetCluster)
-
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpaceBinding() {
@@ -1163,13 +1157,10 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			assert.InDelta(s.T(), float32(1.0), score, 0.01)
 			assert.Equal(s.T(), "captcha-assessment-123", assessmentID)
 		})
-
 	})
-
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() {
-
 	s.ServiceConfiguration(false, "", 5)
 
 	// Create a new UserSignup

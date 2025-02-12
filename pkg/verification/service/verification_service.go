@@ -218,7 +218,6 @@ func generateVerificationCode() (string, error) {
 // VerifyPhoneCode validates the user's phone verification code.  It updates the specified UserSignup value, so even
 // if an error is returned by this function the caller should still process changes to it
 func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (verificationErr error) {
-
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
 	signup := &toolchainv1alpha1.UserSignup{}

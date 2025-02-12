@@ -9,7 +9,6 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -48,17 +47,11 @@ type ServiceImpl struct { // nolint:revive
 type SignupServiceOption func(svc *ServiceImpl)
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(client namespaced.Client, opts ...SignupServiceOption) service.SignupService {
-	s := &ServiceImpl{
+func NewSignupService(client namespaced.Client) *ServiceImpl {
+	return &ServiceImpl{
 		CaptchaChecker: captcha.Helper{},
 		Client:         client,
 	}
-
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	return s
 }
 
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.

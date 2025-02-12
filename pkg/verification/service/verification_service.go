@@ -18,8 +18,6 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/base"
-	servicecontext "github.com/codeready-toolchain/registration-service/pkg/application/service/context"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -40,7 +38,6 @@ const (
 
 // ServiceImpl represents the implementation of the verification service.
 type ServiceImpl struct { // nolint:revive
-	base.BaseService
 	namespaced.Client
 	HTTPClient          *http.Client
 	NotificationService sender.NotificationSender
@@ -49,14 +46,13 @@ type ServiceImpl struct { // nolint:revive
 type VerificationServiceOption func(svc *ServiceImpl)
 
 // NewVerificationService creates a service object for performing user verification
-func NewVerificationService(context servicecontext.ServiceContext) service.VerificationService {
+func NewVerificationService(client namespaced.Client) service.VerificationService {
 	httpClient := &http.Client{
 		Timeout:   30*time.Second + 500*time.Millisecond, // taken from twilio code
 		Transport: http.DefaultTransport,
 	}
 	return &ServiceImpl{
-		BaseService:         base.NewBaseService(context),
-		Client:              context.Client(),
+		Client:              client,
 		NotificationService: sender.CreateNotificationSender(httpClient),
 	}
 }

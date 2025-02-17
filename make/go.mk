@@ -4,7 +4,7 @@ GO_PACKAGE_REPO_NAME ?= $(shell basename $$PWD)
 GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 
 export LDFLAGS=-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/pkg/configuration.BuildTime=${BUILD_TIME}
-goarch ?= $(shell go env GOARCH)
+goarch ?= amd64
 
 .PHONY: build build-prod build-dev
 

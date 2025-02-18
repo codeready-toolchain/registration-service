@@ -443,7 +443,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 // user's access token and updates the UserSignup if necessary.  If updates were made, the function returns true
 // otherwise it returns false.
 func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup *toolchainv1alpha1.UserSignup) bool {
-
 	updated := false
 
 	updateIfRequired := func(ctx *gin.Context, key, existing string, updated bool) (string, bool) {
@@ -511,7 +510,6 @@ func GetDefaultUserTarget(cl namespaced.Client, spaceName, murName string) (stri
 		}
 		sort.Strings(spaceNames)
 		spaceName = spaceNames[0]
-
 	}
 	space := &toolchainv1alpha1.Space{}
 	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(spaceName), space); err != nil {

@@ -112,8 +112,8 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
 	k8s.io/apiextensions-apiserver v0.30.1 // indirect
-	k8s.io/cli-runtime v0.29.2 // indirect
-	k8s.io/kubectl v0.29.2 // indirect
+	k8s.io/cli-runtime v0.30.1 // indirect
+	k8s.io/kubectl v0.30.1 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
@@ -179,5 +179,5 @@ require (
 replace (
 	github.com/codeready-toolchain/api => github.com/rsoaresd/api v0.0.0-20250219101114-f5edc03b8c90
 
-	github.com/codeready-toolchain/toolchain-common => github.com/rsoaresd/toolchain-common v0.0.0-20250219155238-167f13693611
+	github.com/codeready-toolchain/toolchain-common => github.com/rsoaresd/toolchain-common v0.0.0-20250220175053-08cdc7f864be
 )

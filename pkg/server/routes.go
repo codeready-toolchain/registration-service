@@ -1,12 +1,16 @@
 package server
 
 import (
+	"time"
+
 	"github.com/codeready-toolchain/registration-service/pkg/assets"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
+	rcontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gin-contrib/static"
 	errs "github.com/pkg/errors"
@@ -73,13 +77,17 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			err = errs.Wrapf(err, "failed to init auth middleware")
 			return
 		}
+		receivedTimeMw := func(ctx *gin.Context) {
+			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+		}
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")
 		securedV1.Use(
 			middleware.InstrumentRoundTripperInFlight(inFlightGauge),
 			middleware.InstrumentRoundTripperCounter(counter),
 			middleware.InstrumentRoundTripperDuration(histVec),
-			authMiddleware.HandlerFunc())
+			authMiddleware.HandlerFunc(),
+			receivedTimeMw)
 		securedV1.POST("/signup", signupCtrl.PostHandler)
 		// requires a ctx body containing the country_code and phone_number
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)

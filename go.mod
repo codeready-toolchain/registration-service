@@ -17,6 +17,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.17.3
 )
 
+replace github.com/codeready-toolchain/api => github.com/matousjobanek/api v0.0.0-20250225114159-7e2aa7cf0ada
+
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0
 	github.com/gin-contrib/cors v1.6.0

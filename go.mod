@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20250131222557-beba5463f429
+	github.com/codeready-toolchain/api v0.0.0-20250227073728-5999971adb48
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20250131223755-a9c24d874b32
 	github.com/go-logr/logr v1.4.1
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -16,8 +16,6 @@ require (
 	k8s.io/client-go v0.29.2
 	sigs.k8s.io/controller-runtime v0.17.3
 )
-
-replace github.com/codeready-toolchain/api => github.com/matousjobanek/api v0.0.0-20250225114159-7e2aa7cf0ada
 
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0

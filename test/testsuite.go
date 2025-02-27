@@ -45,7 +45,6 @@ func (s *UnitTestSuite) OverrideApplicationDefault(opts ...testconfig.ToolchainC
 }
 
 func (s *UnitTestSuite) SetConfig(opts ...testconfig.ToolchainConfigOption) configuration.RegistrationServiceConfig {
-
 	current := &toolchainv1alpha1.ToolchainConfig{}
 	err := s.ConfigClient.Get(context.TODO(), types.NamespacedName{Name: "config", Namespace: test.HostOperatorNs}, current)
 

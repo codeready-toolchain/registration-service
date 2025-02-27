@@ -106,7 +106,6 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 
 // GetHandler returns the Signup resource
 func (s *Signup) GetHandler(ctx *gin.Context) {
-
 	// Get the UserSignup resource from the service by the username
 	username := ctx.GetString(context.UsernameKey)
 	signupResource, err := s.app.SignupService().GetSignup(ctx, username, true)

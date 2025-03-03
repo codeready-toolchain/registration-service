@@ -65,6 +65,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
 func (s *TestSignupServiceSuite) TestSignup() {
 	s.ServiceConfiguration(true, "", 5)
 	// given
+	requestTime := time.Now()
 	assertUserSignupExists := func(cl client.Client, username string) toolchainv1alpha1.UserSignup {
 
 		userSignups := &toolchainv1alpha1.UserSignupList{}
@@ -78,6 +79,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
+		require.NotEmpty(s.T(), val.Annotations)
+		require.Equal(s.T(), requestTime.Format(time.RFC3339), val.Annotations[toolchainv1alpha1.UserSignupRequestReceivedTimeAnnotationKey])
 
 		// Confirm all the IdentityClaims have been correctly set
 		require.Equal(s.T(), username, val.Spec.IdentityClaims.PreferredUsername)
@@ -104,6 +107,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx.Set(context.CompanyKey, "red hat")
 	ctx.Set(context.UserIDKey, "13349822")
 	ctx.Set(context.AccountIDKey, "45983711")
+	ctx.Set(context.RequestReceivedTime, requestTime)
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T())
 

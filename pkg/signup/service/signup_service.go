@@ -90,13 +90,17 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	verificationRequired, captchaScore, assessmentID := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
-
+	requestReceivedTime, ok := ctx.Get(context.RequestReceivedTime)
+	if !ok {
+		requestReceivedTime = time.Now()
+	}
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
+				toolchainv1alpha1.UserSignupRequestReceivedTimeAnnotationKey: requestReceivedTime.(time.Time).Format(time.RFC3339),
 			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,

@@ -61,7 +61,6 @@ func TestProxyMetricsServer(t *testing.T) {
 	_, err = buf.ReadFrom(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, expectedServerBlankResponse, buf.String())
-
 }
 
 var expectedServerBlankResponse = `# HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.

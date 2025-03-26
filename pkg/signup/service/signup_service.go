@@ -86,7 +86,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
 			return nil, apierrors.NewForbidden(schema.GroupResource{}, "",
-				errs.New("The account has been banned due to detected abusive activity or suspicious indicators."))
+				errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
 		}
 	}
 
@@ -384,7 +384,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
 		// UserSignup is banned, let's return a forbidden error
 		return nil, apierrors.NewForbidden(schema.GroupResource{}, "",
-			errs.New("The account has been banned due to detected abusive activity or suspicious indicators."))
+			errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

@@ -467,7 +467,7 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	e := &apierrors.StatusError{}
 	require.ErrorAs(s.T(), err, &e)
 	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
-	require.Equal(s.T(), "forbidden: The account has been banned due to detected abusive activity or suspicious indicators.", e.ErrStatus.Message)
+	require.Equal(s.T(), "forbidden: Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse.", e.ErrStatus.Message)
 	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 
@@ -956,7 +956,7 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	require.ErrorAs(s.T(), err, &e)
 	require.Nil(s.T(), response)
 	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
-	require.Equal(s.T(), "forbidden: The account has been banned due to detected abusive activity or suspicious indicators.", e.ErrStatus.Message)
+	require.Equal(s.T(), "forbidden: Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse.", e.ErrStatus.Message)
 	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 

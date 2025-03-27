@@ -100,7 +100,7 @@ func assertMetricExists(t *testing.T, data []byte, name string, labels map[strin
 			return
 		}
 	}
-	assert.Fail(t, "unable to find metric '%s' with labels '%v'", name, labels)
+	assert.Fail(t, "unable to find metric with labels", "name", name, "labels", labels)
 }
 
 func matchesLabels(x []*prommodel.LabelPair, y map[string]string) bool {

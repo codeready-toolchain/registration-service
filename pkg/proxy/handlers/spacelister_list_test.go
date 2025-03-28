@@ -95,7 +95,7 @@ func TestListUserWorkspaces(t *testing.T) {
 			require.NoError(t, err)
 			// list workspace case
 			expectedWs := tc.expectedWorkspaces(fakeClient)
-			require.Equal(t, len(expectedWs), len(ww))
+			require.Len(t, ww, len(expectedWs))
 			for i, w := range ww {
 				assert.Equal(t, expectedWs[i].Name, w.Name)
 				assert.Equal(t, expectedWs[i].Status, w.Status)
@@ -233,7 +233,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 						if tc.expectedWs != nil {
 							expectedWorkspaces = tc.expectedWs(t, fakeClient)
 						}
-						require.Equal(t, len(expectedWorkspaces), len(workspaceList.Items))
+						require.Len(t, workspaceList.Items, len(expectedWorkspaces))
 						for i := range expectedWorkspaces {
 							assert.Equal(t, expectedWorkspaces[i].Name, workspaceList.Items[i].Name)
 							assert.Equal(t, expectedWorkspaces[i].Status, workspaceList.Items[i].Status)

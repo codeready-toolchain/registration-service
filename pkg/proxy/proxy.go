@@ -510,7 +510,7 @@ func getWorkspaceContext(req *http.Request) (string, string, error) {
 		segments := strings.Split(path, "/")
 		// there should be at least 4 segments eg. /workspaces/mycoolworkspace/api/clusterroles counts as 4
 		if len(segments) < 4 && len(proxyPluginName) == 0 {
-			return "", "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive
+			return "", "", fmt.Errorf("workspace request path has too few segments '%s'; expected path format: /workspaces/<workspace_name>/api/...", path) // nolint:revive,staticcheck
 		}
 		// with proxy plugins, the route host is sufficient, and hence do not need api/...
 		if len(segments) < 3 {

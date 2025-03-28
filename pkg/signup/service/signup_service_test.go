@@ -40,7 +40,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -460,15 +459,12 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
 
 	// when
-	_, err := application.SignupService().Signup(ctx)
+	response, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.Error(s.T(), err)
-	e := &apierrors.StatusError{}
-	require.ErrorAs(s.T(), err, &e)
-	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
-	require.Equal(s.T(), "forbidden: "+service.BannedUserMessage, e.ErrStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
+	assert.Equal(s.T(), service.ForbiddenBannedError, err)
+	require.Nil(s.T(), response)
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
@@ -952,12 +948,8 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 
 	// then
 	require.Error(s.T(), err)
-	e := &apierrors.StatusError{}
-	require.ErrorAs(s.T(), err, &e)
+	assert.Equal(s.T(), service.ForbiddenBannedError, err)
 	require.Nil(s.T(), response)
-	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
-	require.Equal(s.T(), "forbidden: "+service.BannedUserMessage, e.ErrStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {

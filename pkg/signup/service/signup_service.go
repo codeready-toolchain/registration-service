@@ -31,9 +31,10 @@ import (
 const (
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
-	// BannedUserMessage is the error message returned to users when they are banned
-	BannedUserMessage = "Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."
 )
+
+var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
+	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
 
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
@@ -87,7 +88,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New(BannedUserMessage))
+			return nil, ForbiddenBannedError
 		}
 	}
 
@@ -384,7 +385,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
 		// UserSignup is banned, let's return a forbidden error
-		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New(BannedUserMessage))
+		return nil, ForbiddenBannedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

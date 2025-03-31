@@ -54,14 +54,13 @@ func TestProxyMetricsServer(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "text/plain; version=0.0.4; charset=utf-8", resp.Header.Get("Content-Type"))
+	require.Equal(t, "text/plain; version=0.0.4; charset=utf-8; escaping=values", resp.Header.Get("Content-Type"))
 	// compare the body of the response as well
 	defer resp.Body.Close()
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, expectedServerBlankResponse, buf.String())
-
 }
 
 var expectedServerBlankResponse = `# HELP promhttp_metric_handler_errors_total Total number of internal errors encountered by the promhttp metric handler.

@@ -33,6 +33,9 @@ const (
 	NoSpaceKey = "no-space"
 )
 
+var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
+	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
+
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
 	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
@@ -85,7 +88,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
+			return nil, ForbiddenBannedError
 		}
 	}
 
@@ -381,11 +384,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, nil
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-		// UserSignup is banned, let's return a pending approval reason to the client.
-		signupResponse.Status = signup.Status{
-			Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
-		}
-		return signupResponse, nil
+		// UserSignup is banned, let's return a forbidden error
+		return nil, ForbiddenBannedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

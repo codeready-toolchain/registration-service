@@ -20,6 +20,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -211,6 +212,34 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 		// then
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
+	})
+
+	s.Run("signups banned", func() {
+		// given
+		bannedUser := fake.NewBannedUser("banned", userSignup.Spec.IdentityClaims.Email)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("ted@kubesaw"),
+			testusersignup.SignupComplete("Banned"),
+			testusersignup.ApprovedAutomaticallyAgo(time.Second),
+			testusersignup.WithCompliantUsername("ted"),
+			testusersignup.WithHomeSpace("ted"))
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup, bannedUser)
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(application)
+		handler := gin.HandlerFunc(ctrl.GetHandler)
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.UsernameKey, "ted@kubesaw")
+		ctx.Set(context.EmailKey, userSignup.Spec.IdentityClaims.Email)
+
+		// when
+		handler(ctx)
+
+		// then
+		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
 	})
 }
 

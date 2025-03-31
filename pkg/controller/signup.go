@@ -112,6 +112,11 @@ func (s *Signup) GetHandler(ctx *gin.Context) {
 	signupResource, err := s.app.SignupService().GetSignup(ctx, username, true)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
+		e := &apierrors.StatusError{}
+		if errors.As(err, &e) {
+			crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error getting UserSignup resource")
+			return
+		}
 		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/context"
 	regsercontext "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
@@ -82,7 +81,7 @@ func getUserOrPublicViewerSpaceBinding(ctx echo.Context, spaceLister *SpaceListe
 	// if user space binding is not found and PublicViewer is enabled,
 	// retry with PublicViewer's signup
 	if userSpaceBinding == nil {
-		if context.IsPublicViewerEnabled(ctx) {
+		if regsercontext.IsPublicViewerEnabled(ctx) {
 			pvSb, err := getUserSpaceBinding(spaceLister, space, toolchainv1alpha1.KubesawAuthenticatedUsername)
 			if err != nil {
 				ctx.Logger().Errorf("error checking if SpaceBinding is present for user %s and the workspace %s: %v", toolchainv1alpha1.KubesawAuthenticatedUsername, workspaceName, err)
@@ -167,7 +166,7 @@ func GetUserWorkspaceWithBindings(ctx echo.Context, spaceLister *SpaceLister, wo
 	if userBinding == nil {
 		// if PublicViewer is enabled, check if the Space is visibile to PublicViewer
 		// in case usersignup is the KubesawAuthenticatedUsername, then we already checked in the previous step
-		if context.IsPublicViewerEnabled(ctx) && userSignup.CompliantUsername != toolchainv1alpha1.KubesawAuthenticatedUsername {
+		if regsercontext.IsPublicViewerEnabled(ctx) && userSignup.CompliantUsername != toolchainv1alpha1.KubesawAuthenticatedUsername {
 			userBinding = filterUserSpaceBinding(toolchainv1alpha1.KubesawAuthenticatedUsername, allSpaceBindings)
 		}
 
@@ -212,7 +211,7 @@ func getUserSignupAndSpace(ctx echo.Context, spaceLister *SpaceLister, workspace
 	if err != nil {
 		return nil, nil, err
 	}
-	if userSignup == nil && context.IsPublicViewerEnabled(ctx) {
+	if userSignup == nil && regsercontext.IsPublicViewerEnabled(ctx) {
 		userSignup = &signup.Signup{
 			CompliantUsername: toolchainv1alpha1.KubesawAuthenticatedUsername,
 			Name:              toolchainv1alpha1.KubesawAuthenticatedUsername,

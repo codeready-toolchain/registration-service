@@ -43,7 +43,7 @@ func TestRegistrationService(t *testing.T) {
 		// then
 		assert.Equal(t, "prod", regServiceCfg.Environment())
 		assert.Equal(t, "info", regServiceCfg.LogLevel())
-		assert.Equal(t, "", regServiceCfg.RegistrationServiceURL())
+		assert.Empty(t, regServiceCfg.RegistrationServiceURL())
 		assert.Empty(t, regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Empty(t, regServiceCfg.Analytics().DevSpacesSegmentWriteKey())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())

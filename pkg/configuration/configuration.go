@@ -206,7 +206,7 @@ func (r VerificationConfig) AttemptsAllowed() int {
 }
 
 func (r VerificationConfig) MessageTemplate() string {
-	return commonconfig.GetString(r.c.MessageTemplate, "Developer Sandbox for Red Hat OpenShift: Your verification code is %s")
+	return commonconfig.GetString(r.c.MessageTemplate, "Your Developer Sandbox verification code is %s")
 }
 
 func (r VerificationConfig) ExcludedEmailDomains() []string {

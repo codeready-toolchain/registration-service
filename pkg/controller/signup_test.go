@@ -164,6 +164,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},
+			FamilyName: "Bar",
+			GivenName:  "Foo",
 		}
 
 		// when

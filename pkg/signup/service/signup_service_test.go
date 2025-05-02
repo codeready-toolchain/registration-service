@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	errors2 "github.com/codeready-toolchain/registration-service/pkg/errors"
@@ -41,7 +40,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,6 +64,7 @@ func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
 func (s *TestSignupServiceSuite) TestSignup() {
 	s.ServiceConfiguration(true, "", 5)
 	// given
+	requestTime := time.Now()
 	assertUserSignupExists := func(cl client.Client, username string) toolchainv1alpha1.UserSignup {
 
 		userSignups := &toolchainv1alpha1.UserSignupList{}
@@ -79,6 +78,8 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.True(s.T(), states.VerificationRequired(&val))
 		require.Equal(s.T(), "a7b1b413c1cbddbcd19a51222ef8e20a", val.Labels[toolchainv1alpha1.UserSignupUserEmailHashLabelKey])
 		require.Empty(s.T(), val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is not set by default
+		require.NotEmpty(s.T(), val.Annotations)
+		require.Equal(s.T(), requestTime.Format(time.RFC3339), val.Annotations[toolchainv1alpha1.UserSignupRequestReceivedTimeAnnotationKey])
 
 		// Confirm all the IdentityClaims have been correctly set
 		require.Equal(s.T(), username, val.Spec.IdentityClaims.PreferredUsername)
@@ -105,6 +106,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx.Set(context.CompanyKey, "red hat")
 	ctx.Set(context.UserIDKey, "13349822")
 	ctx.Set(context.AccountIDKey, "45983711")
+	ctx.Set(context.RequestReceivedTime, requestTime)
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T())
 
@@ -282,14 +284,10 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
+	nsdClient := namespaced.NewClient(commontest.NewFakeClient(s.T()), commontest.HostOperatorNs)
+	signupService := service.NewSignupService(nsdClient)
 	// captcha is enabled
-	serviceOption := func(svc *service.ServiceImpl) {
-		svc.CaptchaChecker = FakeCaptchaChecker{score: 0.9} // score is above threshold
-	}
-
-	opt := func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithSignupServiceOption(serviceOption)
-	}
+	signupService.CaptchaChecker = FakeCaptchaChecker{score: 0.9} // score is above threshold
 
 	s.OverrideApplicationDefault(
 		testconfig.RegistrationService().
@@ -310,17 +308,15 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	ctx.Request, _ = http.NewRequest("POST", "/", bytes.NewBufferString(""))
 	ctx.Request.Header.Set("Recaptcha-Token", "abc")
 
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), opt)
-
 	// when
-	userSignup, err := application.SignupService().Signup(ctx)
+	userSignup, err := signupService.Signup(ctx)
 
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), userSignup)
 
 	userSignups := &toolchainv1alpha1.UserSignupList{}
-	err = fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
+	err = nsdClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), userSignups.Items, 1)
 
@@ -463,15 +459,12 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 	_, application := testutil.PrepareInClusterApp(s.T(), bannedUser)
 
 	// when
-	_, err := application.SignupService().Signup(ctx)
+	response, err := application.SignupService().Signup(ctx)
 
 	// then
 	require.Error(s.T(), err)
-	e := &apierrors.StatusError{}
-	require.ErrorAs(s.T(), err, &e)
-	require.Equal(s.T(), "Failure", e.ErrStatus.Status)
-	require.Equal(s.T(), "forbidden: user has been banned", e.ErrStatus.Message)
-	require.Equal(s.T(), v1.StatusReasonForbidden, e.ErrStatus.Reason)
+	assert.Equal(s.T(), service.ForbiddenBannedError, err)
+	require.Nil(s.T(), response)
 }
 
 func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
@@ -695,8 +688,8 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.Empty(s.T(), response.APIEndpoint)
 		require.Empty(s.T(), response.ClusterName)
 		require.Empty(s.T(), response.ProxyURL)
-		assert.Equal(s.T(), "", response.DefaultUserNamespace)
-		assert.Equal(s.T(), "", response.RHODSMemberURL)
+		assert.Empty(s.T(), response.DefaultUserNamespace)
+		assert.Empty(s.T(), response.RHODSMemberURL)
 	}
 }
 
@@ -956,10 +949,9 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 	response, err := application.SignupService().GetSignup(ctx, "ted@kubesaw", true)
 
 	// then
-	// return not found signup
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), response)
-	require.Equal(s.T(), toolchainv1alpha1.UserSignupPendingApprovalReason, response.Status.Reason)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), service.ForbiddenBannedError, err)
+	require.Nil(s.T(), response)
 }
 
 func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
@@ -1072,7 +1064,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 
 		s.Run("nil request", func() {
@@ -1084,7 +1076,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 
 		s.Run("request missing Recaptcha-Token header", func() {
@@ -1096,7 +1088,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 
 		s.Run("request Recaptcha-Token header incorrect length", func() {
@@ -1108,7 +1100,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 
 		s.Run("captcha assessment error", func() {
@@ -1120,7 +1112,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 
 		s.Run("captcha is enabled but the score is too low", func() {
@@ -1146,7 +1138,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, nil)
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 		s.Run("user's email domain is excluded", func() {
 			s.OverrideApplicationDefault(
@@ -1158,7 +1150,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
-			assert.Equal(s.T(), "", assessmentID)
+			assert.Empty(s.T(), assessmentID)
 		})
 		s.Run("captcha is enabled and the assessment is successful", func() {
 			s.OverrideApplicationDefault(

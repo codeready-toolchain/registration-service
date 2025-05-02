@@ -14,14 +14,13 @@ import (
 	"time"
 
 	crtapi "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/service"
-	verification_service "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/registration-service/test"
+	"github.com/codeready-toolchain/registration-service/test/fake"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
@@ -47,21 +46,6 @@ type TestSignupSuite struct {
 
 func TestRunSignupSuite(t *testing.T) {
 	suite.Run(t, &TestSignupSuite{test.UnitTestSuite{}, nil})
-}
-
-func httpClientFactoryOption() func(serviceFactory *factory.ServiceFactory) {
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
-
-	serviceOption := func(svc *verification_service.ServiceImpl) {
-		svc.HTTPClient = httpClient
-	}
-
-	opt := func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithVerificationServiceOption(serviceOption)
-	}
-
-	return opt
 }
 
 func (s *TestSignupSuite) TestSignupPostHandler() {
@@ -229,6 +213,34 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		// then
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
 	})
+
+	s.Run("signups banned", func() {
+		// given
+		bannedUser := fake.NewBannedUser("banned", userSignup.Spec.IdentityClaims.Email)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("ted@kubesaw"),
+			testusersignup.SignupComplete("Banned"),
+			testusersignup.ApprovedAutomaticallyAgo(time.Second),
+			testusersignup.WithCompliantUsername("ted"),
+			testusersignup.WithHomeSpace("ted"))
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup, bannedUser)
+
+		// Create Signup controller instance.
+		ctrl := controller.NewSignup(application)
+		handler := gin.HandlerFunc(ctrl.GetHandler)
+		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+		ctx.Set(context.UsernameKey, "ted@kubesaw")
+		ctx.Set(context.EmailKey, userSignup.Spec.IdentityClaims.Email)
+
+		// when
+		handler(ctx)
+
+		// then
+		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
+	})
 }
 
 func (s *TestSignupSuite) TestInitVerificationHandler() {
@@ -241,20 +253,15 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCounterAnnotationKey, "0"),
 		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, ""),
 		testusersignup.VerificationRequiredAgo(time.Second))
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
-	defer gock.Off()
 
-	// Create Signup controller instance.
-	ctrl := controller.NewSignup(application)
-	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
-
-	assertInitVerificationSuccess := func(phoneNumber, expectedHash string, expectedCounter int) {
-		gock.New("https://api.twilio.com").
-			Reply(http.StatusNoContent).
-			BodyString("")
-
+	assertInitVerificationSuccess := func(handler gin.HandlerFunc, fakeClient *commontest.FakeClient, phoneNumber, expectedHash string, expectedCounter int) {
+		// given
 		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phoneNumber))
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+
+		// then
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
 
 		updatedUserSignup := &crtapi.UserSignup{}
@@ -269,26 +276,41 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	}
 
 	s.Run("init verification success", func() {
-		assertInitVerificationSuccess("2268213044", "fd276563a8232d16620da8ec85d0575f", 1)
+		gock.New("https://api.twilio.com").
+			Persist().
+			Reply(http.StatusNoContent).
+			BodyString("")
+		defer gock.OffAll()
+		fakeClient, handler := prepareVerificationHandler(s.T(), userSignup)
+
+		assertInitVerificationSuccess(handler, fakeClient, "2268213044", "fd276563a8232d16620da8ec85d0575f", 1)
+
+		s.Run("init verification success phone number with parenthesis and spaces", func() {
+			assertInitVerificationSuccess(handler, fakeClient, "(226) 821 3045", "9691252ac0ea2cb55295ac9b98df1c51", 2)
+
+			s.Run("init verification success phone number with dashes", func() {
+				assertInitVerificationSuccess(handler, fakeClient, "226-821-3044", "fd276563a8232d16620da8ec85d0575f", 3)
+
+				s.Run("init verification success phone number with spaces", func() {
+					assertInitVerificationSuccess(handler, fakeClient, "2 2 6 8 2 1 3 0 4 7", "ce3e697125f35efb76357ed8e3b768b7", 4)
+				})
+			})
+		})
 	})
 
-	s.Run("init verification success phone number with parenthesis and spaces", func() {
-		assertInitVerificationSuccess("(226) 821 3045", "9691252ac0ea2cb55295ac9b98df1c51", 2)
-	})
-
-	s.Run("init verification success phone number with dashes", func() {
-		assertInitVerificationSuccess("226-821-3044", "fd276563a8232d16620da8ec85d0575f", 3)
-	})
-	s.Run("init verification success phone number with spaces", func() {
-		assertInitVerificationSuccess("2 2 6 8 2 1 3 0 4 7", "ce3e697125f35efb76357ed8e3b768b7", 4)
-	})
 	s.Run("init verification fails with invalid country code", func() {
+		// given
 		gock.New("https://api.twilio.com").
 			Reply(http.StatusNoContent).
 			BodyString("")
-
+		defer gock.OffAll()
+		_, handler := prepareVerificationHandler(s.T(), userSignup)
 		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+
+		// then
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
 		bodyParams := make(map[string]interface{})
@@ -301,9 +323,14 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		require.Equal(s.T(), "invalid country_code", bodyParams["details"])
 	})
 	s.Run("init verification request body could not be read", func() {
+		// given
+		_, handler := prepareVerificationHandler(s.T(), userSignup)
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
+		// then
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
@@ -320,31 +347,34 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification daily limit exceeded", func() {
+		// given
+		_, handler := prepareVerificationHandler(s.T(), userSignup)
 		cfg := configuration.GetRegistrationServiceConfig()
 		originalValue := cfg.Verification().DailyLimit()
 		s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(0))
 		defer s.SetConfig(testconfig.RegistrationService().Verification().DailyLimit(originalValue))
 
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
+		// then
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
 	})
 
 	s.Run("init verification handler fails when verification not required", func() {
+		// given
 		// Create UserSignup
 		userSignup := testusersignup.NewUserSignup(testusersignup.WithEncodedName("johnny@kubesaw"))
-
-		_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
-
-		// Create Signup controller instance.
-		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
-
+		_, handler := prepareVerificationHandler(s.T(), userSignup)
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
+		// then
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 
@@ -359,19 +389,27 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 	})
 
 	s.Run("init verification handler fails when invalid phone number provided", func() {
-		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
-
-		// Create Signup controller instance.
-		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
+		// given
+		_, handler := prepareVerificationHandler(s.T(), userSignup)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		data := []byte(`{"phone_number": "!226%213044", "country_code": "1"}`)
+
+		// when
 		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
+}
+
+func prepareVerificationHandler(t *testing.T, initObjects ...client.Object) (*commontest.FakeClient, gin.HandlerFunc) {
+	fakeClient, application := testutil.PrepareInClusterApp(t, initObjects...)
+
+	// Create Signup controller instance.
+	ctrl := controller.NewSignup(application)
+	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
+	return fakeClient, handler
 }
 
 func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {

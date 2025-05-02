@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service/factory"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	verificationservice "github.com/codeready-toolchain/registration-service/pkg/verification/service"
@@ -102,22 +101,6 @@ func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToke
 	s.SetSecret(secret)
 }
 
-func httpClientFactoryOption() func(serviceFactory *factory.ServiceFactory) {
-
-	httpClient := &http.Client{Transport: &http.Transport{}}
-	gock.InterceptClient(httpClient)
-
-	serviceOption := func(svc *verificationservice.ServiceImpl) {
-		svc.HTTPClient = httpClient
-	}
-
-	opt := func(serviceFactory *factory.ServiceFactory) {
-		serviceFactory.WithVerificationServiceOption(serviceOption)
-	}
-
-	return opt
-}
-
 func (s *TestVerificationServiceSuite) TestInitVerification() {
 	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 
@@ -147,7 +130,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		testusersignup.VerificationRequiredAgo(time.Second))
 
 	// Add both UserSignups to the fake client
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup, userSignup2)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, userSignup2)
 
 	// Test the init verification for the first UserSignup
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -168,7 +151,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+	require.Equal(s.T(), fmt.Sprintf("Your Developer Sandbox verification code is %s",
 		signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
@@ -204,7 +187,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	params, err = url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+	require.Equal(s.T(), fmt.Sprintf("Your Developer Sandbox verification code is %s",
 		signup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
@@ -250,7 +233,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		testusersignup.VerificationRequiredAgo(time.Second))
 
 	s.Run("when client GET call fails should return error", func() {
-		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// Cause the client GET call to fail
 		fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -266,7 +249,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	})
 
 	s.Run("when client UPDATE call fails indefinitely should return error", func() {
-		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		fakeClient.MockUpdate = func(ctx gocontext.Context, obj client.Object, opts ...client.UpdateOption) error {
 			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok {
 				return errors.New("there was an error while updating your account - please wait a moment before trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com \"+\n\t\t\t\"for assistance: error while verifying phone code")
@@ -282,7 +265,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	})
 
 	s.Run("when client UPDATE call fails twice should return ok", func() {
-		fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		failCount := 0
 		// Cause the client UPDATE call to fail just twice
@@ -311,7 +294,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		params, err := url.ParseQuery(reqValue)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+		require.Equal(s.T(), fmt.Sprintf("Your Developer Sandbox verification code is %s",
 			signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 			params.Get("Body"))
 		require.Equal(s.T(), "CodeReady", params.Get("From"))
@@ -344,7 +327,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
@@ -363,7 +346,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	params, err := url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Developer Sandbox for Red Hat OpenShift: Your verification code is %s",
+	require.Equal(s.T(), fmt.Sprintf("Your Developer Sandbox verification code is %s",
 		signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))
@@ -385,7 +368,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
@@ -411,7 +394,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 		testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationInitTimestampAnnotationKey, now.Format(verificationservice.TimestampLayout)),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	_, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), userSignup)
+	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
@@ -443,7 +426,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 		testusersignup.WithEncodedName("bravo@kubesaw"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), alphaUserSignup, bravoUserSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
@@ -483,7 +466,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 		testusersignup.WithEncodedName("bravo@kubesaw"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	fakeClient, application := testutil.PrepareInClusterAppWithOption(s.T(), httpClientFactoryOption(), alphaUserSignup, bravoUserSignup)
+	fakeClient, application := testutil.PrepareInClusterApp(s.T(), alphaUserSignup, bravoUserSignup)
 
 	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")

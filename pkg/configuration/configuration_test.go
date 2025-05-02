@@ -43,7 +43,7 @@ func TestRegistrationService(t *testing.T) {
 		// then
 		assert.Equal(t, "prod", regServiceCfg.Environment())
 		assert.Equal(t, "info", regServiceCfg.LogLevel())
-		assert.Equal(t, "", regServiceCfg.RegistrationServiceURL())
+		assert.Empty(t, regServiceCfg.RegistrationServiceURL())
 		assert.Empty(t, regServiceCfg.Analytics().SegmentWriteKey())
 		assert.Empty(t, regServiceCfg.Analytics().DevSpacesSegmentWriteKey())
 		assert.Equal(t, "https://sso.devsandbox.dev/auth/js/keycloak.js", regServiceCfg.Auth().AuthClientLibraryURL())
@@ -56,7 +56,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.Verification().Enabled())
 		assert.Equal(t, 5, regServiceCfg.Verification().DailyLimit())
 		assert.Equal(t, 3, regServiceCfg.Verification().AttemptsAllowed())
-		assert.Equal(t, "Developer Sandbox for Red Hat OpenShift: Your verification code is %s", regServiceCfg.Verification().MessageTemplate())
+		assert.Equal(t, "Your Developer Sandbox verification code is %s", regServiceCfg.Verification().MessageTemplate())
 		assert.Empty(t, regServiceCfg.Verification().ExcludedEmailDomains())
 		assert.Equal(t, 5, regServiceCfg.Verification().CodeExpiresInMin())
 		assert.Empty(t, regServiceCfg.Verification().TwilioAccountSID())

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
-	"github.com/codeready-toolchain/registration-service/pkg/application/service"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
@@ -34,6 +33,9 @@ const (
 	NoSpaceKey = "no-space"
 )
 
+var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
+	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
+
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
 	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
@@ -48,17 +50,11 @@ type ServiceImpl struct { // nolint:revive
 type SignupServiceOption func(svc *ServiceImpl)
 
 // NewSignupService creates a service object for performing user signup-related activities.
-func NewSignupService(client namespaced.Client, opts ...SignupServiceOption) service.SignupService {
-	s := &ServiceImpl{
+func NewSignupService(client namespaced.Client) *ServiceImpl {
+	return &ServiceImpl{
 		CaptchaChecker: captcha.Helper{},
 		Client:         client,
 	}
-
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	return s
 }
 
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.
@@ -92,18 +88,22 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	for _, bu := range bannedUsers.Items {
 		// If the user has been banned, return an error
 		if bu.Spec.Email == userEmail {
-			return nil, apierrors.NewForbidden(schema.GroupResource{}, "", errs.New("user has been banned"))
+			return nil, ForbiddenBannedError
 		}
 	}
 
 	verificationRequired, captchaScore, assessmentID := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
-
+	requestReceivedTime, ok := ctx.Get(context.RequestReceivedTime)
+	if !ok {
+		requestReceivedTime = time.Now()
+	}
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
+				toolchainv1alpha1.UserSignupRequestReceivedTimeAnnotationKey: requestReceivedTime.(time.Time).Format(time.RFC3339),
 			},
 			Labels: map[string]string{
 				toolchainv1alpha1.UserSignupUserEmailHashLabelKey: emailHash,
@@ -386,11 +386,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, nil
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-		// UserSignup is banned, let's return a pending approval reason to the client.
-		signupResponse.Status = signup.Status{
-			Reason: toolchainv1alpha1.UserSignupPendingApprovalReason,
-		}
-		return signupResponse, nil
+		// UserSignup is banned, let's return a forbidden error
+		return nil, ForbiddenBannedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

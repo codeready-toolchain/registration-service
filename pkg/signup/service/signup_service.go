@@ -344,8 +344,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	}
 
 	signupResponse := &signup.Signup{
-		Name:     userSignup.GetName(),
-		Username: userSignup.Spec.IdentityClaims.PreferredUsername,
+		Name:       userSignup.GetName(),
+		Username:   userSignup.Spec.IdentityClaims.PreferredUsername,
+		GivenName:  userSignup.Spec.IdentityClaims.GivenName,
+		FamilyName: userSignup.Spec.IdentityClaims.FamilyName,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername

@@ -143,6 +143,10 @@ func (r RegistrationServiceConfig) Verification() VerificationConfig {
 	return VerificationConfig{c: r.cfg.Host.RegistrationService.Verification, secrets: r.secrets}
 }
 
+func (r RegistrationServiceConfig) UICanaryDeploymentWeight() int {
+	return commonconfig.GetInt(r.cfg.Host.RegistrationService.UICanaryDeploymentWeight, 20)
+}
+
 type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }

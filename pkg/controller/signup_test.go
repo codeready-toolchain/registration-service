@@ -537,7 +537,6 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 	})
 
 	s.Run("verifycode returns status error", func() {
-
 		userSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey] = "9999"
 		userSignup.Annotations[crtapi.UserVerificationExpiryAnnotationKey] = time.Now().Add(10 * time.Second).Format(service.TimestampLayout)
 		userSignup.Annotations[crtapi.UserSignupVerificationTimestampAnnotationKey] = time.Now().Format(service.TimestampLayout)
@@ -600,7 +599,6 @@ func initPhoneVerification(t *testing.T, handler gin.HandlerFunc, params gin.Par
 }
 
 func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
-
 	s.Run("verification successful", func() {
 		// given
 		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
@@ -623,7 +621,6 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 	})
 
 	s.Run("verification failed", func() {
-
 		s.Run("too many attempts", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(

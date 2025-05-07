@@ -39,7 +39,6 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 	)
 
 	s.Run("success", func() {
-
 		nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// Create Usernames controller instance.
@@ -94,7 +93,6 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 			// Check the status code is what we expect.
 			assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
 		})
-
 	})
 
 	s.Run("error", func() {

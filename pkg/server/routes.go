@@ -97,6 +97,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler) // TODO: also provide a `POST /signup/verification/phone-code` +deprecate this one + migrate UI?
 		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
 		securedV1.GET("/usernames/:username", usernamesCtrl.GetHandler)
+		securedV1.GET("/uiconfig", uiConfigCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if configuration.IsTestingMode() {

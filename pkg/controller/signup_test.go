@@ -28,6 +28,7 @@ import (
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
+	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gin-gonic/gin"
@@ -602,24 +603,47 @@ func initPhoneVerification(t *testing.T, handler gin.HandlerFunc, params gin.Par
 func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 	s.Run("verification successful", func() {
-		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
-		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
-		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
-		// when
-		rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, event.Name)
+		s.Run("usersignup already exists", func() {
+			// given
+			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
+			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
+			ctrl := controller.NewSignup(application)
+			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
 
-		// then
-		require.Equal(s.T(), http.StatusOK, rr.Code)
-		updatedUserSignup := &crtapi.UserSignup{}
-		err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
-		require.NoError(s.T(), err)
-		require.False(s.T(), states.VerificationRequired(updatedUserSignup))
-		require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
-		require.Equal(s.T(), event.Name, updatedUserSignup.Labels[crtapi.SocialEventUserSignupLabelKey])
+			// when
+			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, event.Name)
+
+			// then
+			require.Equal(s.T(), http.StatusOK, rr.Code)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updatedUserSignup)
+			require.NoError(s.T(), err)
+			require.False(s.T(), states.VerificationRequired(updatedUserSignup))
+			require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
+			require.Equal(s.T(), event.Name, updatedUserSignup.Labels[crtapi.SocialEventUserSignupLabelKey])
+		})
+
+		s.Run("usersignup doesn't exist it should be created", func() {
+			// given
+			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), event)
+			ctrl := controller.NewSignup(application)
+			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+
+			// when
+			rr := initActivationCodeVerification(s.T(), handler, "Jane", event.Name)
+
+			// then
+			require.Equal(s.T(), http.StatusOK, rr.Code)
+			createdUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKey{Namespace: commontest.HostOperatorNs, Name: signupcommon.EncodeUserIdentifier("Jane")}, createdUserSignup)
+			require.NoError(s.T(), err)
+			require.False(s.T(), states.VerificationRequired(createdUserSignup))
+			require.Empty(s.T(), createdUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
+			require.Equal(s.T(), event.Name, createdUserSignup.Labels[crtapi.SocialEventUserSignupLabelKey])
+		})
 	})
 
 	s.Run("verification failed", func() {

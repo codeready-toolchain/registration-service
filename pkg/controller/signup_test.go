@@ -625,6 +625,32 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			require.Equal(s.T(), event.Name, updatedUserSignup.Labels[crtapi.SocialEventUserSignupLabelKey])
 		})
 
+		s.Run("usersignup already exists but it's deactivated", func() {
+			// given
+			// the user is deactivated
+			deactivatedUS := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
+			states.SetDeactivated(deactivatedUS, true)
+			deactivatedUS.Status.Conditions = fake.Deactivated()
+			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS, event)
+			ctrl := controller.NewSignup(application)
+			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+
+			// when
+			rr := initActivationCodeVerification(s.T(), handler, deactivatedUS.Name, event.Name)
+
+			// then
+			require.Equal(s.T(), http.StatusOK, rr.Code)
+			updatedUserSignup := &crtapi.UserSignup{}
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(deactivatedUS), updatedUserSignup)
+			require.NoError(s.T(), err)
+			require.False(s.T(), states.VerificationRequired(updatedUserSignup))
+			require.Empty(s.T(), updatedUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])
+			require.Equal(s.T(), event.Name, updatedUserSignup.Labels[crtapi.SocialEventUserSignupLabelKey])
+			require.False(s.T(), states.VerificationRequired(updatedUserSignup)) // user is activated
+			require.False(s.T(), states.Deactivated(updatedUserSignup))          // user is activated
+		})
+
 		s.Run("usersignup doesn't exist it should be created", func() {
 			// given
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")

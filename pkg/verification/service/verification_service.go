@@ -396,11 +396,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 				log.Error(ctx, err, "error creating UserSignup resource")
 				return crterrors.NewInternalError(err, "error creating UserSignup resource")
 			}
-			if _, exists := signup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; !exists {
-				log.Infof(ctx, "UserSignup created: %s", signup.Name)
-			} else {
-				log.Infof(ctx, "UserSignup reactivated: %s", signup.Name)
-			}
+			log.Infof(ctx, "UserSignup created: %s", signup.Name)
 		} else {
 			return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 		}
@@ -418,6 +414,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 			}
 			if unsetVerificationRequired {
 				states.SetVerificationRequired(signup, false)
+				states.SetDeactivated(signup, false)
 			}
 			if signup.Annotations == nil {
 				signup.Annotations = map[string]string{}

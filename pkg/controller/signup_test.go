@@ -28,7 +28,6 @@ import (
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
-	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gin-gonic/gin"
@@ -664,7 +663,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			// then
 			require.Equal(s.T(), http.StatusOK, rr.Code)
 			createdUserSignup := &crtapi.UserSignup{}
-			err := fakeClient.Get(gocontext.TODO(), client.ObjectKey{Namespace: commontest.HostOperatorNs, Name: signupcommon.EncodeUserIdentifier("Jane")}, createdUserSignup)
+			err := fakeClient.Get(gocontext.TODO(), client.ObjectKey{Namespace: commontest.HostOperatorNs, Name: usersignup.EncodeUserIdentifier("Jane")}, createdUserSignup)
 			require.NoError(s.T(), err)
 			require.False(s.T(), states.VerificationRequired(createdUserSignup))
 			require.Empty(s.T(), createdUserSignup.Annotations[crtapi.UserVerificationAttemptsAnnotationKey])

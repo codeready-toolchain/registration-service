@@ -12,8 +12,10 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
+	signupsvc "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -26,7 +28,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -41,6 +42,7 @@ type ServiceImpl struct { // nolint:revive
 	namespaced.Client
 	HTTPClient          *http.Client
 	NotificationService sender.NotificationSender
+	SignupService       service.SignupService
 }
 
 type VerificationServiceOption func(svc *ServiceImpl)
@@ -54,6 +56,7 @@ func NewVerificationService(client namespaced.Client) service.VerificationServic
 	return &ServiceImpl{
 		Client:              client,
 		NotificationService: sender.CreateNotificationSender(httpClient),
+		SignupService:       signupsvc.NewSignupService(client),
 	}
 }
 
@@ -387,9 +390,16 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 	signup := &toolchainv1alpha1.UserSignup{}
 	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
-			return crterrors.NewNotFoundError(err, "user not found")
+			// signup user
+			signup, err = s.SignupService.Signup(ctx)
+			if err != nil {
+				log.Error(ctx, err, "error creating UserSignup resource")
+				return crterrors.NewInternalError(err, "error creating UserSignup resource")
+			}
+			log.Infof(ctx, "UserSignup created: %s", signup.Name)
+		} else {
+			return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 		}
-		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 	}
 	annotationValues := map[string]string{}
 	annotationsToDelete := []string{}
@@ -404,6 +414,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 			}
 			if unsetVerificationRequired {
 				states.SetVerificationRequired(signup, false)
+				states.SetDeactivated(signup, false)
 			}
 			if signup.Annotations == nil {
 				signup.Annotations = map[string]string{}

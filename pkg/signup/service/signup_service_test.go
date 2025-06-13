@@ -127,7 +127,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2"        // assume the user was activated 2 times already
 		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey] = "member-3" // assume the user was targeted to member-3
 		states.SetDeactivated(deactivatedUS, true)
-		deactivatedUS.Status.Conditions = deactivated()
+		deactivatedUS.Status.Conditions = fake.Deactivated()
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
 
 		// when
@@ -144,7 +144,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// given
 		deactivatedUS := existing.DeepCopy()
 		states.SetDeactivated(deactivatedUS, true)
-		deactivatedUS.Status.Conditions = deactivated()
+		deactivatedUS.Status.Conditions = fake.Deactivated()
 		// also, alter the activation counter annotation
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupActivationCounterAnnotationKey)
 		delete(deactivatedUS.Annotations, toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey)
@@ -164,7 +164,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// given
 		deactivatedUS := existing.DeepCopy()
 		states.SetDeactivated(deactivatedUS, true)
-		deactivatedUS.Status.Conditions = deactivated()
+		deactivatedUS.Status.Conditions = fake.Deactivated()
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
 		fakeClient.MockUpdate = func(ctx gocontext.Context, obj client.Object, opts ...client.UpdateOption) error {
 			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok && obj.GetName() == signupcommon.EncodeUserIdentifier("jsmith@kubesaw") {
@@ -698,7 +698,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	s.ServiceConfiguration(true, "", 5)
 
 	username, us := s.newUserSignupComplete()
-	us.Status.Conditions = deactivated()
+	us.Status.Conditions = fake.Deactivated()
 
 	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
@@ -1344,21 +1344,6 @@ func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *too
 	require.NoError(s.T(), err)
 
 	return fake.NewSpaceBinding(name.String(), murName, spaceName, "admin")
-}
-
-func deactivated() []toolchainv1alpha1.Condition {
-	return []toolchainv1alpha1.Condition{
-		{
-			Type:   toolchainv1alpha1.UserSignupComplete,
-			Status: apiv1.ConditionTrue,
-			Reason: toolchainv1alpha1.UserSignupUserDeactivatedReason,
-		},
-		{
-			Type:   toolchainv1alpha1.UserSignupApproved,
-			Status: apiv1.ConditionFalse,
-			Reason: toolchainv1alpha1.UserSignupUserDeactivatedReason,
-		},
-	}
 }
 
 type FakeCaptchaChecker struct {

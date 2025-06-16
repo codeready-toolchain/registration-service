@@ -1301,6 +1301,36 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 	})
 }
 
+func (s *TestSignupServiceSuite) TestGetSignupStatusNoDefaultNamespace() {
+	// given
+	s.ServiceConfiguration(true, "", 5)
+
+	username, us := s.newUserSignupComplete()
+	mur := s.newProvisionedMUR("ted")
+	toolchainStatus := s.newToolchainStatus(".apps.")
+	// Do NOT create any Space or SpaceBinding for this user
+	_, application := testutil.PrepareInClusterApp(s.T(), us, mur, toolchainStatus)
+
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+	// when
+	response, err := application.SignupService().GetSignup(c, username, true)
+
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), response)
+	assert.False(s.T(), response.Status.Ready)
+	assert.Equal(s.T(), toolchainv1alpha1.UserSignupNoDefaultNamespaceReason, response.Status.Reason)
+	assert.Equal(s.T(), "No default namespace found", response.Status.Message)
+	assert.Empty(s.T(), response.DefaultUserNamespace)
+	assert.Empty(s.T(), response.ConsoleURL)
+	assert.Empty(s.T(), response.CheDashboardURL)
+	assert.Empty(s.T(), response.APIEndpoint)
+	assert.Empty(s.T(), response.ClusterName)
+	assert.Empty(s.T(), response.ProxyURL)
+	assert.Empty(s.T(), response.RHODSMemberURL)
+}
+
 func (s *TestSignupServiceSuite) newUserSignupComplete() (string, *toolchainv1alpha1.UserSignup) {
 	return "ted@kubesaw", testusersignup.NewUserSignup(
 		testusersignup.WithEncodedName("ted@kubesaw"),

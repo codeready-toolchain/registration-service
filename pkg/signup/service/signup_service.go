@@ -442,6 +442,16 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		signupResponse.DefaultUserNamespace = defaultNamespace
 	}
 
+	if defaultNamespace == "" {
+		// default namespace is not set, so we need to set the status to not ready
+		signupResponse.Status = signup.Status{
+			Ready:                false,
+			Reason:               toolchainv1alpha1.UserSignupNoDefaultNamespaceReason,
+			Message:              "No default namespace found",
+			VerificationRequired: states.VerificationRequired(userSignup),
+		}
+	}
+
 	return signupResponse, nil
 }
 

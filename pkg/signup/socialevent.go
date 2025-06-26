@@ -43,8 +43,8 @@ func GetAndValidateSocialEvent(ctx *gin.Context, cl namespaced.Client, code stri
 
 // UpdateUserSignupWithSocialEvent updates fields in the userSignup with values from the given SocialEvent
 func UpdateUserSignupWithSocialEvent(event *toolchainv1alpha1.SocialEvent, userSignup *toolchainv1alpha1.UserSignup) {
-	if states.VerificationRequired(userSignup) {
-		states.SetVerificationRequired(userSignup, event.Spec.VerificationRequired)
+	if !event.Spec.VerificationRequired {
+		states.SetApprovedManually(userSignup, true)
 	}
 	// make sure that the user is not deactivated
 	states.SetDeactivated(userSignup, false)

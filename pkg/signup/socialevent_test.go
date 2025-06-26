@@ -108,19 +108,25 @@ func TestUpdateUserSignupWithSocialEvent(t *testing.T) {
 		signupOptions           []usersignup.Modifier
 		expTargetCluster        string
 		expVerificationRequired bool
+		expManuallyApproved     bool
 	}{
-		"nothing set": {},
+		"nothing set": {
+			expManuallyApproved: true,
+		},
 		"reactivated": {
-			signupOptions: []usersignup.Modifier{usersignup.Deactivated()},
+			signupOptions:       []usersignup.Modifier{usersignup.Deactivated()},
+			expManuallyApproved: true,
 		},
 		"target cluster set": {
-			eventOptions:     []testsocialevent.Option{testsocialevent.WithTargetCluster("member")},
-			expTargetCluster: "member",
+			eventOptions:        []testsocialevent.Option{testsocialevent.WithTargetCluster("member")},
+			expTargetCluster:    "member",
+			expManuallyApproved: true,
 		},
 		"target cluster overridden": {
-			eventOptions:     []testsocialevent.Option{testsocialevent.WithTargetCluster("member1")},
-			signupOptions:    []usersignup.Modifier{usersignup.WithTargetCluster("member2")},
-			expTargetCluster: "member1",
+			eventOptions:        []testsocialevent.Option{testsocialevent.WithTargetCluster("member1")},
+			signupOptions:       []usersignup.Modifier{usersignup.WithTargetCluster("member2")},
+			expTargetCluster:    "member1",
+			expManuallyApproved: true,
 		},
 		"verification required when already required": {
 			eventOptions: []testsocialevent.Option{
@@ -153,9 +159,9 @@ func TestUpdateUserSignupWithSocialEvent(t *testing.T) {
 			assert.Equal(t, "event1", signup.Labels[toolchainv1alpha1.SocialEventUserSignupLabelKey])
 			assert.Equal(t, tc.expTargetCluster, signup.Spec.TargetCluster)
 			assert.Equal(t, tc.expVerificationRequired, states.VerificationRequired(signup))
+			assert.Equal(t, tc.expManuallyApproved, states.ApprovedManually(signup))
 			assert.False(t, states.Deactivating(signup))
 			assert.False(t, states.Deactivated(signup))
-			assert.False(t, states.ApprovedManually(signup))
 		})
 	}
 }

@@ -197,6 +197,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 			signup := &toolchainv1alpha1.UserSignup{}
 			require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(returnedSignup), signup))
 			require.Equal(s.T(), "event-member", signup.Spec.TargetCluster)
+			assert.True(s.T(), states.ApprovedManually(signup))
 		})
 
 		s.Run("set target cluster when reactivating", func() {
@@ -215,6 +216,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 			require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(reactivatedSignup), signup))
 			require.Equal(s.T(), "event-member", signup.Spec.TargetCluster)
 			assert.False(s.T(), states.Deactivated(signup))
+			assert.True(s.T(), states.ApprovedManually(signup))
 		})
 
 		s.Run("when event not present", func() {

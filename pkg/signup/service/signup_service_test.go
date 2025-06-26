@@ -22,6 +22,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test/masteruserrecord"
+	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test/space"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
@@ -179,7 +180,60 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		// then
 		require.EqualError(s.T(), err, "an error occurred")
 	})
+
+	s.Run("with social event code", func() {
+		withCodeCtx := ctx.Copy()
+		withCodeCtx.Set(context.SocialEvent, "event1")
+		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event1", testsocialevent.WithTargetCluster("event-member"))
+		s.Run("set target cluster", func() {
+			// when
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), event)
+
+			// when
+			returnedSignup, err := application.SignupService().Signup(withCodeCtx)
+
+			// then
+			require.NoError(s.T(), err)
+			signup := &toolchainv1alpha1.UserSignup{}
+			require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(returnedSignup), signup))
+			require.Equal(s.T(), "event-member", signup.Spec.TargetCluster)
+		})
+
+		s.Run("set target cluster when reactivating", func() {
+			// given
+			deactivatedUS := existing.DeepCopy()
+			states.SetDeactivated(deactivatedUS, true)
+			deactivatedUS.Status.Conditions = fake.Deactivated()
+			fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS, event)
+
+			// when
+			reactivatedSignup, err := application.SignupService().Signup(withCodeCtx)
+
+			// then
+			require.NoError(s.T(), err)
+			signup := &toolchainv1alpha1.UserSignup{}
+			require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(reactivatedSignup), signup))
+			require.Equal(s.T(), "event-member", signup.Spec.TargetCluster)
+			assert.False(s.T(), states.Deactivated(signup))
+		})
+
+		s.Run("when event not present", func() {
+			// when
+			fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
+			// when
+			returnedSignup, err := application.SignupService().Signup(withCodeCtx)
+
+			// then
+			require.Error(s.T(), err)
+			require.Nil(s.T(), returnedSignup)
+			userSignups := &toolchainv1alpha1.UserSignupList{}
+			require.NoError(s.T(), fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs)))
+			require.Empty(s.T(), userSignups.Items)
+		})
+	})
 }
+
 func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 
 	// given

@@ -769,6 +769,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		require.NoError(s.T(), err)
 		require.False(s.T(), states.VerificationRequired(signup))
 		assert.Equal(s.T(), targetCluster, signup.Spec.TargetCluster)
+		assert.True(s.T(), states.ApprovedManually(signup))
 	})
 
 	s.Run("when too many attempts made", func() {
@@ -814,7 +815,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			// given
 			userSignup := testusersignup.NewUserSignup(
 				testusersignup.VerificationRequiredAgo(time.Second), // just signed up
-				testusersignup.WithVerificationAttempts(2))          // already tried twice before
+				testusersignup.WithVerificationAttempts(2)) // already tried twice before
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when

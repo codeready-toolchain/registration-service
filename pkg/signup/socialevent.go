@@ -34,9 +34,12 @@ func GetAndValidateSocialEvent(ctx *gin.Context, cl namespaced.Client, code stri
 
 	if event.Status.ActivationCount >= event.Spec.MaxAttendees {
 		return nil, crterrors.NewForbiddenError("invalid code", "the event is full")
-	} else if event.Spec.StartTime.After(now.Time) || event.Spec.EndTime.Before(&now) {
-		log.Infof(ctx, "the event with code '%s' has not started yet or is already past", code)
-		return nil, crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+	} else if event.Spec.StartTime.After(now.Time) {
+		log.Infof(ctx, "the event with code '%s' has not started yet", code)
+		return nil, crterrors.NewForbiddenError("invalid code", "the provided code is not valid yet")
+	} else if event.Spec.EndTime.Before(&now) {
+		log.Infof(ctx, "the event with code '%s' is already past", code)
+		return nil, crterrors.NewForbiddenError("invalid code", "the provided code has expired")
 	}
 	return event, nil
 }

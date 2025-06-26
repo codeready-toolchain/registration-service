@@ -815,7 +815,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 			// given
 			userSignup := testusersignup.NewUserSignup(
 				testusersignup.VerificationRequiredAgo(time.Second), // just signed up
-				testusersignup.WithVerificationAttempts(2)) // already tried twice before
+				testusersignup.WithVerificationAttempts(2))          // already tried twice before
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 			// when

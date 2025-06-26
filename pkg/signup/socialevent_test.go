@@ -70,7 +70,7 @@ func TestGetSocialEvent(t *testing.T) {
 		event, err := GetAndValidateSocialEvent(ctx, nsdClient, "event1")
 
 		// then
-		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		require.EqualError(t, err, "invalid code: the provided code is not valid yet")
 		require.Nil(t, event)
 	})
 
@@ -84,7 +84,7 @@ func TestGetSocialEvent(t *testing.T) {
 		event, err := GetAndValidateSocialEvent(ctx, nsdClient, "event1")
 
 		// then
-		require.EqualError(t, err, "invalid code: the provided code is invalid")
+		require.EqualError(t, err, "invalid code: the provided code has expired")
 		require.Nil(t, event)
 	})
 

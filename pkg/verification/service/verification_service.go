@@ -10,12 +10,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	signupsvc "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
@@ -391,91 +391,51 @@ func (s *ServiceImpl) VerifyActivationCode(ctx *gin.Context, username, code stri
 	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// signup user
-			signup, err = s.SignupService.Signup(ctx)
-			if err != nil {
-				log.Error(ctx, err, "error creating UserSignup resource")
-				return crterrors.NewInternalError(err, "error creating UserSignup resource")
-			}
-			log.Infof(ctx, "UserSignup created: %s", signup.Name)
-		} else {
-			return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
+			ctx.Set(context.SocialEvent, code)
+			_, err = s.SignupService.Signup(ctx)
+			return err
 		}
+		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving usersignup with username '%s'", username))
 	}
-	annotationValues := map[string]string{}
-	annotationsToDelete := []string{}
-	unsetVerificationRequired := false
-	targetCluster := ""
-
-	defer func() {
-		doUpdate := func() error {
-			signup := &toolchainv1alpha1.UserSignup{}
-			if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
-				return err
-			}
-			if unsetVerificationRequired {
-				states.SetVerificationRequired(signup, false)
-				states.SetDeactivated(signup, false)
-			}
-			if signup.Annotations == nil {
-				signup.Annotations = map[string]string{}
-			}
-			for k, v := range annotationValues {
-				signup.Annotations[k] = v
-			}
-			for _, annotationName := range annotationsToDelete {
-				delete(signup.Annotations, annotationName)
-			}
-			// also, label the UserSignup with the name of the SocialEvent (ie, the activation code)
-			if signup.Labels == nil {
-				signup.Labels = map[string]string{}
-			}
-			signup.Labels[toolchainv1alpha1.SocialEventUserSignupLabelKey] = code
-			if targetCluster != "" {
-				signup.Spec.TargetCluster = targetCluster
-			}
-			if err := s.Update(gocontext.TODO(), signup); err != nil {
-				return err
-			}
-
-			return nil
-		}
-		if err := signuppkg.PollUpdateSignup(ctx, doUpdate); err != nil {
-			log.Errorf(ctx, err, "unable to update user signup after validating activation code")
-		}
-	}()
 
 	attemptsMade, err := checkAttempts(signup)
 	if err != nil {
 		return err
 	}
-	attemptsMade++
-	annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
-
-	// look-up the SocialEvent
-	event := &toolchainv1alpha1.SocialEvent{}
-	if err := s.Get(ctx, s.NamespacedName(code), event); err != nil {
-		if apierrors.IsNotFound(err) {
-			// a SocialEvent was not found for the provided code
-			return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+	var errToReturn error
+	doUpdate := func() error {
+		signup := &toolchainv1alpha1.UserSignup{}
+		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+			return err
 		}
-		return crterrors.NewInternalError(err, fmt.Sprintf("error retrieving event '%s'", code))
-	}
-	// if there is room for the user and if the "time window" to signup is valid
-	now := metav1.NewTime(time.Now())
-	log.Infof(ctx, "verifying activation code '%s': event.Status.ActivationCount=%d, event.Spec.MaxAttendees=%s, event.Spec.StartTime=%s, event.Spec.EndTime=%s", code, strconv.Itoa(event.Status.ActivationCount), strconv.Itoa(event.Spec.MaxAttendees), event.Spec.StartTime.Format("2006-01-02:03:04:05"), event.Spec.EndTime.Format("2006-01-02:03:04:05"))
+		if signup.Annotations == nil {
+			signup.Annotations = map[string]string{}
+		}
+		event, err := signuppkg.GetAndValidateSocialEvent(ctx, s.Client, code)
+		if err != nil {
+			attemptsMade++
+			signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = strconv.Itoa(attemptsMade)
+			errToReturn = err
+		} else {
+			log.Infof(ctx, "approving user signup request with activation code '%s'", code)
+			signuppkg.UpdateUserSignupWithSocialEvent(event, signup)
+			delete(signup.Annotations, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
+		}
 
-	if event.Status.ActivationCount >= event.Spec.MaxAttendees {
-		return crterrors.NewForbiddenError("invalid code", "the event is full")
-	} else if event.Spec.StartTime.After(now.Time) || event.Spec.EndTime.Before(&now) {
-		log.Infof(ctx, "the event with code '%s' has not started yet or is already past", code)
-		return crterrors.NewForbiddenError("invalid code", "the provided code is invalid")
+		if err := s.Update(gocontext.TODO(), signup); err != nil {
+			return err
+		}
+
+		return nil
 	}
-	targetCluster = event.Spec.TargetCluster
-	log.Infof(ctx, "approving user signup request with activation code '%s'", code)
-	// If the activation code is acceptable then set `VerificationRequired` state to false and reset other verification annotations
-	unsetVerificationRequired = true
-	annotationsToDelete = append(annotationsToDelete, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
-	return nil
+	if err := signuppkg.PollUpdateSignup(ctx, doUpdate); err != nil {
+		log.Errorf(ctx, err, "unable to update user signup after validating activation code")
+		if errToReturn == nil {
+			errToReturn = err
+		}
+	}
+
+	return errToReturn
 }
 
 var (

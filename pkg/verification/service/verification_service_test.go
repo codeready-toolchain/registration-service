@@ -769,24 +769,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		require.NoError(s.T(), err)
 		require.False(s.T(), states.VerificationRequired(signup))
 		assert.Equal(s.T(), targetCluster, signup.Spec.TargetCluster)
-	})
-
-	s.Run("last user to signup", func() {
-		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                       // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(9), testsocialevent.WithTargetCluster(targetCluster)) // one seat left
-		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
-
-		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
-
-		// then
-		require.NoError(s.T(), err)
-		signup := &toolchainv1alpha1.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
-		require.NoError(s.T(), err)
-		require.False(s.T(), states.VerificationRequired(signup))
-		assert.Equal(s.T(), targetCluster, signup.Spec.TargetCluster)
+		assert.True(s.T(), states.ApprovedManually(signup))
 	})
 
 	s.Run("when too many attempts made", func() {
@@ -848,62 +831,6 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 		})
 	})
 
-	s.Run("when max attendees reached", func() {
-		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                        // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10), testsocialevent.WithTargetCluster(targetCluster)) // same as default `spec.MaxAttendees`
-		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
-
-		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
-
-		// then
-		require.EqualError(s.T(), err, "invalid code: the event is full")
-		signup := &toolchainv1alpha1.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
-		require.NoError(s.T(), err)
-		require.True(s.T(), states.VerificationRequired(signup))
-		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(s.T(), signup.Spec.TargetCluster)
-	})
-
-	s.Run("when event not open yet", func() {
-		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                         // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // starting in 1hr
-		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
-
-		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
-
-		// then
-		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
-		signup := &toolchainv1alpha1.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
-		require.NoError(s.T(), err)
-		require.True(s.T(), states.VerificationRequired(signup))
-		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(s.T(), signup.Spec.TargetCluster)
-	})
-
-	s.Run("when event already closed", func() {
-		// given
-		userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second))                                                                                        // just signed up
-		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-time.Hour)), testsocialevent.WithTargetCluster(targetCluster)) // ended 1hr ago
-		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
-
-		// when
-		err := application.VerificationService().VerifyActivationCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, event.Name)
-
-		// then
-		require.EqualError(s.T(), err, "invalid code: the provided code is invalid")
-		signup := &toolchainv1alpha1.UserSignup{}
-		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), signup)
-		require.NoError(s.T(), err)
-		require.True(s.T(), states.VerificationRequired(signup))
-		assert.Equal(s.T(), "1", signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey]) // incremented
-		assert.Empty(s.T(), signup.Spec.TargetCluster)
-	})
 }
 
 func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {

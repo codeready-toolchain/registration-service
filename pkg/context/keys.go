@@ -29,4 +29,6 @@ const (
 	PublicViewerEnabled = "publicViewerEnabled"
 	// ImpersonateUser is the context key for the impersonated user in proxied call
 	ImpersonateUser = "impersonateUser"
+	// SocialEvent is the context key for the activation code provided in UI
+	SocialEvent = "socialEvent"
 )

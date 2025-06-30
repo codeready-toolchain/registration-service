@@ -142,6 +142,14 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 		userSignup.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey] = "true"
 	}
 
+	if socialEvent := ctx.GetString(context.SocialEvent); socialEvent != "" {
+		event, err := signup.GetAndValidateSocialEvent(ctx, s.Client, socialEvent)
+		if err != nil {
+			return nil, err
+		}
+		signup.UpdateUserSignupWithSocialEvent(event, userSignup)
+	}
+
 	return userSignup, nil
 }
 

@@ -300,6 +300,41 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		require.Equal(s.T(), "CodeReady", params.Get("From"))
 		require.Equal(s.T(), "+1NUMBER", params.Get("To"))
 	})
+
+	s.Run("when notification sending fails should still set phone hash label", func() {
+		// Create a fresh UserSignup without phone hash label to test the new behavior
+		userSignupWithoutPhoneHash := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("johnny@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignupWithoutPhoneHash)
+
+		// Set up gock to make the Twilio API call fail
+		gock.Off() // Clear any existing gock configurations
+		gock.New("https://api.twilio.com").
+			Reply(http.StatusInternalServerError).
+			BodyString("Internal Server Error")
+
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := application.VerificationService().InitVerification(ctx, userSignupWithoutPhoneHash.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
+
+		// The function should return an error because notification sending failed
+		require.Error(s.T(), err)
+		require.Contains(s.T(), err.Error(), "error while sending verification code")
+
+		// But the phone hash label should still be set because verification was initiated
+		signup := &toolchainv1alpha1.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignupWithoutPhoneHash), signup)
+		require.NoError(s.T(), err)
+
+		// Verify that phone hash label was set even though notification failed
+		expectedPhoneHash := hash.EncodeString("+1NUMBER")
+		require.Equal(s.T(), expectedPhoneHash, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+
+		// Verify that verification code annotations were NOT set since notification failed
+		require.Empty(s.T(), signup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		require.Empty(s.T(), signup.Annotations[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey])
+	})
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountReachedAndTimestampElapsed() {

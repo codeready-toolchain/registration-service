@@ -100,7 +100,29 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	// calculate the phone number hash
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
+	// Set the phone hash label immediately to indicate verification initiation
 	labelValues[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
+
+	// Update the UserSignup with phone hash label to indicate verification was initiated
+	doInitialUpdate := func() error {
+		signup := &toolchainv1alpha1.UserSignup{}
+		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+			return err
+		}
+		if signup.Labels == nil {
+			signup.Labels = map[string]string{}
+		}
+		signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
+		return s.Update(gocontext.TODO(), signup)
+	}
+
+	initialUpdateErr := signuppkg.PollUpdateSignup(ctx, doInitialUpdate)
+	if initialUpdateErr != nil {
+		log.Error(ctx, initialUpdateErr, "error updating UserSignup with phone hash label")
+		return errors.New("there was an error while updating your account - please wait a moment before " +
+			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
+			"assistance: error while verifying phone code")
+	}
 
 	// get the verification counter (i.e. the number of times the user has initiated phone verification within
 	// the last 24 hours)
@@ -171,16 +193,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			return err
 		}
-		if signup.Labels == nil {
-			signup.Labels = map[string]string{}
-		}
 
 		if signup.Annotations == nil {
 			signup.Annotations = map[string]string{}
-		}
-
-		for k, v := range labelValues {
-			signup.Labels[k] = v
 		}
 
 		for k, v := range annotationValues {

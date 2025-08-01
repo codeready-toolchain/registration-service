@@ -100,29 +100,8 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	// calculate the phone number hash
 	phoneHash := hash.EncodeString(e164PhoneNumber)
 
-	// Set the phone hash label immediately to indicate verification initiation
+	// Always set the phone hash label to indicate verification was initiated
 	labelValues[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
-
-	// Update the UserSignup with phone hash label to indicate verification was initiated
-	doInitialUpdate := func() error {
-		signup := &toolchainv1alpha1.UserSignup{}
-		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
-			return err
-		}
-		if signup.Labels == nil {
-			signup.Labels = map[string]string{}
-		}
-		signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = phoneHash
-		return s.Update(gocontext.TODO(), signup)
-	}
-
-	initialUpdateErr := signuppkg.PollUpdateSignup(ctx, doInitialUpdate)
-	if initialUpdateErr != nil {
-		log.Error(ctx, initialUpdateErr, "error updating UserSignup with phone hash label")
-		return errors.New("there was an error while updating your account - please wait a moment before " +
-			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
-			"assistance: error while verifying phone code")
-	}
 
 	// get the verification counter (i.e. the number of times the user has initiated phone verification within
 	// the last 24 hours)
@@ -157,55 +136,64 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	var initError error
+	var notificationSent bool
+
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
-	}
-
-	if initError == nil {
+	} else {
 		// generate verification code
 		verificationCode, err := generateVerificationCode()
 		if err != nil {
 			return crterrors.NewInternalError(err, "error while generating verification code")
 		}
-		// set the usersignup annotations
-		annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
-		annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-		annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
-		annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
-			time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
 
 		// Generate the verification message with the new verification code
 		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
 
+		// Attempt to send notification
 		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
 		if err != nil {
 			log.Error(ctx, err, "error while sending notification")
-
-			// If we get an error here then just die, don't bother updating the UserSignup
-			return crterrors.NewInternalError(err, "error while sending verification code")
+			initError = crterrors.NewInternalError(err, "error while sending verification code")
+		} else {
+			// Notification sent successfully, set the verification annotations
+			notificationSent = true
+			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
+			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+			annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
+			annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
+				time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
 		}
 	}
 
+	// Single update operation: always set phone hash label, set annotations only if notification was sent
 	doUpdate := func() error {
 		signup := &toolchainv1alpha1.UserSignup{}
 		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			return err
 		}
 
-		if signup.Annotations == nil {
-			signup.Annotations = map[string]string{}
+		// Always set the phone hash label to indicate verification was initiated
+		if signup.Labels == nil {
+			signup.Labels = map[string]string{}
+		}
+		for k, v := range labelValues {
+			signup.Labels[k] = v
 		}
 
-		for k, v := range annotationValues {
-			signup.Annotations[k] = v
-		}
-		if err := s.Update(gocontext.TODO(), signup); err != nil {
-			return err
+		// Set annotations only if notification was sent successfully
+		if notificationSent {
+			if signup.Annotations == nil {
+				signup.Annotations = map[string]string{}
+			}
+			for k, v := range annotationValues {
+				signup.Annotations[k] = v
+			}
 		}
 
-		return nil
+		return s.Update(gocontext.TODO(), signup)
 	}
 
 	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)

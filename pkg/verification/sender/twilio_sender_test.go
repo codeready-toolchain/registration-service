@@ -39,7 +39,6 @@ func (c *MockTwilioConfig) TwilioSenderConfigs() []toolchainv1alpha1.TwilioSende
 }
 
 func TestTwilioSenderID(t *testing.T) {
-
 	cfg := &MockTwilioConfig{
 		AccountSID: "TWILIO_SID_VALUE",
 		AuthToken:  "AUTH_TOKEN_VALUE",

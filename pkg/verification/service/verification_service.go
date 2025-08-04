@@ -136,7 +136,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	var initError error
-	var notificationSent bool
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
@@ -159,7 +158,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 			initError = crterrors.NewInternalError(err, "error while sending verification code")
 		} else {
 			// Notification sent successfully, set the verification annotations
-			notificationSent = true
 			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
 			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
 			annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
@@ -183,14 +181,12 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 			signup.Labels[k] = v
 		}
 
-		// Set annotations only if notification was sent successfully
-		if notificationSent {
-			if signup.Annotations == nil {
-				signup.Annotations = map[string]string{}
-			}
-			for k, v := range annotationValues {
-				signup.Annotations[k] = v
-			}
+		// annotationValues will be empty if notification wasn't sent
+		if signup.Annotations == nil {
+			signup.Annotations = map[string]string{}
+		}
+		for k, v := range annotationValues {
+			signup.Annotations[k] = v
 		}
 
 		return s.Update(gocontext.TODO(), signup)

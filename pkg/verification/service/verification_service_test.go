@@ -302,6 +302,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 	})
 
 	s.Run("when notification sending fails should still set phone hash label", func() {
+		// given
 		// Create a fresh UserSignup without phone hash label to test the new behavior
 		userSignupWithoutPhoneHash := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johnny@kubesaw"),
@@ -315,9 +316,12 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 			Reply(http.StatusInternalServerError).
 			BodyString("Internal Server Error")
 
+		// when:
+		// InitVerification is called and notification sending fails
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignupWithoutPhoneHash.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 
+		// then
 		// The function should return an error because notification sending failed
 		require.Error(s.T(), err)
 		require.Contains(s.T(), err.Error(), "error while sending verification code")

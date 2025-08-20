@@ -70,6 +70,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler) // TODO: move to root (`/`)?
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey) //expose the devspaces segment key
+		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

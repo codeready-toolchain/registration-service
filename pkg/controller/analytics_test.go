@@ -68,7 +68,7 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		})
 	})
 
-	s.Run("valid sandbox segment write key json", func() {
+	s.Run("valid sandbox segment write key", func() {
 
 		// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 		// pass 'nil' as the third parameter.
@@ -97,7 +97,6 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		// Check the response body is what we expect.
 		// get config values from endpoint response
 		dataEnvelope := rr.Body.String()
-		require.NoError(s.T(), err)
 
 		s.Run("envelope segment write key", func() {
 			assert.Equal(s.T(), cfg.Analytics().SegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")

@@ -69,8 +69,9 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			middleware.InstrumentRoundTripperDuration(histVec))
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler) // TODO: move to root (`/`)?
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
-		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey) //expose the devspaces segment key
-		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey)
+		// segment keys endpoints
+		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)         // expose the devspaces segment key
+		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey) // expose the sandbox segment key.We had the create a new analytics endpoint to keep backward compatibility with devspaces.
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware

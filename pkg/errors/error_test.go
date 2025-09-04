@@ -26,7 +26,6 @@ func TestRunErrorsSuite(t *testing.T) {
 
 func (s *TestErrorsSuite) TestErrors() {
 	rr := httptest.NewRecorder()
-
 	ctx, _ := gin.CreateTestContext(rr)
 
 	s.Run("check json error payload", func() {

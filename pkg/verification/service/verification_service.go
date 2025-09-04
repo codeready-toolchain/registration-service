@@ -471,8 +471,7 @@ func PhoneNumberAlreadyInUse(cl namespaced.Client, username, phoneNumberOrHash s
 	}
 
 	for _, signup := range userSignups.Items {
-		userSignup := signup // drop with go 1.22
-		if userSignup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&userSignup) {
+		if signup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&signup) {
 			return crterrors.NewForbiddenError("cannot re-register with phone number",
 				"phone number already in use")
 		}

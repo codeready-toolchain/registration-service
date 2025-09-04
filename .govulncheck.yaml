@@ -1,1 +1,7 @@
-ignored-vulnerabilities: []
+ignored-vulnerabilities:
+  # Incorrect Neutralization of Input During Web Page Generation in x/net in golang.org/x/net
+  # Found in Found in: golang.org/x/net/html@v0.33.0
+  # Fixed in Fixed in: golang.org/x/net/html@v0.38.0
+  - id: GO-2025-3595
+    info: https://pkg.go.dev/vuln/GO-2025-3595
+    silence-until: 2025-09-17

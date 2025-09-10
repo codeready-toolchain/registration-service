@@ -430,13 +430,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		status := &toolchainv1alpha1.ToolchainStatus{}
 
 		if err := cl.Get(ctx, cl.NamespacedName("toolchain-status"), status); err != nil {
-			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s", userSignup.GetName())
+			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
 		for _, member := range status.Status.Members {
 			if member.ClusterName == memberCluster {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
-				signupResponse.CheDashboardURL = member.MemberStatus.Routes.CheDashboardURL
+				signupResponse.CheDashboardURL = getAppsURL("devspaces", *signupResponse)
 				signupResponse.APIEndpoint = member.APIEndpoint
 				signupResponse.ClusterName = member.ClusterName
 				break

@@ -376,4 +376,23 @@ func (s *TestTokenParserSuite) TestTokenParser() {
 			})
 		}
 	})
+
+	s.Run("parse valid token with account_number claim", func() {
+		// create a test token with an account_number claim
+		username0 := uuid.NewString()
+		identity0 := &authsupport.Identity{
+			ID:       uuid.New(),
+			Username: username0,
+		}
+		email0 := identity0.Username + "@email.tld"
+
+		jwt0, err := tokengenerator.GenerateSignedToken(*identity0, kid0, authsupport.WithEmailClaim(email0), authsupport.WithAccountNumberClaim("123456789"))
+		require.NoError(s.T(), err)
+
+		claims, err := tokenParser.FromString(jwt0)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identity0.Username, claims.PreferredUsername)
+		require.Equal(s.T(), email0, claims.Email)
+		require.Equal(s.T(), "123456789", claims.AccountNumber)
+	})
 }

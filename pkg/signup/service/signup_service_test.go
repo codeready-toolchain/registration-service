@@ -90,6 +90,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		require.Equal(s.T(), "987654321", val.Spec.IdentityClaims.Sub)
 		require.Equal(s.T(), "13349822", val.Spec.IdentityClaims.UserID)
 		require.Equal(s.T(), "45983711", val.Spec.IdentityClaims.AccountID)
+		require.Equal(s.T(), "123456789", val.Spec.IdentityClaims.AccountNumber)
 		require.Equal(s.T(), "original-sub-value", val.Spec.IdentityClaims.OriginalSub)
 		require.Equal(s.T(), "jsmith@gmail.com", val.Spec.IdentityClaims.Email)
 
@@ -107,6 +108,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	ctx.Set(context.CompanyKey, "red hat")
 	ctx.Set(context.UserIDKey, "13349822")
 	ctx.Set(context.AccountIDKey, "45983711")
+	ctx.Set(context.AccountNumberKey, "123456789")
 	ctx.Set(context.RequestReceivedTime, requestTime)
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T())
@@ -1272,6 +1274,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		require.Equal(s.T(), "original-sub-value", modified.Spec.IdentityClaims.OriginalSub)
 		require.Equal(s.T(), "foo@redhat.com", modified.Spec.IdentityClaims.Email)
 		require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
+		require.Equal(s.T(), "4242", modified.Spec.IdentityClaims.AccountNumber)
 
 		s.Run("GivenName property updated when set in context", func() {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -1330,6 +1333,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 					c.Set(context.AccountIDKey, "777654321")
 					c.Set(context.OriginalSubKey, "jsmythe-original-sub")
 					c.Set(context.EmailKey, "jsmythe@redhat.com")
+					c.Set(context.AccountNumberKey, "123456789")
 
 					_, err := application.SignupService().GetSignup(c, username, true)
 					require.NoError(s.T(), err)
@@ -1349,6 +1353,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 					require.Equal(s.T(), "Red Hat", modified.Spec.IdentityClaims.Company)
 					require.Equal(s.T(), "Jonathan", modified.Spec.IdentityClaims.GivenName)
 					require.Equal(s.T(), "cocochanel", modified.Spec.IdentityClaims.PreferredUsername)
+					require.Equal(s.T(), "123456789", modified.Spec.IdentityClaims.AccountNumber) // check that account number was set
 				})
 			})
 		})

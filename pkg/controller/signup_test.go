@@ -142,7 +142,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		testusersignup.SignupIncomplete("Provisioning", ""),
 		testusersignup.ApprovedAutomaticallyAgo(time.Second),
 		testusersignup.WithCompliantUsername("ted"),
-		testusersignup.WithHomeSpace("ted"))
+		testusersignup.WithHomeSpace("ted"),
+	)
 
 	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -164,8 +165,11 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			Status: signup.Status{
 				Reason: "Provisioning",
 			},
-			FamilyName: "Bar",
-			GivenName:  "Foo",
+			FamilyName:    "Bar",
+			GivenName:     "Foo",
+			UserID:        "0192837465",
+			AccountID:     "5647382910",
+			AccountNumber: "4242",
 		}
 
 		// when

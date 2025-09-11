@@ -87,6 +87,7 @@ func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
 		// the tokenparser has already checked these claims are in the token at this point.
 		c.Set(context.UserIDKey, token.UserID)
 		c.Set(context.AccountIDKey, token.AccountID)
+		c.Set(context.AccountNumberKey, token.AccountNumber)
 		c.Set(context.UsernameKey, token.PreferredUsername)
 		c.Set(context.EmailKey, token.Email)
 		c.Set(context.SubKey, token.Subject)

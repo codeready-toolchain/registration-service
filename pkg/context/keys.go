@@ -5,6 +5,8 @@ const (
 	UserIDKey = "user_id"
 	// AccountIDKey is the context key for the account_id claim
 	AccountIDKey = "account_id"
+	// AccountNumberKey is the context key for the account_number claim
+	AccountNumberKey = "account_number"
 	// UsernameKey is the context key for the preferred_username claim
 	UsernameKey = "username"
 	// EmailKey is the context key for the email claim

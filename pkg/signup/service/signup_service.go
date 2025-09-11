@@ -124,6 +124,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 				GivenName:         ctx.GetString(context.GivenNameKey),
 				FamilyName:        ctx.GetString(context.FamilyNameKey),
 				Company:           ctx.GetString(context.CompanyKey),
+				AccountNumber:     ctx.GetString(context.AccountNumberKey),
 			},
 		},
 	}
@@ -352,10 +353,13 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	}
 
 	signupResponse := &signup.Signup{
-		Name:       userSignup.GetName(),
-		Username:   userSignup.Spec.IdentityClaims.PreferredUsername,
-		GivenName:  userSignup.Spec.IdentityClaims.GivenName,
-		FamilyName: userSignup.Spec.IdentityClaims.FamilyName,
+		Name:          userSignup.GetName(),
+		Username:      userSignup.Spec.IdentityClaims.PreferredUsername,
+		GivenName:     userSignup.Spec.IdentityClaims.GivenName,
+		FamilyName:    userSignup.Spec.IdentityClaims.FamilyName,
+		UserID:        userSignup.Spec.IdentityClaims.UserID,
+		AccountID:     userSignup.Spec.IdentityClaims.AccountID,
+		AccountNumber: userSignup.Spec.IdentityClaims.AccountNumber,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername
@@ -473,6 +477,7 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup 
 	c.Sub, updated = updateIfRequired(ctx, context.SubKey, c.Sub, updated)
 	c.UserID, updated = updateIfRequired(ctx, context.UserIDKey, c.UserID, updated)
 	c.AccountID, updated = updateIfRequired(ctx, context.AccountIDKey, c.AccountID, updated)
+	c.AccountNumber, updated = updateIfRequired(ctx, context.AccountNumberKey, c.AccountNumber, updated)
 	c.OriginalSub, updated = updateIfRequired(ctx, context.OriginalSubKey, c.OriginalSub, updated)
 	c.Email, updated = updateIfRequired(ctx, context.EmailKey, c.Email, updated)
 	c.PreferredUsername, updated = updateIfRequired(ctx, context.UsernameKey, c.PreferredUsername, updated)

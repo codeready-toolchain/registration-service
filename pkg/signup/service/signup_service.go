@@ -436,7 +436,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		for _, member := range status.Status.Members {
 			if member.ClusterName == memberCluster {
 				signupResponse.ConsoleURL = member.MemberStatus.Routes.ConsoleURL
-				signupResponse.CheDashboardURL = getAppsURL("devspaces", *signupResponse)
 				signupResponse.APIEndpoint = member.APIEndpoint
 				signupResponse.ClusterName = member.ClusterName
 				break
@@ -445,6 +444,9 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		// set RHODS member URL
 		signupResponse.RHODSMemberURL = getRHODSMemberURL(*signupResponse)
+
+		// set Che Dashboard URL
+		signupResponse.CheDashboardURL = getAppsURL("devspaces", *signupResponse)
 
 		// set default user namespace
 		signupResponse.DefaultUserNamespace = defaultNamespace

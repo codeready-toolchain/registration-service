@@ -22,6 +22,7 @@ type TokenClaims struct {
 	OriginalSub       string `json:"original_sub"`
 	UserID            string `json:"user_id"`
 	AccountID         string `json:"account_id"`
+	AccountNumber     string `json:"account_number,omitempty"`
 	jwt.RegisteredClaims
 }
 

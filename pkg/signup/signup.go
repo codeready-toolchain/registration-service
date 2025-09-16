@@ -10,6 +10,8 @@ import (
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
 // and the corresponding MasterUserRecord resources.
 type Signup struct {
+	// The User id from the Identity Provider
+	UserID string `json:"userID,omitempty"`
 	// The UserSignup resource name
 	Name string `json:"name"`
 	// The Web Console URL of the cluster which the user was provisioned to
@@ -39,7 +41,12 @@ type Signup struct {
 	FamilyName string `json:"familyName"`
 	// Company from the Identity Provider
 	Company string `json:"company"`
-	Status  Status `json:"status,omitempty"`
+	// AccountNumber from the Identity Provider
+	AccountNumber string `json:"accountNumber,omitempty"`
+	// AccountID from the Identity Provider
+	AccountID string `json:"accountID,omitempty"`
+
+	Status Status `json:"status,omitempty"`
 	// StartDate is the date that the user's current subscription started, in RFC3339 format
 	StartDate string `json:"startDate,omitempty"`
 	// End Date is the date that the user's current subscription will end, in RFC3339 format

@@ -33,7 +33,6 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 	analyticsCtrl := NewAnalytics()
 
 	s.Run("valid devspaces segment write key json", func() {
-
 		// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
 		// pass 'nil' as the third parameter.
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/segment-write-key", nil)

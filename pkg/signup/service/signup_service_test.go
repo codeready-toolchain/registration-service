@@ -668,7 +668,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		require.Equal(s.T(), "mur_ready_message", response.Status.Message)
 		require.False(s.T(), response.Status.VerificationRequired)
 		require.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
-		require.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+		require.Equal(s.T(), "https://devspaces.apps.member-123.com", response.CheDashboardURL)
 		require.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 		require.Equal(s.T(), "member-123", response.ClusterName)
 		require.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
@@ -807,7 +807,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 			assert.False(s.T(), response.Status.VerificationRequired)
 			assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
-			assert.Equal(s.T(), "http://che-toolchain-che.member-123.com", response.CheDashboardURL)
+			assert.Equal(s.T(), fmt.Sprintf("https://devspaces%smember-123.com", appsSubDomain), response.CheDashboardURL)
 			assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
 			assert.Equal(s.T(), "member-123", response.ClusterName)
 			assert.Equal(s.T(), "https://proxy-url.com", response.ProxyURL)
@@ -831,8 +831,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      fmt.Sprintf("https://console%smember-1.com", appsSubDomain),
-							CheDashboardURL: "http://che-toolchain-che.member-1.com",
+							ConsoleURL: fmt.Sprintf("https://console%smember-1.com", appsSubDomain),
 						},
 					},
 				},
@@ -841,8 +840,7 @@ func (s *TestSignupServiceSuite) newToolchainStatus(appsSubDomain string) *toolc
 					APIEndpoint: "http://api.devcluster.openshift.com",
 					MemberStatus: toolchainv1alpha1.MemberStatusStatus{
 						Routes: &toolchainv1alpha1.Routes{
-							ConsoleURL:      fmt.Sprintf("https://console%smember-123.com", appsSubDomain),
-							CheDashboardURL: "http://che-toolchain-che.member-123.com",
+							ConsoleURL: fmt.Sprintf("https://console%smember-123.com", appsSubDomain),
 						},
 					},
 				},
@@ -871,7 +869,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	_, err := application.SignupService().GetSignup(c, username, true)
 
 	// then
-	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus to set Che Dashboard for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
+	require.EqualError(s.T(), err, fmt.Sprintf("error when retrieving ToolchainStatus for completed UserSignup %s: toolchainstatuses.toolchain.dev.openshift.com \"toolchain-status\" not found", us.Name))
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {

@@ -149,7 +149,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	// using latest commit from 'github.com/openshift/api branch release-4.16'
+	// using latest commit from 'github.com/openshift/api branch release-4.19'
 	github.com/openshift/api v0.0.0-20250904140438-5b2b8cafdd82
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

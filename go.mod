@@ -31,7 +31,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/labstack/gommon v0.4.2
 	github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215
-	github.com/nyaruka/phonenumbers v1.1.1
+	github.com/nyaruka/phonenumbers v1.2.2
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.55.0

@@ -200,5 +200,4 @@ func (s *MemberClusters) getMemberURL(proxyPluginName string, member *cluster.Ca
 		scheme = "https://"
 	}
 	return url.Parse(scheme + proxyRoute.Status.Ingress[0].Host)
-
 }

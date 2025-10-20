@@ -170,6 +170,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			UserID:        "0192837465",
 			AccountID:     "5647382910",
 			AccountNumber: "4242",
+			Email:         "foo@redhat.com",
 		}
 
 		// when

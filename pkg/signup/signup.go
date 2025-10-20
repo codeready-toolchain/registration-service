@@ -45,6 +45,8 @@ type Signup struct {
 	AccountNumber string `json:"accountNumber,omitempty"`
 	// AccountID from the Identity Provider
 	AccountID string `json:"accountID,omitempty"`
+	// Email from the Identity Provider
+	Email string `json:"email,omitempty"`
 
 	Status Status `json:"status,omitempty"`
 	// StartDate is the date that the user's current subscription started, in RFC3339 format

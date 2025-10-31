@@ -798,6 +798,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			require.Equal(s.T(), username, response.Username)
 			require.Equal(s.T(), us.Spec.IdentityClaims.GivenName, response.GivenName)
 			require.Equal(s.T(), us.Spec.IdentityClaims.FamilyName, response.FamilyName)
+			require.Equal(s.T(), us.Spec.IdentityClaims.Email, response.Email)
 			require.Equal(s.T(), "ted", response.CompliantUsername)
 
 			require.Equal(s.T(), mur.Status.ProvisionedTime.UTC().Format(time.RFC3339), response.StartDate)

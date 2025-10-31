@@ -360,6 +360,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		UserID:        userSignup.Spec.IdentityClaims.UserID,
 		AccountID:     userSignup.Spec.IdentityClaims.AccountID,
 		AccountNumber: userSignup.Spec.IdentityClaims.AccountNumber,
+		Email:         userSignup.Spec.IdentityClaims.Email,
 	}
 	if userSignup.Status.CompliantUsername != "" {
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername

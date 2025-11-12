@@ -11,6 +11,8 @@ type UIConfigResponse struct {
 	// Holds to weight specifying up to how many users ( in percentage ) should use the new UI.
 	// NOTE: this is a temporary parameter, it will be removed once we switch all the users to the new UI.
 	UICanaryDeploymentWeight int `json:"uiCanaryDeploymentWeight"`
+
+	WorkatoWebHookURL string `json:"workatoWebHookURL"`
 }
 
 // UIConfig implements the ui config endpoint, which is invoked to
@@ -28,6 +30,7 @@ func (uic *UIConfig) GetHandler(ctx *gin.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()
 	configRespData := UIConfigResponse{
 		UICanaryDeploymentWeight: cfg.UICanaryDeploymentWeight(),
+		WorkatoWebHookURL:        cfg.WorkatoWebHookURL(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

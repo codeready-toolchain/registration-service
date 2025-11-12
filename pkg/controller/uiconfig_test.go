@@ -34,7 +34,8 @@ func (s *TestUIConfigSuite) TestUIConfigHandler() {
 	// Check if the config is set to testing mode, so the handler may use this.
 	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
 	s.OverrideApplicationDefault(testconfig.RegistrationService().
-		RegistrationServiceURL("https://signup.domain.com"))
+		RegistrationServiceURL("https://signup.domain.com"),
+	)
 	defer s.DefaultConfig()
 	cfg := configuration.GetRegistrationServiceConfig()
 
@@ -62,6 +63,10 @@ func (s *TestUIConfigSuite) TestUIConfigHandler() {
 
 		s.Run("uiCanaryDeploymentWeight", func() {
 			assert.Equal(s.T(), cfg.UICanaryDeploymentWeight(), data.UICanaryDeploymentWeight, "wrong 'UICanaryDeploymentWeight' in uiconfig response")
+		})
+
+		s.Run("workatoWebHookURL", func() {
+			assert.Equal(s.T(), cfg.WorkatoWebHookURL(), data.WorkatoWebHookURL, "wrong 'WorkatoWebHookURL' in uiconfig response")
 		})
 	})
 }

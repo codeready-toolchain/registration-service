@@ -147,6 +147,10 @@ func (r RegistrationServiceConfig) UICanaryDeploymentWeight() int {
 	return commonconfig.GetInt(r.cfg.Host.RegistrationService.UICanaryDeploymentWeight, 20)
 }
 
+func (r RegistrationServiceConfig) WorkatoWebHookURL() string {
+	return commonconfig.GetString(r.cfg.Host.RegistrationService.WorkatoWebHookURL, "")
+}
+
 type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }

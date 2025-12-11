@@ -51,4 +51,5 @@ ignored-vulnerabilities:
   # Found in: crypto/x509@go1.23.12
   # Fixed in: crypto/x509@go1.24.11
   - id: GO-2025-4175
-    info: https://pkg.go.dev/
+    info: https://pkg.go.dev/vuln/GO-2025-4175
+    silence-until: 2026-01-10

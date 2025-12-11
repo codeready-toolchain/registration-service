@@ -25,7 +25,7 @@ E2E_REPO_PATH := ""
 .PHONY: publish-current-bundles-for-e2e
 publish-current-bundles-for-e2e: get-e2e-repo
 	# build & publish the bundles via toolchain-e2e repo
-	$(MAKE) -C ${E2E_REPO_PATH} get-and-publish-operators REG_REPO_PATH=${PWD}
+	$(MAKE) -C ${E2E_REPO_PATH} publish-current-bundles-for-e2e REG_REPO_PATH=${PWD}
 
 .PHONY: test-e2e
 test-e2e: get-e2e-repo

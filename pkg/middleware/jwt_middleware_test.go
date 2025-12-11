@@ -140,7 +140,6 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 	})
 
 	s.Run("auth requests", func() {
-
 		// do some requests
 		var authtests = []struct {
 			name        string

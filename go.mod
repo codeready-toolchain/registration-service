@@ -13,9 +13,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/h2non/gock.v1 v1.0.14
-	k8s.io/api v0.33.2
-	k8s.io/apimachinery v0.33.2
-	k8s.io/client-go v0.33.2
+	k8s.io/api v0.33.4
+	k8s.io/apimachinery v0.33.4
+	k8s.io/client-go v0.33.4
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
@@ -115,11 +115,11 @@ require (
 	google.golang.org/grpc v1.68.1 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	k8s.io/apiextensions-apiserver v0.33.2 // indirect
-	k8s.io/cli-runtime v0.32.2 // indirect
-	k8s.io/kubectl v0.32.2 // indirect
+	k8s.io/cli-runtime v0.33.4 // indirect
+	k8s.io/kubectl v0.33.4 // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
-	sigs.k8s.io/kustomize/api v0.18.0 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
+	sigs.k8s.io/kustomize/api v0.19.0 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
@@ -151,7 +151,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	// using latest commit from 'github.com/openshift/api branch release-4.19'
+	// using latest commit from 'github.com/openshift/api branch release-4.20'
 	github.com/openshift/api v0.0.0-20251202204302-1cb53e34ca33
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -178,6 +178,6 @@ require (
 )
 
 replace (
-	github.com/codeready-toolchain/api => github.com/rsoaresd/api v0.0.0-20251217161230-6834c424aeb8
-	github.com/codeready-toolchain/toolchain-common => github.com/rsoaresd/toolchain-common v0.0.0-20251217163624-ad1edfab055e
+	github.com/codeready-toolchain/api => github.com/rsoaresd/api v0.0.0-20251217181659-99c33cce84d0
+	github.com/codeready-toolchain/toolchain-common => github.com/rsoaresd/toolchain-common v0.0.0-20251217181906-1b70d2afca0e
 )

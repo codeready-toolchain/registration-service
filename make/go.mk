@@ -11,12 +11,13 @@ goarch ?= $(shell go env GOARCH)
 # builds the production binary
 build: build-prod
 
-# buils a development binary that has no bundled assets but reads them
-# from the filesystem. Use only for development.
-## builds development binary
+# Builds a development binary that has no bundled assets but reads them from
+# the filesystem. It also builds the binary without any optimizations or
+# code inlining, so that Delve can be used to execute it. Use only for
+# development.
 build-dev:
 	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
-		go build ${V_FLAG} -ldflags="${LDFLAGS}" \
+		go build -gcflags "all=-N -l" ${V_FLAG} -ldflags="${LDFLAGS}" \
 		-tags dev \
 		-o $(OUT_DIR)/bin/registration-service \
 		cmd/main.go
@@ -38,13 +39,13 @@ vendor:
 verify-dependencies: tidy vet build test lint-go-code
 
 .PHONY: tidy
-tidy: 
+tidy:
 	go mod tidy
 
 .PHONY: vet
 vet:
 	go vet ./...
-	
+
 .PHONY: pre-verify
 pre-verify:
 	echo "No Pre-requisite needed"

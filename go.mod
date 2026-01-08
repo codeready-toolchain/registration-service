@@ -1,13 +1,13 @@
 module github.com/codeready-toolchain/registration-service
 
-go 1.24.0
+go 1.24.4
 
 toolchain go1.24.11
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20260108101803-54d23a1b4f3c
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20260108104612-94ad63d02d50
+	github.com/codeready-toolchain/api v0.0.0-20260108115150-4c6695ed18de
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20260108121619-9d154db88508
 	github.com/go-logr/logr v1.4.2
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1

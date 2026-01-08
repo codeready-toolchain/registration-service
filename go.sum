@@ -48,6 +48,10 @@ github.com/cloudflare/circl v1.1.0/go.mod h1:prBCrKB9DV4poKZY1l9zBXg2QJY7mvgRvtM
 github.com/cloudflare/circl v1.6.1 h1:zqIqSPIndyBh1bjLVVDHMPpVKqp8Su/V+6MeDzzQBQ0=
 github.com/cloudflare/circl v1.6.1/go.mod h1:uddAzsPgqdMAYatqJ0lsjX1oECcQLIlRpzZh3pJrofs=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
+github.com/codeready-toolchain/api v0.0.0-20260108101803-54d23a1b4f3c h1:SwRrYLKaqZgkacUtCFFds5CVL+WxcWgtZvwOGC94Qeg=
+github.com/codeready-toolchain/api v0.0.0-20260108101803-54d23a1b4f3c/go.mod h1:zXOAqYKL70F9CIm357t8NAhaao9vcbl1cbOe7I/hRHo=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260108104612-94ad63d02d50 h1:8kdg5DA49UdaVysbsA13C9KAFELC7QXoY1kfuvDC71k=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260108104612-94ad63d02d50/go.mod h1:KmG0LgWVfwZE9r13V8LGQezcH/aS6h/rP+InHIFb7WU=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -288,10 +292,10 @@ github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uY
 github.com/nyaruka/phonenumbers v1.2.2 h1:OwVjf7Y4uHoK9VJUrA8ebR0ha2yc6sEYbfrwkq0asCY=
 github.com/nyaruka/phonenumbers v1.2.2/go.mod h1:wzk2qq7qwsaBKrfbkWKdgHYOOH+QFTesSpIq53ELw8M=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
-github.com/onsi/ginkgo/v2 v2.22.1 h1:QW7tbJAUDyVDVOM5dFa7qaybo+CRfR7bemlQUN6Z8aM=
-github.com/onsi/ginkgo/v2 v2.22.1/go.mod h1:S6aTpoRsSq2cZOd+pssHAlKW/Q/jZt6cPrPlnj4a1xM=
-github.com/onsi/gomega v1.36.2 h1:koNYke6TVk6ZmnyHrCXba/T/MoLBXFjeC1PtvYgw0A8=
-github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlRPHzY=
+github.com/onsi/ginkgo/v2 v2.23.3 h1:edHxnszytJ4lD9D5Jjc4tiDkPBZ3siDeJJkUZJJVkp0=
+github.com/onsi/ginkgo/v2 v2.23.3/go.mod h1:zXTP6xIp3U8aVuXN8ENK9IXRaTjFnpVB9mGmaSRvxnM=
+github.com/onsi/gomega v1.37.0 h1:CdEG8g0S133B4OswTDC/5XPSzE1OeP29QOioj2PID2Y=
+github.com/onsi/gomega v1.37.0/go.mod h1:8D9+Txp43QWKhM24yyOBEdpkzN8FvJyAwecBgsU4KU0=
 github.com/openshift/api v0.0.0-20251202204302-1cb53e34ca33 h1:/Be2oa7aOPE60B7AH0/j58BUvN0MMQjhDdN/A71TcKc=
 github.com/openshift/api v0.0.0-20251202204302-1cb53e34ca33/go.mod h1:SPLf21TYPipzCO67BURkCfK6dcIIxx0oNRVWaOyRcXM=
 github.com/openshift/library-go v0.0.0-20251110200504-2685cf1242fc h1:g9BJ/p4ZLgb253FwnWvWEzl2vYSDSvvUZ6s42weVKpM=
@@ -320,10 +324,6 @@ github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTE
 github.com/rogpeppe/go-internal v1.8.0/go.mod h1:WmiCO8CzOY8rg0OYDC4/i/2WRWAB6poM+XZ2dLUbcbE=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rsoaresd/api v0.0.0-20251217181659-99c33cce84d0 h1:eCnPQgq+VOCwcTwEQgNDJ7awtmLxAoCOPtflxcEPVkw=
-github.com/rsoaresd/api v0.0.0-20251217181659-99c33cce84d0/go.mod h1:zXOAqYKL70F9CIm357t8NAhaao9vcbl1cbOe7I/hRHo=
-github.com/rsoaresd/toolchain-common v0.0.0-20251217181906-1b70d2afca0e h1:ghFh1JqP3rOcfgJm6lofLtutfsp0nd2ZviFJXK2bIe8=
-github.com/rsoaresd/toolchain-common v0.0.0-20251217181906-1b70d2afca0e/go.mod h1:LCOvGunJc4PzsU83Z6OWCZCdoIDqiNrV2MHaIWaqLsY=
 github.com/sergi/go-diff v1.2.0 h1:XU+rvMAioB0UC3q1MFrIQy4Vo5/4VsRDQQXHsEya6xQ=
 github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
 github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=

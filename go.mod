@@ -6,8 +6,8 @@ toolchain go1.24.11
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20251111133521-6e510c9bd2ee
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20251006132314-2591ebe0bdb1
+	github.com/codeready-toolchain/api v0.0.0-20260108101803-54d23a1b4f3c
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20260108104612-94ad63d02d50
 	github.com/go-logr/logr v1.4.2
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -175,9 +175,4 @@ require (
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-)
-
-replace (
-	github.com/codeready-toolchain/api => github.com/rsoaresd/api v0.0.0-20251217181659-99c33cce84d0
-	github.com/codeready-toolchain/toolchain-common => github.com/rsoaresd/toolchain-common v0.0.0-20251217181906-1b70d2afca0e
 )

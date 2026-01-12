@@ -29,7 +29,7 @@ func GetAndValidateSocialEvent(ctx *gin.Context, cl namespaced.Client, code stri
 	}
 	// if there is room for the user and if the "time window" to signup is valid
 	now := metav1.NewTime(time.Now())
-	log.Infof(ctx, "verifying activation code '%s': event.Status.ActivationCount=%d, event.Spec.MaxAttendees=%s, event.Spec.StartTime=%s, event.Spec.EndTime=%s",
+	log.Infof(ctx, "verifying activation code '%s': event.Status.ActivationCount=%s, event.Spec.MaxAttendees=%s, event.Spec.StartTime=%s, event.Spec.EndTime=%s",
 		code, strconv.Itoa(event.Status.ActivationCount), strconv.Itoa(event.Spec.MaxAttendees), event.Spec.StartTime.Format("2006-01-02:03:04:05"), event.Spec.EndTime.Format("2006-01-02:03:04:05"))
 
 	if event.Status.ActivationCount >= event.Spec.MaxAttendees {

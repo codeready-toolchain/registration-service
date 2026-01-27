@@ -35,7 +35,7 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 	gctx := gocontext.Background()
 	client, err := recaptcha.NewClient(gctx)
 	if err != nil {
-		return nil, fmt.Errorf("error creating reCAPTCHA client")
+		return nil, fmt.Errorf("error creating reCAPTCHA client: %w", err)
 	}
 	defer client.Close()
 

@@ -26,4 +26,4 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: coverage
-          path: ./build/_output/coverage/coverage.txt
+          path: ./out/coverage/coverage.txt

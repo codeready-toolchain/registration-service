@@ -28,7 +28,6 @@ func NewAmazonSNSSender(cfg AWSSenderConfiguration) NotificationSender {
 }
 
 func (s *AmazonSNSSender) SendNotification(_ *gin.Context, content, phoneNumber, _ string) error {
-
 	// TODO add support for country-specific sender IDs if we ever decide to use Amazon SNS to send notifications
 
 	awsAccessKeyID := s.Config.AWSAccessKeyID()

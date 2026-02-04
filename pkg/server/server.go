@@ -32,7 +32,6 @@ type RegistrationServer struct {
 
 // New creates a new RegistrationServer object with reasonable defaults.
 func New(application application.Application) *RegistrationServer {
-
 	gin.SetMode(gin.ReleaseMode)
 	ginRouter := gin.New()
 	ginRouter.Use(

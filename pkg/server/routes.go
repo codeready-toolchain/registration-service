@@ -112,7 +112,6 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			err = errs.Wrap(err, "unable to setup route to serve static content")
 		}
 		srv.router.Use(static.Serve("/", staticHandler))
-
 	})
 	return err
 }

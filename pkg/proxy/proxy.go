@@ -449,7 +449,6 @@ func userHasBinding(username string, workspace *toolchainv1alpha1.Workspace) boo
 		}
 	}
 	return false
-
 }
 
 // getUserWorkspaceWithBindings retrieves the workspace with the SpaceBindings if the requesting user has access to it.

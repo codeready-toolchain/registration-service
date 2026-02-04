@@ -54,7 +54,6 @@ func TestHistogramVec(t *testing.T) {
 	require.Len(t, g[0].GetMetric()[3].GetLabel(), 2)
 	compareLabelPairValues(t, listFailure, g[0].GetMetric()[3].GetLabel())
 	require.Equal(t, uint64(2), g[0].GetMetric()[3].GetHistogram().GetSampleCount())
-
 }
 
 var expectedResponseMetadata = `
@@ -118,7 +117,6 @@ func createLabelPairs(name, value string) clientmodel.LabelPair {
 }
 
 func getExpectedLabelPairs() ([]clientmodel.LabelPair, []clientmodel.LabelPair, []clientmodel.LabelPair, []clientmodel.LabelPair) {
-
 	// labelPairs are ordered alphabetically on name when gathered.
 	getSuccess := []clientmodel.LabelPair{
 		createLabelPairs("kube_verb", "get"),

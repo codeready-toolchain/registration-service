@@ -10,6 +10,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/controller"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	"github.com/codeready-toolchain/registration-service/pkg/namespaces"
+	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	"github.com/gin-gonic/gin"
 
 	"github.com/gin-contrib/static"
@@ -58,6 +60,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		authConfigCtrl := controller.NewAuthConfig()
 		analyticsCtrl := controller.NewAnalytics()
 		signupCtrl := controller.NewSignup(srv.application)
+		namespacesCtrl := controller.NewNamespacesController(namespaces.NewNamespacesManager(cluster.GetMemberClusters, nsClient, srv.application.SignupService()))
 		usernamesCtrl := controller.NewUsernames(nsClient)
 		uiConfigCtrl := controller.NewUIConfig()
 
@@ -91,6 +94,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			middleware.InstrumentRoundTripperDuration(histVec),
 			authMiddleware.HandlerFunc(),
 			receivedTimeMw)
+		securedV1.POST("/reset-namespaces", namespacesCtrl.ResetNamespaces)
 		securedV1.POST("/signup", signupCtrl.PostHandler)
 		// requires a ctx body containing the country_code and phone_number
 		securedV1.PUT("/signup/verification", signupCtrl.InitVerificationHandler)

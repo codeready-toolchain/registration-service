@@ -209,8 +209,7 @@ func (nms *TestNamespacesManagerSuite) TestResetNamespaces() {
 
 			// then
 			// Assert that the returned error is the expected one.
-			var targetErr ErrUserSignUpNotFoundDeactivated
-			assert.ErrorAs(nms.T(), err, &targetErr)
+			assert.ErrorIs(nms.T(), err, ErrUserSignUpNotFoundDeactivated)
 		}
 	})
 

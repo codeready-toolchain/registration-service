@@ -2,6 +2,7 @@ package namespaces
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -25,11 +26,7 @@ const requestTimeout = 5 * time.Second
 // ErrUserSignUpNotFoundDeactivated is a custom error type used for signaling
 // that the user signup was not found or deactivated. Useful for error type
 // checks in the handler or any other code that calls the manager.
-type ErrUserSignUpNotFoundDeactivated struct{}
-
-func (ErrUserSignUpNotFoundDeactivated) Error() string {
-	return "the specified user was not found or is deactivated"
-}
+var ErrUserSignUpNotFoundDeactivated = errors.New("the specified user was not found or is deactivated")
 
 // ErrUserHasNoProvisionedNamespaces is a custom error type used for signaling
 // that the user has no provisioned namespaces in the cluster. Useful for
@@ -86,7 +83,7 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 	// username if the user is on "pending approval" state or the signup, for
 	// some reason, was incomplete.
 	if userSignup == nil || strings.TrimSpace(userSignup.CompliantUsername) == "" {
-		return ErrUserSignUpNotFoundDeactivated{}
+		return ErrUserSignUpNotFoundDeactivated
 	}
 
 	compliantUsername := userSignup.CompliantUsername

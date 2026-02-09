@@ -1,11 +1,9 @@
 package namespaces
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/application/service"
@@ -18,10 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
-
-// requestTimeout defines the maximum time the requests of the namespace
-// manager can take before timing out.
-const requestTimeout = 5 * time.Second
 
 // ErrUserSignUpNotFoundDeactivated is a custom error type used for signaling
 // that the user signup was not found or deactivated. Useful for error type
@@ -89,11 +83,8 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 	compliantUsername := userSignup.CompliantUsername
 
 	// Fetch the user's space.
-	userSpaceCtx, userSpaceCancel := context.WithTimeout(ginCtx.Request.Context(), requestTimeout)
-	defer userSpaceCancel()
-
 	var userSpace toolchainv1alpha1.Space
-	err = mgr.hostNamespaceClient.Get(userSpaceCtx, types.NamespacedName{Namespace: mgr.hostNamespaceClient.Namespace, Name: compliantUsername}, &userSpace)
+	err = mgr.hostNamespaceClient.Get(ginCtx.Request.Context(), types.NamespacedName{Namespace: mgr.hostNamespaceClient.Namespace, Name: compliantUsername}, &userSpace)
 	if err != nil {
 		return fmt.Errorf(`unable to get user's space resource: %w`, err)
 	}
@@ -115,7 +106,8 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 		}
 
 		// Obtain the user's NSTemplateSet to be able to determine which namespaces we are deleting.
-		nsTemplateSet, err := mgr.getNSTemplateSetForUser(ginCtx.Request.Context(), memberCluster, compliantUsername)
+		var nsTemplateSet toolchainv1alpha1.NSTemplateSet
+		err := memberCluster.Client.Get(ginCtx.Request.Context(), types.NamespacedName{Namespace: memberCluster.OperatorNamespace, Name: compliantUsername}, &nsTemplateSet)
 		if err != nil {
 			return fmt.Errorf(`unable to get the "NSTemplateSet" resource for the user in cluster "%s": %w`, memberCluster.Name, err)
 		}
@@ -130,7 +122,7 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 		// failing with a "the server does not allow this method on the
 		// requested resource" error.
 		for _, namespace := range nsTemplateSet.Status.ProvisionedNamespaces {
-			err := mgr.deleteNamespace(ginCtx.Request.Context(), memberCluster, namespace)
+			err := memberCluster.Client.Delete(ginCtx.Request.Context(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}})
 			if err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf(`unable to delete user namespace "%s" in cluster "%s": %w`, namespace.Name, memberCluster.Name, err)
 			}
@@ -138,26 +130,4 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 	}
 
 	return nil
-}
-
-// getNSTemplateSetForUser gets the NSTemplateSet object of the user from the given cluster.
-func (mgr *manager) getNSTemplateSetForUser(parentCtx context.Context, memberCluster *cluster.CachedToolchainCluster, compliantUsername string) (*toolchainv1alpha1.NSTemplateSet, error) {
-	ctx, cancel := context.WithTimeout(parentCtx, requestTimeout)
-	defer cancel()
-
-	var nsTemplateSet toolchainv1alpha1.NSTemplateSet
-	err := memberCluster.Client.Get(ctx, types.NamespacedName{Namespace: memberCluster.OperatorNamespace, Name: compliantUsername}, &nsTemplateSet)
-	if err != nil {
-		return nil, err
-	}
-
-	return &nsTemplateSet, nil
-}
-
-// deleteNamespace deletes the given namespace from the given cluster.
-func (mgr *manager) deleteNamespace(parentCtx context.Context, memberCluster *cluster.CachedToolchainCluster, namespace toolchainv1alpha1.SpaceNamespace) error {
-	ctx, cancel := context.WithTimeout(parentCtx, requestTimeout)
-	defer cancel()
-
-	return memberCluster.Client.Delete(ctx, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}})
 }

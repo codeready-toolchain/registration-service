@@ -2,7 +2,7 @@ module github.com/codeready-toolchain/registration-service
 
 go 1.24.4
 
-toolchain go1.24.11
+toolchain go1.24.13
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100

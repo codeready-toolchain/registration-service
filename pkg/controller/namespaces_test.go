@@ -92,7 +92,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 
 		// then
 		// Assert that the proper "Not Found" error response was returned.
-		test.AssertError(ns.T(), rr, http.StatusNotFound, NamespaceResetError.Error(), "The user is either not found or deactivated. Please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
+		test.AssertError(ns.T(), rr, http.StatusNotFound, ErrNamespaceReset.Error(), "The user is either not found or deactivated. Please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
 	})
 
 	ns.Run(`handler returns a "Bad Request" error when the user does not have any provisioned namespaces`, func() {
@@ -124,7 +124,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 
 		// then
 		// Assert that the proper "Bad Request" error response was returned.
-		test.AssertError(ns.T(), rr, http.StatusBadRequest, NamespaceResetError.Error(), "No namespaces provisioned, unable to perform reset. Please try again in a while and if the issue persists, please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
+		test.AssertError(ns.T(), rr, http.StatusBadRequest, ErrNamespaceReset.Error(), "No namespaces provisioned, unable to perform reset. Please try again in a while and if the issue persists, please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
 	})
 
 	ns.Run(`handler returns an internal server error when a generic error occurs`, func() {
@@ -157,6 +157,6 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		// then
 		// Assert that the proper "Internal Server Error" error response was
 		// returned.
-		test.AssertError(ns.T(), rr, http.StatusInternalServerError, NamespaceResetError.Error(), "Unable to reset your namespaces. Please try again in a while and if the issue persists, please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
+		test.AssertError(ns.T(), rr, http.StatusInternalServerError, ErrNamespaceReset.Error(), "Unable to reset your namespaces. Please try again in a while and if the issue persists, please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
 	})
 }

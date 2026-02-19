@@ -84,7 +84,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		ctrl := NewNamespacesController(&mnm)
 		handler := gin.HandlerFunc(ctrl.ResetNamespaces)
 
-		mnm.ResetNamespacesReturnValue = namespaces.ErrUserSignUpNotFoundDeactivated
+		mnm.ResetNamespacesReturnValue = namespaces.ErrUserSignUpNotFoundOrDeactivated
 
 		// when
 		// Call the handler under test.

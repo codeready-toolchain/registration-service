@@ -38,7 +38,7 @@ func (ctrl *namespacesCtrl) ResetNamespaces(ctx *gin.Context) {
 	if err != nil {
 		log.Errorf(ctx, err, `unable to reset the namespaces for user "%s"`, ctx.GetString(customCtx.UsernameKey))
 
-		if errors.Is(err, namespaces.ErrUserSignUpNotFoundDeactivated) {
+		if errors.Is(err, namespaces.ErrUserSignUpNotFoundOrDeactivated) {
 			crterrors.AbortWithError(ctx, http.StatusNotFound, ErrNamespaceReset, "The user is either not found or deactivated. Please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")
 		} else if errors.As(err, &namespaces.ErrUserHasNoProvisionedNamespaces{}) {
 			crterrors.AbortWithError(ctx, http.StatusBadRequest, ErrNamespaceReset, "No namespaces provisioned, unable to perform reset. Please try again in a while and if the issue persists, please contact the Developer Sandbox team at developersandbox@redhat.com for assistance")

@@ -1,5 +1,9 @@
 module github.com/codeready-toolchain/registration-service
 
+replace github.com/codeready-toolchain/api => github.com/rajivnathan/api v0.0.0-20260225164436-80c782ea57de
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/rajivnathan/toolchain-common v0.0.0-20260225170920-5096cffa010b
+
 go 1.24.4
 
 toolchain go1.24.13

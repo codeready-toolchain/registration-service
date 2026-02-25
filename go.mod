@@ -7,7 +7,7 @@ toolchain go1.24.13
 require (
 	github.com/aws/aws-sdk-go v1.44.100
 	github.com/codeready-toolchain/api v0.0.0-20260108115150-4c6695ed18de
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20260108130331-10ca562525fe
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20260225205316-85e4bef507f2
 	github.com/go-logr/logr v1.4.2
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1

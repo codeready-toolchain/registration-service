@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	prommodel "github.com/prometheus/client_model/go"
 	promcommon "github.com/prometheus/common/expfmt"
+	promcommonmodel "github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -89,7 +90,7 @@ func (s *PromHTTPMiddlewareSuite) TestPromHTTPMiddleware() {
 }
 
 func assertMetricExists(t *testing.T, data []byte, name string, labels map[string]string) {
-	p := &promcommon.TextParser{}
+	p := promcommon.NewTextParser(promcommonmodel.UTF8Validation)
 	metrics, err := p.TextToMetricFamilies(bytes.NewReader(data))
 	require.NoError(t, err)
 

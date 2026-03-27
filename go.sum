@@ -273,10 +273,10 @@ github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27k
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/metlos/api v0.0.0-20260318102359-237e681a639a h1:623z9TxSwryuiPqdsDGmho3OFHYTXwP68gqMwkIL4EA=
-github.com/metlos/api v0.0.0-20260318102359-237e681a639a/go.mod h1:AGEED+QcaXFa32pulan2/QBB+hzQXzPy/BEUCvqy4EE=
-github.com/metlos/toolchain-common v0.0.0-20260318113116-fbd4bba9beb1 h1:vVaPnNW0m+zNyKRYe/ejQafcifk8R1wPL1Q1cX6LKqo=
-github.com/metlos/toolchain-common v0.0.0-20260318113116-fbd4bba9beb1/go.mod h1:TmVuAlA+bawr/uO5rhaLJd1n2iM8PozcQEBgZ0jPS50=
+github.com/metlos/api v0.0.0-20260327105121-b79d7632f264 h1:2QmcyE60xfkdoLdedDHlURak+NYgRxXnxblJeI78Lmk=
+github.com/metlos/api v0.0.0-20260327105121-b79d7632f264/go.mod h1:O/a3wnFwg05mWTcbPe5yFr6HrvaxLyEvwUxL56VSW2c=
+github.com/metlos/toolchain-common v0.0.0-20260327131152-458d0e3f354d h1:b5Vax5gI5l+j4u8F+z5iLXidf3Ny0jC+ORwUf1UyW2Y=
+github.com/metlos/toolchain-common v0.0.0-20260327131152-458d0e3f354d/go.mod h1:KQ87vD9cqZ9Uo3C1QEg3/846kwr7tKX/zyK8v5xYNMk=
 github.com/migueleliasweb/go-github-mock v0.0.18 h1:0lWt9MYmZQGnQE2rFtjlft/YtD6hzxuN6JJRFpujzEI=
 github.com/migueleliasweb/go-github-mock v0.0.18/go.mod h1:CcgXcbMoRnf3rRVHqGssuBquZDIcaplxL2W6G+xs7kM=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=
@@ -617,8 +617,8 @@ k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 h1:SjGebBtkBqHFOli+05xYbK8YF1Dzk
 k8s.io/utils v0.0.0-20251002143259-bc988d571ff4/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 nullprogram.com/x/optparse v1.0.0/go.mod h1:KdyPE+Igbe0jQUrVfMqDMeJQIJZEuyV7pjYmp6pbG50=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
-sigs.k8s.io/controller-runtime v0.22.1 h1:Ah1T7I+0A7ize291nJZdS1CabF/lB4E++WizgV24Eqg=
-sigs.k8s.io/controller-runtime v0.22.1/go.mod h1:FwiwRjkRPbiN+zp2QRp7wlTCzbUXxZ/D4OzuQUDwBHY=
+sigs.k8s.io/controller-runtime v0.21.0 h1:CYfjpEuicjUecRk+KAeyYh+ouUBn4llGyDYytIGcJS8=
+sigs.k8s.io/controller-runtime v0.21.0/go.mod h1:OSg14+F65eWqIu4DceX7k/+QRAbTTvxeQSNSOQpukWM=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 h1:IpInykpT6ceI+QxKBbEflcR5EXP7sU1kvOlxwZh5txg=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730/go.mod h1:mdzfpAEoE6DHQEN0uh9ZbOCuHbLK5wOm7dK4ctXE9Tg=
 sigs.k8s.io/kustomize/api v0.20.1 h1:iWP1Ydh3/lmldBnH/S5RXgT98vWYMaTUL1ADcr+Sv7I=

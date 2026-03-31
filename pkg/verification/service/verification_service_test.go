@@ -61,7 +61,6 @@ func TestRunVerificationServiceSuite(t *testing.T) {
 }
 
 func (s *TestVerificationServiceSuite) ServiceConfiguration(accountSID, authToken, fromNumber string) {
-
 	ns, err := commonconfig.GetWatchNamespace()
 	require.NoError(s.T(), err)
 
@@ -525,7 +524,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	now := time.Now()
 
 	s.Run("verification ok", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -549,7 +547,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("verification ok for usersignup with username identifier", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("employee085@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -573,7 +570,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("when verification code is invalid", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -594,7 +590,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("when verification code has expired", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -614,7 +609,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("when verifications exceeded maximum attempts", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -631,7 +625,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("when verifications attempts has invalid value", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -654,7 +647,6 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("when verifications expiry is corrupt", func() {
-
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -832,7 +824,6 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 	})
 
 	s.Run("when invalid code", func() {
-
 		s.Run("first attempt", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
@@ -987,5 +978,4 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			require.EqualError(s.T(), err, "list error: failed listing userSignups")
 		})
 	})
-
 }

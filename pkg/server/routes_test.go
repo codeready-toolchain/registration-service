@@ -16,7 +16,6 @@ import (
 )
 
 func TestStaticContent(t *testing.T) {
-
 	log.Init("registration-service-testing")
 	router := gin.Default()
 	staticHandler, err := assets.ServeEmbedContent()

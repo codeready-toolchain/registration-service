@@ -45,7 +45,6 @@ func TestSpaceListerGet(t *testing.T) {
 }
 
 func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
-
 	memberFakeClient := test.NewFakeClient(t,
 		// spacebinding requests
 		spacebindingrequesttest.NewSpaceBindingRequest("animelover-sbr", "dancelover-dev",
@@ -608,7 +607,6 @@ func testSpaceListerGet(t *testing.T, publicViewerEnabled bool) {
 }
 
 func TestGetUserWorkspace(t *testing.T) {
-
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", true),
 		newSignup("robin", true),
@@ -766,7 +764,6 @@ func TestGetUserWorkspace(t *testing.T) {
 }
 
 func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
-
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", true),
 		newSignup("robin", true),
@@ -831,7 +828,6 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 	}
 
 	for k, tc := range tests {
-
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignup
@@ -869,7 +865,6 @@ func TestSpaceListerGetPublicViewerEnabled(t *testing.T) {
 }
 
 func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
-
 	fakeSignupService := fake.NewSignupService(
 		newSignup("batman", true),
 		newSignup("robin", true),
@@ -966,7 +961,6 @@ func TestGetUserWorkspaceWithBindingsWithPublicViewerEnabled(t *testing.T) {
 	}
 
 	for k, tc := range tests {
-
 		t.Run(k, func(t *testing.T) {
 			// given
 			signupProvider := fakeSignupService.GetSignup

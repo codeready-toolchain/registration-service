@@ -85,7 +85,6 @@ func (s *TestProxySuite) TestProxy() {
 
 	for _, environment := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev, testconfig.Prod} {
 		s.Run("for environment "+string(environment), func() {
-
 			s.SetConfig(testconfig.RegistrationService().
 				Environment(string(environment)))
 
@@ -1181,7 +1180,6 @@ func (s *TestProxySuite) TestValidateWorkspaceRequest() {
 }
 
 func (s *TestProxySuite) TestGetTransport() {
-
 	s.Run("when not prod", func() {
 		for _, envName := range []testconfig.EnvName{testconfig.E2E, testconfig.Dev} {
 			s.Run("env "+string(envName), func() {

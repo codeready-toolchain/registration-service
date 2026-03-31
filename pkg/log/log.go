@@ -80,7 +80,6 @@ func Init(withName string, opts ...zap.Opts) {
 		}
 		klogv1.SetOutputBySeverity("INFO", klogWriter{}) // tell klog v1 to use the custom writer
 		// END : hack to redirect klogv1 calls to klog v2
-
 	})
 }
 

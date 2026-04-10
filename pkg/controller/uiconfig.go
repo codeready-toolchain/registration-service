@@ -13,6 +13,8 @@ type UIConfigResponse struct {
 	UICanaryDeploymentWeight int `json:"uiCanaryDeploymentWeight"`
 
 	WorkatoWebHookURL string `json:"workatoWebHookURL"`
+
+	DisabledIntegrations []string `json:"disabledIntegrations"`
 }
 
 // UIConfig implements the ui config endpoint, which is invoked to
@@ -31,6 +33,7 @@ func (uic *UIConfig) GetHandler(ctx *gin.Context) {
 	configRespData := UIConfigResponse{
 		UICanaryDeploymentWeight: cfg.UICanaryDeploymentWeight(),
 		WorkatoWebHookURL:        cfg.WorkatoWebHookURL(),
+		DisabledIntegrations:     cfg.DisabledIntegrations(),
 	}
 	ctx.JSON(http.StatusOK, configRespData)
 }

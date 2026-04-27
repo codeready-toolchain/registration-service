@@ -24,6 +24,7 @@ func StartMetricsServer(reg *prometheus.Registry, port int) (*http.Server, *gin.
 			DisableCompression: true,
 		}),
 	)))
+
 	log.Info("Starting the registration-service metrics server...")
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),

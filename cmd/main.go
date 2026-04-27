@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/auth"
@@ -119,6 +120,7 @@ func main() {
 	// Registration Service
 	// ---------------------------------------------
 	regsvcRegistry := prometheus.NewRegistry()
+	configuration.RegisterVersionMetrics(regsvcRegistry)
 	regsvcMetricsSrv, _ := server.StartMetricsServer(regsvcRegistry, server.RegSvcMetricsPort)
 	regsvcSrv := server.New(app)
 	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry, nsClient)

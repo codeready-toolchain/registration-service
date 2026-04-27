@@ -140,6 +140,15 @@ func (r RegistrationServiceConfig) WorkatoWebHookURL() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.WorkatoWebHookURL, "")
 }
 
+func (r RegistrationServiceConfig) DisabledIntegrations() []string {
+	disabledIntegrations := r.cfg.Host.RegistrationService.DisabledIntegrations
+
+	if disabledIntegrations == nil {
+		return []string{}
+	}
+	return disabledIntegrations
+}
+
 type AnalyticsConfig struct {
 	c toolchainv1alpha1.RegistrationServiceAnalyticsConfig
 }

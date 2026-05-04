@@ -1412,13 +1412,13 @@ func (s *TestSignupServiceSuite) TestSignupCallsAccountVerifier() {
 		// given
 		var receivedEmail string
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(s.T(), http.MethodPost, r.Method)
-			require.Equal(s.T(), "/verify-account", r.URL.Path)
+			assert.Equal(s.T(), http.MethodPost, r.Method)
+			assert.Equal(s.T(), "/verify-account", r.URL.Path)
 
 			var reqBody map[string]string
-			err := json.NewDecoder(r.Body).Decode(&reqBody)
-			require.NoError(s.T(), err)
-			receivedEmail = reqBody["email"]
+			if err := json.NewDecoder(r.Body).Decode(&reqBody); assert.NoError(s.T(), err) {
+				receivedEmail = reqBody["email"]
+			}
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -1459,7 +1459,7 @@ func (s *TestSignupServiceSuite) TestSignupCallsAccountVerifier() {
 	s.Run("does not call account verifier when URL is not configured", func() {
 		// given
 		verifierCalled := false
-		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			verifierCalled = true
 			w.WriteHeader(http.StatusOK)
 		}))

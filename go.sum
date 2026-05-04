@@ -52,6 +52,8 @@ github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 h1:6xNmx7iTtyBRev0+D/T
 github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5/go.mod h1:KdCmV+x/BuvyMxRnYBlmVaq4OLiKW6iRQfvC62cvdkI=
 github.com/codeready-toolchain/api v0.0.0-20260504080314-cf8d9a0df564 h1:RDdUR0OXjERY3yr0F9S5z2m99Nh6Ccfr+zcA6OXfjJQ=
 github.com/codeready-toolchain/api v0.0.0-20260504080314-cf8d9a0df564/go.mod h1:PMg6kNHuCGNlu3MOdrCisqGkBpvzB0qS1+E6nrXxPAc=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260504133316-5fab46be70c1 h1:+/VQDNw0OAJ9YqfuDMNWDV1Z6Ff+iCJqjbg349KYBws=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260504133316-5fab46be70c1/go.mod h1:oW0GW/5ztCbCE/hlpEwO+dvV+CsPiMje5oYhg+Nszd8=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

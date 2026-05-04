@@ -1,8 +1,12 @@
 package service
 
 import (
+	"bytes"
 	gocontext "context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -239,6 +243,69 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
+type accountVerifierRequest struct {
+	Email string `json:"email"`
+}
+
+type accountVerifierResponse struct {
+	Result  string                  `json:"result"`
+	Reasons []accountVerifierReason `json:"reasons"`
+	Error   string                  `json:"error"`
+}
+
+type accountVerifierReason struct {
+	Check  string `json:"check"`
+	Detail string `json:"detail"`
+}
+
+func callAccountVerifier(verifierURL, email string) {
+	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
+	if err != nil {
+		log.Error(nil, err, "failed to marshal account verifier request")
+		return
+	}
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
+	if err != nil {
+		log.Error(nil, err, fmt.Sprintf("failed to call account verifier for email %s", email))
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error(nil, err, fmt.Sprintf("failed to read account verifier response for email %s", email))
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Info(nil, fmt.Sprintf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody)))
+		return
+	}
+
+	var verifierResp accountVerifierResponse
+	if err := json.Unmarshal(respBody, &verifierResp); err != nil {
+		log.Error(nil, err, fmt.Sprintf("failed to unmarshal account verifier response for email %s", email))
+		return
+	}
+
+	log.Info(nil, fmt.Sprintf("account verifier result for %s: %s", email, verifierResp.Result))
+}
+
+func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
+	cfg := configuration.GetRegistrationServiceConfig()
+	verifierURL := cfg.AccountVerifierURL()
+	if verifierURL == "" {
+		return
+	}
+	email := ctx.GetString(context.EmailKey)
+	if email == "" {
+		return
+	}
+	callAccountVerifier(verifierURL, email)
+}
+
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
@@ -251,6 +318,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 		if apierrors.IsNotFound(err) {
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
+			s.verifyAccount(ctx)
 			return s.createUserSignup(ctx)
 		}
 		return nil, err
@@ -260,6 +328,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
+		s.verifyAccount(ctx)
 		return s.reactivateUserSignup(ctx, userSignup)
 	}
 

@@ -3,6 +3,7 @@ package service_test
 import (
 	"bytes"
 	gocontext "context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -1404,6 +1405,94 @@ func (s *TestSignupServiceSuite) newSpaceBinding(murName, spaceName string) *too
 	require.NoError(s.T(), err)
 
 	return fake.NewSpaceBinding(name.String(), murName, spaceName, "admin")
+}
+
+func (s *TestSignupServiceSuite) TestSignupCallsAccountVerifier() {
+	s.Run("calls account verifier when URL is configured", func() {
+		// given
+		var receivedEmail string
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(s.T(), http.MethodPost, r.Method)
+			require.Equal(s.T(), "/verify-account", r.URL.Path)
+
+			var reqBody map[string]string
+			err := json.NewDecoder(r.Body).Decode(&reqBody)
+			require.NoError(s.T(), err)
+			receivedEmail = reqBody["email"]
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"approved","reasons":[],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "verifier-test@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "verifier-test@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		_, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), "verifier-test@gmail.com", receivedEmail)
+	})
+
+	s.Run("does not call account verifier when URL is not configured", func() {
+		// given
+		verifierCalled := false
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			verifierCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "no-verifier@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "no-verifier@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		_, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		assert.False(s.T(), verifierCalled)
+	})
 }
 
 type FakeCaptchaChecker struct {

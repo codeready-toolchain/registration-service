@@ -70,6 +70,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
+		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -106,6 +107,9 @@ func TestRegistrationService(t *testing.T) {
 			AWSAccessKeyID("aws.accesskeyid").
 			AWSSecretAccessKey("aws.secretaccesskey").
 			RecaptchaServiceAccountFile("captcha.json"))
+
+		verifierURL := "https://verifier.example.com"
+		cfg.Spec.Host.RegistrationService.AccountVerifierURL = &verifierURL
 
 		verificationSecretValues := make(map[string]string)
 		verificationSecretValues["twilio.sid"] = "def"
@@ -154,6 +158,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
+		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
 	})
 }
 

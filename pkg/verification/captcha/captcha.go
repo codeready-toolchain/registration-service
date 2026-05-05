@@ -6,7 +6,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 
 	recaptcha "cloud.google.com/go/recaptchaenterprise/v2/apiv1"
 	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
@@ -16,7 +16,7 @@ import (
 const recaptchaSignupAction = "SIGNUP"
 
 type Assessor interface {
-	CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error)
+	CompleteAssessment(ctx echo.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error)
 }
 
 type Helper struct{}
@@ -31,7 +31,7 @@ type Helper struct{}
 
 returns the assessment and nil if the assessment was successful, otherwise returns nil and the error.
 */
-func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error) {
+func (c Helper) CompleteAssessment(ctx echo.Context, cfg configuration.RegistrationServiceConfig, token string) (*recaptchapb.Assessment, error) {
 	gctx := gocontext.Background()
 	client, err := recaptcha.NewClient(gctx)
 	if err != nil {
@@ -57,7 +57,7 @@ func (c Helper) CompleteAssessment(ctx *gin.Context, cfg configuration.Registrat
 	}
 
 	response, err := client.CreateAssessment(
-		ctx,
+		ctx.Request().Context(),
 		request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create reCAPTCHA assessment")

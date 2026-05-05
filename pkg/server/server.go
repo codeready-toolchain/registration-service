@@ -3,9 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,9 +11,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/application"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/gzip"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type ServerOption = func(server *RegistrationServer) // nolint:revive
@@ -23,46 +20,54 @@ type ServerOption = func(server *RegistrationServer) // nolint:revive
 // RegistrationServer bundles configuration, and HTTP server objects in a single
 // location.
 type RegistrationServer struct {
-	router      *gin.Engine
+	router      *echo.Echo
 	httpServer  *http.Server
 	routesSetup sync.Once
-	//applicationProducerFunc func() application.Application
 	application application.Application
 }
 
 // New creates a new RegistrationServer object with reasonable defaults.
 func New(application application.Application) *RegistrationServer {
+	router := echo.New()
+	router.HideBanner = true
+	router.HidePort = true
 
-	gin.SetMode(gin.ReleaseMode)
-	ginRouter := gin.New()
-	ginRouter.Use(
-		gin.LoggerWithConfig(gin.LoggerConfig{
-			Output:    gin.DefaultWriter,
-			SkipPaths: []string{"/api/v1/health"}, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
-			Formatter: func(params gin.LogFormatterParams) string {
-				// custom JSON format
-				return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
+	router.Use(
+		middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+			Skipper: func(c echo.Context) bool {
+				return c.Path() == "/api/v1/health"
+			},
+			LogMethod:    true,
+			LogURI:       true,
+			LogStatus:    true,
+			LogLatency:   true,
+			LogRemoteIP:  true,
+			LogProtocol:  true,
+			LogUserAgent: true,
+			LogError:     true,
+			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+				errMsg := ""
+				if v.Error != nil {
+					errMsg = v.Error.Error()
+				}
+				fmt.Printf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
 					"info",
-					params.ClientIP,
-					params.TimeStamp.Format(time.RFC1123),
-					params.Method,
-					params.Path,
-					params.Request.Proto,
-					params.StatusCode,
-					params.Latency,
-					params.Request.UserAgent(),
-					params.ErrorMessage,
+					v.RemoteIP,
+					time.Now().Format(time.RFC1123),
+					v.Method,
+					v.URI,
+					v.Protocol,
+					v.Status,
+					v.Latency,
+					v.UserAgent,
+					errMsg,
 				)
+				return nil
 			},
 		}),
-		gin.Recovery(),
-		// When the origin header is specified, cors middleware will expose the cors functionality and the
-		// OPTIONS endpoint may be executed. OPTIONS will return a status code  of 204 no content.
-		// If the origin is the same, the cors functionality is skipped and OPTIONS endpoint cannot be
-		// successfully called. Executing an OPTIONS request when from the same origin will result
-		// in a 403 forbidden response.
-		cors.New(cors.Config{
-			AllowAllOrigins:  true,
+		middleware.Recover(),
+		middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins:     []string{"*"},
 			AllowMethods:     []string{"PUT", "PATCH", "POST", "GET", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Content-Length", "Content-Type", "Authorization", "Accept", "Recaptcha-Token"},
 			ExposeHeaders:    []string{"Content-Length", "Authorization"},
@@ -71,26 +76,23 @@ func New(application application.Application) *RegistrationServer {
 	)
 
 	srv := &RegistrationServer{
-		router:      ginRouter,
+		router:      router,
 		application: application,
 	}
 
-	gin.DefaultWriter = io.MultiWriter(os.Stdout)
-
 	srv.httpServer = &http.Server{
-		Addr: configuration.HTTPAddress,
-		// Good practice to set timeouts to avoid Slowloris attacks.
+		Addr:         configuration.HTTPAddress,
 		WriteTimeout: configuration.HTTPWriteTimeout,
 		ReadTimeout:  configuration.HTTPReadTimeout,
 		IdleTimeout:  configuration.HTTPIdleTimeout,
 		Handler:      srv.router,
 		TLSConfig: &tls.Config{
 			MinVersion: tls.VersionTLS12,
-			NextProtos: []string{"http/1.1"}, // disable HTTP/2 for now
+			NextProtos: []string{"http/1.1"},
 		},
 	}
 	if configuration.HTTPCompressResponses {
-		srv.router.Use(gzip.Gzip(gzip.DefaultCompression))
+		srv.router.Use(middleware.Gzip())
 	}
 	return srv
 }
@@ -100,8 +102,8 @@ func (srv *RegistrationServer) HTTPServer() *http.Server {
 	return srv.httpServer
 }
 
-// Engine returns the app server's HTTP router.
-func (srv *RegistrationServer) Engine() *gin.Engine {
+// Engine returns the app server's Echo router.
+func (srv *RegistrationServer) Engine() *echo.Echo {
 	return srv.router
 }
 

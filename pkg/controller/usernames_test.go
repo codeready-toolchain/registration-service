@@ -14,7 +14,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,19 +44,19 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 
 		// Create Usernames controller instance.
 		ctrl := controller.NewUsernames(nsClient)
-		handler := gin.HandlerFunc(ctrl.GetHandler)
 
 		s.Run("usernames found", func() {
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 			rr := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(rr)
-			ctx.Request = req
-			ctx.AddParam("username", "johnny")
+			ctx := echo.New().NewContext(req, rr)
+			ctx.SetParamNames("username")
+			ctx.SetParamValues("johnny")
 			expected := &username.Response{
 				{Username: "johnny"},
 			}
 
-			handler(ctx)
+			err := ctrl.GetHandler(ctx)
+			require.NoError(s.T(), err)
 
 			// Check the status code is what we expect.
 			assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
@@ -72,11 +72,12 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 		s.Run("usernames not found", func() {
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 			rr := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(rr)
-			ctx.Request = req
-			ctx.AddParam("username", "noise") // user doesn't exist
+			ctx := echo.New().NewContext(req, rr)
+			ctx.SetParamNames("username")
+			ctx.SetParamValues("noise") // user doesn't exist
 
-			handler(ctx)
+			err := ctrl.GetHandler(ctx)
+			require.NoError(s.T(), err)
 
 			// Check the status code is what we expect.
 			assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
@@ -85,11 +86,12 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 		s.Run("empty query string provided", func() {
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 			rr := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(rr)
-			ctx.Request = req
-			ctx.AddParam("username", "") // no username was provided
+			ctx := echo.New().NewContext(req, rr)
+			ctx.SetParamNames("username")
+			ctx.SetParamValues("") // no username was provided
 
-			handler(ctx)
+			err := ctrl.GetHandler(ctx)
+			require.NoError(s.T(), err)
 
 			// Check the status code is what we expect.
 			assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
@@ -107,15 +109,15 @@ func (s *TestUsernamesSuite) TestUsernamesGetHandler() {
 
 		// Create Usernames controller instance.
 		ctrl := controller.NewUsernames(nsClient)
-		handler := gin.HandlerFunc(ctrl.GetHandler)
 		s.Run("unable to get mur", func() {
 			// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 			rr := httptest.NewRecorder()
-			ctx, _ := gin.CreateTestContext(rr)
-			ctx.Request = req
-			ctx.AddParam("username", "noise")
+			ctx := echo.New().NewContext(req, rr)
+			ctx.SetParamNames("username")
+			ctx.SetParamValues("noise")
 
-			handler(ctx)
+			err := ctrl.GetHandler(ctx)
+			require.NoError(s.T(), err)
 
 			// Check the error is what we expect.
 			test.AssertError(s.T(), rr, http.StatusInternalServerError, "mock error", "error getting MasterUserRecord resource")

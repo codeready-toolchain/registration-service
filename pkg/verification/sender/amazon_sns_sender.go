@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type AWSSenderConfiguration interface {
@@ -27,7 +27,7 @@ func NewAmazonSNSSender(cfg AWSSenderConfiguration) NotificationSender {
 	}
 }
 
-func (s *AmazonSNSSender) SendNotification(_ *gin.Context, content, phoneNumber, _ string) error {
+func (s *AmazonSNSSender) SendNotification(_ echo.Context, content, phoneNumber, _ string) error {
 
 	// TODO add support for country-specific sender IDs if we ever decide to use Amazon SNS to send notifications
 

@@ -23,7 +23,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/hash"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,30 +61,37 @@ func NewSignupService(client namespaced.Client) *ServiceImpl {
 	}
 }
 
+func requestContext(ctx echo.Context) gocontext.Context {
+	if ctx != nil && ctx.Request() != nil {
+		return ctx.Request().Context()
+	}
+	return gocontext.TODO()
+}
+
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
-func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	username := ctx.GetString(context.UsernameKey)
+func (s *ServiceImpl) newUserSignup(ctx echo.Context) (*toolchainv1alpha1.UserSignup, error) {
+	username := context.GetString(ctx, context.UsernameKey)
 
-	userID := ctx.GetString(context.UserIDKey)
-	accountID := ctx.GetString(context.AccountIDKey)
+	userID := context.GetString(ctx, context.UserIDKey)
+	accountID := context.GetString(ctx, context.AccountIDKey)
 
 	if userID == "" || accountID == "" {
 		log.Infof(ctx, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s]",
-			userID, accountID, username, ctx.GetString(context.SubKey))
+			userID, accountID, username, context.GetString(ctx, context.SubKey))
 	}
 
 	if isCRTAdmin(username) {
-		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup", ctx.GetString(context.UsernameKey)))
+		log.Info(ctx, fmt.Sprintf("A crtadmin user '%s' just tried to signup", context.GetString(ctx, context.UsernameKey)))
 		return nil, apierrors.NewForbidden(schema.GroupResource{}, "", fmt.Errorf("failed to create usersignup for %s", username))
 	}
 
-	userEmail := ctx.GetString(context.EmailKey)
+	userEmail := context.GetString(ctx, context.EmailKey)
 	emailHash := hash.EncodeString(userEmail)
 
 	// Query BannedUsers to check the user has not been banned
 	bannedUsers := &toolchainv1alpha1.BannedUserList{}
-	if err := s.List(ctx, bannedUsers, client.InNamespace(s.Namespace),
+	if err := s.List(requestContext(ctx), bannedUsers, client.InNamespace(s.Namespace),
 		client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString(userEmail)}); err != nil {
 		return nil, err
 	}
@@ -97,13 +104,13 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	verificationRequired, captchaScore, assessmentID := IsPhoneVerificationRequired(s.CaptchaChecker, ctx)
-	requestReceivedTime, ok := ctx.Get(context.RequestReceivedTime)
-	if !ok {
+	requestReceivedTime := ctx.Get(context.RequestReceivedTime)
+	if requestReceivedTime == nil {
 		requestReceivedTime = time.Now()
 	}
 	userSignup := &toolchainv1alpha1.UserSignup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      signupcommon.EncodeUserIdentifier(ctx.GetString(context.UsernameKey)),
+			Name:      signupcommon.EncodeUserIdentifier(context.GetString(ctx, context.UsernameKey)),
 			Namespace: configuration.Namespace(),
 			Annotations: map[string]string{
 				toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey: "0",
@@ -118,17 +125,17 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 			IdentityClaims: toolchainv1alpha1.IdentityClaimsEmbedded{
 				PropagatedClaims: toolchainv1alpha1.PropagatedClaims{
-					Sub:         ctx.GetString(context.SubKey),
-					UserID:      ctx.GetString(context.UserIDKey),
-					AccountID:   ctx.GetString(context.AccountIDKey),
-					OriginalSub: ctx.GetString(context.OriginalSubKey),
+					Sub:         context.GetString(ctx, context.SubKey),
+					UserID:      context.GetString(ctx, context.UserIDKey),
+					AccountID:   context.GetString(ctx, context.AccountIDKey),
+					OriginalSub: context.GetString(ctx, context.OriginalSubKey),
 					Email:       userEmail,
 				},
-				PreferredUsername: ctx.GetString(context.UsernameKey),
-				GivenName:         ctx.GetString(context.GivenNameKey),
-				FamilyName:        ctx.GetString(context.FamilyNameKey),
-				Company:           ctx.GetString(context.CompanyKey),
-				AccountNumber:     ctx.GetString(context.AccountNumberKey),
+				PreferredUsername: context.GetString(ctx, context.UsernameKey),
+				GivenName:         context.GetString(ctx, context.GivenNameKey),
+				FamilyName:        context.GetString(ctx, context.FamilyNameKey),
+				Company:           context.GetString(ctx, context.CompanyKey),
+				AccountNumber:     context.GetString(ctx, context.AccountNumberKey),
 			},
 		},
 	}
@@ -142,12 +149,12 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
-	if param, _ := ctx.GetQuery(NoSpaceKey); param == "true" {
+	if ctx.QueryParam(NoSpaceKey) == "true" {
 		log.Info(ctx, fmt.Sprintf("setting '%s' annotation to true", toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey))
 		userSignup.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey] = "true"
 	}
 
-	if socialEvent := ctx.GetString(context.SocialEvent); socialEvent != "" {
+	if socialEvent := context.GetString(ctx, context.SocialEvent); socialEvent != "" {
 		event, err := signup.GetAndValidateSocialEvent(ctx, s.Client, socialEvent)
 		if err != nil {
 			return nil, err
@@ -182,7 +189,7 @@ prevent the score from being set in the UserSignup annotation.
 
 Returns the assessment ID if a captcha assessment was completed
 */
-func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Context) (bool, float32, string) {
+func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx echo.Context) (bool, float32, string) {
 	cfg := configuration.GetRegistrationServiceConfig()
 
 	// skip verification if verification is disabled
@@ -191,7 +198,7 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 	}
 
 	// skip verification for excluded email domains
-	userEmail := ctx.GetString(context.EmailKey)
+	userEmail := context.GetString(ctx, context.EmailKey)
 	emailHost := extractEmailHost(userEmail)
 	for _, d := range cfg.Verification().ExcludedEmailDomains() {
 		if strings.EqualFold(d, emailHost) {
@@ -205,13 +212,13 @@ func IsPhoneVerificationRequired(captchaChecker captcha.Assessor, ctx *gin.Conte
 	}
 
 	// require verification if context is invalid
-	if ctx.Request == nil {
+	if ctx.Request() == nil {
 		log.Error(ctx, nil, "no request in context")
 		return true, -1, ""
 	}
 
 	// require verification if captcha token is invalid
-	captchaToken, exists := ctx.Request.Header["Recaptcha-Token"]
+	captchaToken, exists := ctx.Request().Header["Recaptcha-Token"]
 	if !exists || len(captchaToken) != 1 {
 		log.Error(ctx, nil, "no valid captcha token found in request header")
 		return true, -1, ""
@@ -310,13 +317,13 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
 // if doesn't exist yet.
-func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	username := ctx.GetString(context.UsernameKey)
+func (s *ServiceImpl) Signup(ctx echo.Context) (*toolchainv1alpha1.UserSignup, error) {
+	username := context.GetString(ctx, context.UsernameKey)
 	encodedUsername := signupcommon.EncodeUserIdentifier(username)
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
+	if err := s.Get(requestContext(ctx), s.NamespacedName(encodedUsername), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
@@ -339,17 +346,17 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) createUserSignup(ctx echo.Context) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.newUserSignup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return userSignup, s.Create(ctx, userSignup)
+	return userSignup, s.Create(requestContext(ctx), userSignup)
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx echo.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
@@ -371,7 +378,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
-	return existing, s.Update(ctx, existing)
+	return existing, s.Update(requestContext(ctx), existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -379,11 +386,11 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // The checkUserSignupCompleted was introduced in order to avoid checking the readiness of the complete condition on the UserSignup in certain situations,
 // such as proxy calls for example.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
-func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) GetSignup(ctx echo.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	return s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) DoGetSignup(ctx echo.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 
 	err := signup.PollUpdateSignup(ctx, func() error {
@@ -481,7 +488,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur := &toolchainv1alpha1.MasterUserRecord{}
-	if err := cl.Get(ctx, cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
+	if err := cl.Get(requestContext(ctx), cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
@@ -505,7 +512,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status := &toolchainv1alpha1.ToolchainStatus{}
 
-		if err := cl.Get(ctx, cl.NamespacedName("toolchain-status"), status); err != nil {
+		if err := cl.Get(requestContext(ctx), cl.NamespacedName("toolchain-status"), status); err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
@@ -534,13 +541,15 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 // auditUserSignupAgainstClaims compares the properties of the specified UserSignup against the claims contained in the
 // user's access token and updates the UserSignup if necessary.  If updates were made, the function returns true
 // otherwise it returns false.
-func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx *gin.Context, userSignup *toolchainv1alpha1.UserSignup) bool {
+func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx echo.Context, userSignup *toolchainv1alpha1.UserSignup) bool {
 
 	updated := false
 
-	updateIfRequired := func(ctx *gin.Context, key, existing string, updated bool) (string, bool) {
-		if val, ok := ctx.Get(key); ok && val != nil && len(val.(string)) > 0 && val != existing {
-			return val.(string), true
+	updateIfRequired := func(ctx echo.Context, key, existing string, updated bool) (string, bool) {
+		if val := ctx.Get(key); val != nil {
+			if s, ok := val.(string); ok && len(s) > 0 && s != existing {
+				return s, true
+			}
 		}
 		return existing, updated
 	}

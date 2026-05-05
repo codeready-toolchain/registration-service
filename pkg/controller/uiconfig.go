@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type UIConfigResponse struct {
@@ -22,18 +22,18 @@ type UIConfigResponse struct {
 type UIConfig struct {
 }
 
-// NewAuthConfig returns a new AuthConfig instance.
+// NewUIConfig returns a new UIConfig instance.
 func NewUIConfig() *UIConfig {
 	return &UIConfig{}
 }
 
 // GetHandler returns raw auth config content for UI.
-func (uic *UIConfig) GetHandler(ctx *gin.Context) {
+func (uic *UIConfig) GetHandler(ctx echo.Context) error {
 	cfg := configuration.GetRegistrationServiceConfig()
 	configRespData := UIConfigResponse{
 		UICanaryDeploymentWeight: cfg.UICanaryDeploymentWeight(),
 		WorkatoWebHookURL:        cfg.WorkatoWebHookURL(),
 		DisabledIntegrations:     cfg.DisabledIntegrations(),
 	}
-	ctx.JSON(http.StatusOK, configRespData)
+	return ctx.JSON(http.StatusOK, configRespData)
 }

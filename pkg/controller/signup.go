@@ -11,7 +11,7 @@ import (
 	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/nyaruka/phonenumbers"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -22,8 +22,8 @@ type Signup struct {
 }
 
 type Phone struct {
-	CountryCode string `form:"country_code" json:"country_code" binding:"required"`
-	PhoneNumber string `form:"phone_number" json:"phone_number" binding:"required"`
+	CountryCode string `form:"country_code" json:"country_code" validate:"required"`
+	PhoneNumber string `form:"phone_number" json:"phone_number" validate:"required"`
 }
 
 // NewSignup returns a new Signup instance.
@@ -34,55 +34,54 @@ func NewSignup(app application.Application) *Signup {
 }
 
 // PostHandler creates a Signup resource
-func (s *Signup) PostHandler(ctx *gin.Context) {
+func (s *Signup) PostHandler(ctx echo.Context) error {
 	userSignup, err := s.app.SignupService().Signup(ctx)
 	e := &apierrors.StatusError{}
 	if errors.As(err, &e) {
-		crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error creating UserSignup resource")
-		return
+		return crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error creating UserSignup resource")
 	}
 	if err != nil {
 		log.Error(ctx, err, "error creating UserSignup resource")
-		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
-		return
+		return crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error creating UserSignup resource")
 	}
 	if _, exists := userSignup.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]; !exists {
 		log.Infof(ctx, "UserSignup created: %s", userSignup.Name)
 	} else {
 		log.Infof(ctx, "UserSignup reactivated: %s", userSignup.Name)
 	}
-	ctx.Status(http.StatusAccepted)
-	ctx.Writer.WriteHeaderNow()
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 // InitVerificationHandler starts the phone verification process for a user.  It extracts the user's identifying
 // information from their Access Token (presented in the Authorization HTTP header) to determine the user, and then
 // invokes the Verification service with an E.164 formatted phone number value derived from the country code and phone number
 // provided by the user.
-func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
-	username := ctx.GetString(context.UsernameKey)
+func (s *Signup) InitVerificationHandler(ctx echo.Context) error {
+	username := context.GetString(ctx, context.UsernameKey)
 
 	// Read the Body content
 	var phone Phone
-	if err := ctx.BindJSON(&phone); err != nil {
+	if err := ctx.Bind(&phone); err != nil {
 		log.Errorf(ctx, err, "request body does not contain required fields phone_number and country_code")
-		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
-		return
+		return crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
+	}
+
+	if phone.CountryCode == "" || phone.PhoneNumber == "" {
+		log.Error(ctx, nil, "request body does not contain required fields phone_number and country_code")
+		return ctx.NoContent(http.StatusBadRequest)
 	}
 
 	countryCode, err := strconv.Atoi(phone.CountryCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid country_code value")
-		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
-		return
+		return crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid country_code")
 	}
 
 	regionCode := phonenumbers.GetRegionCodeForCountryCode(countryCode)
 	number, err := phonenumbers.Parse(phone.PhoneNumber, regionCode)
 	if err != nil {
 		log.Errorf(ctx, err, "invalid phone number")
-		crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
-		return
+		return crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "invalid phone number provided")
 	}
 
 	e164Number := phonenumbers.Format(number, phonenumbers.E164)
@@ -92,84 +91,76 @@ func (s *Signup) InitVerificationHandler(ctx *gin.Context) {
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):
-			crterrors.AbortWithError(ctx, int(e.Code), err, e.Message)
+			return crterrors.AbortWithError(ctx, int(e.Code), err, e.Message)
 		default:
-			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
+			return crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error while initiating verification")
 		}
-		return
 	}
 
 	log.Infof(ctx, "phone verification has been sent for username %s", username)
-	ctx.Status(http.StatusNoContent)
-	ctx.Writer.WriteHeaderNow()
+	return ctx.NoContent(http.StatusNoContent)
 }
 
 // GetHandler returns the Signup resource
-func (s *Signup) GetHandler(ctx *gin.Context) {
+func (s *Signup) GetHandler(ctx echo.Context) error {
 
 	// Get the UserSignup resource from the service by the username
-	username := ctx.GetString(context.UsernameKey)
+	username := context.GetString(ctx, context.UsernameKey)
 	signupResource, err := s.app.SignupService().GetSignup(ctx, username, true)
 	if err != nil {
 		log.Error(ctx, err, "error getting UserSignup resource")
 		e := &apierrors.StatusError{}
 		if errors.As(err, &e) {
-			crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error getting UserSignup resource")
-			return
+			return crterrors.AbortWithError(ctx, int(e.Status().Code), err, "error getting UserSignup resource")
 		}
-		crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
+		return crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "error getting UserSignup resource")
 	}
 	if signupResource == nil {
 		log.Infof(ctx, "UserSignup resource for username '%s' resource not found", username)
-		ctx.AbortWithStatus(http.StatusNotFound)
-	} else {
-		ctx.JSON(http.StatusOK, signupResource)
+		return ctx.NoContent(http.StatusNotFound)
 	}
+	return ctx.JSON(http.StatusOK, signupResource)
 }
 
 // VerifyPhoneCodeHandler validates the phone verification code passed in by the user
-func (s *Signup) VerifyPhoneCodeHandler(ctx *gin.Context) {
+func (s *Signup) VerifyPhoneCodeHandler(ctx echo.Context) error {
 	log.Info(ctx, "Verifying phone code")
 	code := ctx.Param("code")
 	if code == "" {
 		log.Error(ctx, nil, "no phone code provided in the request")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
+		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	username := ctx.GetString(context.UsernameKey)
+	username := context.GetString(ctx, context.UsernameKey)
 
 	err := s.app.VerificationService().VerifyPhoneCode(ctx, username, code)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):
-			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying phone code")
+			return crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying phone code")
 		default:
-			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying phone code")
+			return crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying phone code")
 		}
-		return
 	}
-	ctx.Status(http.StatusOK)
 	log.Info(ctx, "Verified phone code")
+	return ctx.NoContent(http.StatusOK)
 }
 
 // VerifyActivationCodeHandler validates the activation code passed in by the user as a form value
-func (s *Signup) VerifyActivationCodeHandler(ctx *gin.Context) {
+func (s *Signup) VerifyActivationCodeHandler(ctx echo.Context) error {
 	body := map[string]interface{}{}
-	if err := ctx.BindJSON(&body); err != nil {
+	if err := ctx.Bind(&body); err != nil {
 		log.Error(ctx, nil, "no activation code provided in the request")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
+		return ctx.NoContent(http.StatusBadRequest)
 	}
 	code, ok := body["code"].(string)
 	if !ok {
 		log.Error(ctx, nil, "no activation code provided in the request")
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		return
+		return ctx.NoContent(http.StatusBadRequest)
 	}
 
-	username := ctx.GetString(context.UsernameKey)
+	username := context.GetString(ctx, context.UsernameKey)
 
 	err := s.app.VerificationService().VerifyActivationCode(ctx, username, code)
 	if err != nil {
@@ -177,11 +168,10 @@ func (s *Signup) VerifyActivationCodeHandler(ctx *gin.Context) {
 		e := &crterrors.Error{}
 		switch {
 		case errors.As(err, &e):
-			crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying activation code")
+			return crterrors.AbortWithError(ctx, int(e.Code), err, "error while verifying activation code")
 		default:
-			crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying activation code")
+			return crterrors.AbortWithError(ctx, http.StatusInternalServerError, err, "unexpected error while verifying activation code")
 		}
-		return
 	}
-	ctx.Status(http.StatusOK)
+	return ctx.NoContent(http.StatusOK)
 }

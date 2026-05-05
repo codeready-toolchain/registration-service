@@ -9,7 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // JWTMiddleware is the JWT token validation middleware
@@ -28,75 +28,63 @@ func NewAuthMiddleware() (*JWTMiddleware, error) {
 	}, nil
 }
 
-func (m *JWTMiddleware) extractToken(c *gin.Context) (string, error) {
-	// token lookup: header: Authorization
-	// try header field "Authorization" (will be "" when n/a)
-	headerToken := c.GetHeader("Authorization")
+func (m *JWTMiddleware) extractToken(c echo.Context) (string, error) {
+	headerToken := c.Request().Header.Get("Authorization")
 	if headerToken != "" {
 		if strings.HasPrefix(headerToken, "Bearer ") {
-			// it is a bearer token, split it up and return it
 			s := strings.Fields(headerToken)
 			if len(s) == 2 {
 				return s[1], nil
 			}
-			// we're failing fast here, if there is an Authorization header, it is used or it fails
 			return "", errors.New("found bearer token header, but no token:" + headerToken)
 		}
-		// see above, failing fast
 		return "", errors.New("found unknown authorization header:" + headerToken)
 	}
 	return "", errors.New("no token found")
 }
 
-func (m *JWTMiddleware) respondWithError(c *gin.Context, code int, message interface{}) {
-	c.AbortWithStatusJSON(code, gin.H{"error": message})
+func (m *JWTMiddleware) respondWithError(c echo.Context, code int, message interface{}) error {
+	return c.JSON(code, echo.Map{"error": message})
 }
 
-// HandlerFunc returns the HanderFunc.
-func (m *JWTMiddleware) HandlerFunc() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// check if we have a token
-		tokenStr, err := m.extractToken(c)
-		if err != nil {
-			m.respondWithError(c, http.StatusUnauthorized, err.Error())
-			return
-		}
-		// next, check the token
-		token, err := m.tokenParser.FromString(tokenStr)
-		if err != nil {
-			m.respondWithError(c, http.StatusUnauthorized, err.Error())
-			return
-		}
-
-		if token.UserID == "" || token.AccountID == "" {
-			rawClaims := ""
-
-			// Tokens consist of 3 segments; header, claims and signature
-			parts := strings.Split(tokenStr, ".")
-
-			// Just capture the claims segment
-			if len(parts) >= 2 {
-				rawClaims = parts[1]
+// HandlerFunc returns the Echo MiddlewareFunc.
+func (m *JWTMiddleware) HandlerFunc() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			tokenStr, err := m.extractToken(c)
+			if err != nil {
+				return m.respondWithError(c, http.StatusUnauthorized, err.Error())
+			}
+			token, err := m.tokenParser.FromString(tokenStr)
+			if err != nil {
+				return m.respondWithError(c, http.StatusUnauthorized, err.Error())
 			}
 
-			log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s].  Raw claims segment: [%s]",
-				token.UserID, token.AccountID, token.PreferredUsername, token.Subject, rawClaims)
-		}
+			if token.UserID == "" || token.AccountID == "" {
+				rawClaims := ""
 
-		// all checks done, add username, subject and email to the context.
-		// the tokenparser has already checked these claims are in the token at this point.
-		c.Set(context.UserIDKey, token.UserID)
-		c.Set(context.AccountIDKey, token.AccountID)
-		c.Set(context.AccountNumberKey, token.AccountNumber)
-		c.Set(context.UsernameKey, token.PreferredUsername)
-		c.Set(context.EmailKey, token.Email)
-		c.Set(context.SubKey, token.Subject)
-		c.Set(context.OriginalSubKey, token.OriginalSub)
-		c.Set(context.GivenNameKey, token.GivenName)
-		c.Set(context.FamilyNameKey, token.FamilyName)
-		c.Set(context.CompanyKey, token.Company)
-		// for convenience, add the claims to the context.
-		c.Set(context.JWTClaimsKey, token)
-		c.Next()
+				parts := strings.Split(tokenStr, ".")
+
+				if len(parts) >= 2 {
+					rawClaims = parts[1]
+				}
+
+				log.Infof(c, "Missing essential claims from token - [user_id:%s][account_id:%s] for user [%s], sub [%s].  Raw claims segment: [%s]",
+					token.UserID, token.AccountID, token.PreferredUsername, token.Subject, rawClaims)
+			}
+
+			c.Set(context.UserIDKey, token.UserID)
+			c.Set(context.AccountIDKey, token.AccountID)
+			c.Set(context.AccountNumberKey, token.AccountNumber)
+			c.Set(context.UsernameKey, token.PreferredUsername)
+			c.Set(context.EmailKey, token.Email)
+			c.Set(context.SubKey, token.Subject)
+			c.Set(context.OriginalSubKey, token.OriginalSub)
+			c.Set(context.GivenNameKey, token.GivenName)
+			c.Set(context.FamilyNameKey, token.FamilyName)
+			c.Set(context.CompanyKey, token.Company)
+			c.Set(context.JWTClaimsKey, token)
+			return next(c)
+		}
 	}
 }

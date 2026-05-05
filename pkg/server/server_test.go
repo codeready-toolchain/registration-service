@@ -64,7 +64,7 @@ func (s *TestServerSuite) TestServer() {
 
 	s.Run("CORS", func() {
 		go func(t *testing.T) {
-			err := srv.Engine().Run()
+			err := srv.HTTPServer().ListenAndServe()
 			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
 		}(s.T())
 

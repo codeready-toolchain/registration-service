@@ -8,7 +8,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaces"
 	"github.com/codeready-toolchain/registration-service/test"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -28,7 +28,7 @@ type mockNamespacesManager struct {
 	ResetNamespacesReturnValue error
 }
 
-func (mnm *mockNamespacesManager) ResetNamespaces(_ *gin.Context) error {
+func (mnm *mockNamespacesManager) ResetNamespaces(_ echo.Context) error {
 	return mnm.ResetNamespacesReturnValue
 }
 
@@ -38,7 +38,7 @@ func (mnm *mockNamespacesManager) ResetNamespaces(_ *gin.Context) error {
 func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 	ns.Run(`handler returns "Accepted" response when no errors occur`, func() {
 		// given
-		// Prepare the request and the context for gin.
+		// Prepare the request and the context for echo.
 		req, err := http.NewRequest(http.MethodPost, "/api/v1/reset-namespaces", nil)
 		if err != nil {
 			ns.Fail("unable to create test request", err.Error())
@@ -48,15 +48,14 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		// Prepare the handler under test.
 		mnm := mockNamespacesManager{}
 		ctrl := NewNamespacesController(&mnm)
-		handler := gin.HandlerFunc(ctrl.ResetNamespaces)
 
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// when
 		// Call the handler under test.
-		handler(ctx)
+		err = ctrl.ResetNamespaces(ctx)
+		require.NoError(ns.T(), err)
 
 		// then
 		// Assert that the correct status code was returned. The namespace
@@ -67,7 +66,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 
 	ns.Run(`handler returns a "Not Found" error when the user signup cannot be found or is deactivated`, func() {
 		// given
-		// Prepare the request and the context for gin.
+		// Prepare the request and the context for echo.
 		req, err := http.NewRequest(http.MethodPost, "/api/v1/reset-namespaces", nil)
 		if err != nil {
 			ns.Fail("unable to create test request", err.Error())
@@ -75,20 +74,19 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		}
 
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Override the namespace manager's response, to simulate that the
 		// user signup could not be found or is deactivated.
 		mnm := mockNamespacesManager{}
 		ctrl := NewNamespacesController(&mnm)
-		handler := gin.HandlerFunc(ctrl.ResetNamespaces)
 
 		mnm.ResetNamespacesReturnValue = namespaces.ErrUserSignUpNotFoundOrDeactivated
 
 		// when
 		// Call the handler under test.
-		handler(ctx)
+		err = ctrl.ResetNamespaces(ctx)
+		require.NoError(ns.T(), err)
 
 		// then
 		// Assert that the proper "Not Found" error response was returned.
@@ -97,7 +95,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 
 	ns.Run(`handler returns a "Bad Request" error when the user does not have any provisioned namespaces`, func() {
 		// given
-		// Prepare the request and the context for gin.
+		// Prepare the request and the context for echo.
 		req, err := http.NewRequest(http.MethodPost, "/api/v1/reset-namespaces", nil)
 		if err != nil {
 			ns.Fail("unable to create test request", err.Error())
@@ -105,8 +103,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		}
 
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Override the namespace manager's response, to simulate that the
 		// user does not have any provisioned namespaces, and therefore the
@@ -114,13 +111,13 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		// properly by the handler.
 		mnm := mockNamespacesManager{}
 		ctrl := NewNamespacesController(&mnm)
-		handler := gin.HandlerFunc(ctrl.ResetNamespaces)
 
 		mnm.ResetNamespacesReturnValue = namespaces.ErrUserHasNoProvisionedNamespaces{}
 
 		// when
 		// Call the handler under test.
-		handler(ctx)
+		err = ctrl.ResetNamespaces(ctx)
+		require.NoError(ns.T(), err)
 
 		// then
 		// Assert that the proper "Bad Request" error response was returned.
@@ -129,7 +126,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 
 	ns.Run(`handler returns an internal server error when a generic error occurs`, func() {
 		// given
-		// Prepare the request and the context for gin.
+		// Prepare the request and the context for echo.
 		req, err := http.NewRequest(http.MethodPost, "/api/v1/reset-namespaces", nil)
 		if err != nil {
 			ns.Fail("unable to create test request", err.Error())
@@ -137,8 +134,7 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		}
 
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Override the namespace manager's response, to simulate an error when
 		// attempting to delete the namespaces. We recreate the manager so that
@@ -146,13 +142,13 @@ func (ns *TestNamespacesSuite) TestResetNamespacesHandler() {
 		// parallel.
 		mnm := mockNamespacesManager{}
 		ctrl := NewNamespacesController(&mnm)
-		handler := gin.HandlerFunc(ctrl.ResetNamespaces)
 
 		mnm.ResetNamespacesReturnValue = errors.New("test error")
 
 		// when
 		// Call the handler under test.
-		handler(ctx)
+		err = ctrl.ResetNamespaces(ctx)
+		require.NoError(ns.T(), err)
 
 		// then
 		// Assert that the proper "Internal Server Error" error response was

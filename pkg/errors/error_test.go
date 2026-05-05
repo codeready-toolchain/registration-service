@@ -10,7 +10,7 @@ import (
 	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/test"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
@@ -25,18 +25,21 @@ func TestRunErrorsSuite(t *testing.T) {
 }
 
 func (s *TestErrorsSuite) TestErrors() {
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 
 	s.Run("check json error payload", func() {
 		details := "testing payload"
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
 
-		errs.AbortWithError(ctx, code, errors.New(errMsg), details)
+		err := errs.AbortWithError(ctx, code, errors.New(errMsg), details)
+		require.NoError(s.T(), err)
 
 		res := errs.Error{}
-		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		err = json.Unmarshal(rr.Body.Bytes(), &res)
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), res.Code, http.StatusInternalServerError)

@@ -10,7 +10,7 @@ import (
 
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,12 +39,9 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/segment-write-key", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(analyticsCtrl.GetDevSpacesSegmentWriteKey)
-
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().DevSpacesSegmentWriteKey("testing devspaces segment write key"))
@@ -53,7 +50,8 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 
 		assert.Equal(s.T(), "testing devspaces segment write key", cfg.Analytics().DevSpacesSegmentWriteKey())
 
-		handler(ctx)
+		err = analyticsCtrl.GetDevSpacesSegmentWriteKey(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
@@ -61,7 +59,6 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		// Check the response body is what we expect.
 		// get config values from endpoint response
 		dataEnvelope := rr.Body.String()
-		require.NoError(s.T(), err)
 
 		s.Run("envelope segment write key", func() {
 			assert.Equal(s.T(), cfg.Analytics().DevSpacesSegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")
@@ -75,12 +72,9 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/analytics/segment-write-key", nil)
 		require.NoError(s.T(), err)
 
-		handler := gin.HandlerFunc(analyticsCtrl.GetSandboxSegmentWriteKey)
-
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
 			Analytics().SegmentWriteKey("testing sandbox segment write key"))
@@ -89,7 +83,8 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 
 		assert.Equal(s.T(), "testing sandbox segment write key", cfg.Analytics().SegmentWriteKey())
 
-		handler(ctx)
+		err = analyticsCtrl.GetSandboxSegmentWriteKey(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)

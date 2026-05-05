@@ -8,9 +8,7 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/assets"
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/gin-contrib/static"
-
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,16 +16,10 @@ import (
 func TestStaticContent(t *testing.T) {
 
 	log.Init("registration-service-testing")
-	router := gin.Default()
-	staticHandler, err := assets.ServeEmbedContent()
+	router := echo.New()
+	staticFS, err := assets.ServeEmbedContent()
 	require.NoError(t, err)
-	router.Use(static.Serve("/", staticHandler))
-
-	router.RedirectTrailingSlash = true
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/ping", nil)
-	router.ServeHTTP(w, req)
+	router.StaticFS("/", echo.MustSubFS(staticFS, "."))
 
 	// Setting up the table test
 	var statictests = []struct {
@@ -43,7 +35,7 @@ func TestStaticContent(t *testing.T) {
 		{
 			requestMethod:  "GET",
 			requestPath:    "/index.html",
-			assertResponse: movedTo("./"),
+			assertResponse: okWithBodyFromEmbedFS("static/index.html"),
 		},
 		{
 			requestMethod:  "GET",
@@ -83,13 +75,6 @@ func okWithBodyFromEmbedFS(path string) assertResponse {
 		expectedContent, err := assets.StaticContent.ReadFile(path)
 		require.NoError(t, err)
 		assert.Equal(t, string(expectedContent), rr.Body.String(), "handler returned wrong static content")
-	}
-}
-
-func movedTo(path string) assertResponse {
-	return func(t *testing.T, rr *httptest.ResponseRecorder) {
-		require.Equal(t, http.StatusMovedPermanently, rr.Code, "handler returned wrong status code: got %v want %v", rr.Code, http.StatusTemporaryRedirect)
-		assert.Equal(t, []string{path}, rr.Header()["Location"])
 	}
 }
 

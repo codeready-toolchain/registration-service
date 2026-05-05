@@ -10,7 +10,7 @@ import (
 
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
 )
@@ -85,7 +85,10 @@ func TestTwilioSenderID(t *testing.T) {
 	}
 
 	t.Run("test country code in config", func(t *testing.T) {
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
 		reqValue := setupGockAndSendRequest(func(sender sender2.NotificationSender) error {
 			return sender.SendNotification(ctx, "Test Message", "+440000000000", "44")
 		})
@@ -99,7 +102,10 @@ func TestTwilioSenderID(t *testing.T) {
 	})
 
 	t.Run("test country code not in config", func(t *testing.T) {
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		ctx := e.NewContext(req, rec)
 		reqValue := setupGockAndSendRequest(func(sender sender2.NotificationSender) error {
 			return sender.SendNotification(ctx, "Test Message", "+611234567890", "61")
 		})

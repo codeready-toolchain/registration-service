@@ -25,8 +25,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/test"
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/registration-service/test/util"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -515,7 +515,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 			ExpectedProxyResponseStatus     int
 			Standalone                      bool // If true then the request is not expected to be forwarded to the kube api server
 
-			OverrideGetSignupFunc func(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+			OverrideGetSignupFunc func(ctx echo.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 			ExpectedResponse      *string
 		}{
 			"plain http cors preflight request with no request method": {
@@ -680,7 +680,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 					"Authorization": {"Bearer clusterSAToken"},
 				},
 				ExpectedProxyResponseStatus: http.StatusInternalServerError,
-				OverrideGetSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
+				OverrideGetSignupFunc: func(_ echo.Context, _ string, _ bool) (*signup.Signup, error) {
 					return nil, fmt.Errorf("test error")
 				},
 				ExpectedResponse: ptr("unable to retrieve user workspaces: test error"),

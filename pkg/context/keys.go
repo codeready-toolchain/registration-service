@@ -1,5 +1,19 @@
 package context
 
+import "github.com/labstack/echo/v4"
+
+// GetString returns the string value associated with the given key in the echo context.
+// Returns empty string if the key doesn't exist or the value is not a string.
+func GetString(ctx echo.Context, key string) string {
+	if ctx == nil {
+		return ""
+	}
+	if val, ok := ctx.Get(key).(string); ok {
+		return val
+	}
+	return ""
+}
+
 const (
 	// UserIDKey is the context key for the user_id claim
 	UserIDKey = "user_id"

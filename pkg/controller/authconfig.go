@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type configResponse struct {
@@ -28,12 +28,12 @@ func NewAuthConfig() *AuthConfig {
 }
 
 // GetHandler returns raw auth config content for UI.
-func (ac *AuthConfig) GetHandler(ctx *gin.Context) {
+func (ac *AuthConfig) GetHandler(ctx echo.Context) error {
 	cfg := configuration.GetRegistrationServiceConfig()
 	configRespData := configResponse{
 		AuthClientLibraryURL: cfg.Auth().AuthClientLibraryURL(),
 		AuthClientConfigRaw:  cfg.Auth().AuthClientConfigRaw(),
 		SignupURL:            cfg.RegistrationServiceURL(),
 	}
-	ctx.JSON(http.StatusOK, configRespData)
+	return ctx.JSON(http.StatusOK, configRespData)
 }

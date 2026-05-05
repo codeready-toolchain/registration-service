@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io/fs"
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/assets"
@@ -12,9 +13,8 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaces"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 
-	"github.com/gin-contrib/static"
 	errs "github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -70,11 +70,11 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			middleware.InstrumentRoundTripperInFlight(inFlightGauge),
 			middleware.InstrumentRoundTripperCounter(counter),
 			middleware.InstrumentRoundTripperDuration(histVec))
-		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler) // TODO: move to root (`/`)?
+		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler)
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
 		// segment keys endpoints
-		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)         // expose the devspaces segment key
-		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey) // expose the sandbox segment key.We had the create a new analytics endpoint to keep backward compatibility with devspaces.
+		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)
+		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey)
 
 		// create the auth middleware
 		var authMiddleware *middleware.JWTMiddleware
@@ -83,8 +83,11 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			err = errs.Wrapf(err, "failed to init auth middleware")
 			return
 		}
-		receivedTimeMw := func(ctx *gin.Context) {
-			ctx.Set(rcontext.RequestReceivedTime, time.Now())
+		receivedTimeMw := func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(ctx echo.Context) error {
+				ctx.Set(rcontext.RequestReceivedTime, time.Now())
+				return next(ctx)
+			}
 		}
 		// secured routes
 		securedV1 := srv.router.Group("/api/v1")
@@ -110,13 +113,13 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		}
 
 		// Create the route for static content, served from /
-		var staticHandler static.ServeFileSystem
-		staticHandler, err = assets.ServeEmbedContent()
+		var staticFS fs.FS
+		staticFS, err = assets.ServeEmbedContent()
 		if err != nil {
 			err = errs.Wrap(err, "unable to setup route to serve static content")
+			return
 		}
-		srv.router.Use(static.Serve("/", staticHandler))
-
+		srv.router.StaticFS("/", echo.MustSubFS(staticFS, "."))
 	})
 	return err
 }

@@ -10,17 +10,17 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GetAndValidateSocialEvent returns a SocialEvent with the given name.
 // If the event is already full, not yet started, already finished, or not found then it returns error
-func GetAndValidateSocialEvent(ctx *gin.Context, cl namespaced.Client, code string) (*toolchainv1alpha1.SocialEvent, error) {
+func GetAndValidateSocialEvent(ctx echo.Context, cl namespaced.Client, code string) (*toolchainv1alpha1.SocialEvent, error) {
 	// look-up the SocialEvent
 	event := &toolchainv1alpha1.SocialEvent{}
-	if err := cl.Get(ctx, cl.NamespacedName(code), event); err != nil {
+	if err := cl.Get(ctx.Request().Context(), cl.NamespacedName(code), event); err != nil {
 		if apierrors.IsNotFound(err) {
 			// a SocialEvent was not found for the provided code
 			return nil, crterrors.NewForbiddenError("invalid code", "the provided code is invalid")

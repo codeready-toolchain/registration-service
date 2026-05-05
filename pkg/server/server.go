@@ -2,7 +2,7 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"sync"
@@ -14,6 +14,21 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
+
+// requestLog defines the structure with which the requests will be logged by
+// the logging middelware of Echo.
+type requestLog struct {
+	LogLevel     string        `json:"level"`
+	ClientIP     string        `json:"client_ip"`
+	Timestamp    string        `json:"timestamp"`
+	HttpMethod   string        `json:"method"`
+	HttpPath     string        `json:"path"`
+	Protocol     string        `json:"proto"`
+	HttpStatus   int           `json:"status"`
+	Latency      time.Duration `json:"latency"`
+	UserAgent    string        `json:"user-agent"`
+	ErrorMessage error         `json:"error-message"`
+}
 
 type ServerOption = func(server *RegistrationServer) // nolint:revive
 
@@ -46,23 +61,20 @@ func New(application application.Application) *RegistrationServer {
 			LogUserAgent: true,
 			LogError:     true,
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-				errMsg := ""
-				if v.Error != nil {
-					errMsg = v.Error.Error()
+				payload := requestLog{
+					LogLevel:     "info",
+					ClientIP:     v.RemoteIP,
+					Timestamp:    time.Now().Format(time.RFC3339),
+					HttpMethod:   v.Method,
+					HttpPath:     v.URI,
+					Protocol:     v.Protocol,
+					HttpStatus:   v.Status,
+					Latency:      v.Latency,
+					UserAgent:    v.UserAgent,
+					ErrorMessage: v.Error,
 				}
-				fmt.Printf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
-					"info",
-					v.RemoteIP,
-					time.Now().Format(time.RFC1123),
-					v.Method,
-					v.URI,
-					v.Protocol,
-					v.Status,
-					v.Latency,
-					v.UserAgent,
-					errMsg,
-				)
-				return nil
+
+				return json.NewEncoder(c.Logger().Output()).Encode(payload)
 			},
 		}),
 		middleware.Recover(),

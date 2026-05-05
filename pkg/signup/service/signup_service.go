@@ -266,7 +266,7 @@ func callAccountVerifier(verifierURL, email string) error {
 		return errs.Wrap(err, "failed to marshal account verifier request")
 	}
 
-	httpClient := &http.Client{Timeout: 10 * time.Second}
+	httpClient := &http.Client{Timeout: 3 * time.Second}
 	resp, err := httpClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
 	if err != nil {
 		return errs.Wrapf(err, "failed to call account verifier for email %s", email)

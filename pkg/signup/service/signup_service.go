@@ -258,16 +258,17 @@ type accountVerifierReason struct {
 	Detail string `json:"detail"`
 }
 
+var accountVerifierHTTPClient = &http.Client{Timeout: 3 * time.Second}
+
 // callAccountVerifier calls the account verifier service to check the user's email domain.
 // For now this is used only for monitoring — the result is logged but not acted upon.
-func callAccountVerifier(verifierURL, email string) error {
+func callAccountVerifier(ctx *gin.Context, verifierURL, email string) error {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
 		return errs.Wrap(err, "failed to marshal account verifier request")
 	}
 
-	httpClient := &http.Client{Timeout: 3 * time.Second}
-	resp, err := httpClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
+	resp, err := accountVerifierHTTPClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
 	if err != nil {
 		return errs.Wrapf(err, "failed to call account verifier for email %s", email)
 	}
@@ -287,7 +288,8 @@ func callAccountVerifier(verifierURL, email string) error {
 		return errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
 	}
 
-	log.Info(nil, fmt.Sprintf("account verifier result for %s: %s", email, verifierResp.Result))
+	log.Info(ctx, fmt.Sprintf("account verifier result for %s: result=%s, reasons=%v, error=%s",
+		email, verifierResp.Result, verifierResp.Reasons, verifierResp.Error))
 	return nil
 }
 
@@ -301,8 +303,8 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
 	if email == "" {
 		return
 	}
-	if err := callAccountVerifier(verifierURL, email); err != nil {
-		log.Error(nil, err, "account verifier call failed")
+	if err := callAccountVerifier(ctx, verifierURL, email); err != nil {
+		log.Error(ctx, err, "account verifier call failed")
 	}
 }
 

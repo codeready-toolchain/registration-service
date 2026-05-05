@@ -21,10 +21,10 @@ type requestLog struct {
 	LogLevel     string        `json:"level"`
 	ClientIP     string        `json:"client_ip"`
 	Timestamp    string        `json:"timestamp"`
-	HttpMethod   string        `json:"method"`
-	HttpPath     string        `json:"path"`
+	HTTPMethod   string        `json:"method"`
+	HTTPPath     string        `json:"path"`
 	Protocol     string        `json:"proto"`
-	HttpStatus   int           `json:"status"`
+	HTTPStatus   int           `json:"status"`
 	Latency      time.Duration `json:"latency"`
 	UserAgent    string        `json:"user-agent"`
 	ErrorMessage error         `json:"error-message"`
@@ -65,10 +65,10 @@ func New(application application.Application) *RegistrationServer {
 					LogLevel:     "info",
 					ClientIP:     v.RemoteIP,
 					Timestamp:    time.Now().Format(time.RFC3339),
-					HttpMethod:   v.Method,
-					HttpPath:     v.URI,
+					HTTPMethod:   v.Method,
+					HTTPPath:     v.URI,
 					Protocol:     v.Protocol,
-					HttpStatus:   v.Status,
+					HTTPStatus:   v.Status,
 					Latency:      v.Latency,
 					UserAgent:    v.UserAgent,
 					ErrorMessage: v.Error,

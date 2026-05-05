@@ -258,39 +258,37 @@ type accountVerifierReason struct {
 	Detail string `json:"detail"`
 }
 
-func callAccountVerifier(verifierURL, email string) {
+// callAccountVerifier calls the account verifier service to check the user's email domain.
+// For now this is used only for monitoring — the result is logged but not acted upon.
+func callAccountVerifier(verifierURL, email string) error {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
-		log.Error(nil, err, "failed to marshal account verifier request")
-		return
+		return errs.Wrap(err, "failed to marshal account verifier request")
 	}
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	resp, err := httpClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
 	if err != nil {
-		log.Error(nil, err, fmt.Sprintf("failed to call account verifier for email %s", email))
-		return
+		return errs.Wrapf(err, "failed to call account verifier for email %s", email)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(nil, err, fmt.Sprintf("failed to read account verifier response for email %s", email))
-		return
+		return errs.Wrapf(err, "failed to read account verifier response for email %s", email)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Info(nil, fmt.Sprintf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody)))
-		return
+		return fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
 	}
 
 	var verifierResp accountVerifierResponse
 	if err := json.Unmarshal(respBody, &verifierResp); err != nil {
-		log.Error(nil, err, fmt.Sprintf("failed to unmarshal account verifier response for email %s", email))
-		return
+		return errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
 	}
 
 	log.Info(nil, fmt.Sprintf("account verifier result for %s: %s", email, verifierResp.Result))
+	return nil
 }
 
 func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
@@ -303,7 +301,9 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
 	if email == "" {
 		return
 	}
-	callAccountVerifier(verifierURL, email)
+	if err := callAccountVerifier(verifierURL, email); err != nil {
+		log.Error(nil, err, "account verifier call failed")
+	}
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username

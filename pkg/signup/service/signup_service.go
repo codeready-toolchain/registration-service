@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	gocontext "context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -61,13 +60,6 @@ func NewSignupService(client namespaced.Client) *ServiceImpl {
 	}
 }
 
-func requestContext(ctx echo.Context) gocontext.Context {
-	if ctx != nil && ctx.Request() != nil {
-		return ctx.Request().Context()
-	}
-	return gocontext.TODO()
-}
-
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
 func (s *ServiceImpl) newUserSignup(ctx echo.Context) (*toolchainv1alpha1.UserSignup, error) {
@@ -91,7 +83,7 @@ func (s *ServiceImpl) newUserSignup(ctx echo.Context) (*toolchainv1alpha1.UserSi
 
 	// Query BannedUsers to check the user has not been banned
 	bannedUsers := &toolchainv1alpha1.BannedUserList{}
-	if err := s.List(requestContext(ctx), bannedUsers, client.InNamespace(s.Namespace),
+	if err := s.List(context.RequestContext(ctx), bannedUsers, client.InNamespace(s.Namespace),
 		client.MatchingLabels{toolchainv1alpha1.BannedUserEmailHashLabelKey: hash.EncodeString(userEmail)}); err != nil {
 		return nil, err
 	}
@@ -269,7 +261,7 @@ var accountVerifierHTTPClient = &http.Client{Timeout: 3 * time.Second}
 
 // callAccountVerifier calls the account verifier service to check the user's email domain.
 // For now this is used only for monitoring — the result is logged but not acted upon.
-func callAccountVerifier(ctx *gin.Context, verifierURL, email string) error {
+func callAccountVerifier(ctx echo.Context, verifierURL, email string) error {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
 		return errs.Wrap(err, "failed to marshal account verifier request")
@@ -300,13 +292,13 @@ func callAccountVerifier(ctx *gin.Context, verifierURL, email string) error {
 	return nil
 }
 
-func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
+func (s *ServiceImpl) verifyAccount(ctx echo.Context) {
 	cfg := configuration.GetRegistrationServiceConfig()
 	verifierURL := cfg.AccountVerifierURL()
 	if verifierURL == "" {
 		return
 	}
-	email := ctx.GetString(context.EmailKey)
+	email := context.GetString(ctx, context.EmailKey)
 	if email == "" {
 		return
 	}
@@ -323,7 +315,7 @@ func (s *ServiceImpl) Signup(ctx echo.Context) (*toolchainv1alpha1.UserSignup, e
 
 	// Retrieve UserSignup resource from the host cluster
 	userSignup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(requestContext(ctx), s.NamespacedName(encodedUsername), userSignup); err != nil {
+	if err := s.Get(context.RequestContext(ctx), s.NamespacedName(encodedUsername), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
@@ -352,7 +344,7 @@ func (s *ServiceImpl) createUserSignup(ctx echo.Context) (*toolchainv1alpha1.Use
 		return nil, err
 	}
 
-	return userSignup, s.Create(requestContext(ctx), userSignup)
+	return userSignup, s.Create(context.RequestContext(ctx), userSignup)
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username
@@ -378,7 +370,7 @@ func (s *ServiceImpl) reactivateUserSignup(ctx echo.Context, existing *toolchain
 	existing.Labels = newUserSignup.Labels
 	existing.Spec = newUserSignup.Spec
 
-	return existing, s.Update(requestContext(ctx), existing)
+	return existing, s.Update(context.RequestContext(ctx), existing)
 }
 
 // GetSignup returns Signup resource which represents the corresponding K8s UserSignup
@@ -396,7 +388,7 @@ func (s *ServiceImpl) DoGetSignup(ctx echo.Context, cl namespaced.Client, userna
 	err := signup.PollUpdateSignup(ctx, func() error {
 		// Retrieve UserSignup resource from the host cluster
 		us := &toolchainv1alpha1.UserSignup{}
-		if err := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), us); err != nil {
+		if err := cl.Get(context.RequestContext(ctx), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), us); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
@@ -414,7 +406,7 @@ func (s *ServiceImpl) DoGetSignup(ctx echo.Context, cl namespaced.Client, userna
 		// If there is no need to update the UserSignup then break out of the loop here (by returning nil)
 		// otherwise update the UserSignup
 		if updated {
-			if err := s.Update(gocontext.TODO(), userSignup); err != nil {
+			if err := s.Update(context.RequestContext(ctx), userSignup); err != nil {
 				return err
 			}
 		}
@@ -488,7 +480,7 @@ func (s *ServiceImpl) DoGetSignup(ctx echo.Context, cl namespaced.Client, userna
 	// If UserSignup status is complete as active
 	// Retrieve MasterUserRecord resource from the host cluster and use its status
 	mur := &toolchainv1alpha1.MasterUserRecord{}
-	if err := cl.Get(requestContext(ctx), cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
+	if err := cl.Get(context.RequestContext(ctx), cl.NamespacedName(userSignup.Status.CompliantUsername), mur); err != nil {
 		return nil, errs.Wrap(err, fmt.Sprintf("error when retrieving MasterUserRecord for completed UserSignup %s", userSignup.GetName()))
 	}
 	murCondition, _ := condition.FindConditionByType(mur.Status.Conditions, toolchainv1alpha1.ConditionReady)
@@ -507,12 +499,12 @@ func (s *ServiceImpl) DoGetSignup(ctx echo.Context, cl namespaced.Client, userna
 		signupResponse.StartDate = mur.Status.ProvisionedTime.UTC().Format(time.RFC3339)
 	}
 
-	memberCluster, defaultNamespace := GetDefaultUserTarget(cl, userSignup.Status.HomeSpace, mur.Name)
+	memberCluster, defaultNamespace := GetDefaultUserTarget(ctx, cl, userSignup.Status.HomeSpace, mur.Name)
 	if memberCluster != "" {
 		// Retrieve cluster-specific URLs from the status of the corresponding member cluster
 		status := &toolchainv1alpha1.ToolchainStatus{}
 
-		if err := cl.Get(requestContext(ctx), cl.NamespacedName("toolchain-status"), status); err != nil {
+		if err := cl.Get(context.RequestContext(ctx), cl.NamespacedName("toolchain-status"), status); err != nil {
 			return nil, errs.Wrapf(err, "error when retrieving ToolchainStatus for completed UserSignup %s", userSignup.GetName())
 		}
 		signupResponse.ProxyURL = status.Status.HostRoutes.ProxyURL
@@ -596,10 +588,11 @@ func (s *ServiceImpl) auditUserSignupAgainstClaims(ctx echo.Context, userSignup 
 //  2. the name of the default namespace
 //
 // If the user doesn't have access to any Space, then empty strings are returned
-func GetDefaultUserTarget(cl namespaced.Client, spaceName, murName string) (string, string) {
+func GetDefaultUserTarget(ctx echo.Context, cl namespaced.Client, spaceName, murName string) (string, string) {
+	reqCtx := context.RequestContext(ctx)
 	if spaceName == "" {
 		sbs := &toolchainv1alpha1.SpaceBindingList{}
-		if err := cl.List(gocontext.TODO(), sbs, client.InNamespace(cl.Namespace),
+		if err := cl.List(reqCtx, sbs, client.InNamespace(cl.Namespace),
 			client.MatchingLabels{toolchainv1alpha1.SpaceBindingMasterUserRecordLabelKey: murName}); err != nil {
 			log.Errorf(nil, err, "unable to list spacebindings for MUR %s", murName)
 			return "", ""
@@ -616,7 +609,7 @@ func GetDefaultUserTarget(cl namespaced.Client, spaceName, murName string) (stri
 
 	}
 	space := &toolchainv1alpha1.Space{}
-	if err := cl.Get(gocontext.TODO(), cl.NamespacedName(spaceName), space); err != nil {
+	if err := cl.Get(reqCtx, cl.NamespacedName(spaceName), space); err != nil {
 		// log error and continue so that the api behaves in a best effort manner
 		// ie. if a space isn't listed something went wrong but we still want to return the other spaces if possible
 		log.Errorf(nil, err, "unable to get space '%s'", spaceName)

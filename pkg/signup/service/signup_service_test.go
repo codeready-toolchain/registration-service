@@ -1059,7 +1059,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
@@ -1084,7 +1084,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
@@ -1109,7 +1109,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "userB", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
@@ -1126,7 +1126,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
@@ -1140,7 +1140,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)

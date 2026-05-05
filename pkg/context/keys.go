@@ -1,6 +1,20 @@
 package context
 
-import "github.com/labstack/echo/v4"
+import (
+	gocontext "context"
+
+	"github.com/labstack/echo/v4"
+)
+
+// RequestContext extracts the standard context.Context from an Echo request
+// for use with Kubernetes client calls. Falls back to context.TODO() when the
+// Echo context or its underlying request is nil (e.g. in tests).
+func RequestContext(ctx echo.Context) gocontext.Context {
+	if ctx != nil && ctx.Request() != nil {
+		return ctx.Request().Context()
+	}
+	return gocontext.TODO()
+}
 
 // GetString returns the string value associated with the given key in the echo context.
 // Returns empty string if the key doesn't exist or the value is not a string.

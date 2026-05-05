@@ -904,7 +904,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+987654321")
 
 		// then
 		require.NoError(s.T(), err)
@@ -924,7 +924,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+987654321")
 
 			// then
 			require.NoError(s.T(), err)
@@ -937,7 +937,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 		// then
 		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -949,7 +949,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 		// then
 		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -968,7 +968,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 			// then
 			require.EqualError(s.T(), err, "list error: failed listing banned users")
@@ -986,7 +986,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 			// then
 			require.EqualError(s.T(), err, "list error: failed listing userSignups")

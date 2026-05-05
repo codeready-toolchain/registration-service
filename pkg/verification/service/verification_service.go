@@ -1,7 +1,6 @@
 package service
 
 import (
-	gocontext "context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -65,7 +64,7 @@ func NewVerificationService(client namespaced.Client) service.VerificationServic
 // to manage the phone verification process and protect against system abuse.
 func (s *ServiceImpl) InitVerification(ctx echo.Context, username, e164PhoneNumber, countryCode string) error {
 	signup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+	if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			return crterrors.NewNotFoundError(err, "usersignup not found")
@@ -84,7 +83,7 @@ func (s *ServiceImpl) InitVerification(ctx echo.Context, username, e164PhoneNumb
 	}
 
 	// Check if the provided phone number is already being used by another user
-	err := PhoneNumberAlreadyInUse(s.Client, username, e164PhoneNumber)
+	err := PhoneNumberAlreadyInUse(ctx, s.Client, username, e164PhoneNumber)
 	if err != nil {
 		e := &crterrors.Error{}
 		switch {
@@ -169,7 +168,7 @@ func (s *ServiceImpl) InitVerification(ctx echo.Context, username, e164PhoneNumb
 	// Single update operation: always set phone hash label, set annotations only if notification was sent
 	doUpdate := func() error {
 		signup := &toolchainv1alpha1.UserSignup{}
-		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+		if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			return err
 		}
 
@@ -189,7 +188,7 @@ func (s *ServiceImpl) InitVerification(ctx echo.Context, username, e164PhoneNumb
 			signup.Annotations[k] = v
 		}
 
-		return s.Update(gocontext.TODO(), signup)
+		return s.Update(context.RequestContext(ctx), signup)
 	}
 
 	updateErr := signuppkg.PollUpdateSignup(ctx, doUpdate)
@@ -224,7 +223,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx echo.Context, username, code string) (
 	cfg := configuration.GetRegistrationServiceConfig()
 	// If we can't even find the UserSignup, then die here
 	signup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+	if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Error(ctx, err, "usersignup not found")
 			return crterrors.NewNotFoundError(err, "user not found")
@@ -260,7 +259,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx echo.Context, username, code string) (
 	annotationsToDelete := []string{}
 	unsetVerificationRequired := false
 
-	err := PhoneNumberAlreadyInUse(s.Client, username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+	err := PhoneNumberAlreadyInUse(ctx, s.Client, username, signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
 	if err != nil {
 		log.Error(ctx, err, "phone number to verify already in use")
 		return crterrors.NewBadRequest("phone number already in use",
@@ -321,7 +320,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx echo.Context, username, code string) (
 
 	doUpdate := func() error {
 		signup := &toolchainv1alpha1.UserSignup{}
-		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+		if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			log.Error(ctx, err, fmt.Sprintf("error getting signup with username '%s'", username))
 			return err
 		}
@@ -342,7 +341,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx echo.Context, username, code string) (
 			delete(signup.Annotations, annotationName)
 		}
 
-		if err := s.Update(gocontext.TODO(), signup); err != nil {
+		if err := s.Update(context.RequestContext(ctx), signup); err != nil {
 			log.Error(ctx, err, fmt.Sprintf("error updating usersignup: %s", signup.Name))
 			return err
 		}
@@ -387,7 +386,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx echo.Context, username, code stri
 	log.Infof(ctx, "verifying activation code '%s'", code)
 	// look-up the UserSignup
 	signup := &toolchainv1alpha1.UserSignup{}
-	if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+	if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 		if apierrors.IsNotFound(err) {
 			// signup user
 			ctx.Set(context.SocialEvent, code)
@@ -404,7 +403,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx echo.Context, username, code stri
 	var errToReturn error
 	doUpdate := func() error {
 		signup := &toolchainv1alpha1.UserSignup{}
-		if err := s.Get(gocontext.TODO(), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
+		if err := s.Get(context.RequestContext(ctx), s.NamespacedName(signupcommon.EncodeUserIdentifier(username)), signup); err != nil {
 			return err
 		}
 		if signup.Annotations == nil {
@@ -421,7 +420,7 @@ func (s *ServiceImpl) VerifyActivationCode(ctx echo.Context, username, code stri
 			delete(signup.Annotations, toolchainv1alpha1.UserVerificationAttemptsAnnotationKey)
 		}
 
-		if err := s.Update(gocontext.TODO(), signup); err != nil {
+		if err := s.Update(context.RequestContext(ctx), signup); err != nil {
 			return err
 		}
 
@@ -445,14 +444,15 @@ var (
 // an internal server error. If not, check if an approved UserSignup with a different username
 // and email address exists. If so, return an internal server error. Otherwise, return without error.
 // Either the actual phone number, or the md5 hash of the phone number may be provided here.
-func PhoneNumberAlreadyInUse(cl namespaced.Client, username, phoneNumberOrHash string) error {
+func PhoneNumberAlreadyInUse(ctx echo.Context, cl namespaced.Client, username, phoneNumberOrHash string) error {
 	labelValue := hash.EncodeString(phoneNumberOrHash)
 	if md5Matcher.Match([]byte(phoneNumberOrHash)) {
 		labelValue = phoneNumberOrHash
 	}
 
+	reqCtx := context.RequestContext(ctx)
 	bannedUserList := &toolchainv1alpha1.BannedUserList{}
-	if err := cl.List(gocontext.TODO(), bannedUserList, client.InNamespace(cl.Namespace),
+	if err := cl.List(reqCtx, bannedUserList, client.InNamespace(cl.Namespace),
 		client.MatchingLabels{toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue}); err != nil {
 		return crterrors.NewInternalError(err, "failed listing banned users")
 	}
@@ -466,7 +466,7 @@ func PhoneNumberAlreadyInUse(cl namespaced.Client, username, phoneNumberOrHash s
 		toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
 	}
 	userSignups := &toolchainv1alpha1.UserSignupList{}
-	if err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(cl.Namespace), labelSelector); err != nil {
+	if err := cl.List(reqCtx, userSignups, client.InNamespace(cl.Namespace), labelSelector); err != nil {
 		return crterrors.NewInternalError(err, "failed listing userSignups")
 	}
 

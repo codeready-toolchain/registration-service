@@ -532,11 +532,7 @@ func getWorkspaceContext(req *http.Request) (string, string, error) {
 }
 
 func customHTTPErrorHandler(cause error, ctx echo.Context) {
-	code := http.StatusInternalServerError
-	ce := &crterrors.Error{}
-	if errors.As(cause, &ce) {
-		code = ce.Code
-	}
+	code := crterrors.StatusCode(cause)
 	ctx.Logger().Error(cause)
 	if err := ctx.String(code, cause.Error()); err != nil {
 		ctx.Logger().Error(err)

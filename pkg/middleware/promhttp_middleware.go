@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"net/http"
 	"strconv"
 	"time"
+
+	crterrors "github.com/codeready-toolchain/registration-service/pkg/errors"
 
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,7 +28,7 @@ func InstrumentRoundTripperCounter(counter *prometheus.CounterVec) echo.Middlewa
 		return func(c echo.Context) error {
 			err := next(c)
 			counter.With(prometheus.Labels{
-				"code":   strconv.Itoa(c.Response().Status),
+				"code":   strconv.Itoa(responseStatus(c, err)),
 				"method": c.Request().Method,
 				"path":   c.Request().URL.Path,
 			}).Inc()
@@ -41,11 +44,26 @@ func InstrumentRoundTripperDuration(histVec *prometheus.HistogramVec) echo.Middl
 			err := next(c)
 			duration := time.Since(start)
 			histVec.With(prometheus.Labels{
-				"code":   strconv.Itoa(c.Response().Status),
+				"code":   strconv.Itoa(responseStatus(c, err)),
 				"method": c.Request().Method,
 				"path":   c.Request().URL.Path,
 			}).Observe(float64(duration.Seconds()))
 			return err
 		}
 	}
+}
+
+// responseStatus returns the HTTP status code to use for metrics.
+// When the handler returned an error, the status is extracted from the error
+// because Echo's centralized error handler hasn't written the response yet at
+// this point in the middleware chain, so c.Response().Status may still be 0.
+func responseStatus(c echo.Context, err error) int {
+	if err != nil {
+		return crterrors.StatusCode(err)
+	}
+	status := c.Response().Status
+	if status == 0 {
+		return http.StatusOK
+	}
+	return status
 }

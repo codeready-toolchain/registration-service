@@ -87,4 +87,19 @@ func (s *TestErrorsSuite) TestErrors() {
 		require.Equal(s.T(), http.StatusBadRequest, err.Code)
 		require.Equal(s.T(), http.StatusText(http.StatusBadRequest), err.Status)
 	})
+
+	s.Run("StatusCode", func() {
+		s.Run("from crterrors.Error", func() {
+			require.Equal(s.T(), http.StatusForbidden, errs.StatusCode(errs.NewForbiddenError("a", "b")))
+			require.Equal(s.T(), http.StatusNotFound, errs.StatusCode(errs.NewNotFoundError(errors.New("x"), "y")))
+		})
+
+		s.Run("from echo.HTTPError", func() {
+			require.Equal(s.T(), http.StatusBadGateway, errs.StatusCode(echo.NewHTTPError(http.StatusBadGateway, "bad gateway")))
+		})
+
+		s.Run("from unknown error", func() {
+			require.Equal(s.T(), http.StatusInternalServerError, errs.StatusCode(errors.New("something went wrong")))
+		})
+	})
 }

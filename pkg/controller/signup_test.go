@@ -662,6 +662,19 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 	s.Run("verification failed", func() {
 
+		s.Run("empty code", func() {
+			// given
+			_, application := testutil.PrepareInClusterApp(s.T())
+			ctrl := controller.NewSignup(application)
+			handler := ctrl.VerifyActivationCodeHandler
+
+			// when
+			rr := initActivationCodeVerification(s.T(), handler, "Jane", "")
+
+			// then
+			require.Equal(s.T(), http.StatusBadRequest, rr.Code)
+		})
+
 		s.Run("too many attempts", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(

@@ -155,7 +155,7 @@ func (s *Signup) VerifyActivationCodeHandler(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 	code, ok := body["code"].(string)
-	if !ok {
+	if !ok || code == "" {
 		log.Error(ctx, nil, "no activation code provided in the request")
 		return ctx.NoContent(http.StatusBadRequest)
 	}

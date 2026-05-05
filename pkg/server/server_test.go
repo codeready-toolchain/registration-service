@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -65,7 +66,9 @@ func (s *TestServerSuite) TestServer() {
 	s.Run("CORS", func() {
 		go func(t *testing.T) {
 			err := srv.HTTPServer().ListenAndServe()
-			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
+			}
 		}(s.T())
 
 		err := wait.PollUntilContextTimeout(context.TODO(), DefaultRetryInterval, DefaultTimeout, false, func(context.Context) (done bool, err error) {
@@ -121,7 +124,9 @@ func startFakeProxy(t *testing.T) *http.Server {
 	srv := &http.Server{Addr: ":" + altProxyPort, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() {
 		err := srv.ListenAndServe()
-		assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			assert.NoError(t, err) // require must only be used in the goroutine running the test function (testifylint)
+		}
 	}()
 	return srv
 }

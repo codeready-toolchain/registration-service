@@ -30,7 +30,7 @@ func InstrumentRoundTripperCounter(counter *prometheus.CounterVec) echo.Middlewa
 			counter.With(prometheus.Labels{
 				"code":   strconv.Itoa(responseStatus(c, err)),
 				"method": c.Request().Method,
-				"path":   c.Request().URL.Path,
+				"path":   c.Path(),
 			}).Inc()
 			return err
 		}
@@ -46,7 +46,7 @@ func InstrumentRoundTripperDuration(histVec *prometheus.HistogramVec) echo.Middl
 			histVec.With(prometheus.Labels{
 				"code":   strconv.Itoa(responseStatus(c, err)),
 				"method": c.Request().Method,
-				"path":   c.Request().URL.Path,
+				"path":   c.Path(),
 			}).Observe(float64(duration.Seconds()))
 			return err
 		}

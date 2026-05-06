@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // Analytics implements the segment endpoint, which is invoked to
@@ -18,15 +18,15 @@ func NewAnalytics() *Analytics {
 }
 
 // GetSandboxSegmentWriteKey returns segment-write-key content for UI.
-func (a *Analytics) GetSandboxSegmentWriteKey(ctx *gin.Context) {
+func (a *Analytics) GetSandboxSegmentWriteKey(ctx echo.Context) error {
 	cfg := configuration.GetRegistrationServiceConfig()
 	segmentWriteKey := cfg.Analytics().SegmentWriteKey()
-	ctx.String(http.StatusOK, segmentWriteKey)
+	return ctx.String(http.StatusOK, segmentWriteKey)
 }
 
 // GetDevSpacesSegmentWriteKey returns segment-write-key content for DevSpaces
-func (a *Analytics) GetDevSpacesSegmentWriteKey(ctx *gin.Context) {
+func (a *Analytics) GetDevSpacesSegmentWriteKey(ctx echo.Context) error {
 	cfg := configuration.GetRegistrationServiceConfig()
 	segmentWriteKey := cfg.Analytics().DevSpacesSegmentWriteKey()
-	ctx.String(http.StatusOK, segmentWriteKey)
+	return ctx.String(http.StatusOK, segmentWriteKey)
 }

@@ -3,7 +3,7 @@ package fake
 import (
 	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // This whole service abstraction is such a huge pain. We have to get rid of it!!!
@@ -41,11 +41,11 @@ func (m *SignupService) DefaultMockGetSignup() func(username string) (*signup.Si
 	}
 }
 
-func (m *SignupService) GetSignup(_ *gin.Context, username string, _ bool) (*signup.Signup, error) {
+func (m *SignupService) GetSignup(_ echo.Context, username string, _ bool) (*signup.Signup, error) {
 	return m.MockGetSignup(username)
 }
 
-func (m *SignupService) Signup(_ *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
+func (m *SignupService) Signup(_ echo.Context) (*toolchainv1alpha1.UserSignup, error) {
 	return nil, nil
 }
 func (m *SignupService) UpdateUserSignup(_ *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {

@@ -9,7 +9,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/log"
 	"github.com/codeready-toolchain/toolchain-common/pkg/status"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type HealthCheckConfig interface {
@@ -34,7 +34,7 @@ func NewHealthCheck(checker HealthChecker) *HealthCheck {
 }
 
 // getHealthInfo returns the health info.
-func (hc *HealthCheck) getHealthInfo(ctx *gin.Context) *HealthStatus {
+func (hc *HealthCheck) getHealthInfo(ctx echo.Context) *HealthStatus {
 	cfg := configuration.GetRegistrationServiceConfig()
 	return &HealthStatus{
 		Health: &status.Health{
@@ -49,19 +49,17 @@ func (hc *HealthCheck) getHealthInfo(ctx *gin.Context) *HealthStatus {
 }
 
 // GetHandler returns a default heath check result.
-func (hc *HealthCheck) GetHandler(ctx *gin.Context) {
-	// Default handler for system health
+func (hc *HealthCheck) GetHandler(ctx echo.Context) error {
 	healthInfo := hc.getHealthInfo(ctx)
 	if healthInfo.Alive {
-		ctx.JSON(http.StatusOK, healthInfo)
-	} else {
-		ctx.JSON(http.StatusServiceUnavailable, healthInfo)
+		return ctx.JSON(http.StatusOK, healthInfo)
 	}
+	return ctx.JSON(http.StatusServiceUnavailable, healthInfo)
 }
 
 type HealthChecker interface {
-	Alive(*gin.Context) bool
-	APIProxyAlive(*gin.Context) bool
+	Alive(echo.Context) bool
+	APIProxyAlive(echo.Context) bool
 }
 
 func NewHealthChecker(port string) HealthChecker {
@@ -72,12 +70,12 @@ type healthCheckerImpl struct {
 	port string
 }
 
-func (c *healthCheckerImpl) Alive(ctx *gin.Context) bool {
+func (c *healthCheckerImpl) Alive(ctx echo.Context) bool {
 	// TODO check if there are errors in configuration
 	return c.APIProxyAlive(ctx)
 }
 
-func (c *healthCheckerImpl) APIProxyAlive(ctx *gin.Context) bool {
+func (c *healthCheckerImpl) APIProxyAlive(ctx echo.Context) bool {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/proxyhealth", c.port))
 	if err != nil {
 		log.Error(ctx, err, "API Proxy health check failed")

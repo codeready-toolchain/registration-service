@@ -14,7 +14,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/labstack/echo/v4"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	sync "github.com/matryer/resync"
 	"github.com/spf13/pflag"
@@ -92,27 +91,27 @@ func newLogger(withName string) *Logger {
 }
 
 // Info logs a non-error message.
-func Info(ctx *gin.Context, msg string) {
+func Info(ctx echo.Context, msg string) {
 	logger.Info(ctx, msg)
 }
 
 // Infof logs a non-error formatted message.
-func Infof(ctx *gin.Context, msg string, args ...string) {
+func Infof(ctx echo.Context, msg string, args ...string) {
 	logger.Infof(ctx, msg, args...)
 }
 
-// InfoEchof logs a non-error formatted message for echo events.
+// InfoEchof logs a non-error formatted message with extra echo-specific fields (workspace, impersonate-user, public-viewer).
 func InfoEchof(ctx echo.Context, msg string, args ...string) {
 	logger.InfoEchof(ctx, msg, args...)
 }
 
 // Error logs the error with the given message.
-func Error(ctx *gin.Context, err error, msg string) {
+func Error(ctx echo.Context, err error, msg string) {
 	logger.Error(ctx, err, msg)
 }
 
 // Errorf logs the error with the given formatted message.
-func Errorf(ctx *gin.Context, err error, msg string, args ...string) {
+func Errorf(ctx echo.Context, err error, msg string, args ...string) {
 	logger.Errorf(ctx, err, msg, args...)
 }
 
@@ -122,18 +121,18 @@ func WithValues(keysAndValues map[string]interface{}) *Logger {
 }
 
 // Info logs a non-error message.
-func (l *Logger) Info(ctx *gin.Context, msg string) {
+func (l *Logger) Info(ctx echo.Context, msg string) {
 	ctxInfo := addContextInfo(ctx)
 	l.logr.Info(msg, ctxInfo...)
 }
 
 // Infof logs a non-error formatted message.
-func (l *Logger) Infof(ctx *gin.Context, msg string, args ...string) {
+func (l *Logger) Infof(ctx echo.Context, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	l.infof(ctxInfo, msg, args...)
 }
 
-// InfoEchof logs a non-error formatted message for echo events.
+// InfoEchof logs a non-error formatted message with extra echo-specific fields (workspace, impersonate-user, public-viewer).
 func (l *Logger) InfoEchof(ctx echo.Context, msg string, args ...string) {
 	userID, _ := ctx.Get(context.SubKey).(string)
 	username, _ := ctx.Get(context.UsernameKey).(string)
@@ -173,12 +172,12 @@ func (l *Logger) infof(ctx []interface{}, msg string, args ...string) {
 }
 
 // Error logs the error with the given message.
-func (l *Logger) Error(ctx *gin.Context, err error, msg string) {
+func (l *Logger) Error(ctx echo.Context, err error, msg string) {
 	l.Errorf(ctx, err, msg)
 }
 
 // Errorf logs the error with the given formatted message.
-func (l *Logger) Errorf(ctx *gin.Context, err error, msg string, args ...string) {
+func (l *Logger) Errorf(ctx echo.Context, err error, msg string, args ...string) {
 	ctxInfo := addContextInfo(ctx)
 	arguments := make([]interface{}, len(args))
 	for i, arg := range args {
@@ -213,13 +212,13 @@ func slice(keysAndValues map[string]interface{}) []interface{} {
 
 // addContextInfo adds fields extracted from the context to the info/error
 // log messages.
-func addContextInfo(ctx *gin.Context) []interface{} {
+func addContextInfo(ctx echo.Context) []interface{} {
 	if ctx != nil {
-		subject := ctx.GetString(context.SubKey)
-		username := ctx.GetString(context.UsernameKey)
+		subject := context.GetString(ctx, context.SubKey)
+		username := context.GetString(ctx, context.UsernameKey)
 		fields := genericContext(subject, username)
-		if ctx.Request != nil {
-			fields = append(fields, addRequestInfo(ctx.Request)...)
+		if ctx.Request() != nil {
+			fields = append(fields, addRequestInfo(ctx.Request())...)
 		}
 		return fields
 	}

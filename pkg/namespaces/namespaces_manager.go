@@ -10,7 +10,7 @@ import (
 	customCtx "github.com/codeready-toolchain/registration-service/pkg/context"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +45,7 @@ func (e ErrUserHasNoProvisionedNamespaces) Error() string {
 type Manager interface {
 	// ResetNamespaces locates the user's namespaces in their corresponding member clusters and deletes them, so that
 	// the NSTemplate controller can recreate them.
-	ResetNamespaces(ginCtx *gin.Context) error
+	ResetNamespaces(ctx echo.Context) error
 }
 
 type manager struct {
@@ -63,11 +63,11 @@ func NewNamespacesManager(getMemberClustersFunc cluster.GetMemberClustersFunc, h
 	}
 }
 
-func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
+func (mgr *manager) ResetNamespaces(ctx echo.Context) error {
 	// Grab the corresponding user signup resource to get the user's compliant
 	// username, since that is the one that is used across the Developer
 	// Sandbox resources.
-	userSignup, err := mgr.signupService.GetSignup(ginCtx, ginCtx.GetString(customCtx.UsernameKey), true)
+	userSignup, err := mgr.signupService.GetSignup(ctx, customCtx.GetString(ctx, customCtx.UsernameKey), true)
 	if err != nil {
 		return fmt.Errorf("unable to obtain the user signup: %w", err)
 	}
@@ -84,7 +84,7 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 
 	// Fetch the user's space.
 	var userSpace toolchainv1alpha1.Space
-	err = mgr.hostNamespaceClient.Get(ginCtx.Request.Context(), types.NamespacedName{Namespace: mgr.hostNamespaceClient.Namespace, Name: compliantUsername}, &userSpace)
+	err = mgr.hostNamespaceClient.Get(ctx.Request().Context(), types.NamespacedName{Namespace: mgr.hostNamespaceClient.Namespace, Name: compliantUsername}, &userSpace)
 	if err != nil {
 		return fmt.Errorf(`unable to get user's space resource: %w`, err)
 	}
@@ -107,7 +107,7 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 
 		// Obtain the user's NSTemplateSet to be able to determine which namespaces we are deleting.
 		var nsTemplateSet toolchainv1alpha1.NSTemplateSet
-		err := memberCluster.Client.Get(ginCtx.Request.Context(), types.NamespacedName{Namespace: memberCluster.OperatorNamespace, Name: compliantUsername}, &nsTemplateSet)
+		err := memberCluster.Client.Get(ctx.Request().Context(), types.NamespacedName{Namespace: memberCluster.OperatorNamespace, Name: compliantUsername}, &nsTemplateSet)
 		if err != nil {
 			return fmt.Errorf(`unable to get the "NSTemplateSet" resource for the user in cluster "%s": %w`, memberCluster.Name, err)
 		}
@@ -122,7 +122,7 @@ func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 		// failing with a "the server does not allow this method on the
 		// requested resource" error.
 		for _, namespace := range nsTemplateSet.Status.ProvisionedNamespaces {
-			err := memberCluster.Client.Delete(ginCtx.Request.Context(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}})
+			err := memberCluster.Client.Delete(ctx.Request().Context(), &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}})
 			if err != nil && !apierrors.IsNotFound(err) {
 				return fmt.Errorf(`unable to delete user namespace "%s" in cluster "%s": %w`, namespace.Name, memberCluster.Name, err)
 			}

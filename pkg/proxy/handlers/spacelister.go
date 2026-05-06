@@ -10,7 +10,6 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/signup"
 	commonproxy "github.com/codeready-toolchain/toolchain-common/pkg/proxy"
-	"github.com/gin-gonic/gin"
 
 	"github.com/labstack/echo/v4"
 	errs "github.com/pkg/errors"
@@ -28,7 +27,7 @@ const (
 
 type SpaceLister struct {
 	namespaced.Client
-	GetSignupFunc func(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
+	GetSignupFunc func(ctx echo.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error)
 	ProxyMetrics  *metrics.ProxyMetrics
 }
 
@@ -49,7 +48,6 @@ func (s *SpaceLister) GetProvisionedUserSignup(ctx echo.Context) (*signup.Signup
 		return nil, err
 	}
 	if userSignup == nil || userSignup.CompliantUsername == "" {
-		// account exists but the compliant username is not set yet, meaning it has not been fully provisioned yet, so return an empty list
 		return nil, nil
 	}
 	return userSignup, nil

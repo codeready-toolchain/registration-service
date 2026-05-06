@@ -31,7 +31,7 @@ import (
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,6 +39,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func newEchoTestContext() echo.Context {
+	e := echo.New()
+	return e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
+}
 
 const (
 	testSecretName = "host-operator-secret"
@@ -133,7 +138,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, userSignup2)
 
 	// Test the init verification for the first UserSignup
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, "johnny@kubesaw", "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
@@ -168,7 +173,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 	}
 	gock.Observe(obs)
 
-	ctx, _ = gin.CreateTestContext(httptest.NewRecorder())
+	ctx = newEchoTestContext()
 	// for the second usersignup
 	err = application.VerificationService().InitVerification(ctx, "jsmith@kubesaw", "+61NUMBER", "1")
 	require.NoError(s.T(), err)
@@ -243,7 +248,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 			return fakeClient.Client.Get(ctx, key, obj, opts...)
 		}
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "get failed: error retrieving usersignup with username 'johnny@kubesaw'", err.Error())
 	})
@@ -257,7 +262,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 			return fakeClient.Client.Update(ctx, obj, opts...)
 		}
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
 			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
@@ -277,7 +282,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 			return fakeClient.Client.Update(ctx, obj, opts...)
 		}
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.NoError(s.T(), err)
 
@@ -318,7 +323,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 
 		// when:
 		// InitVerification is called and notification sending fails
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().InitVerification(ctx, userSignupWithoutPhoneHash.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 
 		// then
@@ -368,7 +373,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPassesWhenMaxCountRea
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.NoError(s.T(), err)
 
@@ -409,7 +414,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenCountContain
 
 	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code")
 }
@@ -435,7 +440,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsDailyCounterExce
 
 	_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 	require.EqualError(s.T(), err, "daily limit exceeded: cannot generate new verification code", err.Error())
 	require.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
@@ -467,7 +472,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationFailsWhenPhoneNumberI
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), alphaUserSignup, bravoUserSignup)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "phone number already in use: cannot register using phone number: +19875551122", err.Error())
@@ -507,7 +512,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationOKWhenPhoneNumberInUs
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), alphaUserSignup, bravoUserSignup)
 
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 	err := application.VerificationService().InitVerification(ctx, bravoUserSignup.Spec.IdentityClaims.PreferredUsername, e164PhoneNumber, "1")
 	require.NoError(s.T(), err)
 
@@ -537,7 +542,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.NoError(s.T(), err)
 
@@ -561,7 +566,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, "employee085@kubesaw", "654321")
 		require.NoError(s.T(), err)
 
@@ -584,7 +589,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.Error(s.T(), err)
 		e := &crterrors.Error{}
@@ -605,7 +610,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		e := &crterrors.Error{}
 		require.ErrorAs(s.T(), err, &e)
@@ -625,7 +630,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 	})
@@ -642,7 +647,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "too many verification attempts", err.Error())
 
@@ -665,7 +670,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		ctx := newEchoTestContext()
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 		require.EqualError(s.T(), err, "parsing time \"ABC\" as \"2006-01-02T15:04:05.000Z07:00\": cannot parse \"ABC\" as \"2006\": error parsing expiry timestamp", err.Error())
 	})
@@ -764,7 +769,7 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 
 				fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-				ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+				ctx := newEchoTestContext()
 				err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
 
 				// then
@@ -790,7 +795,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 	// given
 
 	cfg := configuration.GetRegistrationServiceConfig()
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ctx := newEchoTestContext()
 
 	s.Run("verification ok", func() {
 		// given
@@ -899,7 +904,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+987654321")
 
 		// then
 		require.NoError(s.T(), err)
@@ -919,7 +924,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+987654321")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+987654321")
 
 			// then
 			require.NoError(s.T(), err)
@@ -932,7 +937,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 		// then
 		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -944,7 +949,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 		// when
-		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+		err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 		// then
 		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
@@ -963,7 +968,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 			// then
 			require.EqualError(s.T(), err, "list error: failed listing banned users")
@@ -981,7 +986,7 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 			nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 			// when
-			err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+			err := verificationservice.PhoneNumberAlreadyInUse(nil, nsdClient, "jsmith", "+12268213044")
 
 			// then
 			require.EqualError(s.T(), err, "list error: failed listing userSignups")

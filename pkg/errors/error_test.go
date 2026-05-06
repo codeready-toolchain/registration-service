@@ -10,7 +10,7 @@ import (
 	errs "github.com/codeready-toolchain/registration-service/pkg/errors"
 	"github.com/codeready-toolchain/registration-service/test"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
@@ -25,18 +25,21 @@ func TestRunErrorsSuite(t *testing.T) {
 }
 
 func (s *TestErrorsSuite) TestErrors() {
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 
 	s.Run("check json error payload", func() {
 		details := "testing payload"
 		errMsg := "testing new error"
 		code := http.StatusInternalServerError
 
-		errs.AbortWithError(ctx, code, errors.New(errMsg), details)
+		err := errs.AbortWithError(ctx, code, errors.New(errMsg), details)
+		require.NoError(s.T(), err)
 
 		res := errs.Error{}
-		err := json.Unmarshal(rr.Body.Bytes(), &res)
+		err = json.Unmarshal(rr.Body.Bytes(), &res)
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), res.Code, http.StatusInternalServerError)
@@ -83,5 +86,20 @@ func (s *TestErrorsSuite) TestErrors() {
 		require.Equal(s.T(), "bar", err.Details)
 		require.Equal(s.T(), http.StatusBadRequest, err.Code)
 		require.Equal(s.T(), http.StatusText(http.StatusBadRequest), err.Status)
+	})
+
+	s.Run("StatusCode", func() {
+		s.Run("from crterrors.Error", func() {
+			require.Equal(s.T(), http.StatusForbidden, errs.StatusCode(errs.NewForbiddenError("a", "b")))
+			require.Equal(s.T(), http.StatusNotFound, errs.StatusCode(errs.NewNotFoundError(errors.New("x"), "y")))
+		})
+
+		s.Run("from echo.HTTPError", func() {
+			require.Equal(s.T(), http.StatusBadGateway, errs.StatusCode(echo.NewHTTPError(http.StatusBadGateway, "bad gateway")))
+		})
+
+		s.Run("from unknown error", func() {
+			require.Equal(s.T(), http.StatusInternalServerError, errs.StatusCode(errors.New("something went wrong")))
+		})
 	})
 }

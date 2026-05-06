@@ -11,7 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -41,16 +41,15 @@ func (s *TestUIConfigSuite) TestUIConfigHandler() {
 
 	// Create handler instance.
 	uiConfigCtrl := NewUIConfig()
-	handler := gin.HandlerFunc(uiConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
-		handler(ctx)
+		err = uiConfigCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
@@ -87,13 +86,12 @@ func (s *TestUIConfigSuite) TestUIConfigHandlerWithDisabledIntegrations() {
 	defer s.DefaultConfig()
 
 	uiConfigCtrl := NewUIConfig()
-	handler := gin.HandlerFunc(uiConfigCtrl.GetHandler)
 
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	ctx.Request = req
+	ctx := echo.New().NewContext(req, rr)
 
-	handler(ctx)
+	err = uiConfigCtrl.GetHandler(ctx)
+	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), http.StatusOK, rr.Code)
 

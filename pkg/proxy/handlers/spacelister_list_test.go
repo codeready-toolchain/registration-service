@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
-	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -122,7 +121,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 				expectedErr        string
 				expectedErrCode    int
 				expectedWorkspace  string
-				overrideSignupFunc func(ctx *gin.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
+				overrideSignupFunc func(ctx echo.Context, username string, checkUserSignupComplete bool) (*signup.Signup, error)
 				mockFakeClient     func(fakeClient *test.FakeClient)
 			}{
 				"dancelover lists spaces": {
@@ -181,7 +180,7 @@ func TestHandleSpaceListRequest(t *testing.T) {
 					expectedWs:      nil,
 					expectedErr:     "signup error",
 					expectedErrCode: 500,
-					overrideSignupFunc: func(_ *gin.Context, _ string, _ bool) (*signup.Signup, error) {
+					overrideSignupFunc: func(_ echo.Context, _ string, _ bool) (*signup.Signup, error) {
 						return nil, fmt.Errorf("signup error")
 					},
 				},

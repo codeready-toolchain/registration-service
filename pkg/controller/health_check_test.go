@@ -14,7 +14,7 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 	"gopkg.in/h2non/gock.v1"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -39,14 +39,12 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 	// Create health check instance.
 	healthCheckCtrl := controller.NewHealthCheck(controller.NewHealthChecker(proxy.DefaultPort))
-	handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 	s.Run("health in testing mode", func() {
 		// given
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Setting unit-tests environment
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
@@ -61,7 +59,8 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 			BodyString("")
 
 		// when
-		handler(ctx)
+		err := healthCheckCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		// Check the status code is what we expect.
@@ -69,7 +68,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assertHealth(s.T(), true, true, "unit-tests", data)
@@ -79,8 +78,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// given
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Setting production mode
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
@@ -98,7 +96,8 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// when
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler(ctx)
+		err := healthCheckCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		// Check the status code is what we expect.
@@ -106,7 +105,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assertHealth(s.T(), true, true, "prod", data)
@@ -121,12 +120,10 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 			alive:      false,
 			proxyAlive: true,
 		})
-		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// mock proxy
 		defer gock.Off()
@@ -136,14 +133,15 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 			Reply(http.StatusOK).
 			BodyString("")
 
-		handler(ctx)
+		err := healthCheckCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assertHealth(s.T(), false, true, "testServiceUnavailable", data)
@@ -153,8 +151,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// given
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Setting production mode
 		s.OverrideApplicationDefault(testconfig.RegistrationService().
@@ -164,7 +161,8 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 		// when
 		// Our handlers satisfy http.Handler, so we can call their ServeHTTP method
 		// directly and pass in our Request and ResponseRecorder.
-		handler(ctx)
+		err := healthCheckCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		// Check the status code is what we expect.
@@ -172,7 +170,7 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assertHealth(s.T(), false, false, "prod", data)
@@ -184,21 +182,20 @@ func (s *TestHealthCheckSuite) TestHealthCheckHandler() {
 			Environment("testServiceUnavailable"))
 
 		healthCheckCtrl := controller.NewHealthCheck(&mockHealthChecker{})
-		handler := gin.HandlerFunc(healthCheckCtrl.GetHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
-		handler(ctx)
+		err := healthCheckCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusServiceUnavailable, rr.Code, "handler returned wrong status code")
 
 		// Check the response body is what we expect.
 		data := &controller.HealthStatus{}
-		err := json.Unmarshal(rr.Body.Bytes(), &data)
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
 		assertHealth(s.T(), false, false, "testServiceUnavailable", data)
@@ -219,10 +216,10 @@ type mockHealthChecker struct {
 	proxyAlive bool
 }
 
-func (c *mockHealthChecker) Alive(_ *gin.Context) bool {
+func (c *mockHealthChecker) Alive(_ echo.Context) bool {
 	return c.alive
 }
 
-func (c *mockHealthChecker) APIProxyAlive(_ *gin.Context) bool {
+func (c *mockHealthChecker) APIProxyAlive(_ echo.Context) bool {
 	return c.proxyAlive
 }

@@ -1,10 +1,11 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type Error struct {
@@ -15,8 +16,8 @@ type Error struct {
 }
 
 // AbortWithError stops the chain, writes the status code and the given error
-func AbortWithError(ctx *gin.Context, code int, err error, details string) {
-	ctx.AbortWithStatusJSON(code, &Error{
+func AbortWithError(ctx echo.Context, code int, err error, details string) error {
+	return ctx.JSON(code, &Error{
 		Status:  http.StatusText(code),
 		Code:    code,
 		Message: err.Error(),
@@ -83,4 +84,18 @@ func NewBadRequest(message, details string) *Error {
 		Message: message,
 		Details: details,
 	}
+}
+
+// StatusCode extracts the HTTP status code from an error.
+// It handles *Error and *echo.HTTPError, defaulting to http.StatusInternalServerError.
+func StatusCode(err error) int {
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Code
+	}
+	var httpErr *echo.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code
+	}
+	return http.StatusInternalServerError
 }

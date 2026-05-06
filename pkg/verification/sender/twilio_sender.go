@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/gin-gonic/gin"
 	"github.com/kevinburke/twilio-go"
+	"github.com/labstack/echo/v4"
 )
 
 type TwilioConfig interface {
@@ -44,7 +44,7 @@ func NewTwilioSender(cfg TwilioConfig, httpClient *http.Client) NotificationSend
 	return sender
 }
 
-func (s *TwilioNotificationSender) SendNotification(ctx *gin.Context, content, phoneNumber, countryCode string) error {
+func (s *TwilioNotificationSender) SendNotification(ctx echo.Context, content, phoneNumber, countryCode string) error {
 	client := twilio.NewClient(s.Config.TwilioAccountSID(), s.Config.TwilioAuthToken(), s.HTTPClient)
 	from, ok := s.SenderIDs[countryCode]
 	if !ok {

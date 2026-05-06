@@ -36,14 +36,31 @@ import (
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
 	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
-	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func newEchoTestContext() echo.Context {
+	e := echo.New()
+	return e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), httptest.NewRecorder())
+}
+
+func echoCtxNilRequest() echo.Context {
+	e := echo.New()
+	return e.NewContext(nil, httptest.NewRecorder())
+}
+
+func echoCtxWithRecaptchaTokens(tokens ...string) echo.Context {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header["Recaptcha-Token"] = tokens
+	return e.NewContext(req, httptest.NewRecorder())
+}
 
 type TestSignupServiceSuite struct {
 	test.UnitTestSuite
@@ -98,8 +115,10 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		return val
 	}
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith@kubesaw")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -185,15 +204,14 @@ func (s *TestSignupServiceSuite) TestSignup() {
 	})
 
 	s.Run("with social event code", func() {
-		withCodeCtx := ctx.Copy()
-		withCodeCtx.Set(context.SocialEvent, "event1")
+		ctx.Set(context.SocialEvent, "event1")
 		event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event1", testsocialevent.WithTargetCluster("event-member"))
 		s.Run("set target cluster", func() {
 			// when
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), event)
 
 			// when
-			returnedSignup, err := application.SignupService().Signup(withCodeCtx)
+			returnedSignup, err := application.SignupService().Signup(ctx)
 
 			// then
 			require.NoError(s.T(), err)
@@ -211,7 +229,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS, event)
 
 			// when
-			reactivatedSignup, err := application.SignupService().Signup(withCodeCtx)
+			reactivatedSignup, err := application.SignupService().Signup(ctx)
 
 			// then
 			require.NoError(s.T(), err)
@@ -227,7 +245,7 @@ func (s *TestSignupServiceSuite) TestSignup() {
 			fakeClient, application := testutil.PrepareInClusterApp(s.T())
 
 			// when
-			returnedSignup, err := application.SignupService().Signup(withCodeCtx)
+			returnedSignup, err := application.SignupService().Signup(ctx)
 
 			// then
 			require.Error(s.T(), err)
@@ -242,8 +260,10 @@ func (s *TestSignupServiceSuite) TestSignup() {
 func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 
 	// given
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "zoeabernathy")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -265,8 +285,10 @@ func (s *TestSignupServiceSuite) TestSignupFailsWhenClientReturnsError() {
 func (s *TestSignupServiceSuite) TestSignupFailsWithNotFoundThenOtherError() {
 
 	// given
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "lisasmith")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -298,7 +320,7 @@ func (s *TestSignupServiceSuite) TestGetSignupFailsWithNotFoundThenOtherError() 
 		return fakeClient.Client.Get(ctx, key, obj, opts...)
 	}
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	// when
 	_, err := application.SignupService().GetSignup(c, "abc", true)
@@ -311,8 +333,10 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	s.ServiceConfiguration(true, "", 5)
 
 	// given
+	e := echo.New()
+	postReq := httptest.NewRequest(http.MethodPost, "/?no-space=true", bytes.NewBufferString(""))
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	ctx := e.NewContext(postReq, rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -320,7 +344,6 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "doe")
 	ctx.Set(context.CompanyKey, "red hat")
-	ctx.Request, _ = http.NewRequest("POST", "/?no-space=true", bytes.NewBufferString(""))
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T())
 
@@ -355,8 +378,11 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 			Verification().CaptchaScoreThreshold("0.8"))
 
 	// given
+	e := echo.New()
+	postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(""))
+	postReq.Header.Set("Recaptcha-Token", "abc")
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	ctx := e.NewContext(postReq, rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -364,8 +390,6 @@ func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	ctx.Set(context.GivenNameKey, "jane")
 	ctx.Set(context.FamilyNameKey, "doe")
 	ctx.Set(context.CompanyKey, "red hat")
-	ctx.Request, _ = http.NewRequest("POST", "/", bytes.NewBufferString(""))
-	ctx.Request.Header.Set("Recaptcha-Token", "abc")
 
 	// when
 	userSignup, err := signupService.Signup(ctx)
@@ -389,8 +413,10 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 	// given
 	username := "-sjones"
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, username)
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.EmailKey, "sjones@gmail.com")
@@ -424,8 +450,10 @@ func (s *TestSignupServiceSuite) TestUserSignupWithInvalidSubjectPrefix() {
 func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 	s.ServiceConfiguration(true, "redhat.com", 5)
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.EmailKey, "jsmith@redhat.com")
@@ -454,8 +482,10 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
 	s.ServiceConfiguration(true, "redhat.com", 5)
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith-crtadmin")
 	ctx.Set(context.SubKey, "987654321")
 	ctx.Set(context.EmailKey, "jsmith@redhat.com")
@@ -477,8 +507,10 @@ func (s *TestSignupServiceSuite) TestFailsIfUserSignupNameAlreadyExists() {
 
 	signup := testusersignup.NewUserSignup(testusersignup.WithEncodedName("jsmith@kubesaw"))
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith@kubesaw")
 	ctx.Set(context.SubKey, "userid")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
@@ -510,8 +542,10 @@ func (s *TestSignupServiceSuite) TestFailsIfUserBanned() {
 		},
 	}
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
 
@@ -543,8 +577,10 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 		},
 	}
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith@gmail")
 	ctx.Set(context.SubKey, "userid")
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
@@ -573,7 +609,7 @@ func (s *TestSignupServiceSuite) TestOKIfOtherUserBanned() {
 func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 	// given
 	username := "johnsmith"
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	fakeClient, application := testutil.PrepareInClusterApp(s.T())
 	fakeClient.MockGet = func(ctx gocontext.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -591,7 +627,7 @@ func (s *TestSignupServiceSuite) TestGetUserSignupFails() {
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupNotFound() {
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 	_, application := testutil.PrepareInClusterApp(s.T())
 
 	// when
@@ -606,7 +642,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	// given
 	s.ServiceConfiguration(true, "", 5)
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	userSignupNotComplete := testusersignup.NewUserSignup(
 		testusersignup.WithEncodedName("not-complete@kubesaw"),
@@ -708,7 +744,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 	}
 
 	for _, status := range []toolchainv1alpha1.UserSignupStatus{noCondition, pendingApproval, noClusterApproval} {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c := newEchoTestContext()
 
 		userSignup := &toolchainv1alpha1.UserSignup{
 			TypeMeta: v1.TypeMeta{},
@@ -761,7 +797,7 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 
 	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	// when
 	signup, err := application.SignupService().GetSignup(c, username, true)
@@ -786,7 +822,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 
 			_, application := testutil.PrepareInClusterApp(s.T(), us, mur, toolchainStatus, space, spacebinding)
 
-			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c := newEchoTestContext()
 
 			// when
 			response, err := application.SignupService().GetSignup(c, username, true)
@@ -859,7 +895,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusFailGetToolchainStatus() {
 	// given
 	s.ServiceConfiguration(true, "", 5)
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	username, us := s.newUserSignupComplete()
 	mur := s.newProvisionedMUR("ted")
@@ -880,7 +916,7 @@ func (s *TestSignupServiceSuite) TestGetSignupMURGetFails() {
 
 	username, us := s.newUserSignupComplete()
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	returnedErr := errors.New("an error occurred")
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
@@ -904,7 +940,7 @@ func (s *TestSignupServiceSuite) TestGetSignupReadyConditionStatus() {
 
 	username, us := s.newUserSignupComplete()
 
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c := newEchoTestContext()
 
 	mur := &toolchainv1alpha1.MasterUserRecord{
 		TypeMeta: v1.TypeMeta{},
@@ -997,8 +1033,10 @@ func (s *TestSignupServiceSuite) TestGetSignupBannedUserEmail() {
 		testusersignup.WithCompliantUsername("ted"))
 	_, application := testutil.PrepareInClusterApp(s.T(), us)
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, "jsmith")
 	ctx.Set(context.SubKey, us.Spec.IdentityClaims.UserID)
 	ctx.Set(context.EmailKey, "jsmith@gmail.com")
@@ -1021,7 +1059,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "dave", "dave")
 
 	// then
 	assert.Equal(s.T(), "dave-dev", defaultUserNamespace)
@@ -1046,7 +1084,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFromFirstUnownedSpac
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "", "userB")
 
 	// then
 	assert.Equal(s.T(), "userA-dev", defaultUserNamespace)
@@ -1071,7 +1109,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceMultiSpace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "userB", "userB")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "userB", "userB")
 
 	// then
 	assert.Equal(s.T(), "userB-dev", defaultUserNamespace) // space2 is prioritized over space1 because it was created by the userB
@@ -1088,7 +1126,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoHomeSpaceNoSpa
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
@@ -1102,7 +1140,7 @@ func (s *TestSignupServiceSuite) TestGetDefaultUserNamespaceFailNoSpace() {
 	nsClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
 
 	// when
-	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nsClient, "dave", "dave")
+	targetCluster, defaultUserNamespace := service.GetDefaultUserTarget(nil, nsClient, "dave", "dave")
 
 	// then
 	assert.Empty(s.T(), defaultUserNamespace)
@@ -1119,7 +1157,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(false))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, newEchoTestContext())
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1131,7 +1169,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, echoCtxNilRequest())
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1143,7 +1181,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, newEchoTestContext())
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1155,7 +1193,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123", "456"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, echoCtxWithRecaptchaTokens("123", "456"))
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1167,7 +1205,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().Enabled(true).
 					Verification().CaptchaEnabled(true))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{result: fmt.Errorf("assessment failed")}, echoCtxWithRecaptchaTokens("123"))
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1180,7 +1218,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().CaptchaScoreThreshold("0.8"))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 0.5}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 0.5}, echoCtxWithRecaptchaTokens("123"))
 			assert.True(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(0.5), score, 0.01)
 			assert.Equal(s.T(), "captcha-assessment-123", assessmentID)
@@ -1205,7 +1243,9 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().ExcludedEmailDomains("redhat.com"))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, &gin.Context{Keys: map[string]interface{}{"email": "joe@redhat.com"}})
+			excludedEmailCtx := newEchoTestContext()
+			excludedEmailCtx.Set(context.EmailKey, "joe@redhat.com")
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(nil, excludedEmailCtx)
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(-1), score, 0.01)
 			assert.Empty(s.T(), assessmentID)
@@ -1217,7 +1257,7 @@ func (s *TestSignupServiceSuite) TestIsPhoneVerificationRequired() {
 					Verification().CaptchaEnabled(true).
 					Verification().CaptchaScoreThreshold("0.8"))
 
-			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 1.0}, &gin.Context{Request: &http.Request{Header: http.Header{"Recaptcha-Token": []string{"123"}}}})
+			isVerificationRequired, score, assessmentID := service.IsPhoneVerificationRequired(&FakeCaptchaChecker{score: 1.0}, echoCtxWithRecaptchaTokens("123"))
 			assert.False(s.T(), isVerificationRequired)
 			assert.InDelta(s.T(), float32(1.0), score, 0.01)
 			assert.Equal(s.T(), "captcha-assessment-123", assessmentID)
@@ -1254,7 +1294,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 	}
 
 	s.Run("PreferredUsername property updated when set in context", func() {
-		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c := newEchoTestContext()
 		c.Set(context.UsernameKey, "cocochanel")
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, mur)
 
@@ -1279,7 +1319,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 		require.Equal(s.T(), "4242", modified.Spec.IdentityClaims.AccountNumber)
 
 		s.Run("GivenName property updated when set in context", func() {
-			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c := newEchoTestContext()
 			c.Set(context.GivenNameKey, "Jonathan")
 
 			_, err := application.SignupService().GetSignup(c, username, true)
@@ -1304,7 +1344,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 			require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 			s.Run("FamilyName and Company properties updated when set in context", func() {
-				c, _ := gin.CreateTestContext(httptest.NewRecorder())
+				c := newEchoTestContext()
 				c.Set(context.FamilyNameKey, "Smythe")
 				c.Set(context.CompanyKey, "Red Hat")
 
@@ -1329,7 +1369,7 @@ func (s *TestSignupServiceSuite) TestGetSignupUpdatesUserSignupIdentityClaims() 
 				require.Equal(s.T(), "fd2addbd8d82f0d2dc088fa122377eaa", modified.Labels["toolchain.dev.openshift.com/email-hash"])
 
 				s.Run("Remaining properties updated when set in context", func() {
-					c, _ := gin.CreateTestContext(httptest.NewRecorder())
+					c := newEchoTestContext()
 					c.Set(context.SubKey, "987654321")
 					c.Set(context.UserIDKey, "123456777")
 					c.Set(context.AccountIDKey, "777654321")
@@ -1500,7 +1540,7 @@ type FakeCaptchaChecker struct {
 	result error
 }
 
-func (c FakeCaptchaChecker) CompleteAssessment(_ *gin.Context, _ configuration.RegistrationServiceConfig, _ string) (*recaptchapb.Assessment, error) {
+func (c FakeCaptchaChecker) CompleteAssessment(_ echo.Context, _ configuration.RegistrationServiceConfig, _ string) (*recaptchapb.Assessment, error) {
 	return &recaptchapb.Assessment{
 		RiskAnalysis: &recaptchapb.RiskAnalysis{
 			Score: c.score,

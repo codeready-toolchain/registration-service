@@ -11,7 +11,6 @@ import (
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/context"
-	"github.com/gin-gonic/gin"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,8 +25,10 @@ func TestLog(t *testing.T) {
 	})
 
 	t.Run("log info", func(t *testing.T) {
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 		ctx.Set("subject", "test")
 		ctx.Set("username", "usernametest")
 
@@ -44,8 +45,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 		ctx.Set(context.SubKey, "test")
 		ctx.Set(context.UsernameKey, "usernametest")
 
@@ -126,8 +129,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof with no arguments", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 
 		Infof(ctx, "test")
 		value := buf.String()
@@ -137,8 +142,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log error", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 
 		Error(ctx, errors.New("test error"), "test error with no formatting")
 		value := buf.String()
@@ -151,8 +158,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log errorf", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 
 		Errorf(ctx, errors.New("test error"), "test %s", "info")
 		value := buf.String()
@@ -165,15 +174,14 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof with http request", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-
 		req := httptest.NewRequest("GET", "http://example.com/api/v1/health", nil)
 		req.Header.Add("Accept", "application/json")
 		q := req.URL.Query()
 		q.Add("query_key", "query_value")
 		req.URL.RawQuery = q.Encode()
-		ctx.Request = req
+		ctx := e.NewContext(req, rr)
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
@@ -189,8 +197,8 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof with http request containing authorization header", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
 
 		data := `{"testing-body":"test"}`
 		req := httptest.NewRequest("GET", "http://example.com/api/v1/health", strings.NewReader(data))
@@ -201,7 +209,7 @@ func TestLog(t *testing.T) {
 		q.Add("query_key", "query_value")
 		q.Add("token", "query_token")
 		req.URL.RawQuery = q.Encode()
-		ctx.Request = req
+		ctx := e.NewContext(req, rr)
 
 		Infof(ctx, "test %s", "info")
 		value := buf.String()
@@ -225,8 +233,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof withValues", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 		ctx.Set("subject", "test")
 
 		WithValues(map[string]interface{}{"testing": "with-values"}).Infof(ctx, "test %s", "info")
@@ -241,8 +251,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof with empty values", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 
 		WithValues(map[string]interface{}{}).Infof(ctx, "test %s", "info")
 		value := buf.String()
@@ -253,8 +265,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof with nil values", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 
 		WithValues(nil).Infof(ctx, "test %s", "info")
 		value := buf.String()
@@ -265,8 +279,10 @@ func TestLog(t *testing.T) {
 
 	t.Run("log infof setOutput when tags is set", func(t *testing.T) {
 		buf.Reset()
+		e := echo.New()
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		ctx := e.NewContext(req, rr)
 		ctx.Set("subject", "test")
 
 		WithValues(map[string]interface{}{"testing-2": "with-values-2"}).Infof(ctx, "test %s", "info")

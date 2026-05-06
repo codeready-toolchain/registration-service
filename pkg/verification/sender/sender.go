@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 type NotificationSender interface {
-	SendNotification(ctx *gin.Context, content, phoneNumber, countryCode string) error
+	SendNotification(ctx echo.Context, content, phoneNumber, countryCode string) error
 }
 
 type NotificationSenderOption = func()

@@ -1,6 +1,7 @@
 package signup
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -12,7 +13,7 @@ import (
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
 	testsocialevent "github.com/codeready-toolchain/toolchain-common/pkg/test/socialevent"
 	"github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,10 @@ import (
 func TestGetSocialEvent(t *testing.T) {
 	// given
 	log.Init("social-code-testing")
-	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	ctx := e.NewContext(req, rr)
 
 	t.Run("success", func(t *testing.T) {
 		// given

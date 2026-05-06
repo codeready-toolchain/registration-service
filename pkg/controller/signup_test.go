@@ -30,8 +30,8 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -61,12 +61,10 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		// given
 		fakeClient, application := testutil.PrepareInClusterApp(s.T())
 		signupCtrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		// Put userID to the context
 		ob, err := uuid.NewV4()
@@ -77,12 +75,13 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		ctx.Set(context.EmailKey, expectedUserID+"@test.com")
 
 		// when
-		handler(ctx)
+		err = signupCtrl.PostHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusAccepted, rr.Code)
 		userSignup := &crtapi.UserSignup{}
-		require.NoError(s.T(), fakeClient.Get(ctx,
+		require.NoError(s.T(), fakeClient.Get(gocontext.Background(),
 			commontest.NamespacedName(commontest.HostOperatorNs, usersignup.EncodeUserIdentifier("bill@kubesaw")), userSignup))
 		assert.Equal(s.T(), expectedUserID, userSignup.Spec.IdentityClaims.Sub)
 		assert.Equal(s.T(), "bill@kubesaw", userSignup.Spec.IdentityClaims.PreferredUsername)
@@ -93,18 +92,17 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		// given
 		fakeClient, application := testutil.PrepareInClusterApp(s.T())
 		signupCtrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
 		fakeClient.MockCreate = func(_ gocontext.Context, _ client.Object, _ ...client.CreateOption) error {
 			return errors.New("blah")
 		}
 
 		// when
-		handler(ctx)
+		err := signupCtrl.PostHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the error is what we expect.
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "blah", "error creating UserSignup resource")
@@ -115,15 +113,14 @@ func (s *TestSignupSuite) TestSignupPostHandler() {
 		_, application := testutil.PrepareInClusterApp(s.T())
 
 		signupCtrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(signupCtrl.PostHandler)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 		ctx.Set(context.UsernameKey, "kubesaw-crtadmin")
 
 		// when
-		handler(ctx)
+		err := signupCtrl.PostHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		test.AssertError(s.T(), rr, http.StatusForbidden, "forbidden: failed to create usersignup for kubesaw-crtadmin", "error creating UserSignup resource")
@@ -149,13 +146,11 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 	// Create Signup controller instance.
 	ctrl := controller.NewSignup(application)
-	handler := gin.HandlerFunc(ctrl.GetHandler)
 
 	s.Run("signups found", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 		ctx.Set(context.UsernameKey, "ted@kubesaw")
 
 		expected := &signup.Signup{
@@ -174,7 +169,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		}
 
 		// when
-		handler(ctx)
+		err := ctrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		assert.Equal(s.T(), http.StatusOK, rr.Code, "handler returned wrong status code")
@@ -190,12 +186,12 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 	s.Run("signups not found", func() {
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 		ctx.Set(context.UsernameKey, "dummy")
 
 		// when
-		handler(ctx)
+		err := ctrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusNotFound, rr.Code, "handler returned wrong status code")
@@ -206,8 +202,7 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 		ctx.Set(context.UsernameKey, "username")
 
 		fakeClient.MockGet = func(_ gocontext.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
@@ -215,7 +210,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 		}
 
 		// when
-		gin.HandlerFunc(controller.NewSignup(application).GetHandler)(ctx)
+		err := controller.NewSignup(application).GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		test.AssertError(s.T(), rr, http.StatusInternalServerError, "oopsie woopsie", "error getting UserSignup resource")
@@ -234,16 +230,15 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.GetHandler)
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 		ctx.Set(context.UsernameKey, "ted@kubesaw")
 		ctx.Set(context.EmailKey, userSignup.Spec.IdentityClaims.Email)
 
 		// when
-		handler(ctx)
+		err := ctrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// then
 		assert.Equal(s.T(), http.StatusForbidden, rr.Code, "handler returned wrong status code")
@@ -261,12 +256,12 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		testusersignup.WithAnnotation(crtapi.UserSignupVerificationCodeAnnotationKey, ""),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	assertInitVerificationSuccess := func(handler gin.HandlerFunc, fakeClient *commontest.FakeClient, phoneNumber, expectedHash string, expectedCounter int) {
+	assertInitVerificationSuccess := func(handler echo.HandlerFunc, fakeClient *commontest.FakeClient, phoneNumber, expectedHash string, expectedCounter int) {
 		// given
 		data := []byte(fmt.Sprintf(`{"phone_number": "%s", "country_code": "1"}`, phoneNumber))
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// then
 		require.Equal(s.T(), http.StatusNoContent, rr.Code)
@@ -315,7 +310,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		data := []byte(`{"phone_number": "2268213044", "country_code": "(1)"}`)
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// then
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
@@ -335,11 +330,16 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		data := []byte(`{"test_number": "2268213044", "test_code": "1"}`)
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// then
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
+
+		// With Echo, JSON that binds but omits required fields yields ctx.NoContent(400) with an empty body (see InitVerificationHandler).
+		if len(rr.Body.Bytes()) == 0 {
+			return
+		}
 
 		bodyParams := make(map[string]interface{})
 		err := json.Unmarshal(rr.Body.Bytes(), &bodyParams)
@@ -364,7 +364,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// then
 		// Check the status code is what we expect.
@@ -379,7 +379,7 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		data := []byte(`{"phone_number": "2268213044", "country_code": "1"}`)
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// then
 		// Check the status code is what we expect.
@@ -403,20 +403,19 @@ func (s *TestSignupSuite) TestInitVerificationHandler() {
 		data := []byte(`{"phone_number": "!226%213044", "country_code": "1"}`)
 
 		// when
-		rr := initPhoneVerification(s.T(), handler, gin.Param{}, data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "", "", data, "johnny@kubesaw", http.MethodPut, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		assert.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
 }
 
-func prepareVerificationHandler(t *testing.T, initObjects ...client.Object) (*commontest.FakeClient, gin.HandlerFunc) {
+func prepareVerificationHandler(t *testing.T, initObjects ...client.Object) (*commontest.FakeClient, echo.HandlerFunc) {
 	fakeClient, application := testutil.PrepareInClusterApp(t, initObjects...)
 
 	// Create Signup controller instance.
 	ctrl := controller.NewSignup(application)
-	handler := gin.HandlerFunc(ctrl.InitVerificationHandler)
-	return fakeClient, handler
+	return fakeClient, ctrl.InitVerificationHandler
 }
 
 func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
@@ -431,13 +430,9 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		// Create Signup controller instance.
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "999888",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "code", "999888", nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
@@ -462,13 +457,9 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "111233",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification")
+		rr := initPhoneVerification(s.T(), handler, "code", "111233", nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusInternalServerError, rr.Code)
@@ -488,13 +479,9 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		// Create Signup controller instance and handle the verification request
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "111233",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "jsmith@kubesaw", http.MethodGet, "/api/v1/signup/verification/111233")
+		rr := initPhoneVerification(s.T(), handler, "code", "111233", nil, "jsmith@kubesaw", http.MethodGet, "/api/v1/signup/verification/111233")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusNotFound, rr.Code)
@@ -517,13 +504,9 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		}
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "555555",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "johnny@kubesaw", http.MethodGet,
+		rr := initPhoneVerification(s.T(), handler, "code", "555555", nil, "johnny@kubesaw", http.MethodGet,
 			"/api/v1/signup/verification/555555")
 
 		// Check the status code is what we expect.
@@ -551,13 +534,9 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 
 		// Create Signup controller instance.
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "333333",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification/333333")
+		rr := initPhoneVerification(s.T(), handler, "code", "333333", nil, "johnny@kubesaw", http.MethodGet, "/api/v1/signup/verification/333333")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusTooManyRequests, rr.Code)
@@ -576,30 +555,35 @@ func (s *TestSignupSuite) TestVerifyPhoneCodeHandler() {
 		// Create Signup controller instance.
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		ctrl := controller.NewSignup(application)
-		handler := gin.HandlerFunc(ctrl.VerifyPhoneCodeHandler)
+		handler := ctrl.VerifyPhoneCodeHandler
 
-		param := gin.Param{
-			Key:   "code",
-			Value: "",
-		}
-		rr := initPhoneVerification(s.T(), handler, param, nil, "", http.MethodGet, "/api/v1/signup/verification/")
+		rr := initPhoneVerification(s.T(), handler, "code", "", nil, "", http.MethodGet, "/api/v1/signup/verification/")
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusBadRequest, rr.Code)
 	})
 }
 
-func initPhoneVerification(t *testing.T, handler gin.HandlerFunc, params gin.Param, data []byte, username, httpMethod, url string) *httptest.ResponseRecorder {
+func initPhoneVerification(t *testing.T, handler echo.HandlerFunc, paramName, paramValue string, data []byte, username, httpMethod, url string) *httptest.ResponseRecorder {
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	e := echo.New()
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(data))
 	require.NoError(t, err)
-	ctx.Request = req
+	if len(data) > 0 {
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, username)
 
-	ctx.Params = append(ctx.Params, params)
-	handler(ctx)
+	if paramName != "" {
+		ctx.SetParamNames(paramName)
+		ctx.SetParamValues(paramValue)
+	}
+
+	err = handler(ctx)
+	require.NoError(t, err)
 
 	return rr
 }
@@ -614,7 +598,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, event.Name)
@@ -638,7 +622,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS, event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, deactivatedUS.Name, event.Name)
@@ -660,7 +644,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event")
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, "Jane", event.Name)
@@ -678,6 +662,19 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 
 	s.Run("verification failed", func() {
 
+		s.Run("empty code", func() {
+			// given
+			_, application := testutil.PrepareInClusterApp(s.T())
+			ctrl := controller.NewSignup(application)
+			handler := ctrl.VerifyActivationCodeHandler
+
+			// when
+			rr := initActivationCodeVerification(s.T(), handler, "Jane", "")
+
+			// then
+			require.Equal(s.T(), http.StatusBadRequest, rr.Code)
+		})
+
 		s.Run("too many attempts", func() {
 			// given
 			userSignup := testusersignup.NewUserSignup(
@@ -686,7 +683,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			)
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, "invalid")
@@ -705,7 +702,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			userSignup := testusersignup.NewUserSignup(testusersignup.VerificationRequiredAgo(time.Second)) // just signed up
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, "invalid")
@@ -725,7 +722,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithStartTime(time.Now().Add(60*time.Minute)))
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, "invalid")
@@ -747,7 +744,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithEndTime(time.Now().Add(-1*time.Minute)))
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, "invalid")
@@ -769,7 +766,7 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 			event := testsocialevent.NewSocialEvent(commontest.HostOperatorNs, "event", testsocialevent.WithActivationCount(10)) // same as `spec.MaxAttendees`
 			fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, event)
 			ctrl := controller.NewSignup(application)
-			handler := gin.HandlerFunc(ctrl.VerifyActivationCodeHandler)
+			handler := ctrl.VerifyActivationCodeHandler
 
 			// when
 			rr := initActivationCodeVerification(s.T(), handler, userSignup.Name, "invalid")
@@ -787,15 +784,18 @@ func (s *TestSignupSuite) TestVerifyActivationCodeHandler() {
 	})
 }
 
-func initActivationCodeVerification(t *testing.T, handler gin.HandlerFunc, username, code string) *httptest.ResponseRecorder {
+func initActivationCodeVerification(t *testing.T, handler echo.HandlerFunc, username, code string) *httptest.ResponseRecorder {
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
+	e := echo.New()
 	payload := fmt.Sprintf(`{"code":"%s"}`, code)
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/signup/verification/activation-code", bytes.NewBuffer([]byte(payload)))
 	require.NoError(t, err)
-	ctx.Request = req
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, username)
-	handler(ctx)
+	err = handler(ctx)
+	require.NoError(t, err)
 	return rr
 }

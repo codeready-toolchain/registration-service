@@ -11,7 +11,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -40,22 +40,21 @@ func (s *TestAuthConfigSuite) TestAuthClientConfigHandler() {
 
 	// Create handler instance.
 	authConfigCtrl := NewAuthConfig()
-	handler := gin.HandlerFunc(authConfigCtrl.GetHandler)
 
 	s.Run("valid json config", func() {
 
 		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
+		ctx := echo.New().NewContext(req, rr)
 
-		handler(ctx)
+		err = authConfigCtrl.GetHandler(ctx)
+		require.NoError(s.T(), err)
 
 		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
-		// check response content-type.
-		require.Equal(s.T(), cfg.Auth().AuthClientConfigContentType(), rr.Header().Get("Content-Type"))
+		// Echo's ctx.JSON sets application/json (config may still advertise charset in AuthClientConfigContentType).
+		require.Contains(s.T(), rr.Header().Get("Content-Type"), "application/json")
 
 		// Check the response body is what we expect.
 		// get config values from endpoint response

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/codeready-toolchain/registration-service/pkg/log"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 )
 
 // Signup represents Signup resource which is a wrapper of K8s UserSignup
@@ -72,7 +72,7 @@ type Status struct {
 
 // PollUpdateSignup will attempt to execute the provided updater function, and if it fails
 // will reattempt the update for a limited number of retries
-func PollUpdateSignup(ctx *gin.Context, updater func() error) error {
+func PollUpdateSignup(ctx echo.Context, updater func() error) error {
 	// Attempt to execute an update function, retrying a number of times if the update fails
 	attempts := 0
 	for {

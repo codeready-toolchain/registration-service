@@ -16,7 +16,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/test/fake"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commontest "github.com/codeready-toolchain/toolchain-common/pkg/test"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -98,7 +98,7 @@ func TestRunNamespacesManagerSuite(t *testing.T) {
 // TestResetNamespaces provides multiple unit tests which test the different
 // paths of the "ResetNamespaces" feature of the "NamespacesManager" type.
 func (nms *TestNamespacesManagerSuite) TestResetNamespaces() {
-	// Prepare a request for Gin. Even though we are testing the underlying
+	// Prepare a request for Echo. Even though we are testing the underlying
 	// service, we do pull the original context from the request to apply
 	// timeouts in the service, so it needs to be there.
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/reset-namespaces", nil)
@@ -107,9 +107,9 @@ func (nms *TestNamespacesManagerSuite) TestResetNamespaces() {
 		return
 	}
 
+	e := echo.New()
 	rr := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(rr)
-	ctx.Request = req
+	ctx := e.NewContext(req, rr)
 	ctx.Set(context.UsernameKey, TestUsername)
 
 	// Create all the standard fixtures for the tests.

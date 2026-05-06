@@ -18,17 +18,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var (
-	// Commit current build commit set by build script.
-	Commit = "0"
-	// BuildTime set by build script in ISO 8601 (UTC) format:
-	// YYYY-MM-DDThh:mm:ssTZD (see https://www.w3.org/TR/NOTE-datetime for
-	// details).
-	BuildTime = "0"
-	// StartTime in ISO 8601 (UTC) format.
-	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
-)
-
 var logger = logf.Log.WithName("configuration")
 
 const (
@@ -149,6 +138,19 @@ func (r RegistrationServiceConfig) UICanaryDeploymentWeight() int {
 
 func (r RegistrationServiceConfig) WorkatoWebHookURL() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.WorkatoWebHookURL, "")
+}
+
+func (r RegistrationServiceConfig) AccountVerifierURL() string {
+	return commonconfig.GetString(r.cfg.Host.RegistrationService.AccountVerifierURL, "")
+}
+
+func (r RegistrationServiceConfig) DisabledIntegrations() []string {
+	disabledIntegrations := r.cfg.Host.RegistrationService.DisabledIntegrations
+
+	if disabledIntegrations == nil {
+		return []string{}
+	}
+	return disabledIntegrations
 }
 
 type AnalyticsConfig struct {

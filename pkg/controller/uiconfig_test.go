@@ -68,5 +68,38 @@ func (s *TestUIConfigSuite) TestUIConfigHandler() {
 		s.Run("workatoWebHookURL", func() {
 			assert.Equal(s.T(), cfg.WorkatoWebHookURL(), data.WorkatoWebHookURL, "wrong 'WorkatoWebHookURL' in uiconfig response")
 		})
+
+		s.Run("disabledIntegrations defaults to empty array", func() {
+			assert.Equal(s.T(), []string{}, data.DisabledIntegrations, "disabledIntegrations should be an empty array when not configured")
+		})
 	})
+}
+
+func (s *TestUIConfigSuite) TestUIConfigHandlerWithDisabledIntegrations() {
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/uiconfig", nil)
+	require.NoError(s.T(), err)
+
+	integrations := []string{"openshift", "devspaces"}
+	s.OverrideApplicationDefault(testconfig.RegistrationService().
+		RegistrationServiceURL("https://signup.domain.com").
+		DisabledIntegrations(integrations),
+	)
+	defer s.DefaultConfig()
+
+	uiConfigCtrl := NewUIConfig()
+	handler := gin.HandlerFunc(uiConfigCtrl.GetHandler)
+
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Request = req
+
+	handler(ctx)
+
+	require.Equal(s.T(), http.StatusOK, rr.Code)
+
+	var data *UIConfigResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &data)
+	require.NoError(s.T(), err)
+
+	assert.Equal(s.T(), integrations, data.DisabledIntegrations, "disabledIntegrations should match configured values")
 }

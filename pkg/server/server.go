@@ -27,7 +27,7 @@ type requestLog struct {
 	HTTPStatus   int           `json:"status"`
 	Latency      time.Duration `json:"latency"`
 	UserAgent    string        `json:"user-agent"`
-	ErrorMessage error         `json:"error-message"`
+	ErrorMessage string        `json:"error-message"`
 }
 
 type ServerOption = func(server *RegistrationServer) // nolint:revive
@@ -61,6 +61,11 @@ func New(application application.Application) *RegistrationServer {
 			LogUserAgent: true,
 			LogError:     true,
 			LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+				errMsg := ""
+				if v.Error != nil {
+					errMsg = v.Error.Error()
+				}
+
 				payload := requestLog{
 					LogLevel:     "info",
 					ClientIP:     v.RemoteIP,
@@ -71,7 +76,7 @@ func New(application application.Application) *RegistrationServer {
 					HTTPStatus:   v.Status,
 					Latency:      v.Latency,
 					UserAgent:    v.UserAgent,
-					ErrorMessage: v.Error,
+					ErrorMessage: errMsg,
 				}
 
 				return json.NewEncoder(c.Logger().Output()).Encode(payload)

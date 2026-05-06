@@ -62,7 +62,7 @@ func (s *Signup) InitVerificationHandler(ctx echo.Context) error {
 	// Read the Body content
 	var phone Phone
 	if err := ctx.Bind(&phone); err != nil {
-		log.Errorf(ctx, err, "request body does not contain required fields phone_number and country_code")
+		log.Errorf(ctx, err, "unable to bind verification request body")
 		return crterrors.AbortWithError(ctx, http.StatusBadRequest, err, "error reading request body")
 	}
 
@@ -151,7 +151,7 @@ func (s *Signup) VerifyPhoneCodeHandler(ctx echo.Context) error {
 func (s *Signup) VerifyActivationCodeHandler(ctx echo.Context) error {
 	body := map[string]interface{}{}
 	if err := ctx.Bind(&body); err != nil {
-		log.Error(ctx, nil, "no activation code provided in the request")
+		log.Error(ctx, nil, "unable to bind verification request body")
 		return ctx.NoContent(http.StatusBadRequest)
 	}
 	code, ok := body["code"].(string)

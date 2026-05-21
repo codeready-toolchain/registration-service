@@ -1501,7 +1501,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"approved","reasons":[{"check":"email-domain","detail":"domain is trusted"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"approved","reasons":[{"check":"check-1","detail":"passed"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1535,7 +1535,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), userSignup)
 		assert.Equal(s.T(), "approved", userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
-		assert.JSONEq(s.T(), `[{"check":"email-domain","detail":"domain is trusted"}]`, userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"passed"}]`, userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
 	s.Run("reject result returns forbidden error", func() {
@@ -1543,7 +1543,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"disposable-email","detail":"email domain is disposable"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1590,7 +1590,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"phone-verification","reasons":[{"check":"risk-score","detail":"high risk"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"phone-verification","reasons":[{"check":"check-1","detail":"needs verification"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1714,7 +1714,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"fraud","detail":"known bad actor"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 

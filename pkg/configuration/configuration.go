@@ -144,6 +144,10 @@ func (r RegistrationServiceConfig) AccountVerifierURL() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.AccountVerifierURL, "")
 }
 
+func (r RegistrationServiceConfig) AccountVerifierEnabled() bool {
+	return commonconfig.GetBool(r.cfg.Host.RegistrationService.AccountVerifierEnabled, false)
+}
+
 func (r RegistrationServiceConfig) DisabledIntegrations() []string {
 	disabledIntegrations := r.cfg.Host.RegistrationService.DisabledIntegrations
 

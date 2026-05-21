@@ -33,4 +33,6 @@ const (
 	ImpersonateUser = "impersonateUser"
 	// SocialEvent is the context key for the activation code provided in UI
 	SocialEvent = "socialEvent"
+	// AccountVerifierResult is the context key for the account verifier response
+	AccountVerifierResult = "accountVerifierResult"
 )

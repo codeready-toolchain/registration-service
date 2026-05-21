@@ -141,6 +141,23 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
+	if val, exists := ctx.Get(context.AccountVerifierResult); exists {
+		if resp, ok := val.(*accountVerifierResponse); ok {
+			userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey] = resp.Result
+			if len(resp.Reasons) > 0 {
+				reasonsJSON, err := json.Marshal(resp.Reasons)
+				if err == nil {
+					userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey] = string(reasonsJSON)
+				} else {
+					log.Error(ctx, err, "failed to marshal account verifier reasons")
+				}
+			}
+			if resp.Result == "phone-verification" {
+				states.SetVerificationRequired(userSignup, true)
+			}
+		}
+	}
+
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
 	if param, _ := ctx.GetQuery(NoSpaceKey); param == "true" {
 		log.Info(ctx, fmt.Sprintf("setting '%s' annotation to true", toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey))
@@ -260,37 +277,35 @@ type accountVerifierReason struct {
 
 var accountVerifierHTTPClient = &http.Client{Timeout: 3 * time.Second}
 
-// callAccountVerifier calls the account verifier service to check the user's email domain.
-// For now this is used only for monitoring — the result is logged but not acted upon.
-func callAccountVerifier(ctx *gin.Context, verifierURL, email string) error {
+func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountVerifierResponse, error) {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
-		return errs.Wrap(err, "failed to marshal account verifier request")
+		return nil, errs.Wrap(err, "failed to marshal account verifier request")
 	}
 
 	resp, err := accountVerifierHTTPClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
 	if err != nil {
-		return errs.Wrapf(err, "failed to call account verifier for email %s", email)
+		return nil, errs.Wrapf(err, "failed to call account verifier for email %s", email)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return errs.Wrapf(err, "failed to read account verifier response for email %s", email)
+		return nil, errs.Wrapf(err, "failed to read account verifier response for email %s", email)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
+		return nil, fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
 	}
 
 	var verifierResp accountVerifierResponse
 	if err := json.Unmarshal(respBody, &verifierResp); err != nil {
-		return errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
+		return nil, errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
 	}
 
 	log.Info(ctx, fmt.Sprintf("account verifier result for %s: result=%s, reasons=%v, error=%s",
 		email, verifierResp.Result, verifierResp.Reasons, verifierResp.Error))
-	return nil
+	return &verifierResp, nil
 }
 
 func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
@@ -303,9 +318,23 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
 	if email == "" {
 		return
 	}
-	if err := callAccountVerifier(ctx, verifierURL, email); err != nil {
+	resp, err := callAccountVerifier(ctx, verifierURL, email)
+	if err != nil {
 		log.Error(ctx, err, "account verifier call failed")
+		return
 	}
+	if cfg.AccountVerifierEnabled() && resp != nil {
+		ctx.Set(context.AccountVerifierResult, resp)
+	}
+}
+
+func isAccountVerifierRejected(ctx *gin.Context) bool {
+	val, exists := ctx.Get(context.AccountVerifierResult)
+	if !exists {
+		return false
+	}
+	resp, ok := val.(*accountVerifierResponse)
+	return ok && resp.Result == "reject"
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
@@ -321,6 +350,9 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 			// New Signup
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
 			s.verifyAccount(ctx)
+			if isAccountVerifierRejected(ctx) {
+				return nil, ForbiddenBannedError
+			}
 			return s.createUserSignup(ctx)
 		}
 		return nil, err
@@ -331,6 +363,9 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
 		// Signup is deactivated. We need to reactivate it
 		s.verifyAccount(ctx)
+		if isAccountVerifierRejected(ctx) {
+			return nil, ForbiddenBannedError
+		}
 		return s.reactivateUserSignup(ctx, userSignup)
 	}
 

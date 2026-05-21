@@ -71,6 +71,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
+		assert.False(t, regServiceCfg.AccountVerifierEnabled())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -110,6 +111,8 @@ func TestRegistrationService(t *testing.T) {
 
 		verifierURL := "https://verifier.example.com"
 		cfg.Spec.Host.RegistrationService.AccountVerifierURL = &verifierURL
+		accountVerifierEnabled := true
+		cfg.Spec.Host.RegistrationService.AccountVerifierEnabled = &accountVerifierEnabled
 
 		verificationSecretValues := make(map[string]string)
 		verificationSecretValues["twilio.sid"] = "def"
@@ -159,6 +162,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
+		assert.True(t, regServiceCfg.AccountVerifierEnabled())
 	})
 }
 

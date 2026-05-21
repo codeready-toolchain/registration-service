@@ -79,6 +79,8 @@ func TestRegistrationService(t *testing.T) {
 			Environment("e2e-tests").
 			LogLevel("debug").
 			RegistrationServiceURL("www.crtregservice.com").
+			AccountVerifierURL("https://verifier.example.com").
+			AccountVerifierEnabled(true).
 			Analytics().SegmentWriteKey("keyabc").
 			Auth().AuthClientLibraryURL("https://sso.openshift.com/auth/js/keycloak.js").
 			Auth().AuthClientConfigContentType("application/xml").
@@ -108,11 +110,6 @@ func TestRegistrationService(t *testing.T) {
 			AWSAccessKeyID("aws.accesskeyid").
 			AWSSecretAccessKey("aws.secretaccesskey").
 			RecaptchaServiceAccountFile("captcha.json"))
-
-		verifierURL := "https://verifier.example.com"
-		cfg.Spec.Host.RegistrationService.AccountVerifierURL = &verifierURL
-		accountVerifierEnabled := true
-		cfg.Spec.Host.RegistrationService.AccountVerifierEnabled = &accountVerifierEnabled
 
 		verificationSecretValues := make(map[string]string)
 		verificationSecretValues["twilio.sid"] = "def"

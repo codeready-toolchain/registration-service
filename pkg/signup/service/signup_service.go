@@ -261,6 +261,10 @@ func extractEmailHost(email string) string {
 const (
 	accountVerifierResultReject            = "reject"
 	accountVerifierResultPhoneVerification = "phone-verification"
+
+	accountVerifierModeDisabled = "disabled"
+	accountVerifierModeLog      = "log"
+	accountVerifierModeEnabled  = "enabled"
 )
 
 type accountVerifierRequest struct {
@@ -313,6 +317,9 @@ func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountV
 
 func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *accountVerifierResponse {
 	cfg := configuration.GetRegistrationServiceConfig()
+	if cfg.AccountVerifierMode() == accountVerifierModeDisabled {
+		return nil
+	}
 	verifierURL := cfg.AccountVerifierURL()
 	if verifierURL == "" {
 		return nil
@@ -326,9 +333,10 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *accountVerifierResponse {
 		log.Error(ctx, err, "account verifier call failed")
 		return nil
 	}
-	if cfg.AccountVerifierEnabled() {
+	if cfg.AccountVerifierMode() == accountVerifierModeEnabled {
 		return resp
 	}
+	// log mode: callAccountVerifier already logged the response; discard it
 	return nil
 }
 

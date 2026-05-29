@@ -1495,7 +1495,7 @@ func (s *TestSignupServiceSuite) TestSignupCallsAccountVerifier() {
 	})
 }
 
-func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
+func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 	s.Run("approved result sets annotations and proceeds normally", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -1508,7 +1508,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
-				AccountVerifierEnabled(true).
+				AccountVerifierMode("enabled").
 				Verification().Enabled(true).
 				Verification().CodeExpiresInMin(5))
 
@@ -1550,7 +1550,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
-				AccountVerifierEnabled(true).
+				AccountVerifierMode("enabled").
 				Verification().Enabled(true).
 				Verification().CodeExpiresInMin(5))
 
@@ -1597,7 +1597,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
-				AccountVerifierEnabled(true).
+				AccountVerifierMode("enabled").
 				Verification().Enabled(false))
 
 		rr := httptest.NewRecorder()
@@ -1637,7 +1637,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
-				AccountVerifierEnabled(true).
+				AccountVerifierMode("enabled").
 				Verification().Enabled(true).
 				Verification().CodeExpiresInMin(5))
 
@@ -1667,7 +1667,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
-	s.Run("enabled flag false does not set annotations", func() {
+	s.Run("log mode does not set annotations", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -1679,9 +1679,9 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("log").
 				Verification().Enabled(true).
 				Verification().CodeExpiresInMin(5))
-		// AccountVerifierEnabled defaults to false — not setting it
 
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
@@ -1721,7 +1721,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		s.OverrideApplicationDefault(
 			testconfig.RegistrationService().
 				AccountVerifierURL(verifierServer.URL).
-				AccountVerifierEnabled(true).
+				AccountVerifierMode("enabled").
 				Verification().Enabled(true).
 				Verification().CodeExpiresInMin(5))
 
@@ -1752,6 +1752,48 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierEnabled() {
 		require.Error(s.T(), err)
 		assert.Nil(s.T(), userSignup)
 		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+	})
+
+	s.Run("disabled mode does not call account verifier", func() {
+		// given
+		verifierCalled := false
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			verifierCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("disabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "disabled-mode-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "disabled-mode-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.False(s.T(), verifierCalled)
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 	})
 }
 

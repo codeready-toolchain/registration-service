@@ -154,6 +154,9 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *accou
 		if accountVerifierResp.Result == accountVerifierResultPhoneVerification {
 			states.SetVerificationRequired(userSignup, true)
 		}
+		if accountVerifierResp.Result == accountVerifierResultReject {
+			states.SetRejected(userSignup, true)
+		}
 	}
 
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
@@ -354,26 +357,42 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	userSignup := &toolchainv1alpha1.UserSignup{}
 	if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
-			// New Signup
+			// New Signup — always create the UserSignup so that a rejected user is recorded in K8s
+			// (enables metrics and prevents repeated verifier calls on retries).
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
 			accountVerifierResp := s.verifyAccount(ctx)
+			userSignup, err := s.createUserSignup(ctx, accountVerifierResp)
+			if err != nil {
+				return nil, err
+			}
 			if isAccountVerifierRejected(accountVerifierResp) {
 				return nil, ForbiddenBannedError
 			}
-			return s.createUserSignup(ctx, accountVerifierResp)
+			return userSignup, nil
 		}
 		return nil, err
+	}
+
+	// If the existing UserSignup was rejected by the account verifier, block the user immediately
+	// without calling the verifier again.
+	if states.Rejected(userSignup) {
+		return nil, ForbiddenBannedError
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
-		// Signup is deactivated. We need to reactivate it
+		// Signup is deactivated. We need to reactivate it — always update the UserSignup so
+		// that a rejected reactivation is also recorded.
 		accountVerifierResp := s.verifyAccount(ctx)
+		userSignup, err := s.reactivateUserSignup(ctx, userSignup, accountVerifierResp)
+		if err != nil {
+			return nil, err
+		}
 		if isAccountVerifierRejected(accountVerifierResp) {
 			return nil, ForbiddenBannedError
 		}
-		return s.reactivateUserSignup(ctx, userSignup, accountVerifierResp)
+		return userSignup, nil
 	}
 
 	return nil, apierrors.NewConflict(schema.GroupResource{}, "", fmt.Errorf(
@@ -512,7 +531,9 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, nil
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-		// UserSignup is banned, let's return a forbidden error
+		return nil, ForbiddenBannedError
+	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
 		return nil, ForbiddenBannedError
 	}
 

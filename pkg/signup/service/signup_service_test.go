@@ -43,6 +43,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type TestSignupServiceSuite struct {
@@ -1538,7 +1539,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"passed"}]`, userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
-	s.Run("reject result returns forbidden error", func() {
+	s.Run("reject result creates rejected UserSignup and returns forbidden error", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -1578,11 +1579,62 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.Nil(s.T(), userSignup)
 		assert.Equal(s.T(), service.ForbiddenBannedError, err)
 
-		// verify no UserSignup was created
+		// verify UserSignup WAS created with rejected state and annotation
 		userSignups := &toolchainv1alpha1.UserSignupList{}
 		listErr := fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
 		require.NoError(s.T(), listErr)
-		assert.Empty(s.T(), userSignups.Items)
+		require.Len(s.T(), userSignups.Items, 1)
+		createdUS := userSignups.Items[0]
+		assert.True(s.T(), states.Rejected(&createdUS))
+		assert.Equal(s.T(), "reject", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"failed"}]`, createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+	})
+
+	s.Run("repeat signup attempt on rejected UserSignup returns forbidden error without calling verifier", func() {
+		// given
+		verifierCalled := false
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			verifierCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "rejected-repeat@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "rejected-repeat@disposable.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		// pre-existing UserSignup already in rejected state (as if a prior signup attempt was rejected)
+		rejectedUS := testusersignup.NewUserSignup(
+			testusersignup.WithName(signupcommon.EncodeUserIdentifier("rejected-repeat@kubesaw")),
+		)
+		states.SetRejected(rejectedUS, true)
+		_, application := testutil.PrepareInClusterApp(s.T(), rejectedUS)
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.Error(s.T(), err)
+		assert.Nil(s.T(), userSignup)
+		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+		assert.False(s.T(), verifierCalled, "account verifier should not be called for an already-rejected UserSignup")
 	})
 
 	s.Run("phone-verification result forces verification required", func() {
@@ -1743,7 +1795,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 			testusersignup.WithName(signupcommon.EncodeUserIdentifier("reactivate-reject@kubesaw")),
 			testusersignup.DeactivatedAgo(0),
 		)
-		_, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
 
 		// when
 		userSignup, err := application.SignupService().Signup(ctx)
@@ -1752,6 +1804,15 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		require.Error(s.T(), err)
 		assert.Nil(s.T(), userSignup)
 		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+
+		// verify the UserSignup was updated with rejected state
+		updatedUS := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), types.NamespacedName{
+			Name:      signupcommon.EncodeUserIdentifier("reactivate-reject@kubesaw"),
+			Namespace: commontest.HostOperatorNs,
+		}, updatedUS))
+		assert.True(s.T(), states.Rejected(updatedUS))
+		assert.Equal(s.T(), "reject", updatedUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 	})
 
 	s.Run("disabled mode does not call account verifier", func() {

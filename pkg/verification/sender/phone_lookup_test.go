@@ -104,4 +104,36 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		assert.Empty(t, result.LineType)
 		assert.Empty(t, result.CountryCode)
 	})
+
+	t.Run("response with null nested objects", func(t *testing.T) {
+		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
+			"phone_number":           phone,
+			"sms_pumping_risk":       nil,
+			"line_type_intelligence": nil,
+		})
+
+		result, err := lookup.LookupPhone(t.Context(), phone)
+		require.NoError(t, err)
+		assert.Empty(t, result.CarrierRiskCategory)
+		assert.False(t, result.NumberBlocked)
+		assert.Zero(t, result.RiskScore)
+		assert.Empty(t, result.CarrierName)
+		assert.Empty(t, result.LineType)
+	})
+
+	t.Run("response with empty nested objects", func(t *testing.T) {
+		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
+			"phone_number":           phone,
+			"sms_pumping_risk":       map[string]interface{}{},
+			"line_type_intelligence": map[string]interface{}{},
+		})
+
+		result, err := lookup.LookupPhone(t.Context(), phone)
+		require.NoError(t, err)
+		assert.Empty(t, result.CarrierRiskCategory)
+		assert.False(t, result.NumberBlocked)
+		assert.Zero(t, result.RiskScore)
+		assert.Empty(t, result.CarrierName)
+		assert.Empty(t, result.LineType)
+	})
 }

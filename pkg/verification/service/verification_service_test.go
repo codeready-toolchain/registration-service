@@ -878,16 +878,16 @@ func (s *TestVerificationServiceSuite) setPhoneLookupMode(mode string) {
 	s.SetConfig(testconfig.RegistrationService().Verification().PhoneLookupMode(mode))
 }
 
-func newInitVerificationContext() (*gin.Context, *httptest.ResponseRecorder) {
+func newInitVerificationContext() *gin.Context {
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodPost, "/", nil)
-	return ctx, recorder
+	return ctx
 }
 
 func mockTwilioLookup(phone string, body interface{}) {
 	gock.New("https://lookups.twilio.com").
-		Get("/v2/PhoneNumbers/" + phone).
+		Get("/v2/PhoneNumbers/"+phone).
 		MatchParam("Fields", "sms_pumping_risk,line_type_intelligence").
 		Reply(http.StatusOK).
 		JSON(body)
@@ -927,11 +927,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup@kubesaw", lookupUKPhone, "44")
 		require.Error(s.T(), err)
 		var e *crterrors.Error
-		require.True(s.T(), errors.As(err, &e))
+		require.ErrorAs(s.T(), err, &e)
 		assert.Equal(s.T(), http.StatusForbidden, e.Code)
 
 		updated := &toolchainv1alpha1.UserSignup{}
@@ -952,7 +952,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-log@kubesaw", lookupUKPhone, "44")
 		require.NoError(s.T(), err)
 
@@ -974,7 +974,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-ok@kubesaw", lookupUKPhone, "44")
 		require.NoError(s.T(), err)
 
@@ -998,7 +998,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-err@kubesaw", lookupUKPhone, "44")
 		require.NoError(s.T(), err)
 
@@ -1018,7 +1018,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-us@kubesaw", "+1NUMBER", "1")
 		require.NoError(s.T(), err)
 
@@ -1039,7 +1039,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-off@kubesaw", lookupUKPhone, "44")
 		require.NoError(s.T(), err)
 
@@ -1060,11 +1060,11 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-retry@kubesaw", lookupUKPhone, "44")
 		require.Error(s.T(), err)
 		var e *crterrors.Error
-		require.True(s.T(), errors.As(err, &e))
+		require.ErrorAs(s.T(), err, &e)
 		assert.Equal(s.T(), http.StatusForbidden, e.Code)
 		assert.True(s.T(), gock.IsDone())
 	})
@@ -1082,7 +1082,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-same@kubesaw", lookupUKPhone, "44")
 		require.NoError(s.T(), err)
 
@@ -1107,7 +1107,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.VerificationRequiredAgo(time.Second))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
-		ctx, _ := newInitVerificationContext()
+		ctx := newInitVerificationContext()
 		err := application.VerificationService().InitVerification(ctx, "lookup-diff@kubesaw", newPhone, "44")
 		require.NoError(s.T(), err)
 

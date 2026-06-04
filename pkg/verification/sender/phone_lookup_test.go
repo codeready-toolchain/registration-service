@@ -24,7 +24,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		t.Cleanup(gock.Off)
 
 		gock.New("https://lookups.twilio.com").
-			Get("/v2/PhoneNumbers/" + phone).
+			Get("/v2/PhoneNumbers/"+phone).
 			MatchParam("Fields", "sms_pumping_risk,line_type_intelligence").
 			Reply(status).
 			JSON(body).
@@ -36,8 +36,8 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"country_code": "GB",
 			"sms_pumping_risk": map[string]interface{}{
-				"carrier_risk_category": "high",
-				"number_blocked":        true,
+				"carrier_risk_category":  "high",
+				"number_blocked":         true,
 				"sms_pumping_risk_score": 34,
 			},
 			"line_type_intelligence": map[string]interface{}{
@@ -59,8 +59,8 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	t.Run("low-risk response parsing", func(t *testing.T) {
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"sms_pumping_risk": map[string]interface{}{
-				"carrier_risk_category": "low",
-				"number_blocked":        false,
+				"carrier_risk_category":  "low",
+				"number_blocked":         false,
 				"sms_pumping_risk_score": 2,
 			},
 			"line_type_intelligence": map[string]interface{}{

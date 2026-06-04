@@ -325,6 +325,9 @@ func (r VerificationConfig) CaptchaServiceAccountFileContents() string {
 	return string(content)
 }
 
-func (r VerificationConfig) PhoneLookupMode() string {
-	return commonconfig.GetString(r.c.PhoneLookupMode, "log")
+func (r VerificationConfig) PhoneLookupMode() toolchainv1alpha1.PhoneLookupMode {
+	if r.c.PhoneLookupMode != nil {
+		return *r.c.PhoneLookupMode
+	}
+	return toolchainv1alpha1.PhoneLookupModeLog
 }

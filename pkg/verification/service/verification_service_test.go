@@ -874,7 +874,7 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 const lookupUKPhone = "+447700900000"
 
-func (s *TestVerificationServiceSuite) setPhoneLookupMode(mode string) {
+func (s *TestVerificationServiceSuite) setPhoneLookupMode(mode toolchainv1alpha1.PhoneLookupMode) {
 	s.SetConfig(testconfig.RegistrationService().Verification().PhoneLookupMode(mode))
 }
 
@@ -919,7 +919,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("lookup high risk and mode enabled", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioLookup(lookupUKPhone, highRiskBody)
 
 		userSignup := testusersignup.NewUserSignup(
@@ -943,7 +943,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("lookup high risk and mode log", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("log")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeLog)
 		mockTwilioLookup(lookupUKPhone, highRiskBody)
 		mockTwilioSMS()
 
@@ -965,7 +965,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("lookup low risk", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioLookup(lookupUKPhone, lowRiskBody)
 		mockTwilioSMS()
 
@@ -987,7 +987,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("lookup API error fail open", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		gock.New("https://lookups.twilio.com").
 			Get("/v2/PhoneNumbers/" + lookupUKPhone).
 			Reply(http.StatusInternalServerError)
@@ -1010,7 +1010,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("country code US skips lookup", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioSMS()
 
 		userSignup := testusersignup.NewUserSignup(
@@ -1031,7 +1031,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("mode disabled skips lookup", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("disabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeDisabled)
 		mockTwilioSMS()
 
 		userSignup := testusersignup.NewUserSignup(
@@ -1052,7 +1052,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("already rejected usersignup retries", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("lookup-retry@kubesaw"),
@@ -1071,7 +1071,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("same phone retry skips lookup", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioSMS()
 
 		phoneHash := hash.EncodeString(lookupUKPhone)
@@ -1094,7 +1094,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 	s.Run("different phone retry calls lookup", func() {
 		defer gock.Off()
-		s.setPhoneLookupMode("enabled")
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		newPhone := "+447700900001"
 		mockTwilioLookup(newPhone, lowRiskBody)
 		mockTwilioSMS()

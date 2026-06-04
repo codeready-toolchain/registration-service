@@ -156,7 +156,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	} else {
 		mode := cfg.Verification().PhoneLookupMode()
-		if mode != "disabled" && countryCode != "1" {
+		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && countryCode != "1" {
 			existingLookupHash := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey]
 			if existingLookupHash != phoneHash {
 				lookupCtx := gocontext.Background()
@@ -175,7 +175,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupLineTypeAnnotationKey] = result.LineType
 					if isHighRiskPhone(result) {
 						annotationValues[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey] = "rejected"
-						if mode == "enabled" {
+						if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
 							initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 						} else {
 							log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",

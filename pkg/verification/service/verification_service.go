@@ -42,6 +42,7 @@ type ServiceImpl struct { // nolint:revive
 	namespaced.Client
 	HTTPClient          *http.Client
 	NotificationService sender.NotificationSender
+	PhoneLookupService  sender.PhoneLookupService
 	SignupService       service.SignupService
 }
 
@@ -53,10 +54,18 @@ func NewVerificationService(client namespaced.Client) service.VerificationServic
 		Timeout:   30*time.Second + 500*time.Millisecond, // taken from twilio code
 		Transport: http.DefaultTransport,
 	}
+	cfg := configuration.GetRegistrationServiceConfig()
+	verCfg := cfg.Verification()
 	return &ServiceImpl{
 		Client:              client,
+		HTTPClient:          httpClient,
 		NotificationService: sender.CreateNotificationSender(httpClient),
-		SignupService:       signupsvc.NewSignupService(client),
+		PhoneLookupService: sender.NewTwilioPhoneLookup(
+			verCfg.TwilioAccountSID(),
+			verCfg.TwilioAuthToken(),
+			httpClient,
+		),
+		SignupService: signupsvc.NewSignupService(client),
 	}
 }
 
@@ -81,6 +90,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	if !states.VerificationRequired(signup) {
 		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: '%s'", signup.Name))
 		return crterrors.NewBadRequest("forbidden request", "verification code will not be sent")
+	}
+
+	if signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey] == "rejected" {
+		return crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 	}
 
 	// Check if the provided phone number is already being used by another user
@@ -142,27 +155,62 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	} else {
-		// generate verification code
-		verificationCode, err := generateVerificationCode()
-		if err != nil {
-			return crterrors.NewInternalError(err, "error while generating verification code")
+		mode := cfg.Verification().PhoneLookupMode()
+		if mode != "disabled" && countryCode != "1" {
+			existingLookupHash := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey]
+			if existingLookupHash != phoneHash {
+				lookupCtx := gocontext.Background()
+				if ctx.Request != nil {
+					lookupCtx = ctx.Request.Context()
+				}
+				result, lookupErr := s.PhoneLookupService.LookupPhone(lookupCtx, e164PhoneNumber)
+				if lookupErr != nil {
+					log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
+				} else {
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey] = phoneHash
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupRiskScoreAnnotationKey] = strconv.Itoa(result.RiskScore)
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierNameAnnotationKey] = result.CarrierName
+					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupLineTypeAnnotationKey] = result.LineType
+					if isHighRiskPhone(result) {
+						annotationValues[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey] = "rejected"
+						if mode == "enabled" {
+							initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
+						} else {
+							log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",
+								result.CarrierRiskCategory, result.NumberBlocked, mode))
+						}
+					} else {
+						annotationValues[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey] = "allowed"
+					}
+				}
+			}
 		}
 
-		// Generate the verification message with the new verification code
-		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
+		if initError == nil {
+			// generate verification code
+			verificationCode, err := generateVerificationCode()
+			if err != nil {
+				return crterrors.NewInternalError(err, "error while generating verification code")
+			}
 
-		// Attempt to send notification
-		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
-		if err != nil {
-			log.Error(ctx, err, "error while sending notification")
-			initError = crterrors.NewInternalError(err, "error while sending verification code")
-		} else {
-			// Notification sent successfully, set the verification annotations
-			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
-			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-			annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
-			annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
-				time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			// Generate the verification message with the new verification code
+			content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
+
+			// Attempt to send notification
+			err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
+			if err != nil {
+				log.Error(ctx, err, "error while sending notification")
+				initError = crterrors.NewInternalError(err, "error while sending verification code")
+			} else {
+				// Notification sent successfully, set the verification annotations
+				annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
+				annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+				annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
+				annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
+					time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			}
 		}
 	}
 
@@ -201,6 +249,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	return initError
+}
+
+func isHighRiskPhone(result *sender.PhoneLookupResult) bool {
+	return result.CarrierRiskCategory == "high" || result.NumberBlocked
 }
 
 func generateVerificationCode() (string, error) {

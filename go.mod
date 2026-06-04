@@ -6,7 +6,7 @@ toolchain go1.24.13
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20260504080314-cf8d9a0df564
+	github.com/codeready-toolchain/api v0.0.0-20260603082246-cfa3dd9db9cc
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20260504133316-5fab46be70c1
 	github.com/go-logr/logr v1.4.3
 	github.com/gofrs/uuid v4.2.0+incompatible
@@ -36,6 +36,7 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.62.0
 	github.com/spf13/pflag v1.0.6
+	github.com/twilio/twilio-go v1.30.9
 	go.uber.org/zap v1.27.0
 	gopkg.in/go-jose/go-jose.v2 v2.6.3
 	gotest.tools v2.2.0+incompatible
@@ -69,6 +70,7 @@ require (
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
@@ -176,3 +178,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/codeready-toolchain/api => github.com/fbm3307/toolchainapi v0.0.0-20260604080936-f3460ab84acc
+
+replace github.com/codeready-toolchain/toolchain-common => github.com/fbm3307/toolchain-common v0.0.0-20260604083249-f7d10b0cf7f8

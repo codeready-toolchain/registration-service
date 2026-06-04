@@ -69,6 +69,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.Equal(t, "log", regServiceCfg.Verification().PhoneLookupMode())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 	})
@@ -100,6 +101,7 @@ func TestRegistrationService(t *testing.T) {
 			Verification().CaptchaScoreThreshold("0.7").
 			Verification().CaptchaRequiredScore("0.5").
 			Verification().CaptchaAllowLowScoreReactivation(false).
+			Verification().PhoneLookupMode("enabled").
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
@@ -157,8 +159,24 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0.5), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.False(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.Equal(t, "enabled", regServiceCfg.Verification().PhoneLookupMode())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
+	})
+}
+
+func TestPhoneLookupMode(t *testing.T) {
+	t.Run("returns configured value", func(t *testing.T) {
+		cfg := commonconfig.NewToolchainConfigObjWithReset(t, testconfig.RegistrationService().
+			Verification().PhoneLookupMode("disabled"))
+		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, map[string]map[string]string{})
+		assert.Equal(t, "disabled", regServiceCfg.Verification().PhoneLookupMode())
+	})
+
+	t.Run("defaults to log when unset", func(t *testing.T) {
+		cfg := commonconfig.NewToolchainConfigObjWithReset(t)
+		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, map[string]map[string]string{})
+		assert.Equal(t, "log", regServiceCfg.Verification().PhoneLookupMode())
 	})
 }
 

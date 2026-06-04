@@ -872,6 +872,253 @@ func (s *TestVerificationServiceSuite) testVerifyActivationCode(targetCluster st
 
 }
 
+const lookupUKPhone = "+447700900000"
+
+func (s *TestVerificationServiceSuite) setPhoneLookupMode(mode string) {
+	s.SetConfig(testconfig.RegistrationService().Verification().PhoneLookupMode(mode))
+}
+
+func newInitVerificationContext() (*gin.Context, *httptest.ResponseRecorder) {
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	return ctx, recorder
+}
+
+func mockTwilioLookup(phone string, body interface{}) {
+	gock.New("https://lookups.twilio.com").
+		Get("/v2/PhoneNumbers/" + phone).
+		MatchParam("Fields", "sms_pumping_risk,line_type_intelligence").
+		Reply(http.StatusOK).
+		JSON(body)
+}
+
+func mockTwilioSMS() {
+	gock.New("https://api.twilio.com").
+		Reply(http.StatusNoContent).
+		BodyString("")
+}
+
+func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
+	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
+
+	highRiskBody := map[string]interface{}{
+		"sms_pumping_risk": map[string]interface{}{
+			"carrier_risk_category":  "high",
+			"number_blocked":         true,
+			"sms_pumping_risk_score": 34,
+		},
+	}
+	lowRiskBody := map[string]interface{}{
+		"sms_pumping_risk": map[string]interface{}{
+			"carrier_risk_category":  "low",
+			"number_blocked":         false,
+			"sms_pumping_risk_score": 2,
+		},
+	}
+
+	s.Run("lookup high risk and mode enabled", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		mockTwilioLookup(lookupUKPhone, highRiskBody)
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup@kubesaw", lookupUKPhone, "44")
+		require.Error(s.T(), err)
+		var e *crterrors.Error
+		require.True(s.T(), errors.As(err, &e))
+		assert.Equal(s.T(), http.StatusForbidden, e.Code)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Equal(s.T(), "rejected", updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("lookup high risk and mode log", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("log")
+		mockTwilioLookup(lookupUKPhone, highRiskBody)
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-log@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-log@kubesaw", lookupUKPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Equal(s.T(), "rejected", updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("lookup low risk", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		mockTwilioLookup(lookupUKPhone, lowRiskBody)
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-ok@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-ok@kubesaw", lookupUKPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Equal(s.T(), "allowed", updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.Equal(s.T(), hash.EncodeString(lookupUKPhone), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+	})
+
+	s.Run("lookup API error fail open", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		gock.New("https://lookups.twilio.com").
+			Get("/v2/PhoneNumbers/" + lookupUKPhone).
+			Reply(http.StatusInternalServerError)
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-err@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-err@kubesaw", lookupUKPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+	})
+
+	s.Run("country code US skips lookup", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-us@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-us@kubesaw", "+1NUMBER", "1")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("mode disabled skips lookup", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("disabled")
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-off@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-off@kubesaw", lookupUKPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("already rejected usersignup retries", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-retry@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey, "rejected"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-retry@kubesaw", lookupUKPhone, "44")
+		require.Error(s.T(), err)
+		var e *crterrors.Error
+		require.True(s.T(), errors.As(err, &e))
+		assert.Equal(s.T(), http.StatusForbidden, e.Code)
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("same phone retry skips lookup", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		mockTwilioSMS()
+
+		phoneHash := hash.EncodeString(lookupUKPhone)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-same@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey, phoneHash),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey, "allowed"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-same@kubesaw", lookupUKPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+	})
+
+	s.Run("different phone retry calls lookup", func() {
+		defer gock.Off()
+		s.setPhoneLookupMode("enabled")
+		newPhone := "+447700900001"
+		mockTwilioLookup(newPhone, lowRiskBody)
+		mockTwilioSMS()
+
+		phoneHash := hash.EncodeString(lookupUKPhone)
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-diff@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey, phoneHash),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey, "allowed"),
+			testusersignup.VerificationRequiredAgo(time.Second))
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		ctx, _ := newInitVerificationContext()
+		err := application.VerificationService().InitVerification(ctx, "lookup-diff@kubesaw", newPhone, "44")
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.Equal(s.T(), hash.EncodeString(newPhone), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey])
+		assert.Equal(s.T(), "allowed", updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupResultAnnotationKey])
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+	})
+}
+
 func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 	bannedUser := &toolchainv1alpha1.BannedUser{
 		ObjectMeta: metav1.ObjectMeta{

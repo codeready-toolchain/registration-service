@@ -324,3 +324,7 @@ func (r VerificationConfig) CaptchaServiceAccountFileContents() string {
 	content := r.registrationServiceSecret(key)
 	return string(content)
 }
+
+func (r VerificationConfig) PhoneLookupMode() string {
+	return commonconfig.GetString(r.c.PhoneLookupMode, "log")
+}

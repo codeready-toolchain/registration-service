@@ -156,6 +156,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	} else {
 		mode := cfg.Verification().PhoneLookupMode()
+		// Country code "1" is NANP (North American Numbering Plan), covering both US and Canada.
 		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && countryCode != "1" {
 			existingLookupHash := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupPhoneHashAnnotationKey]
 			if existingLookupHash != phoneHash {
@@ -251,6 +252,8 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	return initError
 }
 
+// isHighRiskPhone returns true when Twilio Lookup reports the highest risk category ("high";
+// available categories are low, mild, moderate, high) or when the number is blocked.
 func isHighRiskPhone(result *sender.PhoneLookupResult) bool {
 	return result.CarrierRiskCategory == "high" || result.NumberBlocked
 }

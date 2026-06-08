@@ -40,6 +40,9 @@ const (
 var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
 	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
 
+var ForbiddenRejectedError = apierrors.NewForbidden(schema.GroupResource{}, "",
+	errs.New("Access to the Developer Sandbox has been denied."))
+
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
 	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
@@ -63,7 +66,7 @@ func NewSignupService(client namespaced.Client) *ServiceImpl {
 
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
-func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
 
 	userID := ctx.GetString(context.UserIDKey)
@@ -140,6 +143,24 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSi
 	}
 
 	states.SetVerificationRequired(userSignup, verificationRequired)
+
+	if accountVerifierResp != nil {
+		userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey] = accountVerifierResp.Result
+		if len(accountVerifierResp.Reasons) > 0 {
+			reasonsJSON, err := json.Marshal(accountVerifierResp.Reasons)
+			if err == nil {
+				userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey] = string(reasonsJSON)
+			} else {
+				log.Error(ctx, err, "failed to marshal account verifier reasons")
+			}
+		}
+		if accountVerifierResp.Result == accountVerifierResultPhoneVerification {
+			states.SetVerificationRequired(userSignup, true)
+		}
+		if accountVerifierResp.Result == accountVerifierResultReject {
+			states.SetRejected(userSignup, true)
+		}
+	}
 
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
 	if param, _ := ctx.GetQuery(NoSpaceKey); param == "true" {
@@ -243,6 +264,15 @@ func extractEmailHost(email string) string {
 	return email[i+1:]
 }
 
+const (
+	accountVerifierResultReject            = "reject"
+	accountVerifierResultPhoneVerification = "phone-verification"
+
+	accountVerifierModeDisabled = "disabled"
+	accountVerifierModeLog      = "log"
+	accountVerifierModeEnabled  = "enabled"
+)
+
 type accountVerifierRequest struct {
 	Email string `json:"email"`
 }
@@ -260,52 +290,64 @@ type accountVerifierReason struct {
 
 var accountVerifierHTTPClient = &http.Client{Timeout: 3 * time.Second}
 
-// callAccountVerifier calls the account verifier service to check the user's email domain.
-// For now this is used only for monitoring — the result is logged but not acted upon.
-func callAccountVerifier(ctx *gin.Context, verifierURL, email string) error {
+func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountVerifierResponse, error) {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
-		return errs.Wrap(err, "failed to marshal account verifier request")
+		return nil, errs.Wrap(err, "failed to marshal account verifier request")
 	}
 
 	resp, err := accountVerifierHTTPClient.Post(verifierURL+"/verify-account", "application/json", bytes.NewReader(reqBody))
 	if err != nil {
-		return errs.Wrapf(err, "failed to call account verifier for email %s", email)
+		return nil, errs.Wrapf(err, "failed to call account verifier for email %s", email)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return errs.Wrapf(err, "failed to read account verifier response for email %s", email)
+		return nil, errs.Wrapf(err, "failed to read account verifier response for email %s", email)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
+		return nil, fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
 	}
 
 	var verifierResp accountVerifierResponse
 	if err := json.Unmarshal(respBody, &verifierResp); err != nil {
-		return errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
+		return nil, errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
 	}
 
 	log.Info(ctx, fmt.Sprintf("account verifier result for %s: result=%s, reasons=%v, error=%s",
 		email, verifierResp.Result, verifierResp.Reasons, verifierResp.Error))
-	return nil
+	return &verifierResp, nil
 }
 
-func (s *ServiceImpl) verifyAccount(ctx *gin.Context) {
+func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *accountVerifierResponse {
 	cfg := configuration.GetRegistrationServiceConfig()
+	if cfg.AccountVerifierMode() == accountVerifierModeDisabled {
+		return nil
+	}
 	verifierURL := cfg.AccountVerifierURL()
 	if verifierURL == "" {
-		return
+		return nil
 	}
 	email := ctx.GetString(context.EmailKey)
 	if email == "" {
-		return
+		return nil
 	}
-	if err := callAccountVerifier(ctx, verifierURL, email); err != nil {
+	resp, err := callAccountVerifier(ctx, verifierURL, email)
+	if err != nil {
 		log.Error(ctx, err, "account verifier call failed")
+		return nil
 	}
+	if cfg.AccountVerifierMode() == accountVerifierModeEnabled {
+		return resp
+	}
+	// log mode: callAccountVerifier already logged the response; discard it
+	return nil
+}
+
+func isAccountVerifierRejected(resp *accountVerifierResponse) bool {
+	return resp != nil && resp.Result == accountVerifierResultReject
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
@@ -318,20 +360,42 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	userSignup := &toolchainv1alpha1.UserSignup{}
 	if err := s.Get(ctx, s.NamespacedName(encodedUsername), userSignup); err != nil {
 		if apierrors.IsNotFound(err) {
-			// New Signup
+			// New Signup — always create the UserSignup so that a rejected user is recorded in K8s
+			// (enables metrics and prevents repeated verifier calls on retries).
 			log.WithValues(map[string]interface{}{"encoded_username": encodedUsername}).Info(ctx, "user not found, creating a new one")
-			s.verifyAccount(ctx)
-			return s.createUserSignup(ctx)
+			accountVerifierResp := s.verifyAccount(ctx)
+			userSignup, err := s.createUserSignup(ctx, accountVerifierResp)
+			if err != nil {
+				return nil, err
+			}
+			if isAccountVerifierRejected(accountVerifierResp) {
+				return nil, ForbiddenRejectedError
+			}
+			return userSignup, nil
 		}
 		return nil, err
+	}
+
+	// If the existing UserSignup was rejected by the account verifier, block the user immediately
+	// without calling the verifier again.
+	if states.Rejected(userSignup) {
+		return nil, ForbiddenRejectedError
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
-		// Signup is deactivated. We need to reactivate it
-		s.verifyAccount(ctx)
-		return s.reactivateUserSignup(ctx, userSignup)
+		// Signup is deactivated. We need to reactivate it — always update the UserSignup so
+		// that a rejected reactivation is also recorded.
+		accountVerifierResp := s.verifyAccount(ctx)
+		userSignup, err := s.reactivateUserSignup(ctx, userSignup, accountVerifierResp)
+		if err != nil {
+			return nil, err
+		}
+		if isAccountVerifierRejected(accountVerifierResp) {
+			return nil, ForbiddenRejectedError
+		}
+		return userSignup, nil
 	}
 
 	return nil, apierrors.NewConflict(schema.GroupResource{}, "", fmt.Errorf(
@@ -339,8 +403,8 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
-	userSignup, err := s.newUserSignup(ctx)
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
+	userSignup, err := s.newUserSignup(ctx, accountVerifierResp)
 	if err != nil {
 		return nil, err
 	}
@@ -349,11 +413,11 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context) (*toolchainv1alpha1.Use
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.
-	newUserSignup, err := s.newUserSignup(ctx)
+	newUserSignup, err := s.newUserSignup(ctx, accountVerifierResp)
 	if err != nil {
 		return nil, err
 	}
@@ -470,8 +534,10 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, nil
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-		// UserSignup is banned, let's return a forbidden error
 		return nil, ForbiddenBannedError
+	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
+		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
+		return nil, ForbiddenRejectedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

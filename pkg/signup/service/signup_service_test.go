@@ -43,6 +43,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type TestSignupServiceSuite struct {
@@ -1492,6 +1493,368 @@ func (s *TestSignupServiceSuite) TestSignupCallsAccountVerifier() {
 		// then
 		require.NoError(s.T(), err)
 		assert.False(s.T(), verifierCalled)
+	})
+}
+
+func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
+	s.Run("approved result sets annotations and proceeds normally", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"approved","reasons":[{"check":"check-1","detail":"passed"}],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "approved-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "approved-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.Equal(s.T(), "approved", userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"passed"}]`, userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+	})
+
+	s.Run("reject result creates rejected UserSignup and returns forbidden error", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "rejected-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "rejected-user@disposable.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.Error(s.T(), err)
+		assert.Nil(s.T(), userSignup)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
+
+		// verify UserSignup WAS created with rejected state and annotation
+		userSignups := &toolchainv1alpha1.UserSignupList{}
+		listErr := fakeClient.List(gocontext.TODO(), userSignups, client.InNamespace(commontest.HostOperatorNs))
+		require.NoError(s.T(), listErr)
+		require.Len(s.T(), userSignups.Items, 1)
+		createdUS := userSignups.Items[0]
+		assert.True(s.T(), states.Rejected(&createdUS))
+		assert.Equal(s.T(), "reject", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"failed"}]`, createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+	})
+
+	s.Run("repeat signup attempt on rejected UserSignup returns forbidden error without calling verifier", func() {
+		// given
+		verifierCalled := false
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			verifierCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "rejected-repeat@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "rejected-repeat@disposable.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		// pre-existing UserSignup already in rejected state (as if a prior signup attempt was rejected)
+		rejectedUS := testusersignup.NewUserSignup(
+			testusersignup.WithName(signupcommon.EncodeUserIdentifier("rejected-repeat@kubesaw")),
+		)
+		states.SetRejected(rejectedUS, true)
+		_, application := testutil.PrepareInClusterApp(s.T(), rejectedUS)
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.Error(s.T(), err)
+		assert.Nil(s.T(), userSignup)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
+		assert.False(s.T(), verifierCalled, "account verifier should not be called for an already-rejected UserSignup")
+	})
+
+	s.Run("phone-verification result forces verification required", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"phone-verification","reasons":[{"check":"check-1","detail":"needs verification"}],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(false))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "phone-ver-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "phone-ver-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.Equal(s.T(), "phone-verification", userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.True(s.T(), states.VerificationRequired(userSignup))
+	})
+
+	s.Run("verifier error with enabled flag fails open", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`internal server error`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "failopen-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "failopen-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+	})
+
+	s.Run("log mode does not set annotations", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"approved","reasons":[],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("log").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "noflag-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "noflag-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+	})
+
+	s.Run("reject on reactivation returns forbidden error", func() {
+		// given
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("enabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "reactivate-reject@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "reactivate-reject@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		deactivatedUS := testusersignup.NewUserSignup(
+			testusersignup.WithName(signupcommon.EncodeUserIdentifier("reactivate-reject@kubesaw")),
+			testusersignup.DeactivatedAgo(0),
+		)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), deactivatedUS)
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.Error(s.T(), err)
+		assert.Nil(s.T(), userSignup)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
+
+		// verify the UserSignup was updated with rejected state
+		updatedUS := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), types.NamespacedName{
+			Name:      signupcommon.EncodeUserIdentifier("reactivate-reject@kubesaw"),
+			Namespace: commontest.HostOperatorNs,
+		}, updatedUS))
+		assert.True(s.T(), states.Rejected(updatedUS))
+		assert.Equal(s.T(), "reject", updatedUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+	})
+
+	s.Run("disabled mode does not call account verifier", func() {
+		// given
+		verifierCalled := false
+		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			verifierCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer verifierServer.Close()
+
+		s.OverrideApplicationDefault(
+			testconfig.RegistrationService().
+				AccountVerifierURL(verifierServer.URL).
+				AccountVerifierMode("disabled").
+				Verification().Enabled(true).
+				Verification().CodeExpiresInMin(5))
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Set(context.UsernameKey, "disabled-mode-user@kubesaw")
+		ctx.Set(context.SubKey, "987654321")
+		ctx.Set(context.OriginalSubKey, "original-sub-value")
+		ctx.Set(context.EmailKey, "disabled-mode-user@gmail.com")
+		ctx.Set(context.GivenNameKey, "jane")
+		ctx.Set(context.FamilyNameKey, "doe")
+		ctx.Set(context.CompanyKey, "red hat")
+		ctx.Set(context.UserIDKey, "13349822")
+		ctx.Set(context.AccountIDKey, "45983711")
+		ctx.Set(context.AccountNumberKey, "123456789")
+		ctx.Set(context.RequestReceivedTime, time.Now())
+
+		_, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(ctx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		assert.False(s.T(), verifierCalled)
+		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 	})
 }
 

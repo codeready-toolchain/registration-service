@@ -1577,7 +1577,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		// then
 		require.Error(s.T(), err)
 		assert.Nil(s.T(), userSignup)
-		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
 
 		// verify UserSignup WAS created with rejected state and annotation
 		userSignups := &toolchainv1alpha1.UserSignupList{}
@@ -1633,7 +1633,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		// then
 		require.Error(s.T(), err)
 		assert.Nil(s.T(), userSignup)
-		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
 		assert.False(s.T(), verifierCalled, "account verifier should not be called for an already-rejected UserSignup")
 	})
 
@@ -1803,7 +1803,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		// then
 		require.Error(s.T(), err)
 		assert.Nil(s.T(), userSignup)
-		assert.Equal(s.T(), service.ForbiddenBannedError, err)
+		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
 
 		// verify the UserSignup was updated with rejected state
 		updatedUS := &toolchainv1alpha1.UserSignup{}

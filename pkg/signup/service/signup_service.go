@@ -40,6 +40,9 @@ const (
 var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
 	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
 
+var ForbiddenRejectedError = apierrors.NewForbidden(schema.GroupResource{}, "",
+	errs.New("Access to the Developer Sandbox has been denied."))
+
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,
 	toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey,
@@ -366,7 +369,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 				return nil, err
 			}
 			if isAccountVerifierRejected(accountVerifierResp) {
-				return nil, ForbiddenBannedError
+				return nil, ForbiddenRejectedError
 			}
 			return userSignup, nil
 		}
@@ -376,7 +379,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 	// If the existing UserSignup was rejected by the account verifier, block the user immediately
 	// without calling the verifier again.
 	if states.Rejected(userSignup) {
-		return nil, ForbiddenBannedError
+		return nil, ForbiddenRejectedError
 	}
 
 	// Check UserSignup status to determine whether user signup is deactivated
@@ -390,7 +393,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 			return nil, err
 		}
 		if isAccountVerifierRejected(accountVerifierResp) {
-			return nil, ForbiddenBannedError
+			return nil, ForbiddenRejectedError
 		}
 		return userSignup, nil
 	}
@@ -534,7 +537,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, ForbiddenBannedError
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
 		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
-		return nil, ForbiddenBannedError
+		return nil, ForbiddenRejectedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {

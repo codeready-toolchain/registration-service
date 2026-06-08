@@ -20,18 +20,18 @@ type PhoneLookupResult struct {
 	CountryCode         string
 }
 
-// PhoneLookupService checks phone numbers for fraud risk before SMS verification.
-type PhoneLookupService interface {
+// PhoneLooker checks phone numbers for fraud risk before SMS verification.
+type PhoneLooker interface {
 	LookupPhone(ctx context.Context, phoneNumber string) (*PhoneLookupResult, error)
 }
 
-// TwilioPhoneLookup implements PhoneLookupService using the Twilio Lookup v2 API.
+// TwilioPhoneLookup implements PhoneLooker using the Twilio Lookup v2 API.
 type TwilioPhoneLookup struct {
 	client *twilioclient.RestClient
 }
 
-// NewTwilioPhoneLookup creates a PhoneLookupService backed by the Twilio Lookup v2 API.
-func NewTwilioPhoneLookup(accountSID, authToken string, httpClient *http.Client) PhoneLookupService {
+// NewTwilioPhoneLookup creates a PhoneLooker backed by the Twilio Lookup v2 API.
+func NewTwilioPhoneLookup(accountSID, authToken string, httpClient *http.Client) PhoneLooker {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}

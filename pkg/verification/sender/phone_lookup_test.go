@@ -17,7 +17,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		phone      = "+447700900000"
 	)
 
-	setupLookup := func(t *testing.T, status int, body interface{}) sender2.PhoneLookupService {
+	setupLookup := func(t *testing.T, status int, body interface{}) sender2.PhoneLooker {
 		t.Helper()
 		httpClient := &http.Client{Transport: &http.Transport{}}
 		gock.InterceptClient(httpClient)

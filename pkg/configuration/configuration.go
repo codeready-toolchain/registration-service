@@ -331,3 +331,7 @@ func (r VerificationConfig) PhoneLookupMode() toolchainv1alpha1.PhoneLookupMode 
 	}
 	return toolchainv1alpha1.PhoneLookupModeLog
 }
+
+func (r VerificationConfig) PhoneLookupExcludedCountries() []string {
+	return r.c.PhoneLookupExcludedCountries
+}

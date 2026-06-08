@@ -161,7 +161,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		excludedCountries := cfg.Verification().PhoneLookupExcludedCountries()
 		regionCode := regionCodeFromE164(e164PhoneNumber)
 		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && !isCountryExcluded(regionCode, excludedCountries) {
-			existingLookupHash := phoneHashFromDetails(signup)
+			existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
 			if existingLookupHash != phoneHash {
 				lookupCtx := gocontext.Background()
 				if ctx.Request != nil {
@@ -177,7 +177,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 						"risk_score":   strconv.Itoa(result.RiskScore),
 						"carrier_name": result.CarrierName,
 						"line_type":    result.LineType,
-						"phone_hash":   phoneHash,
 					}
 					if isHighRiskPhone(result) {
 						details["result"] = "rejected"
@@ -299,19 +298,6 @@ func isLookupRejected(signup *toolchainv1alpha1.UserSignup) bool {
 		return false
 	}
 	return details["result"] == "rejected"
-}
-
-// phoneHashFromDetails extracts the phone_hash from the JSON details annotation.
-func phoneHashFromDetails(signup *toolchainv1alpha1.UserSignup) string {
-	raw := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey]
-	if raw == "" {
-		return ""
-	}
-	var details map[string]string
-	if err := json.Unmarshal([]byte(raw), &details); err != nil {
-		return ""
-	}
-	return details["phone_hash"]
 }
 
 func generateVerificationCode() (string, error) {

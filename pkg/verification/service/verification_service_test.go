@@ -895,10 +895,9 @@ func mockTwilioSMS() {
 		BodyString("")
 }
 
-func phoneLookupDetailsJSON(result, phoneHash string) string {
+func phoneLookupDetailsJSON(result string) string {
 	details := map[string]string{
-		"result":     result,
-		"phone_hash": phoneHash,
+		"result": result,
 	}
 	b, err := json.Marshal(details)
 	if err != nil {
@@ -907,14 +906,13 @@ func phoneLookupDetailsJSON(result, phoneHash string) string {
 	return string(b)
 }
 
-func assertLookupDetails(t *testing.T, signup *toolchainv1alpha1.UserSignup, expectedResult, expectedPhoneHash string) {
+func assertLookupDetails(t *testing.T, signup *toolchainv1alpha1.UserSignup, expectedResult string) {
 	t.Helper()
 	raw := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey]
 	require.NotEmpty(t, raw, "expected phone-lookup-details annotation to be set")
 	var details map[string]string
 	require.NoError(t, json.Unmarshal([]byte(raw), &details))
 	assert.Equal(t, expectedResult, details["result"])
-	assert.Equal(t, expectedPhoneHash, details["phone_hash"])
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
@@ -958,7 +956,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 		updated := &toolchainv1alpha1.UserSignup{}
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
-		assertLookupDetails(s.T(), updated, "rejected", hash.EncodeString(lookupUKPhone))
+		assertLookupDetails(s.T(), updated, "rejected")
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
 	})
@@ -984,7 +982,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 		updated := &toolchainv1alpha1.UserSignup{}
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
-		assertLookupDetails(s.T(), updated, "rejected", hash.EncodeString(lookupUKPhone))
+		assertLookupDetails(s.T(), updated, "rejected")
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
 	})
@@ -1010,7 +1008,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 		updated := &toolchainv1alpha1.UserSignup{}
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
-		assertLookupDetails(s.T(), updated, "allowed", hash.EncodeString(lookupUKPhone))
+		assertLookupDetails(s.T(), updated, "allowed")
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 	})
 
@@ -1100,7 +1098,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			testusersignup.WithEncodedName("lookup-retry@kubesaw"),
 			testusersignup.VerificationRequiredAgo(time.Second),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey,
-				phoneLookupDetailsJSON("rejected", hash.EncodeString(lookupUKPhone))))
+				phoneLookupDetailsJSON("rejected")))
 		_, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// when
@@ -1124,8 +1122,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("lookup-same@kubesaw"),
 			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, hash.EncodeString(lookupUKPhone)),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey,
-				phoneLookupDetailsJSON("allowed", hash.EncodeString(lookupUKPhone))))
+				phoneLookupDetailsJSON("allowed")))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// when
@@ -1151,8 +1150,9 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("lookup-diff@kubesaw"),
 			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, hash.EncodeString(lookupUKPhone)),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey,
-				phoneLookupDetailsJSON("allowed", hash.EncodeString(lookupUKPhone))))
+				phoneLookupDetailsJSON("allowed")))
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		// when
@@ -1164,7 +1164,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 
 		updated := &toolchainv1alpha1.UserSignup{}
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
-		assertLookupDetails(s.T(), updated, "allowed", hash.EncodeString("+447700900001"))
+		assertLookupDetails(s.T(), updated, "allowed")
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 	})
 }

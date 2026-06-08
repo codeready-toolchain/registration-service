@@ -75,10 +75,10 @@ github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjT
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f h1:Wl78ApPPB2Wvf/TIe2xdyJxTlb6obmF18d8QdkxNDu4=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f/go.mod h1:OSYXu++VVOHnXeitef/D8n/6y4QV8uLHSFXX4NeXMGc=
-github.com/fbm3307/toolchain-common v0.0.0-20260608074508-590711573ffe h1:ZcRGUQ4PQ5jdklG+sjbNiRcWDWZRJTnAw7sMzhUFMcE=
-github.com/fbm3307/toolchain-common v0.0.0-20260608074508-590711573ffe/go.mod h1:qM3O9UX4HOWPYW4QT7G3cZxO91+XKQBUZaxlOIN73Uo=
-github.com/fbm3307/toolchainapi v0.0.0-20260608073802-89362d94dca4 h1:iMRDRRzSq9Ie33g3WqfzDvvnLzesgTRKEnI3AhTTIfs=
-github.com/fbm3307/toolchainapi v0.0.0-20260608073802-89362d94dca4/go.mod h1:PMg6kNHuCGNlu3MOdrCisqGkBpvzB0qS1+E6nrXxPAc=
+github.com/fbm3307/toolchain-common v0.0.0-20260608111724-c30cc73c6b91 h1:ZRjnFxN8UIcmJo+BjNTiaCpyYVCj7TclarGbRRko3mE=
+github.com/fbm3307/toolchain-common v0.0.0-20260608111724-c30cc73c6b91/go.mod h1:xcm86+meY59A4Rs62c8wVAznTuPk2QQW/yijPWZxHLw=
+github.com/fbm3307/toolchainapi v0.0.0-20260608110443-4e4fa9fe0621 h1:4Ga0w0uuWUw8Q3KgJsgMncH+1F2S048y0eCAzSSlYbA=
+github.com/fbm3307/toolchainapi v0.0.0-20260608110443-4e4fa9fe0621/go.mod h1:PMg6kNHuCGNlu3MOdrCisqGkBpvzB0qS1+E6nrXxPAc=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/fxamacker/cbor/v2 v2.7.0 h1:iM5WgngdRBanHcxugY4JySA0nk1wZorNOpTgCMedv5E=

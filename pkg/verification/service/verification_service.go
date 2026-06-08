@@ -16,7 +16,6 @@ import (
 	signuppkg "github.com/codeready-toolchain/registration-service/pkg/signup"
 	signupsvc "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
-	"github.com/nyaruka/phonenumbers"
 	signupcommon "github.com/codeready-toolchain/toolchain-common/pkg/usersignup"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,6 +28,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nyaruka/phonenumbers"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -190,7 +190,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 					} else {
 						details["result"] = "allowed"
 					}
-					detailsJSON, _ := json.Marshal(details)
+					detailsJSON, err := json.Marshal(details)
+					if err != nil {
+						log.Error(ctx, err, "failed to marshal phone lookup details")
+					}
 					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
 				}
 			}

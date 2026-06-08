@@ -900,7 +900,10 @@ func phoneLookupDetailsJSON(result, phoneHash string) string {
 		"result":     result,
 		"phone_hash": phoneHash,
 	}
-	b, _ := json.Marshal(details)
+	b, err := json.Marshal(details)
+	if err != nil {
+		panic(err)
+	}
 	return string(b)
 }
 

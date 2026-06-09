@@ -33,6 +33,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	}
 
 	t.Run("high-risk response parsing", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"country_code": "GB",
 			"sms_pumping_risk": map[string]interface{}{
@@ -46,7 +47,10 @@ func TestTwilioPhoneLookup(t *testing.T) {
 			},
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.NoError(t, err)
 		assert.Equal(t, "high", result.CarrierRiskCategory)
 		assert.True(t, result.NumberBlocked)
@@ -57,6 +61,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	})
 
 	t.Run("low-risk response parsing", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"sms_pumping_risk": map[string]interface{}{
 				"carrier_risk_category":  "low",
@@ -69,7 +74,10 @@ func TestTwilioPhoneLookup(t *testing.T) {
 			},
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.NoError(t, err)
 		assert.Equal(t, "low", result.CarrierRiskCategory)
 		assert.False(t, result.NumberBlocked)
@@ -80,22 +88,30 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	})
 
 	t.Run("API error handling", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusInternalServerError, map[string]interface{}{
 			"message": "Internal Server Error",
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "twilio phone lookup")
 	})
 
 	t.Run("response with missing fields", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"phone_number": phone,
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.NoError(t, err)
 		assert.Empty(t, result.CarrierRiskCategory)
 		assert.False(t, result.NumberBlocked)
@@ -106,13 +122,17 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	})
 
 	t.Run("response with null nested objects", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"phone_number":           phone,
 			"sms_pumping_risk":       nil,
 			"line_type_intelligence": nil,
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.NoError(t, err)
 		assert.Empty(t, result.CarrierRiskCategory)
 		assert.False(t, result.NumberBlocked)
@@ -122,13 +142,17 @@ func TestTwilioPhoneLookup(t *testing.T) {
 	})
 
 	t.Run("response with empty nested objects", func(t *testing.T) {
+		// given
 		lookup := setupLookup(t, http.StatusOK, map[string]interface{}{
 			"phone_number":           phone,
 			"sms_pumping_risk":       map[string]interface{}{},
 			"line_type_intelligence": map[string]interface{}{},
 		})
 
+		// when
 		result, err := lookup.LookupPhone(t.Context(), phone)
+
+		// then
 		require.NoError(t, err)
 		assert.Empty(t, result.CarrierRiskCategory)
 		assert.False(t, result.NumberBlocked)

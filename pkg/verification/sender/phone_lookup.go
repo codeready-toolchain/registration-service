@@ -10,13 +10,18 @@ import (
 	openapi "github.com/twilio/twilio-go/rest/lookups/v2"
 )
 
+// PhoneLookupResultDetails holds supplementary lookup data stored as a JSON annotation.
+type PhoneLookupResultDetails struct {
+	RiskScore   int    `json:"risk_score"`
+	CarrierName string `json:"carrier_name"`
+	LineType    string `json:"line_type"`
+}
+
 // PhoneLookupResult holds the parsed response from a Twilio Lookup v2 API call.
 type PhoneLookupResult struct {
+	PhoneLookupResultDetails
 	CarrierRiskCategory string
 	NumberBlocked       bool
-	RiskScore           int
-	CarrierName         string
-	LineType            string
 	CountryCode         string
 }
 
@@ -48,8 +53,8 @@ func NewTwilioPhoneLookup(accountSID, authToken string, httpClient *http.Client)
 }
 
 // LookupPhone fetches sms_pumping_risk and line_type_intelligence for the given E.164 number.
-func (t *TwilioPhoneLookup) LookupPhone(ctx context.Context, phoneNumber string) (*PhoneLookupResult, error) {
-	_ = ctx
+// ctx is accepted for interface consistency; the Twilio Go SDK does not yet support per-call context.
+func (t *TwilioPhoneLookup) LookupPhone(_ context.Context, phoneNumber string) (*PhoneLookupResult, error) {
 	params := &openapi.FetchPhoneNumberParams{}
 	params.SetFields("sms_pumping_risk,line_type_intelligence")
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -94,7 +95,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		return crterrors.NewBadRequest("forbidden request", "verification code will not be sent")
 	}
 
-	if isLookupRejected(signup) {
+	if states.Rejected(signup) {
 		return crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 	}
 
@@ -151,6 +152,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	var initError error
+	rejectSignup := false
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
@@ -159,8 +161,11 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	} else {
 		mode := cfg.Verification().PhoneLookupMode()
 		excludedCountries := cfg.Verification().PhoneLookupExcludedCountries()
-		regionCode := regionCodeFromE164(e164PhoneNumber)
-		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && !isCountryExcluded(regionCode, excludedCountries) {
+		isoCountryCode, parseErr := countryCodeFromE164(e164PhoneNumber)
+		if parseErr != nil {
+			log.Error(ctx, parseErr, fmt.Sprintf("failed to parse country code from phone number %q", e164PhoneNumber))
+		}
+		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && !slices.Contains(excludedCountries, isoCountryCode) {
 			existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
 			if existingLookupHash != phoneHash {
 				lookupCtx := gocontext.Background()
@@ -173,23 +178,16 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 				} else {
 					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
 					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
-					details := map[string]string{
-						"risk_score":   strconv.Itoa(result.RiskScore),
-						"carrier_name": result.CarrierName,
-						"line_type":    result.LineType,
-					}
 					if isHighRiskPhone(result) {
-						details["result"] = "rejected"
 						if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
 							initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
+							rejectSignup = true
 						} else {
 							log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",
 								result.CarrierRiskCategory, result.NumberBlocked, mode))
 						}
-					} else {
-						details["result"] = "allowed"
 					}
-					detailsJSON, err := json.Marshal(details)
+					detailsJSON, err := json.Marshal(result.PhoneLookupResultDetails)
 					if err != nil {
 						log.Error(ctx, err, "failed to marshal phone lookup details")
 					}
@@ -247,6 +245,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 			signup.Annotations[k] = v
 		}
 
+		if rejectSignup {
+			states.SetRejected(signup, true)
+		}
+
 		return s.Update(gocontext.TODO(), signup)
 	}
 
@@ -267,37 +269,13 @@ func isHighRiskPhone(result *sender.PhoneLookupResult) bool {
 	return result.CarrierRiskCategory == "high" || result.NumberBlocked
 }
 
-// regionCodeFromE164 parses an E.164 phone number and returns its ISO 3166-1 alpha-2 region code.
-// Returns empty string if parsing fails.
-func regionCodeFromE164(number string) string {
+// countryCodeFromE164 parses an E.164 phone number and returns its ISO 3166-1 alpha-2 country code.
+func countryCodeFromE164(number string) (string, error) {
 	parsed, err := phonenumbers.Parse(number, "")
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("parse E.164 number: %w", err)
 	}
-	return phonenumbers.GetRegionCodeForNumber(parsed)
-}
-
-// isCountryExcluded returns true if the given region code is in the excluded list.
-func isCountryExcluded(regionCode string, excluded []string) bool {
-	for _, c := range excluded {
-		if c == regionCode {
-			return true
-		}
-	}
-	return false
-}
-
-// isLookupRejected checks whether the phone lookup details annotation indicates rejection.
-func isLookupRejected(signup *toolchainv1alpha1.UserSignup) bool {
-	raw := signup.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey]
-	if raw == "" {
-		return false
-	}
-	var details map[string]string
-	if err := json.Unmarshal([]byte(raw), &details); err != nil {
-		return false
-	}
-	return details["result"] == "rejected"
+	return phonenumbers.GetRegionCodeForNumber(parsed), nil
 }
 
 func generateVerificationCode() (string, error) {

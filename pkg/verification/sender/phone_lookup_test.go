@@ -48,7 +48,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.Error(t, err)
@@ -109,7 +109,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		})
 
 		// when
-		result, err := lookup.LookupPhone(t.Context(), phone)
+		result, err := lookup.LookupPhone(phone)
 
 		// then
 		require.NoError(t, err)

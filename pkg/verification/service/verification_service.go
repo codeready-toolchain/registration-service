@@ -247,11 +247,7 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 	if existingLookupHash == phoneHash {
 		return false, nil
 	}
-	lookupCtx := gocontext.Background()
-	if ctx.Request != nil {
-		lookupCtx = ctx.Request.Context()
-	}
-	result, lookupErr := s.PhoneLookupService.LookupPhone(lookupCtx, e164PhoneNumber)
+	result, lookupErr := s.PhoneLookupService.LookupPhone(e164PhoneNumber)
 	if lookupErr != nil {
 		log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
 		return false, nil

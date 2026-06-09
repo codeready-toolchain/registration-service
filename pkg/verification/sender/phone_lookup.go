@@ -1,7 +1,6 @@
 package sender
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -27,7 +26,7 @@ type PhoneLookupResult struct {
 
 // PhoneLooker checks phone numbers for fraud risk before SMS verification.
 type PhoneLooker interface {
-	LookupPhone(ctx context.Context, phoneNumber string) (*PhoneLookupResult, error)
+	LookupPhone(phoneNumber string) (*PhoneLookupResult, error)
 }
 
 // TwilioPhoneLookup implements PhoneLooker using the Twilio Lookup v2 API.
@@ -53,8 +52,7 @@ func NewTwilioPhoneLookup(accountSID, authToken string, httpClient *http.Client)
 }
 
 // LookupPhone fetches sms_pumping_risk and line_type_intelligence for the given E.164 number.
-// ctx is accepted for interface consistency; the Twilio Go SDK does not yet support per-call context.
-func (t *TwilioPhoneLookup) LookupPhone(_ context.Context, phoneNumber string) (*PhoneLookupResult, error) {
+func (t *TwilioPhoneLookup) LookupPhone(phoneNumber string) (*PhoneLookupResult, error) {
 	params := &openapi.FetchPhoneNumberParams{}
 	params.SetFields("sms_pumping_risk,line_type_intelligence")
 

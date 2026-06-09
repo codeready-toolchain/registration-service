@@ -159,42 +159,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	} else {
-		mode := cfg.Verification().PhoneLookupMode()
-		excludedCountries := cfg.Verification().PhoneLookupExcludedCountries()
-		isoCountryCode, parseErr := countryCodeFromE164(e164PhoneNumber)
-		if parseErr != nil {
-			log.Error(ctx, parseErr, fmt.Sprintf("failed to parse country code from phone number %q", e164PhoneNumber))
-		}
-		if mode != toolchainv1alpha1.PhoneLookupModeDisabled && !slices.Contains(excludedCountries, isoCountryCode) {
-			existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
-			if existingLookupHash != phoneHash {
-				lookupCtx := gocontext.Background()
-				if ctx.Request != nil {
-					lookupCtx = ctx.Request.Context()
-				}
-				result, lookupErr := s.PhoneLookupService.LookupPhone(lookupCtx, e164PhoneNumber)
-				if lookupErr != nil {
-					log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
-				} else {
-					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
-					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
-					if isHighRiskPhone(result) {
-						if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
-							initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
-							rejectSignup = true
-						} else {
-							log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",
-								result.CarrierRiskCategory, result.NumberBlocked, mode))
-						}
-					}
-					detailsJSON, err := json.Marshal(result.PhoneLookupResultDetails)
-					if err != nil {
-						log.Error(ctx, err, "failed to marshal phone lookup details")
-					}
-					annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
-				}
-			}
-		}
+		rejectSignup, initError = s.performPhoneLookup(ctx, cfg, signup, e164PhoneNumber, phoneHash, annotationValues)
 
 		if initError == nil {
 			// generate verification code
@@ -261,6 +226,53 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	return initError
+}
+
+// performPhoneLookup runs the Twilio Lookup API check if applicable and populates annotationValues.
+// Returns whether the signup should be rejected and any blocking error.
+func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.RegistrationServiceConfig,
+	signup *toolchainv1alpha1.UserSignup, e164PhoneNumber, phoneHash string,
+	annotationValues map[string]string) (rejectSignup bool, initError error) {
+
+	mode := cfg.Verification().PhoneLookupMode()
+	excludedCountries := cfg.Verification().PhoneLookupExcludedCountries()
+	isoCountryCode, parseErr := countryCodeFromE164(e164PhoneNumber)
+	if parseErr != nil {
+		log.Error(ctx, parseErr, fmt.Sprintf("failed to parse country code from phone number %q", e164PhoneNumber))
+	}
+	if mode == toolchainv1alpha1.PhoneLookupModeDisabled || slices.Contains(excludedCountries, isoCountryCode) {
+		return false, nil
+	}
+	existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
+	if existingLookupHash == phoneHash {
+		return false, nil
+	}
+	lookupCtx := gocontext.Background()
+	if ctx.Request != nil {
+		lookupCtx = ctx.Request.Context()
+	}
+	result, lookupErr := s.PhoneLookupService.LookupPhone(lookupCtx, e164PhoneNumber)
+	if lookupErr != nil {
+		log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
+		return false, nil
+	}
+	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
+	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
+	if isHighRiskPhone(result) {
+		if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
+			initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
+			rejectSignup = true
+		} else {
+			log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",
+				result.CarrierRiskCategory, result.NumberBlocked, mode))
+		}
+	}
+	detailsJSON, err := json.Marshal(result.PhoneLookupResultDetails)
+	if err != nil {
+		log.Error(ctx, err, "failed to marshal phone lookup details")
+	}
+	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
+	return rejectSignup, initError
 }
 
 // isHighRiskPhone returns true when Twilio Lookup reports the highest risk category ("high";

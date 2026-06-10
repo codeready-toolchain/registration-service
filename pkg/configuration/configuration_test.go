@@ -3,7 +3,7 @@ package configuration_test
 import (
 	"testing"
 
-	"github.com/codeready-toolchain/api/api/v1alpha1"
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
@@ -69,6 +69,8 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeLog, regServiceCfg.Verification().PhoneLookupMode())
+		assert.Empty(t, regServiceCfg.Verification().PhoneLookupExcludedCountries())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "log", regServiceCfg.AccountVerifierMode())
@@ -103,6 +105,8 @@ func TestRegistrationService(t *testing.T) {
 			Verification().CaptchaScoreThreshold("0.7").
 			Verification().CaptchaRequiredScore("0.5").
 			Verification().CaptchaAllowLowScoreReactivation(false).
+			Verification().PhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled).
+			Verification().PhoneLookupExcludedCountries([]string{"US", "CA"}).
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
@@ -157,6 +161,8 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0.5), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.False(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
+		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeEnabled, regServiceCfg.Verification().PhoneLookupMode())
+		assert.Equal(t, []string{"US", "CA"}, regServiceCfg.Verification().PhoneLookupExcludedCountries())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "enabled", regServiceCfg.AccountVerifierMode())
@@ -167,15 +173,15 @@ func TestPublicViewerConfiguration(t *testing.T) {
 	tt := map[string]struct {
 		name               string
 		expectedValue      bool
-		publicViewerConfig *v1alpha1.PublicViewerConfiguration
+		publicViewerConfig *toolchainv1alpha1.PublicViewerConfiguration
 	}{
 		"public-viewer is explicitly enabled": {
 			expectedValue:      true,
-			publicViewerConfig: &v1alpha1.PublicViewerConfiguration{Enabled: true},
+			publicViewerConfig: &toolchainv1alpha1.PublicViewerConfiguration{Enabled: true},
 		},
 		"public-viewer is explicitly disabled": {
 			expectedValue:      false,
-			publicViewerConfig: &v1alpha1.PublicViewerConfiguration{Enabled: false},
+			publicViewerConfig: &toolchainv1alpha1.PublicViewerConfiguration{Enabled: false},
 		},
 		"public-viewer config not set, assume disabled": {
 			expectedValue:      false,

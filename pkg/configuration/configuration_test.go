@@ -169,7 +169,6 @@ func TestRegistrationService(t *testing.T) {
 	})
 }
 
-
 func TestPublicViewerConfiguration(t *testing.T) {
 	tt := map[string]struct {
 		name               string

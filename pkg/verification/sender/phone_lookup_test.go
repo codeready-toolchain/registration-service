@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	sender2 "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
+	"github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/h2non/gock.v1"
@@ -17,10 +17,8 @@ func TestTwilioPhoneLookup(t *testing.T) {
 		phone      = "+447700900000"
 	)
 
-	setupLookup := func(t *testing.T, status int, body interface{}) sender2.PhoneLooker {
+	setupLookup := func(t *testing.T, status int, body interface{}) sender.PhoneLooker {
 		t.Helper()
-		httpClient := &http.Client{Transport: &http.Transport{}}
-		gock.InterceptClient(httpClient)
 		t.Cleanup(gock.Off)
 
 		gock.New("https://lookups.twilio.com").
@@ -29,7 +27,7 @@ func TestTwilioPhoneLookup(t *testing.T) {
 			Reply(status).
 			JSON(body).
 			SetHeader("Content-Type", "application/json")
-		return sender2.NewTwilioPhoneLookup(accountSID, authToken, httpClient)
+		return sender.NewTwilioPhoneLookup(accountSID, authToken, nil)
 	}
 
 	t.Run("high-risk response parsing", func(t *testing.T) {

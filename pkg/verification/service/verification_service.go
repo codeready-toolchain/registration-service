@@ -255,19 +255,19 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
 	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
 	if isHighRiskPhone(result) {
+		log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t, phone_lookup_mode=%s)",
+			result.CarrierRiskCategory, result.NumberBlocked, mode))
 		if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
 			initError = crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 			rejectSignup = true
-		} else {
-			log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t), proceeding (phone lookup mode=%s)",
-				result.CarrierRiskCategory, result.NumberBlocked, mode))
 		}
 	}
 	detailsJSON, err := json.Marshal(result.PhoneLookupResultDetails)
 	if err != nil {
 		log.Error(ctx, err, "failed to marshal phone lookup details")
+	} else {
+		annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
 	}
-	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
 	return rejectSignup, initError
 }
 

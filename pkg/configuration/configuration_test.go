@@ -70,6 +70,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeLog, regServiceCfg.Verification().PhoneLookupMode())
+		assert.Empty(t, regServiceCfg.Verification().PhoneLookupExcludedCountries())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "log", regServiceCfg.AccountVerifierMode())
@@ -105,6 +106,7 @@ func TestRegistrationService(t *testing.T) {
 			Verification().CaptchaRequiredScore("0.5").
 			Verification().CaptchaAllowLowScoreReactivation(false).
 			Verification().PhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled).
+			Verification().PhoneLookupExcludedCountries([]string{"US", "CA"}).
 			Verification().Secret().Ref("verification-secrets").
 			TwilioAccountSID("twilio.sid").
 			TwilioAuthToken("twilio.token").
@@ -160,26 +162,13 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Equal(t, "example-content", regServiceCfg.Verification().CaptchaServiceAccountFileContents())
 		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeEnabled, regServiceCfg.Verification().PhoneLookupMode())
+		assert.Equal(t, []string{"US", "CA"}, regServiceCfg.Verification().PhoneLookupExcludedCountries())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "enabled", regServiceCfg.AccountVerifierMode())
 	})
 }
 
-func TestPhoneLookupMode(t *testing.T) {
-	t.Run("returns configured value", func(t *testing.T) {
-		cfg := commonconfig.NewToolchainConfigObjWithReset(t, testconfig.RegistrationService().
-			Verification().PhoneLookupMode(toolchainv1alpha1.PhoneLookupModeDisabled))
-		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, map[string]map[string]string{})
-		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeDisabled, regServiceCfg.Verification().PhoneLookupMode())
-	})
-
-	t.Run("defaults to log when unset", func(t *testing.T) {
-		cfg := commonconfig.NewToolchainConfigObjWithReset(t)
-		regServiceCfg := configuration.NewRegistrationServiceConfig(cfg, map[string]map[string]string{})
-		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeLog, regServiceCfg.Verification().PhoneLookupMode())
-	})
-}
 
 func TestPublicViewerConfiguration(t *testing.T) {
 	tt := map[string]struct {

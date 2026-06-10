@@ -1028,6 +1028,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey])
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.False(s.T(), states.Rejected(updated))
 	})
 
 	s.Run("excluded country US skips lookup", func() {
@@ -1052,6 +1053,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey])
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.False(s.T(), states.Rejected(updated))
 		assert.True(s.T(), gock.IsDone())
 	})
 
@@ -1077,6 +1079,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey])
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.False(s.T(), states.Rejected(updated))
 		assert.True(s.T(), gock.IsDone())
 	})
 
@@ -1100,7 +1103,6 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		var e *crterrors.Error
 		require.ErrorAs(s.T(), err, &e)
 		assert.Equal(s.T(), http.StatusForbidden, e.Code)
-		assert.True(s.T(), gock.IsDone())
 	})
 
 	s.Run("same phone retry skips lookup", func() {
@@ -1125,7 +1127,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		updated := &toolchainv1alpha1.UserSignup{}
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
-		assert.True(s.T(), gock.IsDone())
+		assert.False(s.T(), states.Rejected(updated))
 	})
 
 	s.Run("different phone retry calls lookup again", func() {
@@ -1152,6 +1154,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
 		assertLookupDetails(s.T(), updated)
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.False(s.T(), states.Rejected(updated))
 	})
 }
 

@@ -6,8 +6,8 @@ toolchain go1.24.13
 
 require (
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20260603082246-cfa3dd9db9cc
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20260603091009-6db0c02f4506
+	github.com/codeready-toolchain/api v0.0.0-20260609071155-c8f486b1a581
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20260609073430-82d1748db579
 	github.com/go-logr/logr v1.4.3
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -36,6 +36,7 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.62.0
 	github.com/spf13/pflag v1.0.6
+	github.com/twilio/twilio-go v1.30.9
 	go.uber.org/zap v1.27.0
 	gopkg.in/go-jose/go-jose.v2 v2.6.3
 	gotest.tools v2.2.0+incompatible
@@ -69,6 +70,7 @@ require (
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect

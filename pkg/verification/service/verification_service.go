@@ -3,10 +3,12 @@ package service
 import (
 	gocontext "context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/states"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nyaruka/phonenumbers"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -42,6 +45,7 @@ type ServiceImpl struct { // nolint:revive
 	namespaced.Client
 	HTTPClient          *http.Client
 	NotificationService sender.NotificationSender
+	PhoneLookupService  sender.PhoneLooker
 	SignupService       service.SignupService
 }
 
@@ -53,10 +57,18 @@ func NewVerificationService(client namespaced.Client) service.VerificationServic
 		Timeout:   30*time.Second + 500*time.Millisecond, // taken from twilio code
 		Transport: http.DefaultTransport,
 	}
+	cfg := configuration.GetRegistrationServiceConfig()
+	verCfg := cfg.Verification()
 	return &ServiceImpl{
 		Client:              client,
+		HTTPClient:          httpClient,
 		NotificationService: sender.CreateNotificationSender(httpClient),
-		SignupService:       signupsvc.NewSignupService(client),
+		PhoneLookupService: sender.NewTwilioPhoneLookup(
+			verCfg.TwilioAccountSID(),
+			verCfg.TwilioAuthToken(),
+			httpClient,
+		),
+		SignupService: signupsvc.NewSignupService(client),
 	}
 }
 
@@ -81,6 +93,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	if !states.VerificationRequired(signup) {
 		log.Info(ctx, fmt.Sprintf("phone verification attempted for user without verification requirement: '%s'", signup.Name))
 		return crterrors.NewBadRequest("forbidden request", "verification code will not be sent")
+	}
+
+	if states.Rejected(signup) {
+		return crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 	}
 
 	// Check if the provided phone number is already being used by another user
@@ -136,33 +152,38 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	var initError error
+	rejectSignup := false
 
 	// check if counter has exceeded the limit of daily limit - if at limit error out
 	if counter >= dailyLimit {
 		log.Error(ctx, err, fmt.Sprintf("%d attempts made. the daily limit of %d has been exceeded", counter, dailyLimit))
 		initError = crterrors.NewForbiddenError("daily limit exceeded", "cannot generate new verification code")
 	} else {
-		// generate verification code
-		verificationCode, err := generateVerificationCode()
-		if err != nil {
-			return crterrors.NewInternalError(err, "error while generating verification code")
-		}
+		rejectSignup, initError = s.performPhoneLookup(ctx, cfg, signup, e164PhoneNumber, phoneHash, annotationValues)
 
-		// Generate the verification message with the new verification code
-		content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
+		if initError == nil {
+			// generate verification code
+			verificationCode, err := generateVerificationCode()
+			if err != nil {
+				return crterrors.NewInternalError(err, "error while generating verification code")
+			}
 
-		// Attempt to send notification
-		err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
-		if err != nil {
-			log.Error(ctx, err, "error while sending notification")
-			initError = crterrors.NewInternalError(err, "error while sending verification code")
-		} else {
-			// Notification sent successfully, set the verification annotations
-			annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
-			annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
-			annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
-			annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
-				time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			// Generate the verification message with the new verification code
+			content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
+
+			// Attempt to send notification
+			err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)
+			if err != nil {
+				log.Error(ctx, err, "error while sending notification")
+				initError = crterrors.NewInternalError(err, "error while sending verification code")
+			} else {
+				// Notification sent successfully, set the verification annotations
+				annotationValues[toolchainv1alpha1.UserVerificationAttemptsAnnotationKey] = "0"
+				annotationValues[toolchainv1alpha1.UserSignupVerificationCounterAnnotationKey] = strconv.Itoa(counter + 1)
+				annotationValues[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey] = verificationCode
+				annotationValues[toolchainv1alpha1.UserVerificationExpiryAnnotationKey] = now.Add(
+					time.Duration(cfg.Verification().CodeExpiresInMin()) * time.Minute).Format(TimestampLayout)
+			}
 		}
 	}
 
@@ -189,6 +210,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 			signup.Annotations[k] = v
 		}
 
+		if rejectSignup {
+			states.SetRejected(signup, true)
+		}
+
 		return s.Update(gocontext.TODO(), signup)
 	}
 
@@ -201,6 +226,63 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	}
 
 	return initError
+}
+
+// performPhoneLookup runs the Twilio Lookup API check if applicable and populates annotationValues.
+// Returns whether the signup should be rejected and any blocking error.
+func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.RegistrationServiceConfig,
+	signup *toolchainv1alpha1.UserSignup, e164PhoneNumber, phoneHash string,
+	annotationValues map[string]string) (bool, error) {
+
+	mode := cfg.Verification().PhoneLookupMode()
+	excludedCountries := cfg.Verification().PhoneLookupExcludedCountries()
+	isoCountryCode, parseErr := countryCodeFromE164(e164PhoneNumber)
+	if parseErr != nil {
+		log.Error(ctx, parseErr, fmt.Sprintf("failed to parse country code from phone number %q", e164PhoneNumber))
+	}
+	if mode == toolchainv1alpha1.PhoneLookupModeDisabled || slices.Contains(excludedCountries, isoCountryCode) {
+		return false, nil
+	}
+	existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
+	if existingLookupHash == phoneHash {
+		return false, nil
+	}
+	result, lookupErr := s.PhoneLookupService.LookupPhone(e164PhoneNumber)
+	if lookupErr != nil {
+		log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
+		return false, nil
+	}
+	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupCarrierRiskAnnotationKey] = result.CarrierRiskCategory
+	annotationValues[toolchainv1alpha1.UserSignupPhoneLookupNumberBlockedAnnotationKey] = strconv.FormatBool(result.NumberBlocked)
+	detailsJSON, err := json.Marshal(result.PhoneLookupResultDetails)
+	if err != nil {
+		log.Error(ctx, err, "failed to marshal phone lookup details")
+	} else {
+		annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
+	}
+	if isHighRiskPhone(result) {
+		log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t, phone_lookup_mode=%s)",
+			result.CarrierRiskCategory, result.NumberBlocked, mode))
+		if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
+			return true, crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
+		}
+	}
+	return false, nil
+}
+
+// isHighRiskPhone returns true when Twilio Lookup reports the highest risk category ("high";
+// available categories are low, mild, moderate, high) or when the number is blocked.
+func isHighRiskPhone(result *sender.PhoneLookupResult) bool {
+	return result.CarrierRiskCategory == "high" || result.NumberBlocked
+}
+
+// countryCodeFromE164 parses an E.164 phone number and returns its ISO 3166-1 alpha-2 country code.
+func countryCodeFromE164(number string) (string, error) {
+	parsed, err := phonenumbers.Parse(number, "")
+	if err != nil {
+		return "", fmt.Errorf("parse E.164 number: %w", err)
+	}
+	return phonenumbers.GetRegionCodeForNumber(parsed), nil
 }
 
 func generateVerificationCode() (string, error) {

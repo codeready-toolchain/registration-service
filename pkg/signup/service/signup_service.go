@@ -536,7 +536,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
 		return nil, ForbiddenBannedError
 	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
-		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
+		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected", userSignup.GetName()))
 		return nil, ForbiddenRejectedError
 	}
 

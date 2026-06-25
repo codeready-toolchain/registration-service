@@ -50,8 +50,8 @@ github.com/cloudflare/circl v1.6.3/go.mod h1:2eXP6Qfat4O/Yhh8BznvKnJ+uzEoTQ6jVKJ
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 h1:6xNmx7iTtyBRev0+D/Tv1FZd4SCg8axKApyNyRsAt/w=
 github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5/go.mod h1:KdCmV+x/BuvyMxRnYBlmVaq4OLiKW6iRQfvC62cvdkI=
-github.com/codeready-toolchain/api v0.0.0-20260609071155-c8f486b1a581 h1:KE14RYWzMatSrwGa2wOB4SoVkbvpTm8hfnUH/nrpnfw=
-github.com/codeready-toolchain/api v0.0.0-20260609071155-c8f486b1a581/go.mod h1:PMg6kNHuCGNlu3MOdrCisqGkBpvzB0qS1+E6nrXxPAc=
+github.com/codeready-toolchain/api v0.0.0-20260623133516-6f421bfacf3d h1:GvfFKaibrW5oLPnaPFG/pL3FmNDT4btKaTElc0vExQ4=
+github.com/codeready-toolchain/api v0.0.0-20260623133516-6f421bfacf3d/go.mod h1:PMg6kNHuCGNlu3MOdrCisqGkBpvzB0qS1+E6nrXxPAc=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20260609073430-82d1748db579 h1:1qfOdNV6gRQSE0xOmJggqQxAiEjOpV7nZ6Xph75Mb1I=
 github.com/codeready-toolchain/toolchain-common v0.0.0-20260609073430-82d1748db579/go.mod h1:aYvTzEtTuw3O+kjWMMkH/1YgV4pgUPC3v3X2Li3ixlM=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=

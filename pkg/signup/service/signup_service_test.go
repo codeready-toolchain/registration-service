@@ -1539,12 +1539,12 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"passed"}]`, userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
-	s.Run("reject result creates rejected UserSignup and returns forbidden error", func() {
+	s.Run("rejected result creates rejected UserSignup and returns forbidden error", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"rejected","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1586,7 +1586,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		require.Len(s.T(), userSignups.Items, 1)
 		createdUS := userSignups.Items[0]
 		assert.True(s.T(), states.Rejected(&createdUS))
-		assert.Equal(s.T(), "reject", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.Equal(s.T(), "rejected", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"failed"}]`, createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
@@ -1637,12 +1637,12 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.False(s.T(), verifierCalled, "account verifier should not be called for an already-rejected UserSignup")
 	})
 
-	s.Run("phone-verification result forces verification required", func() {
+	s.Run("phone_verification result forces verification required", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"phone-verification","reasons":[{"check":"check-1","detail":"needs verification"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"phone_verification","reasons":[{"check":"check-1","detail":"needs verification"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1674,7 +1674,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		// then
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), userSignup)
-		assert.Equal(s.T(), "phone-verification", userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.Equal(s.T(), "phone_verification", userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 		assert.True(s.T(), states.VerificationRequired(userSignup))
 	})
 
@@ -1761,12 +1761,12 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})
 
-	s.Run("reject on reactivation returns forbidden error", func() {
+	s.Run("rejected on reactivation returns forbidden error", func() {
 		// given
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"result":"reject","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
+			_, _ = w.Write([]byte(`{"result":"rejected","reasons":[{"check":"check-1","detail":"failed"}],"error":""}`))
 		}))
 		defer verifierServer.Close()
 
@@ -1812,7 +1812,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 			Namespace: commontest.HostOperatorNs,
 		}, updatedUS))
 		assert.True(s.T(), states.Rejected(updatedUS))
-		assert.Equal(s.T(), "reject", updatedUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assert.Equal(s.T(), "rejected", updatedUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 	})
 
 	s.Run("disabled mode does not call account verifier", func() {

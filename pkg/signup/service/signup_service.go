@@ -66,7 +66,7 @@ func NewSignupService(client namespaced.Client) *ServiceImpl {
 
 // newUserSignup generates a new UserSignup resource with the specified username and available claims.
 // This resource then can be used to create a new UserSignup in the host cluster or to update the existing one.
-func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *toolchainv1alpha1.AccountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
 
 	userID := ctx.GetString(context.UserIDKey)
@@ -145,7 +145,7 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *accou
 	states.SetVerificationRequired(userSignup, verificationRequired)
 
 	if accountVerifierResp != nil {
-		userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey] = accountVerifierResp.Result
+		userSignup.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey] = string(accountVerifierResp.Result)
 		if len(accountVerifierResp.Reasons) > 0 {
 			reasonsJSON, err := json.Marshal(accountVerifierResp.Reasons)
 			if err == nil {
@@ -154,10 +154,10 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *accou
 				log.Error(ctx, err, "failed to marshal account verifier reasons")
 			}
 		}
-		if accountVerifierResp.Result == accountVerifierResultPhoneVerification {
+		if accountVerifierResp.Result == toolchainv1alpha1.AccountVerifierResultPhoneVerification {
 			states.SetVerificationRequired(userSignup, true)
 		}
-		if accountVerifierResp.Result == accountVerifierResultReject {
+		if isAccountVerifierRejected(accountVerifierResp) {
 			states.SetRejected(userSignup, true)
 		}
 	}
@@ -265,9 +265,6 @@ func extractEmailHost(email string) string {
 }
 
 const (
-	accountVerifierResultReject            = "reject"
-	accountVerifierResultPhoneVerification = "phone-verification"
-
 	accountVerifierModeDisabled = "disabled"
 	accountVerifierModeLog      = "log"
 	accountVerifierModeEnabled  = "enabled"
@@ -277,20 +274,9 @@ type accountVerifierRequest struct {
 	Email string `json:"email"`
 }
 
-type accountVerifierResponse struct {
-	Result  string                  `json:"result"`
-	Reasons []accountVerifierReason `json:"reasons"`
-	Error   string                  `json:"error"`
-}
-
-type accountVerifierReason struct {
-	Check  string `json:"check"`
-	Detail string `json:"detail"`
-}
-
 var accountVerifierHTTPClient = &http.Client{Timeout: 3 * time.Second}
 
-func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountVerifierResponse, error) {
+func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*toolchainv1alpha1.AccountVerifierResponse, error) {
 	reqBody, err := json.Marshal(accountVerifierRequest{Email: email})
 	if err != nil {
 		return nil, errs.Wrap(err, "failed to marshal account verifier request")
@@ -311,7 +297,7 @@ func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountV
 		return nil, fmt.Errorf("account verifier returned status %d for email %s: %s", resp.StatusCode, email, string(respBody))
 	}
 
-	var verifierResp accountVerifierResponse
+	var verifierResp toolchainv1alpha1.AccountVerifierResponse
 	if err := json.Unmarshal(respBody, &verifierResp); err != nil {
 		return nil, errs.Wrapf(err, "failed to unmarshal account verifier response for email %s", email)
 	}
@@ -321,7 +307,7 @@ func callAccountVerifier(ctx *gin.Context, verifierURL, email string) (*accountV
 	return &verifierResp, nil
 }
 
-func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *accountVerifierResponse {
+func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *toolchainv1alpha1.AccountVerifierResponse {
 	cfg := configuration.GetRegistrationServiceConfig()
 	if cfg.AccountVerifierMode() == accountVerifierModeDisabled {
 		return nil
@@ -346,8 +332,8 @@ func (s *ServiceImpl) verifyAccount(ctx *gin.Context) *accountVerifierResponse {
 	return nil
 }
 
-func isAccountVerifierRejected(resp *accountVerifierResponse) bool {
-	return resp != nil && resp.Result == accountVerifierResultReject
+func isAccountVerifierRejected(resp *toolchainv1alpha1.AccountVerifierResponse) bool {
+	return resp != nil && resp.Result == toolchainv1alpha1.AccountVerifierResultRejected
 }
 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
@@ -403,7 +389,7 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 }
 
 // createUserSignup creates a new UserSignup resource with the specified username
-func (s *ServiceImpl) createUserSignup(ctx *gin.Context, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) createUserSignup(ctx *gin.Context, accountVerifierResp *toolchainv1alpha1.AccountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
 	userSignup, err := s.newUserSignup(ctx, accountVerifierResp)
 	if err != nil {
 		return nil, err
@@ -413,7 +399,7 @@ func (s *ServiceImpl) createUserSignup(ctx *gin.Context, accountVerifierResp *ac
 }
 
 // reactivateUserSignup reactivates the deactivated UserSignup resource with the specified username
-func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup, accountVerifierResp *accountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
+func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchainv1alpha1.UserSignup, accountVerifierResp *toolchainv1alpha1.AccountVerifierResponse) (*toolchainv1alpha1.UserSignup, error) {
 	// Update the existing usersignup's spec and annotations/labels by new values from a freshly generated one.
 	// We don't want to deal with merging/patching the usersignup resource
 	// and just want to reset the spec and annotations/labels so they are the same as in a freshly created usersignup resource.

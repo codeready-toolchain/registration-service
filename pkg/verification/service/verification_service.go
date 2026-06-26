@@ -241,6 +241,7 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 		log.Error(ctx, parseErr, fmt.Sprintf("failed to parse country code from phone number %q", e164PhoneNumber))
 	}
 	if mode == toolchainv1alpha1.PhoneLookupModeDisabled || slices.Contains(excludedCountries, isoCountryCode) {
+		log.Info(ctx, fmt.Sprintf("phone lookup mode has been skipped, lookup mode: %q, country code: %q", mode, isoCountryCode))
 		return false, nil
 	}
 	existingLookupHash := signup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]
@@ -260,6 +261,7 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 	} else {
 		annotationValues[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey] = string(detailsJSON)
 	}
+	log.Info(ctx, fmt.Sprintf("lookup API response %+v", result))
 	if isHighRiskPhone(result) {
 		log.Info(ctx, fmt.Sprintf("high risk phone detected (carrier_risk=%s, blocked=%t, phone_lookup_mode=%s)",
 			result.CarrierRiskCategory, result.NumberBlocked, mode))

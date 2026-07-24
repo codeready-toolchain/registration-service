@@ -33,6 +33,7 @@ import (
 	testusersignup "github.com/codeready-toolchain/toolchain-common/pkg/test/usersignup"
 
 	"github.com/gin-gonic/gin"
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -903,6 +904,19 @@ func assertLookupDetails(t *testing.T, signup *toolchainv1alpha1.UserSignup) {
 	require.NoError(t, json.Unmarshal([]byte(raw), &details))
 }
 
+func resetPhoneLookupMetrics() {
+	verificationservice.PhoneLookupTotal.Reset()
+	verificationservice.PhoneLookupErrorsTotal.Reset()
+}
+
+func phoneLookupTotal(result, riskCategory string) float64 {
+	return promtestutil.ToFloat64(verificationservice.PhoneLookupTotal.WithLabelValues(result, riskCategory))
+}
+
+func phoneLookupErrors(errorType string) float64 {
+	return promtestutil.ToFloat64(verificationservice.PhoneLookupErrorsTotal.WithLabelValues(errorType))
+}
+
 func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 	s.ServiceConfiguration("xxx", "yyy", "CodeReady")
 
@@ -938,6 +952,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 	s.Run("high risk phone with mode enabled returns forbidden", func() {
 		// given
 		defer gock.Off()
+		resetPhoneLookupMetrics()
 		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioLookup(lookupUKPhone, highRiskBody)
 
@@ -962,11 +977,14 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.True(s.T(), states.Rejected(updated))
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("blocked", "high"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupTotal("allowed", "high"), 0.01)
 	})
 
 	s.Run("high risk phone with mode log proceeds with SMS", func() {
 		// given
 		defer gock.Off()
+		resetPhoneLookupMetrics()
 		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeLog)
 		mockTwilioLookup(lookupUKPhone, highRiskBody)
 		mockTwilioSMS()
@@ -989,32 +1007,40 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.False(s.T(), states.Rejected(updated))
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
+		// log mode detects high risk but does not reject — count as allowed (still charged)
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", "high"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high"), 0.01)
 	})
 
 	for _, tc := range []struct {
-		name       string
-		username   string
-		lookupBody map[string]interface{}
+		name         string
+		username     string
+		lookupBody   map[string]interface{}
+		riskCategory string
 	}{
 		{
-			name:       "low risk phone proceeds with SMS",
-			username:   "lookup-ok@kubesaw",
-			lookupBody: lowRiskBody,
+			name:         "low risk phone proceeds with SMS",
+			username:     "lookup-ok@kubesaw",
+			lookupBody:   lowRiskBody,
+			riskCategory: "low",
 		},
 		{
-			name:       "high risk without blocked proceeds with SMS",
-			username:   "lookup-high-only@kubesaw",
-			lookupBody: highRiskNotBlockedBody,
+			name:         "high risk without blocked proceeds with SMS",
+			username:     "lookup-high-only@kubesaw",
+			lookupBody:   highRiskNotBlockedBody,
+			riskCategory: "high",
 		},
 		{
-			name:       "blocked without high risk proceeds with SMS",
-			username:   "lookup-blocked-only@kubesaw",
-			lookupBody: lowRiskBlockedBody,
+			name:         "blocked without high risk proceeds with SMS",
+			username:     "lookup-blocked-only@kubesaw",
+			lookupBody:   lowRiskBlockedBody,
+			riskCategory: "low",
 		},
 	} {
 		s.Run(tc.name, func() {
 			// given
 			defer gock.Off()
+			resetPhoneLookupMetrics()
 			s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 			mockTwilioLookup(lookupUKPhone, tc.lookupBody)
 			mockTwilioSMS()
@@ -1037,12 +1063,15 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			assert.False(s.T(), states.Rejected(updated))
 			assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 			assert.True(s.T(), gock.IsDone())
+			assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", tc.riskCategory), 0.01)
+			assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high"), 0.01)
 		})
 	}
 
 	s.Run("lookup API error fails open", func() {
 		// given
 		defer gock.Off()
+		resetPhoneLookupMetrics()
 		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		gock.New("https://lookups.twilio.com").
 			Get("/v2/PhoneNumbers/" + lookupUKPhone).
@@ -1066,6 +1095,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey])
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.False(s.T(), states.Rejected(updated))
+		assert.InDelta(s.T(), float64(1), phoneLookupErrors("500"), 0.01)
+		assert.Equal(s.T(), 0, promtestutil.CollectAndCount(verificationservice.PhoneLookupTotal))
 	})
 
 	s.Run("excluded country US skips lookup", func() {

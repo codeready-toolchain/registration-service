@@ -6,6 +6,13 @@ GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 export LDFLAGS=-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/pkg/configuration.BuildTime=${BUILD_TIME}
 goarch ?= $(shell go env GOARCH)
 
+GOFORMAT_FILES := $(shell find  . -name '*.go' | grep -vEf ./make/gofmt_exclude)
+
+.PHONY: format-go-code
+## Formats any go file that does not match formatting defined by gofmt
+format-go-code:
+	$(Q)gofmt -s -l -w ${GOFORMAT_FILES}
+
 .PHONY: build build-prod build-dev
 
 # builds the production binary

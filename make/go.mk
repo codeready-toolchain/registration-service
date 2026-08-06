@@ -6,12 +6,24 @@ GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 export LDFLAGS=-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/pkg/configuration.BuildTime=${BUILD_TIME}
 goarch ?= $(shell go env GOARCH)
 
-GOFORMAT_FILES := $(shell find  . -name '*.go' | grep -vEf ./make/gofmt_exclude)
-
 .PHONY: format-go-code
 ## Formats any go file that does not match formatting defined by gofmt
 format-go-code:
-	$(Q)gofmt -s -l -w ${GOFORMAT_FILES}
+# The + tells find to batch multiple found files into a single gofmt invocation (like xargs),
+# which is much faster than the alternative \;, which runs gofmt once per file. Removing it
+# would be a syntax error — find -exec requires either + or \; as a terminator.
+	$(Q)find . -name '*.go' -not -path '*/vendor/*' -not -path '*/.git/*' -exec gofmt -s -l -w {} +
+
+.PHONY: check-go-format
+## Verify the formatting defined by 'gofmt'
+check-go-format:
+	$(Q)find . -name '*.go' -not -path '*/vendor/*' -not -path '*/.git/*' -exec gofmt -s -l {} + 2>&1 \
+		| tee $(OUT_DIR)/gofmt-errors \
+		| read \
+	&& echo "ERROR: These files differ from gofmt's style (run 'make format-go-code' to fix this):" \
+	&& cat $(OUT_DIR)/gofmt-errors \
+	&& exit 1 \
+	|| true
 
 .PHONY: build build-prod build-dev
 

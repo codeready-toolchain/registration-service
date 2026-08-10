@@ -18,6 +18,7 @@ import (
 	"github.com/codeready-toolchain/registration-service/pkg/proxy"
 	"github.com/codeready-toolchain/registration-service/pkg/proxy/metrics"
 	"github.com/codeready-toolchain/registration-service/pkg/server"
+	verificationsvc "github.com/codeready-toolchain/registration-service/pkg/verification/service"
 	"github.com/codeready-toolchain/toolchain-common/pkg/cluster"
 	commonconfig "github.com/codeready-toolchain/toolchain-common/pkg/configuration"
 	errs "github.com/pkg/errors"
@@ -121,6 +122,7 @@ func main() {
 	// ---------------------------------------------
 	regsvcRegistry := prometheus.NewRegistry()
 	configuration.RegisterVersionMetrics(regsvcRegistry)
+	verificationsvc.RegisterPhoneLookupMetrics(regsvcRegistry)
 	regsvcMetricsSrv, _ := server.StartMetricsServer(regsvcRegistry, server.RegSvcMetricsPort)
 	regsvcSrv := server.New(app)
 	err = regsvcSrv.SetupRoutes(proxy.DefaultPort, regsvcRegistry, nsClient)

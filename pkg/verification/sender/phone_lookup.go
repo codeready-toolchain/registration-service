@@ -1,8 +1,11 @@
 package sender
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 
 	twilioclient "github.com/twilio/twilio-go"
 	twiliohttp "github.com/twilio/twilio-go/client"
@@ -72,4 +75,29 @@ func (t *TwilioPhoneLookup) LookupPhone(phoneNumber string) (*PhoneLookupResult,
 	result.LineType = resp.LineTypeIntelligence.Type
 
 	return result, nil
+}
+
+// Matches the status Twilio embeds when the error response body cannot be decoded:
+// "error decoding the response for an HTTP error code: 503".
+var httpStatusInTwilioErrMsg = regexp.MustCompile(`HTTP error code: (\d{3})`)
+
+// LookupErrorType returns a metric label for a phone lookup failure.
+// Prefer the HTTP status code from Twilio REST errors (e.g. "500", "503");
+// fall back to parsing the status from Twilio's decode-error message, then "unknown".
+func LookupErrorType(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	var restErr *twiliohttp.TwilioRestError
+	if errors.As(err, &restErr) && restErr.Status != 0 {
+		return strconv.Itoa(restErr.Status)
+	}
+	var restErrV1 *twiliohttp.RestErrorV1
+	if errors.As(err, &restErrV1) && restErrV1.HttpStatusCode != 0 {
+		return strconv.Itoa(restErrV1.HttpStatusCode)
+	}
+	if m := httpStatusInTwilioErrMsg.FindStringSubmatch(err.Error()); len(m) == 2 {
+		return m[1]
+	}
+	return "unknown"
 }

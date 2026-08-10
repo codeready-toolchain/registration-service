@@ -333,7 +333,7 @@ func (r VerificationConfig) PhoneLookupMode() toolchainv1alpha1.PhoneLookupMode 
 	if r.c.PhoneLookupMode != nil {
 		return *r.c.PhoneLookupMode
 	}
-	return toolchainv1alpha1.PhoneLookupModeLog
+	return toolchainv1alpha1.PhoneLookupModeDisabled
 }
 
 func (r VerificationConfig) PhoneLookupExcludedCountries() []string {

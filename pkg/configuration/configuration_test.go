@@ -69,7 +69,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.InDelta(t, float32(0), regServiceCfg.Verification().CaptchaRequiredScore(), 0.01)
 		assert.True(t, regServiceCfg.Verification().CaptchaAllowLowScoreReactivation())
 		assert.Empty(t, regServiceCfg.Verification().CaptchaServiceAccountFileContents())
-		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeLog, regServiceCfg.Verification().PhoneLookupMode())
+		assert.Equal(t, toolchainv1alpha1.PhoneLookupModeDisabled, regServiceCfg.Verification().PhoneLookupMode())
 		assert.Empty(t, regServiceCfg.Verification().PhoneLookupExcludedCountries())
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())

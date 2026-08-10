@@ -6,6 +6,14 @@ GO_PACKAGE_PATH ?= github.com/${GO_PACKAGE_ORG_NAME}/${GO_PACKAGE_REPO_NAME}
 export LDFLAGS=-X ${GO_PACKAGE_PATH}/pkg/configuration.Commit=${GIT_COMMIT_ID} -X ${GO_PACKAGE_PATH}/pkg/configuration.BuildTime=${BUILD_TIME}
 goarch ?= $(shell go env GOARCH)
 
+.PHONY: format-go-code
+## Formats any go file that does not match formatting defined by gofmt
+format-go-code:
+# The + tells find to batch multiple found files into a single gofmt invocation (like xargs),
+# which is much faster than the alternative \;, which runs gofmt once per file. Removing it
+# would be a syntax error — find -exec requires either + or \; as a terminator.
+	$(Q)find . -name '*.go' -not -path '*/vendor/*' -not -path '*/.git/*' -exec gofmt -s -l -w {} +
+
 .PHONY: build build-prod build-dev
 
 # builds the production binary

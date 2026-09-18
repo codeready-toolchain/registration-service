@@ -488,7 +488,7 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSign
 	return s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced.Client, username string) (*toolchainv1alpha1.UserSignup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 
 	err := signup.PollUpdateSignup(ctx, func() error {
@@ -519,13 +519,14 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		return nil
 	})
+	return userSignup, err
+}
 
-	if err != nil {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	userSignup, err := s.retrieveAndAuditUserSignup(ctx, cl, username)
+
+	if err != nil || userSignup == nil {
 		return nil, err
-	}
-
-	if userSignup == nil {
-		return nil, nil
 	}
 
 	signupResponse := &signup.Signup{

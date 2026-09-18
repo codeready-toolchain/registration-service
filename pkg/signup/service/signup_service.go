@@ -668,6 +668,9 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	return signupResponse, nil
 }
 
+// IsVerified checks if a UserSignup is verified and if the verification is still valid.
+// Returns (verified, isValid) where verified indicates if the user has been verified,
+// and isValid indicates if the verification timestamp is within the valid time window. (7 days)
 func IsVerified(userSignup *toolchainv1alpha1.UserSignup) (bool, bool) {
 	verifiedAt, verified := userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]
 	at, err := time.Parse(time.RFC3339, verifiedAt)

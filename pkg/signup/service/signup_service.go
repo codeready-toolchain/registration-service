@@ -545,14 +545,17 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	// check if the UserSignup was either banned or rejected
 	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
 	if completeFound {
-		if completeCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
+		switch completeCondition.Reason {
+		case toolchainv1alpha1.UserSignupUserDeactivatedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
 			// UserSignup is deactivated. Treat it as non-existent.
 			return nil, nil
-		} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
+
+		case toolchainv1alpha1.UserSignupUserBannedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
 			return nil, ForbiddenBannedError
-		} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
+
+		case toolchainv1alpha1.UserSignupUserRejectedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
 			return nil, ForbiddenRejectedError
 		}

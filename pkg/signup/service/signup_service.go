@@ -35,6 +35,8 @@ import (
 const (
 	// NoSpaceKey is the query key for specifying whether the UserSignup should be created without a Space
 	NoSpaceKey = "no-space"
+	// GatingOnlyKey is the query key to trigger only the verification of the account, not provisioning
+	GatingOnlyKey = "gating-only"
 )
 
 var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
@@ -162,10 +164,23 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *toolc
 		}
 	}
 
+	// when phone verification is not required, then mark it as verified by setting the annotation
+	if !states.VerificationRequired(userSignup) {
+		userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
+	}
+
 	// set the skip-auto-create-space annotation to true if the no-space query parameter was set to true
 	if param, _ := ctx.GetQuery(NoSpaceKey); param == "true" {
 		log.Info(ctx, fmt.Sprintf("setting '%s' annotation to true", toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey))
 		userSignup.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey] = "true"
+	}
+
+	// set the no-provisioning state if the gating-only query parameter was set to true
+	if onlyGatingRequested(ctx) {
+		states.SetNoProvisioning(userSignup, true)
+		log.Info(ctx, "setting state no-provisioning")
+	} else {
+		states.SetNoProvisioning(userSignup, false)
 	}
 
 	if socialEvent := ctx.GetString(context.SocialEvent); socialEvent != "" {
@@ -177,6 +192,14 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *toolc
 	}
 
 	return userSignup, nil
+}
+
+func onlyGatingRequested(ctx *gin.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	param, present := ctx.GetQuery(GatingOnlyKey)
+	return present && param == "true"
 }
 
 func isCRTAdmin(username string) bool {
@@ -368,9 +391,26 @@ func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, e
 		return nil, ForbiddenRejectedError
 	}
 
-	// Check UserSignup status to determine whether user signup is deactivated
+	// Check if the UserSignup can be reactivated. This is allowed in 3 cases:
+	// 1.
+	// either when it's deactivated
 	signupCondition, found := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
-	if found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
+	reactivationAllowed := found && signupCondition.Status == apiv1.ConditionTrue && signupCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason
+	if !reactivationAllowed {
+		if onlyGatingRequested(ctx) && states.NoProvisioning(userSignup) {
+			// 2.
+			// or when gating is requested and the UserSignup is in no-provisioning state and is either not verified or the verification timestamp expired
+			// this allows us to re-trigger the verification steps
+			verified, valid := IsVerified(userSignup)
+			reactivationAllowed = verified && !valid
+		} else {
+			// 3.
+			// or when the request was standard signup request (including provisioning) and the UserSignup is in no-provisioning state
+			// this allows us to re-activate verified UserSignups that are in no-provisioning state so we can provision them.
+			reactivationAllowed = states.NoProvisioning(userSignup)
+		}
+	}
+	if reactivationAllowed {
 		// Signup is deactivated. We need to reactivate it — always update the UserSignup so
 		// that a rejected reactivation is also recorded.
 		accountVerifierResp := s.verifyAccount(ctx)
@@ -407,6 +447,21 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 	if err != nil {
 		return nil, err
 	}
+	// when recently verified
+	if verified, valid := IsVerified(existing); verified && valid {
+		// but the account is asked for phone verification
+		if states.VerificationRequired(newUserSignup) {
+			// then drop the verification-required state and copy the phone number hash label
+			states.SetVerificationRequired(newUserSignup, false)
+			if value, present := existing.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey]; present {
+				newUserSignup.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = value
+			}
+		}
+		// copy the verified annotation
+		if value, present := existing.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]; present {
+			newUserSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = value
+		}
+	}
 	log.WithValues(map[string]interface{}{toolchainv1alpha1.UserSignupActivationCounterAnnotationKey: existing.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey]}).
 		Info(ctx, "reactivating user")
 
@@ -433,7 +488,7 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSign
 	return s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
 }
 
-func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced.Client, username string) (*toolchainv1alpha1.UserSignup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 
 	err := signup.PollUpdateSignup(ctx, func() error {
@@ -464,13 +519,14 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		return nil
 	})
+	return userSignup, err
+}
 
-	if err != nil {
+func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
+	userSignup, err := s.retrieveAndAuditUserSignup(ctx, cl, username)
+
+	if err != nil || userSignup == nil {
 		return nil, err
-	}
-
-	if userSignup == nil {
-		return nil, nil
 	}
 
 	signupResponse := &signup.Signup{
@@ -487,9 +543,47 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		signupResponse.CompliantUsername = userSignup.Status.CompliantUsername
 	}
 
+	// check if the UserSignup was either banned or rejected
+	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
+	if completeFound {
+		switch completeCondition.Reason {
+		case toolchainv1alpha1.UserSignupUserDeactivatedReason:
+			log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
+			// UserSignup is deactivated. Treat it as non-existent.
+			return nil, nil
+
+		case toolchainv1alpha1.UserSignupUserBannedReason:
+			log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
+			return nil, ForbiddenBannedError
+
+		case toolchainv1alpha1.UserSignupUserRejectedReason:
+			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
+			return nil, ForbiddenRejectedError
+		}
+	}
+
 	// Check UserSignup status to determine whether user signup is complete
 	_, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
-	completeCondition, completeFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupComplete)
+
+	if states.NoProvisioning(userSignup) {
+		if onlyGatingRequested(ctx) {
+			// if the user is in no-provisioning and only gating was requested, then check if the user was verified
+			verified, valid := IsVerified(userSignup)
+			if verified && !valid {
+				// if verified, but the verification expired, then return "not-found" so the client can trigger reactivation
+				return nil, nil
+			}
+			signupResponse.Status = signup.Status{
+				VerificationRequired: states.VerificationRequired(userSignup),
+				Verified:             verified,
+			}
+			return signupResponse, nil
+		}
+		// if the sure is in no-provisioning state but it was standard signup request, then return "not-found" so the client
+		// can trigger reactivation and thus complete provisioning
+		return nil, nil
+	}
+
 	if !approvedFound || !completeFound ||
 		condition.IsFalseWithReason(userSignup.Status.Conditions,
 			toolchainv1alpha1.UserSignupApproved, toolchainv1alpha1.UserSignupPendingApprovalReason) {
@@ -498,6 +592,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		signupResponse.Status = signup.Status{
 			Reason:               toolchainv1alpha1.UserSignupPendingApprovalReason,
 			VerificationRequired: states.VerificationRequired(userSignup),
+			Verified:             !states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
 	}
@@ -505,25 +600,18 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	// in proxy, we don't care if the UserSignup is completed, since sometimes it might be transitioning from complete to provisioning
 	// which causes issues with some proxy calls, that's why we introduced the checkUserSignupCompleted parameter.
 	// See Jira: https://issues.redhat.com/browse/SANDBOX-375
-	if completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted {
+	// consider as not completed also when the compliant username is not set yet. This can happen in short time window when UserSignup
+	// transitions from no-provisioning state to normal provisioning
+	if (completeCondition.Status != apiv1.ConditionTrue && checkUserSignupCompleted) || userSignup.Status.CompliantUsername == "" {
 		// UserSignup is not complete
 		log.Info(nil, fmt.Sprintf("usersignup: %s is not complete", userSignup.GetName()))
 		signupResponse.Status = signup.Status{
 			Reason:               completeCondition.Reason,
 			Message:              completeCondition.Message,
 			VerificationRequired: states.VerificationRequired(userSignup),
+			Verified:             !states.VerificationRequired(userSignup),
 		}
 		return signupResponse, nil
-	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserDeactivatedReason {
-		log.Info(nil, fmt.Sprintf("usersignup: %s is deactivated", userSignup.GetName()))
-		// UserSignup is deactivated. Treat it as non-existent.
-		return nil, nil
-	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserBannedReason {
-		log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-		return nil, ForbiddenBannedError
-	} else if completeCondition.Reason == toolchainv1alpha1.UserSignupUserRejectedReason {
-		log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
-		return nil, ForbiddenRejectedError
 	}
 
 	if !userSignup.Status.ScheduledDeactivationTimestamp.IsZero() {
@@ -546,6 +634,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		Reason:               murCondition.Reason,
 		Message:              murCondition.Message,
 		VerificationRequired: states.VerificationRequired(userSignup),
+		Verified:             !states.VerificationRequired(userSignup),
 	}
 
 	if mur.Status.ProvisionedTime != nil {
@@ -581,6 +670,20 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 	}
 
 	return signupResponse, nil
+}
+
+// IsVerified checks if a UserSignup is verified and if the verification is still valid.
+// Returns (verified, isValid) where verified indicates if the user has been verified,
+// and isValid indicates if the verification timestamp is within the valid time window. (7 days)
+func IsVerified(userSignup *toolchainv1alpha1.UserSignup) (bool, bool) {
+	verifiedAt, verified := userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]
+	at, err := time.Parse(time.RFC3339, verifiedAt)
+	if err != nil {
+		return false, false
+	}
+	// TODO move to configuration
+	isValid := verified && time.Since(at) < 7*24*time.Hour
+	return verified, isValid
 }
 
 // auditUserSignupAgainstClaims compares the properties of the specified UserSignup against the claims contained in the

@@ -163,7 +163,8 @@ func (s *TestSignupSuite) TestSignupGetHandler() {
 			Username:          "ted@kubesaw",
 			CompliantUsername: "ted",
 			Status: signup.Status{
-				Reason: "Provisioning",
+				Reason:   "Provisioning",
+				Verified: true,
 			},
 			FamilyName:    "Bar",
 			GivenName:     "Foo",

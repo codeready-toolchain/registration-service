@@ -165,6 +165,50 @@ func (s *TestSignupServiceSuite) TestSignup() {
 		assert.Empty(s.T(), userSignup.Annotations[toolchainv1alpha1.UserSignupLastTargetClusterAnnotationKey]) // was initially missing, and was not set
 	})
 
+	s.Run("deactivate and reactivate preserving recent phone hash label", func() {
+		deactivatedUS := existing.DeepCopy()
+		deactivatedUS.Annotations[toolchainv1alpha1.UserSignupActivationCounterAnnotationKey] = "2"
+		deactivatedUS.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey] = "phonehash123"
+		states.SetDeactivated(deactivatedUS, true)
+		deactivatedUS.Status.Conditions = fake.Deactivated()
+
+		s.Run("recently verified", func() {
+			// given
+			recentlyUS := deactivatedUS.DeepCopy()
+			verifiedAt := time.Now().Add(-2 * 24 * time.Hour).Format(time.RFC3339)
+			recentlyUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = verifiedAt
+
+			_, application := testutil.PrepareInClusterApp(s.T(), recentlyUS)
+
+			// when
+			reactivatedUS, err := application.SignupService().Signup(ctx)
+
+			// then
+			require.NoError(s.T(), err)
+			require.False(s.T(), states.VerificationRequired(reactivatedUS))
+			require.Equal(s.T(), verifiedAt, reactivatedUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
+			require.Equal(s.T(), "phonehash123", reactivatedUS.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+		})
+
+		s.Run("verified long time ago", func() {
+			// given
+			olderUS := deactivatedUS.DeepCopy()
+			verifiedAt := time.Now().Add(-8 * 24 * time.Hour).Format(time.RFC3339)
+			olderUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = verifiedAt
+
+			_, application := testutil.PrepareInClusterApp(s.T(), olderUS)
+
+			// when
+			reactivatedUS, err := application.SignupService().Signup(ctx)
+
+			// then
+			require.NoError(s.T(), err)
+			require.True(s.T(), states.VerificationRequired(reactivatedUS))
+			require.Empty(s.T(), reactivatedUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
+			require.Empty(s.T(), reactivatedUS.Labels[toolchainv1alpha1.UserSignupUserPhoneHashLabelKey])
+		})
+	})
+
 	s.Run("deactivate and try to reactivate but reactivation fails", func() {
 		// given
 		deactivatedUS := existing.DeepCopy()
@@ -341,6 +385,137 @@ func (s *TestSignupServiceSuite) TestSignupNoSpaces() {
 	require.Equal(s.T(), "true", val.Annotations[toolchainv1alpha1.SkipAutoCreateSpaceAnnotationKey]) // skip auto create space annotation is set
 }
 
+func newUserCtx() *gin.Context {
+	rr := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rr)
+	ctx.Set(context.UsernameKey, "user@kubesaw")
+	ctx.Set(context.SubKey, "987654321")
+	ctx.Set(context.OriginalSubKey, "original-sub-value")
+	ctx.Set(context.EmailKey, "user@gmail.com")
+	ctx.Set(context.GivenNameKey, "jane")
+	ctx.Set(context.FamilyNameKey, "doe")
+	ctx.Set(context.CompanyKey, "red hat")
+	ctx.Set(context.UserIDKey, "13349822")
+	ctx.Set(context.AccountIDKey, "45983711")
+	ctx.Set(context.AccountNumberKey, "123456789")
+	ctx.Set(context.RequestReceivedTime, time.Now())
+	return ctx
+}
+
+func (s *TestSignupServiceSuite) TestSignupGatingOnly() {
+	gatingCtx := newUserCtx()
+	// UserSignup should be in no-provisioning state
+	gatingCtx.Request, _ = http.NewRequest("POST", "/?gating-only=true", bytes.NewBufferString(""))
+
+	s.Run("when verification required", func() {
+		// given
+		// expect that UserSignup should be asked for phone verification
+		s.ServiceConfiguration(true, "", 5)
+
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(gatingCtx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+
+		stored := &toolchainv1alpha1.UserSignup{}
+		err = fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), stored)
+		require.NoError(s.T(), err)
+		require.True(s.T(), states.NoProvisioning(stored))
+		require.True(s.T(), states.VerificationRequired(stored))
+		// not verified yet
+		require.Empty(s.T(), stored.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
+
+		s.Run("the same returns conflict", func() {
+			// when
+			userSignup, err := application.SignupService().Signup(gatingCtx)
+
+			// then
+			require.Error(s.T(), err)
+			require.Nil(s.T(), userSignup)
+		})
+
+	})
+
+	s.Run("when verification not required", func() {
+		// given
+		// expect that UserSignup will be marked as verified
+		s.ServiceConfiguration(false, "", 5)
+
+		fakeClient, application := testutil.PrepareInClusterApp(s.T())
+
+		// when
+		userSignup, err := application.SignupService().Signup(gatingCtx)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), userSignup)
+		require.True(s.T(), states.NoProvisioning(userSignup))
+		require.False(s.T(), states.VerificationRequired(userSignup))
+		// verified
+		verifiedAt := userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]
+		require.NotEmpty(s.T(), verifiedAt)
+
+		s.Run("the same returns conflict", func() {
+			// when
+			userSignup, err := application.SignupService().Signup(gatingCtx)
+
+			// then
+			require.Error(s.T(), err)
+			require.Nil(s.T(), userSignup)
+		})
+
+		s.Run("when verification expired, then reactivates", func() {
+			// given
+			userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Add(-20 * 24 * time.Hour).Format(time.RFC3339)
+			require.NoError(s.T(), fakeClient.Update(gatingCtx, userSignup))
+
+			// when
+			userSignup, err := application.SignupService().Signup(gatingCtx)
+
+			// then
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), userSignup)
+			require.True(s.T(), states.NoProvisioning(userSignup))
+			require.False(s.T(), states.VerificationRequired(userSignup))
+			// verified
+			verifiedAt := userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]
+			require.NotEmpty(s.T(), verifiedAt)
+
+			s.Run("reactivate no-provisioning signup without gating-only", func() {
+				// given
+				// will skip the phone verification because it's already verified
+				s.ServiceConfiguration(true, "", 5)
+				require.NoError(s.T(), fakeClient.Update(gatingCtx, userSignup))
+				normalCtx := newUserCtx()
+
+				// when
+				reactivatedUS, err := application.SignupService().Signup(normalCtx)
+
+				// then
+				require.NoError(s.T(), err)
+				require.NotNil(s.T(), reactivatedUS)
+				require.False(s.T(), states.NoProvisioning(reactivatedUS))
+				require.False(s.T(), states.VerificationRequired(reactivatedUS))
+				// verified
+				require.Equal(s.T(), verifiedAt, reactivatedUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
+
+				s.Run("reactivate gating-only conflicts because the user is provisoned and thus considered to be verified", func() {
+					// when
+					reactivatedUS, err := application.SignupService().Signup(gatingCtx)
+
+					// then
+					require.Error(s.T(), err)
+					require.Nil(s.T(), reactivatedUS)
+				})
+			})
+		})
+	})
+}
+
 func (s *TestSignupServiceSuite) TestSignupWithCaptchaEnabled() {
 	commontest.SetEnvVarAndRestore(s.T(), commonconfig.WatchNamespaceEnvVar, commontest.HostOperatorNs)
 
@@ -450,6 +625,7 @@ func (s *TestSignupServiceSuite) TestUserWithExcludedDomainEmailSignsUp() {
 
 	val := userSignups.Items[0]
 	require.False(s.T(), states.VerificationRequired(&val))
+	require.NotEmpty(s.T(), val.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
 }
 
 func (s *TestSignupServiceSuite) TestCRTAdminUserSignup() {
@@ -633,6 +809,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 	require.Equal(s.T(), "test_reason", response.Status.Reason)
 	require.Equal(s.T(), "test_message", response.Status.Message)
 	require.True(s.T(), response.Status.VerificationRequired)
+	require.False(s.T(), response.Status.Verified)
 	require.Empty(s.T(), response.ConsoleURL)
 	require.Empty(s.T(), response.CheDashboardURL)
 	require.Empty(s.T(), response.APIEndpoint)
@@ -669,6 +846,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusNotComplete() {
 		require.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 		require.Equal(s.T(), "mur_ready_message", response.Status.Message)
 		require.False(s.T(), response.Status.VerificationRequired)
+		require.True(s.T(), response.Status.Verified)
 		require.Equal(s.T(), "https://console.apps.member-123.com", response.ConsoleURL)
 		require.Equal(s.T(), "https://devspaces.apps.member-123.com", response.CheDashboardURL)
 		require.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)
@@ -742,6 +920,7 @@ func (s *TestSignupServiceSuite) TestGetSignupNoStatusNotCompleteCondition() {
 		require.False(s.T(), response.Status.Ready)
 		require.Equal(s.T(), "PendingApproval", response.Status.Reason)
 		require.True(s.T(), response.Status.VerificationRequired)
+		require.False(s.T(), response.Status.Verified)
 		require.Empty(s.T(), response.Status.Message)
 		require.Empty(s.T(), response.ConsoleURL)
 		require.Empty(s.T(), response.CheDashboardURL)
@@ -770,6 +949,125 @@ func (s *TestSignupServiceSuite) TestGetSignupDeactivated() {
 	// then
 	require.Nil(s.T(), signup)
 	require.NoError(s.T(), err)
+}
+
+func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
+	// given
+	s.ServiceConfiguration(true, "", 5)
+	gatingCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	gatingCtx.Request, _ = http.NewRequest("GET", "/?gating-only=true", nil)
+
+	s.Run("with gating-only and verification required", func() {
+		// given
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.VerificationRequired(),
+			testusersignup.NoProvisioning(),
+		)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+		require.True(s.T(), response.Status.VerificationRequired)
+		require.False(s.T(), response.Status.Verified)
+	})
+
+	s.Run("with gating-only and valid verification", func() {
+		// given
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
+			testusersignup.NoProvisioning(),
+		)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+		require.False(s.T(), response.Status.VerificationRequired)
+		require.True(s.T(), response.Status.Verified)
+	})
+
+	s.Run("with gating-only and expired verification returns nil", func() {
+		// given
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Add(-8*24*time.Hour).Format(time.RFC3339)),
+			testusersignup.NoProvisioning(),
+		)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.NoError(s.T(), err)
+		require.Nil(s.T(), response)
+	})
+
+	s.Run("without gating-only returns nil", func() {
+		// given
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
+			testusersignup.NoProvisioning(),
+		)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+		// when
+		response, err := application.SignupService().GetSignup(c, "gating-user@kubesaw", true)
+
+		// then
+		require.NoError(s.T(), err)
+		require.Nil(s.T(), response)
+	})
+}
+
+func (s *TestSignupServiceSuite) TestIsVerified() {
+	for name, tc := range map[string]struct {
+		timestamp        string
+		expectedVerified bool
+		expectedValid    bool
+	}{
+		"not verified - no annotation": {},
+		"not verified - invalid timestamp": {
+			timestamp: "invalid",
+		},
+		"verified and valid": {
+			timestamp:        time.Now().Add(-1 * 24 * time.Hour).Format(time.RFC3339),
+			expectedVerified: true,
+			expectedValid:    true,
+		},
+		"verified but expired": {
+			timestamp:        time.Now().Add(-8 * 24 * time.Hour).Format(time.RFC3339),
+			expectedVerified: true,
+		},
+	} {
+		s.Run(name, func() {
+			// given
+			var mods []testusersignup.Modifier
+			if tc.timestamp != "" {
+				mods = append(mods, testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, tc.timestamp))
+			}
+			us := testusersignup.NewUserSignup(mods...)
+
+			// when
+			verified, valid := service.IsVerified(us)
+
+			// then
+			require.Equal(s.T(), tc.expectedVerified, verified)
+			require.Equal(s.T(), tc.expectedValid, valid)
+		})
+	}
 }
 
 func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
@@ -809,6 +1107,7 @@ func (s *TestSignupServiceSuite) TestGetSignupStatusOK() {
 			assert.Equal(s.T(), "mur_ready_reason", response.Status.Reason)
 			assert.Equal(s.T(), "mur_ready_message", response.Status.Message)
 			assert.False(s.T(), response.Status.VerificationRequired)
+			assert.True(s.T(), response.Status.Verified)
 			assert.Equal(s.T(), fmt.Sprintf("https://console%smember-123.com", appsSubDomain), response.ConsoleURL)
 			assert.Equal(s.T(), fmt.Sprintf("https://devspaces%smember-123.com", appsSubDomain), response.CheDashboardURL)
 			assert.Equal(s.T(), "http://api.devcluster.openshift.com", response.APIEndpoint)

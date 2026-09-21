@@ -164,8 +164,8 @@ func (s *ServiceImpl) newUserSignup(ctx *gin.Context, accountVerifierResp *toolc
 		}
 	}
 
-	// when phone verification is not required, then mark it as verified by setting the annotation
-	if !states.VerificationRequired(userSignup) {
+	// when phone verification is not required and is not rejected, then mark it as verified by setting the annotation
+	if !states.VerificationRequired(userSignup) && !states.Rejected(userSignup) {
 		userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
 	}
 

@@ -1885,6 +1885,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		require.Len(s.T(), userSignups.Items, 1)
 		createdUS := userSignups.Items[0]
 		assert.True(s.T(), states.Rejected(&createdUS))
+		assert.Empty(s.T(), createdUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
 		assert.Equal(s.T(), "rejected", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"failed"}]`, createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
 	})

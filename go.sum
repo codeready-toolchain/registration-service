@@ -37,10 +37,6 @@ github.com/chenzhuoyu/iasm v0.9.1 h1:tUHQJXo3NhBqw6s33wkGn9SP3bvrWLdlVIJ3hQBL7P0
 github.com/chenzhuoyu/iasm v0.9.1/go.mod h1:Xjy2NpN3h7aUqeqM+woSuuvxmIe6+DDsiNLIrkAmYog=
 github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 h1:aBangftG7EVZoUb69Os8IaYg++6uMOdKK83QtkkvJik=
 github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2/go.mod h1:qwXFYgsP6T7XnJtbKlf1HP8AjxZZyzxMmc+Lq5GjlU4=
-github.com/codeready-toolchain/api v0.0.0-20260917102240-88cd1578ea41 h1:1Cdcpx7dQpQmL7vevLxu3IOTYa+XX08xIwJt6H2mGOU=
-github.com/codeready-toolchain/api v0.0.0-20260917102240-88cd1578ea41/go.mod h1:jkXNLbwYNA3rjOHZ6z6m8BsCs467LmveCapPQFfQZNY=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20260917104434-e674386460b1 h1:mcIhCo0z6i/DMlqLW7mj5EGh7HoMhSO5Yb+ujXP0GnM=
-github.com/codeready-toolchain/toolchain-common v0.0.0-20260917104434-e674386460b1/go.mod h1:iBQ+bkjvGoy6HKdtY84PafL3IQf+VXezqqnb+t8mvW0=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -224,6 +220,10 @@ github.com/magiconair/properties v1.8.5 h1:b6kJs+EmPFMYGkow9GiUyCyOvIwYetYJ3fSaW
 github.com/magiconair/properties v1.8.5/go.mod h1:y3VJvCyxH9uVvJTWEGAELF3aiYNyPKd5NZ3oSwXrF60=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
+github.com/matousjobanek/api v0.0.0-20260922084150-1165c49d5bd4 h1:dVuXzTHwfjB26x6rqjdT/a1pzEFPF8JGtJY/n2kP6ew=
+github.com/matousjobanek/api v0.0.0-20260922084150-1165c49d5bd4/go.mod h1:jkXNLbwYNA3rjOHZ6z6m8BsCs467LmveCapPQFfQZNY=
+github.com/matousjobanek/toolchain-common v0.0.0-20260922084318-beeb3913e8d9 h1:gvg3X2R1qGx6K7nyRLWMxAcapIOHP4+nAvM6BLudLLQ=
+github.com/matousjobanek/toolchain-common v0.0.0-20260922084318-beeb3913e8d9/go.mod h1:DgcgDQKAKJleWFsEtusU9bxrhF5TRhYme6Qga4qhKn4=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215 h1:hDa3vAq/Zo5gjfJ46XMsGFbH+hTizpR4fUzQCk2nxgk=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215/go.mod h1:LH+NgPY9AJpDfqAFtzyer01N9MYNsAKUf3DC9DV1xIY=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=

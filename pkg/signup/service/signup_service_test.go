@@ -1035,6 +1035,7 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 func (s *TestSignupServiceSuite) TestIsVerified() {
 	for name, tc := range map[string]struct {
 		timestamp        string
+		expiryDays       int
 		expectedVerified bool
 		expectedValid    bool
 	}{
@@ -1051,9 +1052,24 @@ func (s *TestSignupServiceSuite) TestIsVerified() {
 			timestamp:        time.Now().Add(-8 * 24 * time.Hour).Format(time.RFC3339),
 			expectedVerified: true,
 		},
+		"verified and valid with custom expiry": {
+			timestamp:        time.Now().Add(-8 * 24 * time.Hour).Format(time.RFC3339),
+			expiryDays:       10,
+			expectedVerified: true,
+			expectedValid:    true,
+		},
+		"verified but expired with custom expiry": {
+			timestamp:        time.Now().Add(-11 * 24 * time.Hour).Format(time.RFC3339),
+			expiryDays:       10,
+			expectedVerified: true,
+		},
 	} {
 		s.Run(name, func() {
 			// given
+			s.SetupDefaultApplication()
+			if tc.expiryDays > 0 {
+				s.SetConfig(testconfig.RegistrationService().VerifiedTimestampExpiryDays(tc.expiryDays))
+			}
 			var mods []testusersignup.Modifier
 			if tc.timestamp != "" {
 				mods = append(mods, testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, tc.timestamp))

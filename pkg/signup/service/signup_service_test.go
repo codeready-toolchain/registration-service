@@ -1035,7 +1035,7 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 func (s *TestSignupServiceSuite) TestIsVerified() {
 	for name, tc := range map[string]struct {
 		timestamp        string
-		expiryDays       int
+		expiryDays       uint
 		expectedVerified bool
 		expectedValid    bool
 	}{

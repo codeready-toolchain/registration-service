@@ -19,9 +19,9 @@ require (
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
-replace github.com/codeready-toolchain/api => github.com/matousjobanek/api v0.0.0-20260922084150-1165c49d5bd4
+replace github.com/codeready-toolchain/api => github.com/matousjobanek/api v0.0.0-20260922091635-b2b32be3123b
 
-replace github.com/codeready-toolchain/toolchain-common => github.com/matousjobanek/toolchain-common v0.0.0-20260922084318-beeb3913e8d9
+replace github.com/codeready-toolchain/toolchain-common => github.com/matousjobanek/toolchain-common v0.0.0-20260922091756-de961e07232e
 
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0

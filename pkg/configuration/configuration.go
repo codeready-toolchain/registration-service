@@ -148,8 +148,8 @@ func (r RegistrationServiceConfig) AccountVerifierMode() string {
 	return commonconfig.GetString(r.cfg.Host.RegistrationService.AccountVerifierMode, "log")
 }
 
-func (r RegistrationServiceConfig) VerifiedTimestampExpiryDays() int {
-	return commonconfig.GetInt(r.cfg.Host.RegistrationService.VerifiedTimestampExpiryDays, 7)
+func (r RegistrationServiceConfig) VerifiedTimestampExpiryDays() uint {
+	return commonconfig.GetUint(r.cfg.Host.RegistrationService.VerifiedTimestampExpiryDays, 7)
 }
 
 func (r RegistrationServiceConfig) DisabledIntegrations() []string {

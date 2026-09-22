@@ -74,7 +74,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "log", regServiceCfg.AccountVerifierMode())
-		assert.Equal(t, 7, regServiceCfg.VerifiedTimestampExpiryDays())
+		assert.Equal(t, uint(7), regServiceCfg.VerifiedTimestampExpiryDays())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -168,7 +168,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "enabled", regServiceCfg.AccountVerifierMode())
-		assert.Equal(t, 10, regServiceCfg.VerifiedTimestampExpiryDays())
+		assert.Equal(t, uint(10), regServiceCfg.VerifiedTimestampExpiryDays())
 	})
 }
 

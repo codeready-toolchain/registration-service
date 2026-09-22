@@ -421,6 +421,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 
 		if unsetVerificationRequired {
 			states.SetVerificationRequired(signup, false)
+			signup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
 		}
 
 		for k, v := range annotationValues {
@@ -550,19 +551,23 @@ func PhoneNumberAlreadyInUse(cl namespaced.Client, username, phoneNumberOrHash s
 		return crterrors.NewForbiddenError("cannot re-register with phone number", "phone number already in use")
 	}
 
-	labelSelector := client.MatchingLabels{
-		toolchainv1alpha1.UserSignupStateLabelKey:           toolchainv1alpha1.UserSignupStateLabelValueApproved,
-		toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
-	}
-	userSignups := &toolchainv1alpha1.UserSignupList{}
-	if err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(cl.Namespace), labelSelector); err != nil {
-		return crterrors.NewInternalError(err, "failed listing userSignups")
-	}
+	for _, stateLabel := range []string{toolchainv1alpha1.UserSignupStateLabelValueApproved, toolchainv1alpha1.UserSignupStateLabelValueNoProvisioning} {
+		labelSelector := client.MatchingLabels{
+			toolchainv1alpha1.UserSignupStateLabelKey:           stateLabel,
+			toolchainv1alpha1.BannedUserPhoneNumberHashLabelKey: labelValue,
+		}
+		userSignups := &toolchainv1alpha1.UserSignupList{}
+		if err := cl.List(gocontext.TODO(), userSignups, client.InNamespace(cl.Namespace), labelSelector); err != nil {
+			return crterrors.NewInternalError(err, "failed listing userSignups")
+		}
 
-	for _, signup := range userSignups.Items {
-		if signup.Spec.IdentityClaims.PreferredUsername != username && !states.Deactivated(&signup) {
-			return crterrors.NewForbiddenError("cannot re-register with phone number",
-				"phone number already in use")
+		for _, signup := range userSignups.Items {
+			verified, valid := signupsvc.IsVerified(&signup)
+			if signup.Spec.IdentityClaims.PreferredUsername != username &&
+				((states.NoProvisioning(&signup) && verified && valid) || (!states.NoProvisioning(&signup) && !states.Deactivated(&signup))) {
+				return crterrors.NewForbiddenError("cannot re-register with phone number",
+					"phone number already in use")
+			}
 		}
 	}
 

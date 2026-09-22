@@ -68,6 +68,8 @@ type Status struct {
 	// VerificationRequired is set to false when the user is ether exempt from phone verification or has already successfully passed the verification.
 	// Default value is false.
 	VerificationRequired bool `json:"verificationRequired"`
+	// Verified determines that the user successfully went through all gating checks
+	Verified bool `json:"verified"`
 }
 
 // PollUpdateSignup will attempt to execute the provided updater function, and if it fails

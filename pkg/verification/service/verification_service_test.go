@@ -1304,6 +1304,65 @@ func (s *TestVerificationServiceSuite) TestPhoneNumberAlreadyInUse() {
 		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
 	})
 
+	s.Run("when phone is used by no-provisioning user with valid verification", func() {
+		// given
+		noProvUserSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("johnny@kubesaw"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueNoProvisioning),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
+			testusersignup.NoProvisioning(),
+		)
+
+		fakeClient := commontest.NewFakeClient(s.T(), noProvUserSignup)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+		// then
+		require.EqualError(s.T(), err, "cannot re-register with phone number: phone number already in use")
+	})
+
+	s.Run("when phone is used by no-provisioning user with expired verification", func() {
+		// given
+		noProvUserSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("johnny@kubesaw"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueNoProvisioning),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Add(-8*24*time.Hour).Format(time.RFC3339)),
+			testusersignup.NoProvisioning(),
+		)
+
+		fakeClient := commontest.NewFakeClient(s.T(), noProvUserSignup)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+		// then
+		require.NoError(s.T(), err)
+	})
+
+	s.Run("when phone is used by no-provisioning user without beiring verified", func() {
+		// given
+		noProvUserSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("johnny@kubesaw"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "fd276563a8232d16620da8ec85d0575f"),
+			testusersignup.WithLabel(toolchainv1alpha1.UserSignupStateLabelKey, toolchainv1alpha1.UserSignupStateLabelValueNoProvisioning),
+			testusersignup.NoProvisioning(),
+		)
+
+		fakeClient := commontest.NewFakeClient(s.T(), noProvUserSignup)
+		nsdClient := namespaced.NewClient(fakeClient, commontest.HostOperatorNs)
+
+		// when
+		err := verificationservice.PhoneNumberAlreadyInUse(nsdClient, "jsmith", "+12268213044")
+
+		// then
+		require.NoError(s.T(), err)
+	})
+
 	s.Run("failures", func() {
 		s.Run("fails when lists banned users", func() {
 			// given

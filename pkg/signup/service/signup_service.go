@@ -683,7 +683,7 @@ func IsVerified(userSignup *toolchainv1alpha1.UserSignup) (bool, bool) {
 	}
 	// TODO move to configuration
 	expiryDays := configuration.GetRegistrationServiceConfig().VerifiedTimestampExpiryDays()
-	isValid := verified && time.Since(at) < time.Duration(expiryDays)*24*time.Hour
+	isValid := verified && time.Since(at) < time.Duration(expiryDays)*24*time.Hour // nolint (we don't expect the expiry to be so high so it would overflow uint -> int64)
 	return verified, isValid
 }
 

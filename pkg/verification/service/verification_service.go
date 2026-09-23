@@ -249,7 +249,7 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 	}
 	result, lookupErr := s.PhoneLookupService.LookupPhone(e164PhoneNumber)
 	if lookupErr != nil {
-		PhoneLookupErrorsTotal.WithLabelValues(sender.LookupErrorType(lookupErr)).Inc()
+		PhoneLookupErrorsTotal.WithLabelValues(sender.LookupErrorType(lookupErr), noProvisioningLabel(signup)).Inc()
 		log.Error(ctx, lookupErr, "phone lookup failed, proceeding (fail-open)")
 		return false, nil
 	}
@@ -266,14 +266,14 @@ func (s *ServiceImpl) performPhoneLookup(ctx *gin.Context, cfg configuration.Reg
 			result.CarrierRiskCategory, result.NumberBlocked, mode))
 		if mode == toolchainv1alpha1.PhoneLookupModeEnabled {
 			// Count as blocked only when the signup is actually rejected.
-			PhoneLookupTotal.WithLabelValues(PhoneLookupResultBlocked, result.CarrierRiskCategory).Inc()
+			PhoneLookupTotal.WithLabelValues(PhoneLookupResultBlocked, result.CarrierRiskCategory, noProvisioningLabel(signup)).Inc()
 			return true, crterrors.NewForbiddenError("phone verification rejected", "cannot proceed with verification")
 		}
 		// mode == log: high-risk is detected but not enforced; still charged, user proceeds.
-		PhoneLookupTotal.WithLabelValues(PhoneLookupResultAllowed, result.CarrierRiskCategory).Inc()
+		PhoneLookupTotal.WithLabelValues(PhoneLookupResultAllowed, result.CarrierRiskCategory, noProvisioningLabel(signup)).Inc()
 		return false, nil
 	}
-	PhoneLookupTotal.WithLabelValues(PhoneLookupResultAllowed, result.CarrierRiskCategory).Inc()
+	PhoneLookupTotal.WithLabelValues(PhoneLookupResultAllowed, result.CarrierRiskCategory, noProvisioningLabel(signup)).Inc()
 	return false, nil
 }
 

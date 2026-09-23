@@ -37,6 +37,10 @@ github.com/chenzhuoyu/iasm v0.9.1 h1:tUHQJXo3NhBqw6s33wkGn9SP3bvrWLdlVIJ3hQBL7P0
 github.com/chenzhuoyu/iasm v0.9.1/go.mod h1:Xjy2NpN3h7aUqeqM+woSuuvxmIe6+DDsiNLIrkAmYog=
 github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 h1:aBangftG7EVZoUb69Os8IaYg++6uMOdKK83QtkkvJik=
 github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2/go.mod h1:qwXFYgsP6T7XnJtbKlf1HP8AjxZZyzxMmc+Lq5GjlU4=
+github.com/codeready-toolchain/api v0.0.0-20260923121658-43ad10110efe h1:e80yzZT8Sf4TYa5UPgeL1tLN1wjZdOE8tE4z+TWay1U=
+github.com/codeready-toolchain/api v0.0.0-20260923121658-43ad10110efe/go.mod h1:GnQ5fxGiXGrVBN5RcRQ7bo/v0rhy7EscO+7o76M9fQA=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260923150303-c57ad4d44348 h1:qDcQAFCnzNdAKabvSYILov/Qv7pPdzNk5y5SfwjNOfg=
+github.com/codeready-toolchain/toolchain-common v0.0.0-20260923150303-c57ad4d44348/go.mod h1:RIzr3X+rmx4VfwProi3IqCmBSLYiWVR+qfRnJR1GKAo=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -220,10 +224,6 @@ github.com/magiconair/properties v1.8.5 h1:b6kJs+EmPFMYGkow9GiUyCyOvIwYetYJ3fSaW
 github.com/magiconair/properties v1.8.5/go.mod h1:y3VJvCyxH9uVvJTWEGAELF3aiYNyPKd5NZ3oSwXrF60=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
-github.com/matousjobanek/api v0.0.0-20260922091635-b2b32be3123b h1:3QhkqQJ+Pis9PKaA6xb0pkwLGphWNOK9E2h4iHeYg/8=
-github.com/matousjobanek/api v0.0.0-20260922091635-b2b32be3123b/go.mod h1:jkXNLbwYNA3rjOHZ6z6m8BsCs467LmveCapPQFfQZNY=
-github.com/matousjobanek/toolchain-common v0.0.0-20260922091756-de961e07232e h1:qiN2P7dDVvgwhulxeaomg11k0P+SWIZvRlZ0RFfPqaQ=
-github.com/matousjobanek/toolchain-common v0.0.0-20260922091756-de961e07232e/go.mod h1:ax8A5jSdcJQrtRZVjdo4CePgo6LGvmRWttYqk26oAEc=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215 h1:hDa3vAq/Zo5gjfJ46XMsGFbH+hTizpR4fUzQCk2nxgk=
 github.com/matryer/resync v0.0.0-20161211202428-d39c09a11215/go.mod h1:LH+NgPY9AJpDfqAFtzyer01N9MYNsAKUf3DC9DV1xIY=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=

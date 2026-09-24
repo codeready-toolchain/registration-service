@@ -74,6 +74,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Empty(t, regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "log", regServiceCfg.AccountVerifierMode())
+		assert.Equal(t, uint(7), regServiceCfg.VerifiedTimestampExpiryDays())
 	})
 	t.Run("non-default", func(t *testing.T) {
 		// given
@@ -83,6 +84,7 @@ func TestRegistrationService(t *testing.T) {
 			RegistrationServiceURL("www.crtregservice.com").
 			AccountVerifierURL("https://verifier.example.com").
 			AccountVerifierMode("enabled").
+			VerifiedTimestampExpiryDays(10).
 			Analytics().SegmentWriteKey("keyabc").
 			Auth().AuthClientLibraryURL("https://sso.openshift.com/auth/js/keycloak.js").
 			Auth().AuthClientConfigContentType("application/xml").
@@ -166,6 +168,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.False(t, regServiceCfg.PublicViewerEnabled())
 		assert.Equal(t, "https://verifier.example.com", regServiceCfg.AccountVerifierURL())
 		assert.Equal(t, "enabled", regServiceCfg.AccountVerifierMode())
+		assert.Equal(t, uint(10), regServiceCfg.VerifiedTimestampExpiryDays())
 	})
 }
 

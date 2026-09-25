@@ -92,6 +92,8 @@ function showUser(username, userid, originalsub) {
   document.getElementById('originalsub').style.display = 'inline';
   document.getElementById('login-command').style.display = 'inline';
   document.getElementById('oc-login').style.display = 'none';
+  document.getElementById('sso-token-command').style.display = 'inline';
+  document.getElementById('sso-token').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'none';
 }
 
@@ -103,6 +105,8 @@ function hideUser() {
   document.getElementById('userid').style.display = 'none';
   document.getElementById('login-command').style.display = 'none';
   document.getElementById('oc-login').style.display = 'none';
+  document.getElementById('sso-token-command').style.display = 'none';
+  document.getElementById('sso-token').style.display = 'none';
   document.getElementById('user-notloggedin').style.display = 'inline';
 }
 
@@ -245,6 +249,13 @@ function refreshToken() {
   keycloak.updateToken(30)
     .then(function(refreshed) {
       console.log('token refresh result: ' + refreshed);
+      if (refreshed) {
+        idToken = keycloak.idToken;
+        var ssoToken = document.getElementById('sso-token');
+        if (ssoToken.style.display !== 'none') {
+          document.getElementById('sso-token-input').value = keycloak.idToken;
+        }
+      }
     }).catch(function() {
       console.log('failed to refresh the token, or the session has expired');
     });
@@ -254,6 +265,12 @@ function login() {
   // User clicked on Get Started. We can enable autoSignup after successful login now.
   window.sessionStorage.setItem('autoSignup', 'true');
   keycloak.login()
+}
+
+// Header login. Establishes an SSO session without creating a signup.
+function loginWithoutSignup() {
+  window.sessionStorage.removeItem('autoSignup');
+  keycloak.login();
 }
 
 // start signup process.
@@ -376,6 +393,17 @@ function showLoginCommand() {
 
 function copyCommand() {
   var inputText = document.getElementById('expandable-not-expanded-readonly-text-input');
+  navigator.clipboard.writeText(inputText.value);
+}
+
+function showSSOToken() {
+  document.getElementById('sso-token-command').style.display = 'none';
+  document.getElementById('sso-token-input').value = keycloak.idToken;
+  document.getElementById('sso-token').style.display = 'inline';
+}
+
+function copySSOToken() {
+  var inputText = document.getElementById('sso-token-input');
   navigator.clipboard.writeText(inputText.value);
 }
 

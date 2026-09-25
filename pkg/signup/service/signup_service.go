@@ -674,7 +674,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 // IsVerified checks if a UserSignup is verified and if the verification is still valid.
 // Returns (verified, isValid) where verified indicates if the user has been verified,
-// and isValid indicates if the verification timestamp is within the valid time window. (7 days)
+// and isValid indicates if the verification timestamp is within the valid time window.
 func IsVerified(userSignup *toolchainv1alpha1.UserSignup) (bool, bool) {
 	verifiedAt, verified := userSignup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey]
 	at, err := time.Parse(time.RFC3339, verifiedAt)
@@ -682,7 +682,8 @@ func IsVerified(userSignup *toolchainv1alpha1.UserSignup) (bool, bool) {
 		return false, false
 	}
 	// TODO move to configuration
-	isValid := verified && time.Since(at) < 7*24*time.Hour
+	expiryDays := configuration.GetRegistrationServiceConfig().VerifiedTimestampExpiryDays()
+	isValid := verified && time.Since(at) < time.Duration(expiryDays)*24*time.Hour // nolint (we don't expect the expiry to be so high so it would overflow uint -> int64)
 	return verified, isValid
 }
 

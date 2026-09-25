@@ -909,12 +909,12 @@ func resetPhoneLookupMetrics() {
 	verificationservice.PhoneLookupErrorsTotal.Reset()
 }
 
-func phoneLookupTotal(result, riskCategory string) float64 {
-	return promtestutil.ToFloat64(verificationservice.PhoneLookupTotal.WithLabelValues(result, riskCategory))
+func phoneLookupTotal(result, riskCategory, noProvisioning string) float64 {
+	return promtestutil.ToFloat64(verificationservice.PhoneLookupTotal.WithLabelValues(result, riskCategory, noProvisioning))
 }
 
-func phoneLookupErrors(errorType string) float64 {
-	return promtestutil.ToFloat64(verificationservice.PhoneLookupErrorsTotal.WithLabelValues(errorType))
+func phoneLookupErrors(errorType, noProvisioning string) float64 {
+	return promtestutil.ToFloat64(verificationservice.PhoneLookupErrorsTotal.WithLabelValues(errorType, noProvisioning))
 }
 
 func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
@@ -977,8 +977,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.True(s.T(), states.Rejected(updated))
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
-		assert.InDelta(s.T(), float64(1), phoneLookupTotal("blocked", "high"), 0.01)
-		assert.InDelta(s.T(), float64(0), phoneLookupTotal("allowed", "high"), 0.01)
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("blocked", "high", "false"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupTotal("allowed", "high", "false"), 0.01)
 	})
 
 	s.Run("high risk phone with mode log proceeds with SMS", func() {
@@ -1008,8 +1008,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.True(s.T(), gock.IsDone())
 		// log mode detects high risk but does not reject — count as allowed (still charged)
-		assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", "high"), 0.01)
-		assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high"), 0.01)
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", "high", "false"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high", "false"), 0.01)
 	})
 
 	for _, tc := range []struct {
@@ -1063,8 +1063,8 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 			assert.False(s.T(), states.Rejected(updated))
 			assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 			assert.True(s.T(), gock.IsDone())
-			assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", tc.riskCategory), 0.01)
-			assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high"), 0.01)
+			assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", tc.riskCategory, "false"), 0.01)
+			assert.InDelta(s.T(), float64(0), phoneLookupTotal("blocked", "high", "false"), 0.01)
 		})
 	}
 
@@ -1095,7 +1095,67 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupPhoneLookupDetailsAnnotationKey])
 		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
 		assert.False(s.T(), states.Rejected(updated))
-		assert.InDelta(s.T(), float64(1), phoneLookupErrors("500"), 0.01)
+		assert.InDelta(s.T(), float64(1), phoneLookupErrors("500", "false"), 0.01)
+		assert.Equal(s.T(), 0, promtestutil.CollectAndCount(verificationservice.PhoneLookupTotal))
+	})
+
+	s.Run("no-provisioning signup increments allowed with no_provisioning true", func() {
+		// given
+		defer gock.Off()
+		resetPhoneLookupMetrics()
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
+		mockTwilioLookup(lookupUKPhone, lowRiskBody)
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-noprov@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.NoProvisioning())
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		// when
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := application.VerificationService().InitVerification(ctx, "lookup-noprov@kubesaw", lookupUKPhone, "44")
+
+		// then
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assertLookupDetails(s.T(), updated)
+		assert.True(s.T(), gock.IsDone())
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("allowed", "low", "true"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupTotal("allowed", "low", "false"), 0.01)
+	})
+
+	s.Run("no-provisioning signup lookup error increments with no_provisioning true", func() {
+		// given
+		defer gock.Off()
+		resetPhoneLookupMetrics()
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
+		gock.New("https://lookups.twilio.com").
+			Get("/v2/PhoneNumbers/" + lookupUKPhone).
+			Reply(http.StatusInternalServerError)
+		mockTwilioSMS()
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-noprov-err@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.NoProvisioning())
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		// when
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := application.VerificationService().InitVerification(ctx, "lookup-noprov-err@kubesaw", lookupUKPhone, "44")
+
+		// then
+		require.NoError(s.T(), err)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assert.NotEmpty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.InDelta(s.T(), float64(1), phoneLookupErrors("500", "true"), 0.01)
+		assert.InDelta(s.T(), float64(0), phoneLookupErrors("500", "false"), 0.01)
 		assert.Equal(s.T(), 0, promtestutil.CollectAndCount(verificationservice.PhoneLookupTotal))
 	})
 

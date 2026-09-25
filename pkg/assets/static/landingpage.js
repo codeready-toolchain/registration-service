@@ -9,6 +9,13 @@ var phoneNumber;
 
 var idToken;
 
+// the Keycloak adapter instance; stays undefined until config/init completes.
+var keycloak;
+
+// the proxy server URL (without the token), used to rebuild the login
+// command whenever the token is refreshed.
+var proxyServerURL;
+
 // this is where we load our config from
 configURL = '/api/v1/authconfig'
 
@@ -165,7 +172,8 @@ function updateSignupState() {
       } else {
         consoleURL = data.consoleURL + 'topology/ns/' + data.compliantUsername + '-dev';
       }
-      proxyURL = 'oc login --token='+idToken+' --server=' +data.proxyURL;
+      proxyServerURL = data.proxyURL;
+      proxyURL = 'oc login --token='+idToken+' --server=' +proxyServerURL;
       document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
       cheDashboardURL = data.cheDashboardURL;
       if (cheDashboardURL === undefined) {
@@ -251,6 +259,10 @@ function refreshToken() {
       console.log('token refresh result: ' + refreshed);
       if (refreshed) {
         idToken = keycloak.idToken;
+        if (proxyServerURL) {
+          proxyURL = 'oc login --token='+idToken+' --server=' +proxyServerURL;
+          document.getElementById('expandable-not-expanded-readonly-text-input').value = proxyURL;
+        }
         var ssoToken = document.getElementById('sso-token');
         if (ssoToken.style.display !== 'none') {
           document.getElementById('sso-token-input').value = keycloak.idToken;
@@ -269,6 +281,11 @@ function login() {
 
 // Header login. Establishes an SSO session without creating a signup.
 function loginWithoutSignup() {
+  if (!keycloak) {
+    // keycloak adapter hasn't finished loading/initializing yet; ignore the click.
+    console.log('keycloak not initialized yet, ignoring login click');
+    return;
+  }
   window.sessionStorage.removeItem('autoSignup');
   keycloak.login();
 }

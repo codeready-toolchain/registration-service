@@ -23,6 +23,7 @@
           <div class="pf-l-stack">
             <div class="pf-l-stack__item">
                 <span id="user-loggedin"><span id="username"></span> <button class="logoutbutton" onclick="keycloak.logout()">Logout</button></span>
+                <span id="user-notloggedin"><button class="logoutbutton" type="button" onclick="loginWithoutSignup()">Login</button></span>
             </div>
             <div class="pf-l-stack__item">
               <button class="collapsible"></button>
@@ -30,6 +31,7 @@
                 <div class="pf-l-stack__item"><span id="userid"></span></div>
                 <div class="pf-l-stack__item"><span id="originalsub"></span></div>
                 <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link pf-m-small" type="button"id="login-command" onclick="showLoginCommand()">Proxy login command</button></div>
+                <div class="pf-l-stack__item"><button class="pf-c-button pf-m-inline pf-m-link pf-m-small" type="button" id="sso-token-command" style="display:none" onclick="showSSOToken()">SSO token</button></div>
               </div>
             </div>
             <div class="pf-l-stack__item" id="oc-login" style="display:none">
@@ -71,8 +73,28 @@
                 ></div>
               </div>
             </div>
+            <div class="pf-l-stack__item" id="sso-token" style="display:none">
+              <div class="pf-c-clipboard-copy">
+                <div class="pf-c-clipboard-copy__group">
+                  <input
+                          class="pf-c-form-control"
+                          readonly
+                          type="text"
+                          id="sso-token-input"
+                          aria-label="SSO token"
+                  />
+                  <button
+                          class="pf-c-button pf-m-control"
+                          type="button"
+                          aria-label="Copy SSO token to clipboard"
+                          onclick="copySSOToken()"
+                  >
+                    <i class="fas fa-copy" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <span id="user-notloggedin"></span>
         </div>
       </div>
     </div>

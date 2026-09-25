@@ -265,7 +265,7 @@ function refreshToken() {
         }
         var ssoToken = document.getElementById('sso-token');
         if (ssoToken.style.display !== 'none') {
-          document.getElementById('sso-token-input').value = keycloak.idToken;
+          document.getElementById('sso-token-input').value = keycloak.token;
         }
       }
     }).catch(function() {
@@ -415,7 +415,7 @@ function copyCommand() {
 
 function showSSOToken() {
   document.getElementById('sso-token-command').style.display = 'none';
-  document.getElementById('sso-token-input').value = keycloak.idToken;
+  document.getElementById('sso-token-input').value = keycloak.token;
   document.getElementById('sso-token').style.display = 'inline';
 }
 

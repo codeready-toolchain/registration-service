@@ -72,6 +72,8 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			middleware.InstrumentRoundTripperDuration(histVec))
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler) // TODO: move to root (`/`)?
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
+		unsecuredV1.GET("/disabled-integrations", uiConfigCtrl.GetDisabledIntegrations)
+
 		// segment keys endpoints
 		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)         // expose the devspaces segment key
 		unsecuredV1.GET("/analytics/segment-write-key", analyticsCtrl.GetSandboxSegmentWriteKey) // expose the sandbox segment key.We had the create a new analytics endpoint to keep backward compatibility with devspaces.
@@ -102,7 +104,12 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		securedV1.GET("/signup/verification/:code", signupCtrl.VerifyPhoneCodeHandler) // TODO: also provide a `POST /signup/verification/phone-code` +deprecate this one + migrate UI?
 		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
 		securedV1.GET("/usernames/:username", usernamesCtrl.GetHandler)
-		securedV1.GET("/uiconfig", uiConfigCtrl.GetHandler)
+
+		// To be deleted once the new /disabled-integrations and /analytics/workato-webhook-url endpoints are consumed by all clients.
+		securedV1.GET("/uiconfig", uiConfigCtrl.GetHandler) //nolint:staticcheck // SA1019 intentionally keeping deprecated route for backward compatibility
+
+		// Adobe Marketo analytics.
+		securedV1.GET("/analytics/workato-webhook-url", analyticsCtrl.GetWorkatoWebhookURL)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if configuration.IsTestingMode() {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -101,5 +102,38 @@ func (s *TestAnalyticsSuite) TestAnalyticsHandler() {
 		s.Run("envelope segment write key", func() {
 			assert.Equal(s.T(), cfg.Analytics().SegmentWriteKey(), dataEnvelope, "wrong 'segment write key' in segment response")
 		})
+	})
+}
+
+func (s *TestAnalyticsSuite) TestWorkatoWebhookURLHandler() {
+	// Check if the config is set to testing mode, so the handler may use this.
+	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
+
+	// Create handler instance.
+	analyticsCtrl := NewAnalytics()
+
+	s.Run("returns workato webhook url", func() {
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/analytics/workato-webhook-url", nil)
+		require.NoError(s.T(), err)
+
+		handler := gin.HandlerFunc(analyticsCtrl.GetWorkatoWebhookURL)
+
+		// Create a response recorder.
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		handler(ctx)
+
+		// Check the status code is what we expect.
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+
+		// Check the response body is what we expect.
+		var data map[string]string
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
+		require.NoError(s.T(), err)
+
+		cfg := configuration.GetRegistrationServiceConfig()
+		assert.Equal(s.T(), cfg.WorkatoWebHookURL(), data["workatoWebhookUrl"], "wrong 'workatoWebhookUrl' in analytics response")
 	})
 }

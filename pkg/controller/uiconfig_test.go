@@ -103,3 +103,52 @@ func (s *TestUIConfigSuite) TestUIConfigHandlerWithDisabledIntegrations() {
 
 	assert.Equal(s.T(), integrations, data.DisabledIntegrations, "disabledIntegrations should match configured values")
 }
+
+func (s *TestUIConfigSuite) TestGetDisabledIntegrations() {
+	uiConfigCtrl := NewUIConfig()
+	handler := gin.HandlerFunc(uiConfigCtrl.GetDisabledIntegrations)
+
+	s.Run("defaults to empty array", func() {
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/disabled-integrations", nil)
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		handler(ctx)
+
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+
+		var data []string
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
+		require.NoError(s.T(), err)
+
+		assert.Equal(s.T(), []string{}, data, "disabledIntegrations should be an empty array when not configured")
+	})
+
+	s.Run("returns configured disabled integrations", func() {
+		integrations := []string{"openshift", "devspaces"}
+		s.OverrideApplicationDefault(testconfig.RegistrationService().
+			DisabledIntegrations(integrations),
+		)
+		defer s.DefaultConfig()
+
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/disabled-integrations", nil)
+		require.NoError(s.T(), err)
+
+		rr := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request = req
+
+		handler(ctx)
+
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+
+		var data []string
+		err = json.Unmarshal(rr.Body.Bytes(), &data)
+		require.NoError(s.T(), err)
+
+		assert.Equal(s.T(), integrations, data, "disabledIntegrations should match configured values")
+	})
+}

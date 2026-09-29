@@ -40,10 +40,10 @@ const (
 )
 
 var ForbiddenBannedError = apierrors.NewForbidden(schema.GroupResource{}, "",
-	errs.New("Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse."))
+	errs.New("Access has been suspended due to suspicious activity or detected abuse."))
 
 var ForbiddenRejectedError = apierrors.NewForbidden(schema.GroupResource{}, "",
-	errs.New("Access to the Developer Sandbox has been denied."))
+	errs.New("Access has been denied."))
 
 var annotationsToRetain = []string{
 	toolchainv1alpha1.UserSignupActivationCounterAnnotationKey,

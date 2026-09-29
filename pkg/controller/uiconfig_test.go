@@ -61,10 +61,6 @@ func (s *TestUIConfigSuite) TestUIConfigHandler() {
 		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		s.Run("uiCanaryDeploymentWeight", func() {
-			assert.Equal(s.T(), cfg.UICanaryDeploymentWeight(), data.UICanaryDeploymentWeight, "wrong 'UICanaryDeploymentWeight' in uiconfig response")
-		})
-
 		s.Run("workatoWebHookURL", func() {
 			assert.Equal(s.T(), cfg.WorkatoWebHookURL(), data.WorkatoWebHookURL, "wrong 'WorkatoWebHookURL' in uiconfig response")
 		})
@@ -104,12 +100,12 @@ func (s *TestUIConfigSuite) TestUIConfigHandlerWithDisabledIntegrations() {
 	assert.Equal(s.T(), integrations, data.DisabledIntegrations, "disabledIntegrations should match configured values")
 }
 
-func (s *TestUIConfigSuite) TestGetDisabledIntegrations() {
+func (s *TestUIConfigSuite) TestGetPublicHandler() {
 	uiConfigCtrl := NewUIConfig()
-	handler := gin.HandlerFunc(uiConfigCtrl.GetDisabledIntegrations)
+	handler := gin.HandlerFunc(uiConfigCtrl.GetPublicHandler)
 
 	s.Run("defaults to empty array", func() {
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/disabled-integrations", nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/uiconfig-public", nil)
 		require.NoError(s.T(), err)
 
 		rr := httptest.NewRecorder()
@@ -120,11 +116,11 @@ func (s *TestUIConfigSuite) TestGetDisabledIntegrations() {
 
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
-		var data []string
+		var data *UIConfigPublicResponse
 		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assert.Equal(s.T(), []string{}, data, "disabledIntegrations should be an empty array when not configured")
+		assert.Equal(s.T(), []string{}, data.DisabledIntegrations, "disabledIntegrations should be an empty array when not configured")
 	})
 
 	s.Run("returns configured disabled integrations", func() {
@@ -134,7 +130,7 @@ func (s *TestUIConfigSuite) TestGetDisabledIntegrations() {
 		)
 		defer s.DefaultConfig()
 
-		req, err := http.NewRequest(http.MethodGet, "/api/v1/disabled-integrations", nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/uiconfig-public", nil)
 		require.NoError(s.T(), err)
 
 		rr := httptest.NewRecorder()
@@ -145,10 +141,10 @@ func (s *TestUIConfigSuite) TestGetDisabledIntegrations() {
 
 		require.Equal(s.T(), http.StatusOK, rr.Code)
 
-		var data []string
+		var data *UIConfigPublicResponse
 		err = json.Unmarshal(rr.Body.Bytes(), &data)
 		require.NoError(s.T(), err)
 
-		assert.Equal(s.T(), integrations, data, "disabledIntegrations should match configured values")
+		assert.Equal(s.T(), integrations, data.DisabledIntegrations, "disabledIntegrations should match configured values")
 	})
 }

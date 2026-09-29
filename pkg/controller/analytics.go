@@ -30,8 +30,3 @@ func (a *Analytics) GetDevSpacesSegmentWriteKey(ctx *gin.Context) {
 	segmentWriteKey := cfg.Analytics().DevSpacesSegmentWriteKey()
 	ctx.String(http.StatusOK, segmentWriteKey)
 }
-
-// GetWorkatoWebhookURL returns the URL for the Adobe Marketo integration.
-func (a *Analytics) GetWorkatoWebhookURL(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"workatoWebhookUrl": configuration.GetRegistrationServiceConfig().WorkatoWebHookURL()})
-}

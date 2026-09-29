@@ -72,7 +72,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 			middleware.InstrumentRoundTripperDuration(histVec))
 		unsecuredV1.GET("/health", healthCheckCtrl.GetHandler) // TODO: move to root (`/`)?
 		unsecuredV1.GET("/authconfig", authConfigCtrl.GetHandler)
-		unsecuredV1.GET("/disabled-integrations", uiConfigCtrl.GetDisabledIntegrations)
+		unsecuredV1.GET("/uiconfig-public", uiConfigCtrl.GetPublicHandler)
 
 		// segment keys endpoints
 		unsecuredV1.GET("/segment-write-key", analyticsCtrl.GetDevSpacesSegmentWriteKey)         // expose the devspaces segment key
@@ -105,11 +105,7 @@ func (srv *RegistrationServer) SetupRoutes(proxyPort string, reg *prometheus.Reg
 		securedV1.POST("/signup/verification/activation-code", signupCtrl.VerifyActivationCodeHandler)
 		securedV1.GET("/usernames/:username", usernamesCtrl.GetHandler)
 
-		// To be deleted once the new /disabled-integrations and /analytics/workato-webhook-url endpoints are consumed by all clients.
-		securedV1.GET("/uiconfig", uiConfigCtrl.GetHandler) //nolint:staticcheck // SA1019 intentionally keeping deprecated route for backward compatibility
-
-		// Adobe Marketo analytics.
-		securedV1.GET("/analytics/workato-webhook-url", analyticsCtrl.GetWorkatoWebhookURL)
+		securedV1.GET("/uiconfig", uiConfigCtrl.GetHandler)
 
 		// if we are in testing mode, we also add a secured health route for testing
 		if configuration.IsTestingMode() {

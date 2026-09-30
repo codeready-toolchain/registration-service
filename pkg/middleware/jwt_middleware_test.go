@@ -227,11 +227,11 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 			require.Equal(s.T(), http.StatusUnauthorized, resp.Code)
 		})
 
-		s.Run("authenticated route returns the webhook only", func() {
+		s.Run("authenticated route returns the webhook and disabled integrations", func() {
 			resp := serve("/api/v1/uiconfig", tokenValid)
 
 			require.Equal(s.T(), http.StatusOK, resp.Code)
-			assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox"}`, resp.Body.String())
+			assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox","disabledIntegrations":["openshift","devspaces"]}`, resp.Body.String())
 		})
 	})
 }

@@ -24,7 +24,7 @@ func TestRunUIConfigSuite(t *testing.T) {
 	suite.Run(t, &TestUIConfigSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestUIConfigSuite) TestHandlersReturnDisjointConfig() {
+func (s *TestUIConfigSuite) TestHandlersReturnUIConfig() {
 	const webhookURL = "https://webhooks.example.com/sandbox"
 	s.OverrideApplicationDefault(
 		workatoWebHookURL(webhookURL),
@@ -38,7 +38,7 @@ func (s *TestUIConfigSuite) TestHandlersReturnDisjointConfig() {
 		rr := invokeUIConfig(s.T(), uiConfig.GetHandler, "/api/v1/uiconfig")
 
 		require.Equal(s.T(), http.StatusOK, rr.Code)
-		assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox"}`, rr.Body.String())
+		assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox","disabledIntegrations":["openshift","devspaces"]}`, rr.Body.String())
 	})
 
 	s.Run("public", func() {
@@ -56,7 +56,7 @@ func (s *TestUIConfigSuite) TestHandlersReturnEmptyDefaults() {
 		rr := invokeUIConfig(s.T(), uiConfig.GetHandler, "/api/v1/uiconfig")
 
 		require.Equal(s.T(), http.StatusOK, rr.Code)
-		assert.JSONEq(s.T(), `{"workatoWebHookURL":""}`, rr.Body.String())
+		assert.JSONEq(s.T(), `{"workatoWebHookURL":"","disabledIntegrations":[]}`, rr.Body.String())
 	})
 
 	s.Run("public", func() {

@@ -11,6 +11,10 @@ import (
 // Values here require authentication.
 type UIConfigResponse struct {
 	WorkatoWebHookURL string `json:"workatoWebHookURL"`
+	// TODO: DisabledIntegrations is also served by /uiconfig/public.
+	// It remains here so the current dashboard, which reads both fields from /uiconfig, keeps working.
+	// Remove it from this response once the dashboard reads it from /uiconfig/public.
+	DisabledIntegrations []string `json:"disabledIntegrations"`
 }
 
 // UIConfigPublicResponse is the public UI configuration.
@@ -30,8 +34,10 @@ func NewUIConfig() *UIConfig {
 
 // GetHandler returns UI configuration that requires authentication.
 func (uic *UIConfig) GetHandler(ctx *gin.Context) {
+	cfg := configuration.GetRegistrationServiceConfig()
 	ctx.JSON(http.StatusOK, UIConfigResponse{
-		WorkatoWebHookURL: configuration.GetRegistrationServiceConfig().WorkatoWebHookURL(),
+		WorkatoWebHookURL:    cfg.WorkatoWebHookURL(),
+		DisabledIntegrations: cfg.DisabledIntegrations(),
 	})
 }
 

@@ -7,33 +7,37 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// UIConfigResponse is the authenticated UI configuration.
+// Values here require authentication.
 type UIConfigResponse struct {
-	// Holds to weight specifying up to how many users ( in percentage ) should use the new UI.
-	// NOTE: this is a temporary parameter, it will be removed once we switch all the users to the new UI.
-	UICanaryDeploymentWeight int `json:"uiCanaryDeploymentWeight"`
-
 	WorkatoWebHookURL string `json:"workatoWebHookURL"`
+}
 
+// UIConfigPublicResponse is the public UI configuration.
+// Values here are safe to return before login.
+type UIConfigPublicResponse struct {
 	DisabledIntegrations []string `json:"disabledIntegrations"`
 }
 
-// UIConfig implements the ui config endpoint, which is invoked to
-// retrieve the config for the ui.
+// UIConfig serves UI configuration for the dashboard.
 type UIConfig struct {
 }
 
-// NewAuthConfig returns a new AuthConfig instance.
+// NewUIConfig returns a new UIConfig instance.
 func NewUIConfig() *UIConfig {
 	return &UIConfig{}
 }
 
-// GetHandler returns raw auth config content for UI.
+// GetHandler returns UI configuration that requires authentication.
 func (uic *UIConfig) GetHandler(ctx *gin.Context) {
-	cfg := configuration.GetRegistrationServiceConfig()
-	configRespData := UIConfigResponse{
-		UICanaryDeploymentWeight: cfg.UICanaryDeploymentWeight(),
-		WorkatoWebHookURL:        cfg.WorkatoWebHookURL(),
-		DisabledIntegrations:     cfg.DisabledIntegrations(),
-	}
-	ctx.JSON(http.StatusOK, configRespData)
+	ctx.JSON(http.StatusOK, UIConfigResponse{
+		WorkatoWebHookURL: configuration.GetRegistrationServiceConfig().WorkatoWebHookURL(),
+	})
+}
+
+// GetPublicHandler returns UI configuration that does not require authentication.
+func (uic *UIConfig) GetPublicHandler(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, UIConfigPublicResponse{
+		DisabledIntegrations: configuration.GetRegistrationServiceConfig().DisabledIntegrations(),
+	})
 }

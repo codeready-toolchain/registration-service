@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/pkg/middleware"
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
@@ -182,4 +183,62 @@ func (s *TestAuthMiddlewareSuite) TestAuthMiddlewareService() {
 			})
 		}
 	})
+
+	s.Run("ui config routes", func() {
+		const webhookURL = "https://webhooks.example.com/sandbox"
+		s.SetConfig(
+			testconfig.RegistrationService().
+				Environment(configuration.UnitTestsEnvironment).
+				DisabledIntegrations([]string{"openshift", "devspaces"}).
+				Auth().AuthClientPublicKeysURL(keysEndpointURL),
+			workatoWebHookURL(webhookURL),
+		)
+		defer s.DefaultConfig()
+
+		serve := func(path, token string) *httptest.ResponseRecorder {
+			s.T().Helper()
+			resp := httptest.NewRecorder()
+			req, err := http.NewRequest(http.MethodGet, path, nil)
+			require.NoError(s.T(), err)
+			if token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			srv.Engine().ServeHTTP(resp, req)
+			return resp
+		}
+
+		s.Run("public without authentication", func() {
+			resp := serve("/api/v1/uiconfig/public", "")
+
+			require.Equal(s.T(), http.StatusOK, resp.Code)
+			assert.JSONEq(s.T(), `{"disabledIntegrations":["openshift","devspaces"]}`, resp.Body.String())
+		})
+
+		s.Run("public with a token still returns public fields only", func() {
+			resp := serve("/api/v1/uiconfig/public", tokenValid)
+
+			require.Equal(s.T(), http.StatusOK, resp.Code)
+			assert.JSONEq(s.T(), `{"disabledIntegrations":["openshift","devspaces"]}`, resp.Body.String())
+		})
+
+		s.Run("authenticated route requires a token", func() {
+			resp := serve("/api/v1/uiconfig", "")
+
+			require.Equal(s.T(), http.StatusUnauthorized, resp.Code)
+		})
+
+		s.Run("authenticated route returns the webhook only", func() {
+			resp := serve("/api/v1/uiconfig", tokenValid)
+
+			require.Equal(s.T(), http.StatusOK, resp.Code)
+			assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox"}`, resp.Body.String())
+		})
+	})
+}
+
+type workatoWebHookURL string
+
+func (o workatoWebHookURL) Apply(config *toolchainv1alpha1.ToolchainConfig) {
+	url := string(o)
+	config.Spec.Host.RegistrationService.WorkatoWebHookURL = &url
 }

@@ -1,14 +1,13 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	toolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	testconfig "github.com/codeready-toolchain/toolchain-common/pkg/test/config"
 
-	"github.com/codeready-toolchain/registration-service/pkg/configuration"
 	"github.com/codeready-toolchain/registration-service/test"
 
 	"github.com/gin-gonic/gin"
@@ -25,81 +24,65 @@ func TestRunUIConfigSuite(t *testing.T) {
 	suite.Run(t, &TestUIConfigSuite{test.UnitTestSuite{}})
 }
 
-func (s *TestUIConfigSuite) TestUIConfigHandler() {
-	// Create a request to pass to our handler. We don't have any query parameters for now, so we'll
-	// pass 'nil' as the third parameter.
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/uiconfig", nil)
-	require.NoError(s.T(), err)
-
-	// Check if the config is set to testing mode, so the handler may use this.
-	assert.True(s.T(), configuration.IsTestingMode(), "testing mode not set correctly to true")
-	s.OverrideApplicationDefault(testconfig.RegistrationService().
-		RegistrationServiceURL("https://signup.domain.com"),
+func (s *TestUIConfigSuite) TestHandlersReturnUIConfig() {
+	const webhookURL = "https://webhooks.example.com/sandbox"
+	s.OverrideApplicationDefault(
+		workatoWebHookURL(webhookURL),
+		testconfig.RegistrationService().DisabledIntegrations([]string{"openshift", "devspaces"}),
 	)
 	defer s.DefaultConfig()
-	cfg := configuration.GetRegistrationServiceConfig()
 
-	// Create handler instance.
-	uiConfigCtrl := NewUIConfig()
-	handler := gin.HandlerFunc(uiConfigCtrl.GetHandler)
+	uiConfig := NewUIConfig()
 
-	s.Run("valid json config", func() {
+	s.Run("authenticated", func() {
+		rr := invokeUIConfig(s.T(), uiConfig.GetHandler, "/api/v1/uiconfig")
 
-		// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
-		rr := httptest.NewRecorder()
-		ctx, _ := gin.CreateTestContext(rr)
-		ctx.Request = req
-
-		handler(ctx)
-
-		// Check the status code is what we expect.
 		require.Equal(s.T(), http.StatusOK, rr.Code)
+		assert.JSONEq(s.T(), `{"workatoWebHookURL":"https://webhooks.example.com/sandbox","disabledIntegrations":["openshift","devspaces"]}`, rr.Body.String())
+	})
 
-		// Check the response body is what we expect.
-		// get config values from endpoint response
-		var data *UIConfigResponse
-		err = json.Unmarshal(rr.Body.Bytes(), &data)
-		require.NoError(s.T(), err)
+	s.Run("public", func() {
+		rr := invokeUIConfig(s.T(), uiConfig.GetPublicHandler, "/api/v1/uiconfig/public")
 
-		s.Run("uiCanaryDeploymentWeight", func() {
-			assert.Equal(s.T(), cfg.UICanaryDeploymentWeight(), data.UICanaryDeploymentWeight, "wrong 'UICanaryDeploymentWeight' in uiconfig response")
-		})
-
-		s.Run("workatoWebHookURL", func() {
-			assert.Equal(s.T(), cfg.WorkatoWebHookURL(), data.WorkatoWebHookURL, "wrong 'WorkatoWebHookURL' in uiconfig response")
-		})
-
-		s.Run("disabledIntegrations defaults to empty array", func() {
-			assert.Equal(s.T(), []string{}, data.DisabledIntegrations, "disabledIntegrations should be an empty array when not configured")
-		})
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+		assert.JSONEq(s.T(), `{"disabledIntegrations":["openshift","devspaces"]}`, rr.Body.String())
 	})
 }
 
-func (s *TestUIConfigSuite) TestUIConfigHandlerWithDisabledIntegrations() {
-	req, err := http.NewRequest(http.MethodGet, "/api/v1/uiconfig", nil)
-	require.NoError(s.T(), err)
+func (s *TestUIConfigSuite) TestHandlersReturnEmptyDefaults() {
+	uiConfig := NewUIConfig()
 
-	integrations := []string{"openshift", "devspaces"}
-	s.OverrideApplicationDefault(testconfig.RegistrationService().
-		RegistrationServiceURL("https://signup.domain.com").
-		DisabledIntegrations(integrations),
-	)
-	defer s.DefaultConfig()
+	s.Run("authenticated", func() {
+		rr := invokeUIConfig(s.T(), uiConfig.GetHandler, "/api/v1/uiconfig")
 
-	uiConfigCtrl := NewUIConfig()
-	handler := gin.HandlerFunc(uiConfigCtrl.GetHandler)
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+		assert.JSONEq(s.T(), `{"workatoWebHookURL":"","disabledIntegrations":[]}`, rr.Body.String())
+	})
+
+	s.Run("public", func() {
+		rr := invokeUIConfig(s.T(), uiConfig.GetPublicHandler, "/api/v1/uiconfig/public")
+
+		require.Equal(s.T(), http.StatusOK, rr.Code)
+		assert.JSONEq(s.T(), `{"disabledIntegrations":[]}`, rr.Body.String())
+	})
+}
+
+func invokeUIConfig(t *testing.T, handler gin.HandlerFunc, path string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, path, nil)
+	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rr)
 	ctx.Request = req
-
 	handler(ctx)
+	return rr
+}
 
-	require.Equal(s.T(), http.StatusOK, rr.Code)
+type workatoWebHookURL string
 
-	var data *UIConfigResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &data)
-	require.NoError(s.T(), err)
-
-	assert.Equal(s.T(), integrations, data.DisabledIntegrations, "disabledIntegrations should match configured values")
+func (o workatoWebHookURL) Apply(config *toolchainv1alpha1.ToolchainConfig) {
+	url := string(o)
+	config.Spec.Host.RegistrationService.WorkatoWebHookURL = &url
 }

@@ -22,7 +22,7 @@ build: build-prod
 # buils a development binary that has no bundled assets but reads them
 # from the filesystem. Use only for development.
 ## builds development binary
-build-dev:
+build-dev: download-keycloak-js
 	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} -ldflags="${LDFLAGS}" \
 		-tags dev \
@@ -31,7 +31,7 @@ build-dev:
 
 # builds the production binary with bundled assets
 ## builds production binary
-build-prod:
+build-prod: download-keycloak-js
 	$(Q)CGO_ENABLED=0 GOARCH=${goarch} GOOS=linux \
 		go build ${V_FLAG} -ldflags="${LDFLAGS} -s -w" -trimpath \
 		-o $(OUT_DIR)/bin/registration-service \

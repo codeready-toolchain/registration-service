@@ -117,27 +117,31 @@ function hideUser() {
   document.getElementById('user-notloggedin').style.display = 'inline';
 }
 
-// this loads the js library at location 'url' dynamically and
-// calls 'cbSuccess' when the library was loaded successfully
-// and 'cbError' when there was an error loading the library.
-function loadAuthLibrary(url, cbSuccess, cbError) {
-  var script = document.createElement('script');
-  script.setAttribute('src', url);
-  script.setAttribute('type', 'text/javascript');
-  var loaded = false;
-  var loadFunction = function () {
-    if (loaded) return;
-    loaded = true;
+// Loads the keycloak-js adapter embedded with this service at /keycloak.js.
+// `make download-keycloak-js` fetches that file from the npm package. The
+// adapter is an ES module and does not install a global Keycloak constructor.
+function loadBundledKeycloak(cbSuccess, cbError) {
+  import('/keycloak.js').then(function(mod) {
+    window.Keycloak = mod.default;
     cbSuccess();
+  }).catch(function(err) {
+    cbError(err && err.message ? err.message : String(err));
+  });
+}
+
+// Maps legacy auth-client-config JSON onto the keycloak-js constructor,
+// which requires url, realm, and clientId.
+function keycloakAdapterConfig(clientConfig) {
+  var url = clientConfig.url || clientConfig['auth-server-url'];
+  var clientId = clientConfig.clientId || clientConfig.resource;
+  if (!url || !clientConfig.realm || !clientId) {
+    throw new Error('auth client config is missing url, realm, or clientId');
+  }
+  return {
+    url: url,
+    realm: clientConfig.realm,
+    clientId: clientId
   };
-  var errorFunction = function (error) {
-    if (loaded) return;
-    cbError(error)
-  };
-  script.onerror = errorFunction;
-  script.onload = loadFunction;
-  script.onreadystatechange = loadFunction;
-  document.getElementsByTagName('head')[0].appendChild(script);
 }
       
 // gets the signup state once.
@@ -268,9 +272,38 @@ function refreshToken() {
           document.getElementById('sso-token-input').value = keycloak.token;
         }
       }
-    }).catch(function() {
+    }).catch(function(err) {
+      if (!isInvalidSessionRefreshError(err)) {
+        console.log('failed to refresh the token, retrying later');
+        return;
+      }
       console.log('failed to refresh the token, or the session has expired');
+      if (intervalRefRefresh) {
+        clearInterval(intervalRefRefresh);
+        intervalRefRefresh = undefined;
+      }
+      stopPolling();
+      keycloak.clearToken();
+      idToken = null;
+      hideUser();
+      hideAll();
+      show('state-getstarted');
     });
+}
+
+// The adapter already clears the token on HTTP 400 from the refresh endpoint
+// (expired or revoked session). Transient transport and other server errors
+// should leave the session and the refresh timer in place.
+function isInvalidSessionRefreshError(err) {
+  if (!keycloak.token || !keycloak.refreshToken) {
+    return true;
+  }
+  var status = err && err.response && err.response.status;
+  if (status === 400) {
+    return true;
+  }
+  var message = err && err.message ? String(err.message) : '';
+  return message.indexOf('no refresh token') !== -1;
 }
 
 function login() {
@@ -430,13 +463,21 @@ getJSON('GET', configURL, null, function(err, data) {
     console.log('error loading client config' + err);
     showError(err);
   } else {
-    loadAuthLibrary(data['auth-client-library-url'], function() {
+    loadBundledKeycloak(function() {
       console.log('client library load success!')
-      var clientConfig = JSON.parse(data['auth-client-config']);
+      var clientConfig;
+      try {
+        clientConfig = keycloakAdapterConfig(JSON.parse(data['auth-client-config']));
+      } catch (err) {
+        console.log('error preparing authorization client ' + err);
+        showError(err && err.message ? err.message : String(err));
+        return;
+      }
       console.log('using client configuration: ' + JSON.stringify(clientConfig))
       keycloak = new Keycloak(clientConfig);
       keycloak.init({
         onLoad: 'check-sso',
+        checkLoginIframe: false,
         silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       }).then(function(authenticated) {
         if (authenticated == true) {

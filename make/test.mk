@@ -2,13 +2,13 @@ COV_DIR = $(OUT_DIR)/coverage
 
 .PHONY: test
 ## runs all tests with bundles assets
-test:
+test: download-keycloak-js
 	@echo "running the tests without coverage..."
 	go test ${V_FLAG} -race -failfast ./...
 
 .PHONY: test-with-coverage
 ## runs the tests with coverage
-test-with-coverage:
+test-with-coverage: download-keycloak-js
 	@echo "running the tests with coverage..."
 	@-mkdir -p $(COV_DIR)
 	@-rm $(COV_DIR)/coverage.txt

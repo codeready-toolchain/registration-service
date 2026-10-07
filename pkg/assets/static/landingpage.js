@@ -272,7 +272,11 @@ function refreshToken() {
           document.getElementById('sso-token-input').value = keycloak.token;
         }
       }
-    }).catch(function() {
+    }).catch(function(err) {
+      if (!isInvalidSessionRefreshError(err)) {
+        console.log('failed to refresh the token, retrying later');
+        return;
+      }
       console.log('failed to refresh the token, or the session has expired');
       if (intervalRefRefresh) {
         clearInterval(intervalRefRefresh);
@@ -285,6 +289,21 @@ function refreshToken() {
       hideAll();
       show('state-getstarted');
     });
+}
+
+// The adapter already clears the token on HTTP 400 from the refresh endpoint
+// (expired or revoked session). Transient transport and other server errors
+// should leave the session and the refresh timer in place.
+function isInvalidSessionRefreshError(err) {
+  if (!keycloak.token || !keycloak.refreshToken) {
+    return true;
+  }
+  var status = err && err.response && err.response.status;
+  if (status === 400) {
+    return true;
+  }
+  var message = err && err.message ? String(err.message) : '';
+  return message.indexOf('no refresh token') !== -1;
 }
 
 function login() {

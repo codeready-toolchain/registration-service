@@ -170,9 +170,6 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 
 			// Generate the verification message with the new verification code
 			content := fmt.Sprintf(cfg.Verification().MessageTemplate(), verificationCode)
-			if states.NoProvisioning(signup) {
-				content = fmt.Sprintf("Your verification code is %s", verificationCode)
-			}
 
 			// Attempt to send notification
 			err = s.NotificationService.SendNotification(ctx, content, e164PhoneNumber, countryCode)

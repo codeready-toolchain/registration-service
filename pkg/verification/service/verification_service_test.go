@@ -125,11 +125,12 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
 		testusersignup.VerificationRequiredAgo(time.Second))
 
-	// Create a second UserSignup as some additional noise for the test
+	// Create a second UserSignup with no-provisioning state to verify the simpler SMS template
 	userSignup2 := testusersignup.NewUserSignup(
 		testusersignup.WithEncodedName("jsmith@kubesaw"),
 		testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+61NUMBER"),
-		testusersignup.VerificationRequiredAgo(time.Second))
+		testusersignup.VerificationRequiredAgo(time.Second),
+		testusersignup.NoProvisioning())
 
 	// Add both UserSignups to the fake client
 	fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup, userSignup2)
@@ -189,7 +190,7 @@ func (s *TestVerificationServiceSuite) TestInitVerification() {
 
 	params, err = url.ParseQuery(reqValue)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), fmt.Sprintf("Your Developer Sandbox verification code is %s",
+	require.Equal(s.T(), fmt.Sprintf("Your verification code is %s",
 		signup2.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey]),
 		params.Get("Body"))
 	require.Equal(s.T(), "CodeReady", params.Get("From"))

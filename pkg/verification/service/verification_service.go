@@ -221,7 +221,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 	if updateErr != nil {
 		log.Error(ctx, updateErr, "error updating UserSignup")
 		return errors.New("there was an error while updating your account - please wait a moment before " +
-			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
+			"trying again. If this error persists, please contact the administrators for " +
 			"assistance: error while verifying phone code")
 	}
 
@@ -444,7 +444,7 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 	if updateErr != nil {
 		log.Error(ctx, updateErr, "error updating UserSignup")
 		return errors.New("there was an error while updating your account - please wait a moment before " +
-			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com for " +
+			"trying again. If this error persists, please contact the administrators for " +
 			"assistance: error while verifying phone code")
 	}
 

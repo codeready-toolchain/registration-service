@@ -65,8 +65,7 @@ func NewNamespacesManager(getMemberClustersFunc cluster.GetMemberClustersFunc, h
 
 func (mgr *manager) ResetNamespaces(ginCtx *gin.Context) error {
 	// Grab the corresponding user signup resource to get the user's compliant
-	// username, since that is the one that is used across the Developer
-	// Sandbox resources.
+	// username, since that is the one that is used across the provisioned resources.
 	userSignup, err := mgr.signupService.GetSignup(ginCtx, ginCtx.GetString(customCtx.UsernameKey), true)
 	if err != nil {
 		return fmt.Errorf("unable to obtain the user signup: %w", err)

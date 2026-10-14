@@ -95,7 +95,7 @@ func TestRegistrationService(t *testing.T) {
 			Verification().Enabled(true).
 			Verification().DailyLimit(15).
 			Verification().AttemptsAllowed(13).
-			Verification().MessageTemplate("Developer Sandbox verification code: %s").
+			Verification().MessageTemplate("Red Hat verification code: %s").
 			Verification().ExcludedEmailDomains("redhat.com,ibm.com").
 			Verification().CodeExpiresInMin(151).
 			Verification().AWSRegion("us-west-2").
@@ -148,7 +148,7 @@ func TestRegistrationService(t *testing.T) {
 		assert.Equal(t, "us-west-2", regServiceCfg.Verification().AWSRegion())
 		assert.Equal(t, "sandbox", regServiceCfg.Verification().AWSSenderID())
 		assert.Equal(t, "Transactional", regServiceCfg.Verification().AWSSMSType())
-		assert.Equal(t, "Developer Sandbox verification code: %s", regServiceCfg.Verification().MessageTemplate())
+		assert.Equal(t, "Red Hat verification code: %s", regServiceCfg.Verification().MessageTemplate())
 		assert.Equal(t, []string{"redhat.com", "ibm.com"}, regServiceCfg.Verification().ExcludedEmailDomains())
 		assert.Equal(t, 151, regServiceCfg.Verification().CodeExpiresInMin())
 		assert.Equal(t, "def", regServiceCfg.Verification().TwilioAccountSID())

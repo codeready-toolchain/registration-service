@@ -255,7 +255,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 		fakeClient.MockUpdate = func(ctx gocontext.Context, obj client.Object, opts ...client.UpdateOption) error {
 			if _, ok := obj.(*toolchainv1alpha1.UserSignup); ok {
-				return errors.New("there was an error while updating your account - please wait a moment before trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com \"+\n\t\t\t\"for assistance: error while verifying phone code")
+				return errors.New("there was an error while updating your account - please wait a moment before trying again. If this error persists, please contact the administrators \"+\n\t\t\t\"for assistance: error while verifying phone code")
 			}
 			return fakeClient.Client.Update(ctx, obj, opts...)
 		}
@@ -263,7 +263,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationClientFailure() {
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
 		err := application.VerificationService().InitVerification(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "+1NUMBER", "1")
 		require.EqualError(s.T(), err, "there was an error while updating your account - please wait a moment before "+
-			"trying again. If this error persists, please contact the Developer Sandbox team at devsandbox@redhat.com "+
+			"trying again. If this error persists, please contact the administrators "+
 			"for assistance: error while verifying phone code")
 	})
 

@@ -475,10 +475,12 @@ getJSON('GET', configURL, null, function(err, data) {
       }
       console.log('using client configuration: ' + JSON.stringify(clientConfig))
       keycloak = new Keycloak(clientConfig);
+      // No silent-check iframe. RH SSO sends frame-ancestors that omit this
+      // origin, so the hidden 3p-cookie and silent-check iframes never load
+      // and init times out. A top-level prompt=none redirect is not framed.
       keycloak.init({
         onLoad: 'check-sso',
         checkLoginIframe: false,
-        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
       }).then(function(authenticated) {
         if (authenticated == true) {
           console.log('user is authenticated');

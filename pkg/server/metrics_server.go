@@ -18,7 +18,15 @@ var log = logf.Log.WithName("registration_metrics")
 
 // return a new Gin server exposing the `/metrics` endpoint associated with the given Prometheus registry
 func StartMetricsServer(reg *prometheus.Registry, port int) (*http.Server, *gin.Engine) {
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(
+		gin.LoggerWithConfig(gin.LoggerConfig{
+			Output:    gin.DefaultWriter,
+			Formatter: jsonLogFormatter,
+		}),
+		gin.Recovery(),
+	)
 	router.GET("/metrics", gin.WrapH(promhttp.InstrumentMetricHandler(
 		reg, promhttp.HandlerFor(reg, promhttp.HandlerOpts{
 			DisableCompression: true,

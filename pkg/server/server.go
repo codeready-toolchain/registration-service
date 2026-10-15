@@ -18,6 +18,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var jsonLogFormatter = func(params gin.LogFormatterParams) string {
+	return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
+		"info",
+		params.ClientIP,
+		params.TimeStamp.Format(time.RFC1123),
+		params.Method,
+		params.Path,
+		params.Request.Proto,
+		params.StatusCode,
+		params.Latency,
+		params.Request.UserAgent(),
+		params.ErrorMessage,
+	)
+}
+
 type ServerOption = func(server *RegistrationServer) // nolint:revive
 
 // RegistrationServer bundles configuration, and HTTP server objects in a single
@@ -39,21 +54,7 @@ func New(application application.Application) *RegistrationServer {
 		gin.LoggerWithConfig(gin.LoggerConfig{
 			Output:    gin.DefaultWriter,
 			SkipPaths: []string{"/api/v1/health"}, // disable logging for the /api/v1/health endpoint so that our logs aren't overwhelmed
-			Formatter: func(params gin.LogFormatterParams) string {
-				// custom JSON format
-				return fmt.Sprintf(`{"level":"%s", "client-ip":"%s", "ts":"%s", "method":"%s", "path":"%s", "proto":"%s", "status":"%d", "latency":"%s", "user-agent":"%s", "error-message":"%s"}`+"\n",
-					"info",
-					params.ClientIP,
-					params.TimeStamp.Format(time.RFC1123),
-					params.Method,
-					params.Path,
-					params.Request.Proto,
-					params.StatusCode,
-					params.Latency,
-					params.Request.UserAgent(),
-					params.ErrorMessage,
-				)
-			},
+			Formatter: jsonLogFormatter,
 		}),
 		gin.Recovery(),
 		// When the origin header is specified, cors middleware will expose the cors functionality and the

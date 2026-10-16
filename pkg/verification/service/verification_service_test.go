@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/codeready-toolchain/registration-service/pkg/namespaced"
+	signupsvc "github.com/codeready-toolchain/registration-service/pkg/signup/service"
 	senderpkg "github.com/codeready-toolchain/registration-service/pkg/verification/sender"
 	testutil "github.com/codeready-toolchain/registration-service/test/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -528,7 +529,8 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	now := time.Now()
 
 	s.Run("verification ok", func() {
-
+		// given
+		signupsvc.UserSignupsGatingOnlyTotal.Reset()
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("johny@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -541,7 +543,11 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+		// when
 		err := application.VerificationService().VerifyPhoneCode(ctx, userSignup.Spec.IdentityClaims.PreferredUsername, "123456")
+
+		// then
 		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -549,6 +555,8 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		require.False(s.T(), states.VerificationRequired(signup))
+		assert.InDelta(s.T(), 1, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStatePhoneVerified)), 0.01)
+		assert.InDelta(s.T(), 1, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStateVerified)), 0.01)
 	})
 
 	s.Run("verification ok for usersignup with username identifier", func() {

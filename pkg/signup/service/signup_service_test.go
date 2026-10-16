@@ -38,6 +38,7 @@ import (
 	recaptchapb "cloud.google.com/go/recaptchaenterprise/v2/apiv1/recaptchaenterprisepb"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
+	promtestutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -52,6 +53,18 @@ type TestSignupServiceSuite struct {
 
 func TestRunSignupServiceSuite(t *testing.T) {
 	suite.Run(t, &TestSignupServiceSuite{test.UnitTestSuite{}})
+}
+
+func assertGatingOnlyMetric(t *testing.T, result string, expected float64) {
+	t.Helper()
+	assert.InDelta(t, expected, promtestutil.ToFloat64(service.UserSignupsGatingOnlyTotal.WithLabelValues(result)), 0.01)
+}
+
+func assertGatingRequested(t *testing.T, cl client.Client, us *toolchainv1alpha1.UserSignup) {
+	t.Helper()
+	updated := &toolchainv1alpha1.UserSignup{}
+	require.NoError(t, cl.Get(gocontext.TODO(), client.ObjectKeyFromObject(us), updated))
+	assert.Equal(t, "true", updated.Annotations[toolchainv1alpha1.UserSignupGatingRequestedKey])
 }
 
 func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
@@ -956,15 +969,17 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 	s.ServiceConfiguration(true, "", 5)
 	gatingCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
 	gatingCtx.Request, _ = http.NewRequest("GET", "/?gating-only=true", nil)
+	gatingCtx.Set(context.UsernameKey, "gating-user@kubesaw")
 
 	s.Run("with gating-only and verification required", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		us := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("gating-user@kubesaw"),
 			testusersignup.VerificationRequired(),
 			testusersignup.NoProvisioning(),
 		)
-		_, application := testutil.PrepareInClusterApp(s.T(), us)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
 
 		// when
 		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
@@ -974,16 +989,20 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 		require.NotNil(s.T(), response)
 		require.True(s.T(), response.Status.VerificationRequired)
 		require.False(s.T(), response.Status.Verified)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStatePhoneRequired, 1)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateVerified, 0)
+		assertGatingRequested(s.T(), fakeClient, us)
 	})
 
 	s.Run("with gating-only and valid verification", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		us := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("gating-user@kubesaw"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
 			testusersignup.NoProvisioning(),
 		)
-		_, application := testutil.PrepareInClusterApp(s.T(), us)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
 
 		// when
 		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
@@ -993,10 +1012,13 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 		require.NotNil(s.T(), response)
 		require.False(s.T(), response.Status.VerificationRequired)
 		require.True(s.T(), response.Status.Verified)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateVerified, 1)
+		assertGatingRequested(s.T(), fakeClient, us)
 	})
 
 	s.Run("with gating-only and expired verification returns nil", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		us := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("gating-user@kubesaw"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Add(-8*24*time.Hour).Format(time.RFC3339)),
@@ -1010,6 +1032,70 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 		// then
 		require.NoError(s.T(), err)
 		require.Nil(s.T(), response)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateVerified, 0)
+	})
+
+	s.Run("with gating-only already requested does not increment", func() {
+		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupGatingRequestedKey, "true"),
+			testusersignup.NoProvisioning(),
+		)
+		_, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), response)
+		require.True(s.T(), response.Status.Verified)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateVerified, 0)
+	})
+
+	s.Run("with gating-only and banned user", func() {
+		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+			testusersignup.BannedAgo(0),
+		)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.Equal(s.T(), service.ForbiddenBannedError, err)
+		require.Nil(s.T(), response)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateBanned, 1)
+		assertGatingRequested(s.T(), fakeClient, us)
+	})
+
+	s.Run("with gating-only and rejected user", func() {
+		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
+		us := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("gating-user@kubesaw"),
+		)
+		us.Status.Conditions = []toolchainv1alpha1.Condition{{
+			Type:   toolchainv1alpha1.UserSignupComplete,
+			Status: apiv1.ConditionTrue,
+			Reason: toolchainv1alpha1.UserSignupUserRejectedReason,
+		}}
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), us)
+
+		// when
+		response, err := application.SignupService().GetSignup(gatingCtx, "gating-user@kubesaw", true)
+
+		// then
+		require.Equal(s.T(), service.ForbiddenRejectedError, err)
+		require.Nil(s.T(), response)
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateRejected, 1)
+		assertGatingRequested(s.T(), fakeClient, us)
 	})
 
 	s.Run("without gating-only returns nil", func() {

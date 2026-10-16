@@ -419,9 +419,11 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 			signup.Annotations = map[string]string{}
 		}
 
+		incGatingOnlyMetric := false
 		if unsetVerificationRequired {
 			states.SetVerificationRequired(signup, false)
 			signup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
+			incGatingOnlyMetric = true
 		}
 
 		for k, v := range annotationValues {
@@ -435,6 +437,10 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 		if err := s.Update(gocontext.TODO(), signup); err != nil {
 			log.Error(ctx, err, fmt.Sprintf("error updating usersignup: %s", signup.Name))
 			return err
+		}
+		if incGatingOnlyMetric {
+			signupsvc.IncGatingOnly(signupsvc.GatingOnlyStatePhoneVerified)
+			signupsvc.IncGatingOnly(signupsvc.GatingOnlyStateVerified)
 		}
 
 		return nil

@@ -25,8 +25,18 @@ var (
 )
 
 // RegisterSignupMetrics registers signup metrics with the given registry.
+// Each known state is created at 0 so the first increment is visible to rate and increase.
 func RegisterSignupMetrics(reg *prometheus.Registry) {
 	reg.MustRegister(UserSignupsGatingOnlyTotal)
+	for _, state := range []string{
+		GatingOnlyStateRejected,
+		GatingOnlyStateBanned,
+		GatingOnlyStatePhoneRequired,
+		GatingOnlyStatePhoneVerified,
+		GatingOnlyStateVerified,
+	} {
+		UserSignupsGatingOnlyTotal.WithLabelValues(state)
+	}
 }
 
 func IncGatingOnly(state string) {

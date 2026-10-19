@@ -531,11 +531,11 @@ func (s *ServiceImpl) incGatingOnlyMetric(ctx *gin.Context, cl namespaced.Client
 		increment := false
 		latestUserSignup, err := s.pollUpdateUserSignup(ctx, cl, ctx.GetString(context.UsernameKey), func(userSignup *toolchainv1alpha1.UserSignup) bool {
 			increment = false
-			if value, present := userSignup.Annotations[toolchainv1alpha1.UserSignupGatingRequestedKey]; !present || value != "true" {
+			if value, present := userSignup.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey]; !present || value == "" {
 				if userSignup.Annotations == nil {
 					userSignup.Annotations = map[string]string{}
 				}
-				userSignup.Annotations[toolchainv1alpha1.UserSignupGatingRequestedKey] = "true"
+				userSignup.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey] = time.Now().Format(time.RFC3339)
 				increment = true
 				return true
 			}

@@ -64,7 +64,7 @@ func assertGatingRequested(t *testing.T, cl client.Client, us *toolchainv1alpha1
 	t.Helper()
 	updated := &toolchainv1alpha1.UserSignup{}
 	require.NoError(t, cl.Get(gocontext.TODO(), client.ObjectKeyFromObject(us), updated))
-	assert.Equal(t, "true", updated.Annotations[toolchainv1alpha1.UserSignupGatingRequestedKey])
+	assert.NotEmpty(t, updated.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey])
 }
 
 func (s *TestSignupServiceSuite) ServiceConfiguration(verificationEnabled bool,
@@ -1041,7 +1041,7 @@ func (s *TestSignupServiceSuite) TestGetSignupWithNoProvisioningState() {
 		us := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("gating-user@kubesaw"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey, time.Now().Format(time.RFC3339)),
-			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupGatingRequestedKey, "true"),
+			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupGatingOnlyKey, "true"),
 			testusersignup.NoProvisioning(),
 		)
 		_, application := testutil.PrepareInClusterApp(s.T(), us)

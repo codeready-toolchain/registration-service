@@ -18,14 +18,28 @@ func TestRegisterSignupMetrics(t *testing.T) {
 		RegisterSignupMetrics(reg)
 	})
 
-	// then — observe once so Gather includes the vector
-	UserSignupsGatingOnlyTotal.WithLabelValues(GatingOnlyStateVerified).Inc()
-
+	// then — every known state is already exported at 0
 	gathered, err := reg.Gather()
 	require.NoError(t, err)
-	names := make(map[string]bool, len(gathered))
-	for _, m := range gathered {
-		names[m.GetName()] = true
+	var states map[string]float64
+	for _, family := range gathered {
+		if family.GetName() != "user_signups_gating_only_total" {
+			continue
+		}
+		states = make(map[string]float64, len(family.GetMetric()))
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == "state" {
+					states[label.GetValue()] = metric.GetCounter().GetValue()
+				}
+			}
+		}
 	}
-	assert.True(t, names["user_signups_gating_only_total"])
+	assert.Equal(t, map[string]float64{
+		GatingOnlyStateRejected:      0,
+		GatingOnlyStateBanned:        0,
+		GatingOnlyStatePhoneRequired: 0,
+		GatingOnlyStatePhoneVerified: 0,
+		GatingOnlyStateVerified:      0,
+	}, states)
 }

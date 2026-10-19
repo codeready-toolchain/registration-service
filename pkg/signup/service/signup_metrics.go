@@ -18,7 +18,7 @@ var (
 	UserSignupsGatingOnlyTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "user_signups_gating_only_total",
-			Help: "Total UserSignups newly marked as gating-only, by state (rejected, banned, or verified).",
+			Help: "Total UserSignups newly marked as gating-only, by state (rejected, banned, phone_required, phone_verified, or verified).",
 		},
 		[]string{"state"},
 	)

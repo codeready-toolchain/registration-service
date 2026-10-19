@@ -538,7 +538,8 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupCaptchaScoreAnnotationKey, "0.8"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey, "123456"),
 			testusersignup.WithAnnotation(toolchainv1alpha1.UserVerificationExpiryAnnotationKey, now.Add(10*time.Second).Format(verificationservice.TimestampLayout)),
-			testusersignup.VerificationRequiredAgo(time.Second))
+			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.NoProvisioning())
 
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
@@ -560,7 +561,8 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 	})
 
 	s.Run("verification ok for usersignup with username identifier", func() {
-
+		// given
+		signupsvc.UserSignupsGatingOnlyTotal.Reset()
 		userSignup := testusersignup.NewUserSignup(
 			testusersignup.WithEncodedName("employee085@kubesaw"),
 			testusersignup.WithLabel(toolchainv1alpha1.UserSignupUserPhoneHashLabelKey, "+1NUMBER"),
@@ -573,7 +575,11 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
 
 		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+
+		// when
 		err := application.VerificationService().VerifyPhoneCode(ctx, "employee085@kubesaw", "654321")
+
+		// then
 		require.NoError(s.T(), err)
 
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -581,6 +587,8 @@ func (s *TestVerificationServiceSuite) TestVerifyPhoneCode() {
 		require.NoError(s.T(), err)
 
 		require.False(s.T(), states.VerificationRequired(signup))
+		assert.InDelta(s.T(), 0, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStatePhoneVerified)), 0.01)
+		assert.InDelta(s.T(), 0, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStateVerified)), 0.01)
 	})
 
 	s.Run("when verification code is invalid", func() {

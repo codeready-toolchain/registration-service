@@ -502,6 +502,7 @@ func (s *ServiceImpl) pollUpdateUserSignup(ctx *gin.Context, cl namespaced.Clien
 		us := &toolchainv1alpha1.UserSignup{}
 		if err := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), us); err != nil {
 			if apierrors.IsNotFound(err) {
+				userSignup = nil
 				return nil
 			}
 			return err
@@ -543,6 +544,9 @@ func (s *ServiceImpl) incGatingOnlyMetric(ctx *gin.Context, cl namespaced.Client
 		})
 		if err != nil {
 			log.Error(ctx, err, fmt.Sprintf("%s usersignup update adding gating requested annotation failed", userSignup.GetName()))
+			return userSignup
+		}
+		if latestUserSignup == nil {
 			return userSignup
 		}
 		if increment {

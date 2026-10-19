@@ -423,7 +423,9 @@ func (s *ServiceImpl) VerifyPhoneCode(ctx *gin.Context, username, code string) (
 		if unsetVerificationRequired {
 			states.SetVerificationRequired(signup, false)
 			signup.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey] = time.Now().Format(time.RFC3339)
-			incGatingOnlyMetric = true
+			if states.NoProvisioning(signup) {
+				incGatingOnlyMetric = true
+			}
 		}
 
 		for k, v := range annotationValues {

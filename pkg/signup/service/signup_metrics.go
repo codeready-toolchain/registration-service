@@ -35,6 +35,7 @@ func RegisterSignupMetrics(reg *prometheus.Registry) {
 		GatingOnlyStatePhoneVerified,
 		GatingOnlyStateVerified,
 	} {
+		// Create the series at 0. Without this, a state that has never been incremented is absent and queries return no value.
 		UserSignupsGatingOnlyTotal.WithLabelValues(state)
 	}
 }

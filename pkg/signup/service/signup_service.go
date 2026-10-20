@@ -527,7 +527,7 @@ func (s *ServiceImpl) pollUpdateUserSignup(ctx *gin.Context, cl namespaced.Clien
 	return userSignup, err
 }
 
-func (s *ServiceImpl) incGatingOnlyMetric(ctx *gin.Context, cl namespaced.Client, userSignup *toolchainv1alpha1.UserSignup, result string) *toolchainv1alpha1.UserSignup {
+func (s *ServiceImpl) incGatingOnlyMetricWhenRequested(ctx *gin.Context, cl namespaced.Client, userSignup *toolchainv1alpha1.UserSignup, result string) *toolchainv1alpha1.UserSignup {
 	if onlyGatingRequested(ctx) {
 		increment := false
 		latestUserSignup, err := s.pollUpdateUserSignup(ctx, cl, ctx.GetString(context.UsernameKey), func(userSignup *toolchainv1alpha1.UserSignup) bool {
@@ -589,12 +589,12 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		case toolchainv1alpha1.UserSignupUserBannedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-			s.incGatingOnlyMetric(ctx, cl, userSignup, GatingOnlyStateBanned)
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateBanned)
 			return nil, ForbiddenBannedError
 
 		case toolchainv1alpha1.UserSignupUserRejectedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected", userSignup.GetName()))
-			s.incGatingOnlyMetric(ctx, cl, userSignup, GatingOnlyStateRejected)
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateRejected)
 			return nil, ForbiddenRejectedError
 		}
 	}
@@ -615,7 +615,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 				// if verified, but the verification expired, then return "not-found" so the client can trigger reactivation
 				return nil, nil
 			}
-			s.incGatingOnlyMetric(ctx, cl, userSignup, gatingOnlyResult)
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 			signupResponse.Status = signup.Status{
 				VerificationRequired: states.VerificationRequired(userSignup),
 				Verified:             verified,
@@ -627,7 +627,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		return nil, nil
 	}
 
-	userSignup = s.incGatingOnlyMetric(ctx, cl, userSignup, gatingOnlyResult)
+	userSignup = s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 
 	if !approvedFound || !completeFound ||
 		condition.IsFalseWithReason(userSignup.Status.Conditions,

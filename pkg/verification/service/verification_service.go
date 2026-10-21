@@ -212,6 +212,9 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 
 		if rejectSignup {
 			states.SetRejected(signup, true)
+			if states.NoProvisioning(signup) {
+				signupsvc.IncGatingOnly(signupsvc.GatingOnlyStateRejected)
+			}
 		}
 
 		return s.Update(gocontext.TODO(), signup)

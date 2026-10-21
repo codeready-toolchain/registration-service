@@ -970,6 +970,7 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		// given
 		defer gock.Off()
 		resetPhoneLookupMetrics()
+		signupsvc.UserSignupsGatingOnlyTotal.Reset()
 		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
 		mockTwilioLookup(lookupUKPhone, highRiskBody)
 
@@ -996,6 +997,42 @@ func (s *TestVerificationServiceSuite) TestInitVerificationPhoneLookup() {
 		assert.True(s.T(), gock.IsDone())
 		assert.InDelta(s.T(), float64(1), phoneLookupTotal("blocked", "high", "false"), 0.01)
 		assert.InDelta(s.T(), float64(0), phoneLookupTotal("allowed", "high", "false"), 0.01)
+		assert.InDelta(s.T(), 0, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStateRejected)), 0.01)
+	})
+
+	s.Run("high risk no-provisioning signup increments rejected gating-only metric", func() {
+		// given
+		defer gock.Off()
+		resetPhoneLookupMetrics()
+		signupsvc.UserSignupsGatingOnlyTotal.Reset()
+		s.setPhoneLookupMode(toolchainv1alpha1.PhoneLookupModeEnabled)
+		mockTwilioLookup(lookupUKPhone, highRiskBody)
+
+		userSignup := testusersignup.NewUserSignup(
+			testusersignup.WithEncodedName("lookup-noprov-reject@kubesaw"),
+			testusersignup.VerificationRequiredAgo(time.Second),
+			testusersignup.NoProvisioning())
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), userSignup)
+
+		// when
+		ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+		err := application.VerificationService().InitVerification(ctx, "lookup-noprov-reject@kubesaw", lookupUKPhone, "44")
+
+		// then
+		require.Error(s.T(), err)
+		var e *crterrors.Error
+		require.ErrorAs(s.T(), err, &e)
+		assert.Equal(s.T(), http.StatusForbidden, e.Code)
+
+		updated := &toolchainv1alpha1.UserSignup{}
+		require.NoError(s.T(), fakeClient.Get(gocontext.TODO(), client.ObjectKeyFromObject(userSignup), updated))
+		assertLookupDetails(s.T(), updated)
+		assert.True(s.T(), states.Rejected(updated))
+		assert.True(s.T(), states.NoProvisioning(updated))
+		assert.Empty(s.T(), updated.Annotations[toolchainv1alpha1.UserSignupVerificationCodeAnnotationKey])
+		assert.True(s.T(), gock.IsDone())
+		assert.InDelta(s.T(), float64(1), phoneLookupTotal("blocked", "high", "true"), 0.01)
+		assert.InDelta(s.T(), 1, promtestutil.ToFloat64(signupsvc.UserSignupsGatingOnlyTotal.WithLabelValues(signupsvc.GatingOnlyStateRejected)), 0.01)
 	})
 
 	s.Run("high risk phone with mode log proceeds with SMS", func() {

@@ -187,6 +187,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		}
 	}
 
+	incGatingOnlyMetric := false
 	// Single update operation: always set phone hash label, set annotations only if notification was sent
 	doUpdate := func() error {
 		signup := &toolchainv1alpha1.UserSignup{}
@@ -213,7 +214,7 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		if rejectSignup {
 			states.SetRejected(signup, true)
 			if states.NoProvisioning(signup) {
-				signupsvc.IncGatingOnly(signupsvc.GatingOnlyStateRejected)
+				incGatingOnlyMetric = true
 			}
 		}
 
@@ -226,6 +227,10 @@ func (s *ServiceImpl) InitVerification(ctx *gin.Context, username, e164PhoneNumb
 		return errors.New("there was an error while updating your account - please wait a moment before " +
 			"trying again. If this error persists, please contact the administrators for " +
 			"assistance: error while verifying phone code")
+	}
+
+	if incGatingOnlyMetric {
+		signupsvc.IncGatingOnly(signupsvc.GatingOnlyStateRejected)
 	}
 
 	return initError

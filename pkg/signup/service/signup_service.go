@@ -489,6 +489,12 @@ func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSign
 }
 
 func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced.Client, username string) (*toolchainv1alpha1.UserSignup, error) {
+	return s.pollUpdateUserSignup(ctx, cl, username, func(userSignup *toolchainv1alpha1.UserSignup) bool {
+		return s.auditUserSignupAgainstClaims(ctx, userSignup)
+	})
+}
+
+func (s *ServiceImpl) pollUpdateUserSignup(ctx *gin.Context, cl namespaced.Client, username string, update func(userSignup *toolchainv1alpha1.UserSignup) bool) (*toolchainv1alpha1.UserSignup, error) {
 	var userSignup *toolchainv1alpha1.UserSignup
 
 	err := signup.PollUpdateSignup(ctx, func() error {
@@ -496,6 +502,7 @@ func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced
 		us := &toolchainv1alpha1.UserSignup{}
 		if err := cl.Get(gocontext.TODO(), cl.NamespacedName(signupcommon.EncodeUserIdentifier(username)), us); err != nil {
 			if apierrors.IsNotFound(err) {
+				userSignup = nil
 				return nil
 			}
 			return err
@@ -507,11 +514,9 @@ func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced
 			return nil
 		}
 
-		updated := s.auditUserSignupAgainstClaims(ctx, userSignup)
-
 		// If there is no need to update the UserSignup then break out of the loop here (by returning nil)
 		// otherwise update the UserSignup
-		if updated {
+		if update(userSignup) {
 			if err := s.Update(gocontext.TODO(), userSignup); err != nil {
 				return err
 			}
@@ -520,6 +525,36 @@ func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced
 		return nil
 	})
 	return userSignup, err
+}
+
+func (s *ServiceImpl) incGatingOnlyMetricWhenRequested(ctx *gin.Context, cl namespaced.Client, userSignup *toolchainv1alpha1.UserSignup, result string) *toolchainv1alpha1.UserSignup {
+	if onlyGatingRequested(ctx) {
+		increment := false
+		latestUserSignup, err := s.pollUpdateUserSignup(ctx, cl, ctx.GetString(context.UsernameKey), func(userSignup *toolchainv1alpha1.UserSignup) bool {
+			increment = false
+			if value, present := userSignup.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey]; !present || value == "" {
+				if userSignup.Annotations == nil {
+					userSignup.Annotations = map[string]string{}
+				}
+				userSignup.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey] = time.Now().Format(time.RFC3339)
+				increment = true
+				return true
+			}
+			return false
+		})
+		if err != nil {
+			log.Error(ctx, err, fmt.Sprintf("%s usersignup update adding gating requested annotation failed", userSignup.GetName()))
+			return userSignup
+		}
+		if latestUserSignup == nil {
+			return userSignup
+		}
+		if increment {
+			IncGatingOnly(result)
+		}
+		return latestUserSignup
+	}
+	return userSignup
 }
 
 func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
@@ -554,16 +589,23 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		case toolchainv1alpha1.UserSignupUserBannedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateBanned)
 			return nil, ForbiddenBannedError
 
 		case toolchainv1alpha1.UserSignupUserRejectedReason:
-			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected by account verifier", userSignup.GetName()))
+			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected", userSignup.GetName()))
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateRejected)
 			return nil, ForbiddenRejectedError
 		}
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
 	_, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
+
+	gatingOnlyResult := GatingOnlyStateVerified
+	if states.VerificationRequired(userSignup) {
+		gatingOnlyResult = GatingOnlyStatePhoneRequired
+	}
 
 	if states.NoProvisioning(userSignup) {
 		if onlyGatingRequested(ctx) {
@@ -573,6 +615,7 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 				// if verified, but the verification expired, then return "not-found" so the client can trigger reactivation
 				return nil, nil
 			}
+			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 			signupResponse.Status = signup.Status{
 				VerificationRequired: states.VerificationRequired(userSignup),
 				Verified:             verified,
@@ -583,6 +626,8 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		// can trigger reactivation and thus complete provisioning
 		return nil, nil
 	}
+
+	userSignup = s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 
 	if !approvedFound || !completeFound ||
 		condition.IsFalseWithReason(userSignup.Status.Conditions,

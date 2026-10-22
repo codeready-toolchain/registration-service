@@ -237,6 +237,7 @@ func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 		rewrite := func(req *httputil.ProxyRequest) {
 			req.Out.URL.Scheme = targetURL.Scheme
 			req.Out.URL.Host = targetURL.Host
+			req.Out.Host = targetURL.Host
 			req.Out.URL.Path = targetURL.Path
 			req.Out.URL.RawQuery = targetURL.RawQuery
 			log.InfoEchof(ctx, "forwarding %s to %s", req.In.URL.String(), req.Out.URL.String())

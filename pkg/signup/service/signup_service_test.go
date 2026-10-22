@@ -1942,6 +1942,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 
 	s.Run("rejected result creates rejected UserSignup and returns forbidden error", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -1958,6 +1959,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request, _ = http.NewRequest(http.MethodPost, "/?gating-only=true", nil)
 		ctx.Set(context.UsernameKey, "rejected-user@kubesaw")
 		ctx.Set(context.SubKey, "987654321")
 		ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -1990,10 +1992,13 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.Empty(s.T(), createdUS.Annotations[toolchainv1alpha1.UserSignupVerifiedTimestampAnnotationKey])
 		assert.Equal(s.T(), "rejected", createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
 		assert.JSONEq(s.T(), `[{"check":"check-1","detail":"failed"}]`, createdUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierReasonsAnnotationKey])
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateRejected, 1)
+		assertGatingRequested(s.T(), fakeClient, &createdUS)
 	})
 
 	s.Run("repeat signup attempt on rejected UserSignup returns forbidden error without calling verifier", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		verifierCalled := false
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			verifierCalled = true
@@ -2010,6 +2015,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request, _ = http.NewRequest(http.MethodPost, "/?gating-only=true", nil)
 		ctx.Set(context.UsernameKey, "rejected-repeat@kubesaw")
 		ctx.Set(context.SubKey, "987654321")
 		ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -2027,7 +2033,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 			testusersignup.WithName(signupcommon.EncodeUserIdentifier("rejected-repeat@kubesaw")),
 		)
 		states.SetRejected(rejectedUS, true)
-		_, application := testutil.PrepareInClusterApp(s.T(), rejectedUS)
+		fakeClient, application := testutil.PrepareInClusterApp(s.T(), rejectedUS)
 
 		// when
 		userSignup, err := application.SignupService().Signup(ctx)
@@ -2037,6 +2043,8 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		assert.Nil(s.T(), userSignup)
 		assert.Equal(s.T(), service.ForbiddenRejectedError, err)
 		assert.False(s.T(), verifierCalled, "account verifier should not be called for an already-rejected UserSignup")
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateRejected, 1)
+		assertGatingRequested(s.T(), fakeClient, rejectedUS)
 	})
 
 	s.Run("phone_verification result forces verification required", func() {
@@ -2165,6 +2173,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 
 	s.Run("rejected on reactivation returns forbidden error", func() {
 		// given
+		service.UserSignupsGatingOnlyTotal.Reset()
 		verifierServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -2181,6 +2190,7 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 
 		rr := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(rr)
+		ctx.Request, _ = http.NewRequest(http.MethodPost, "/?gating-only=true", nil)
 		ctx.Set(context.UsernameKey, "reactivate-reject@kubesaw")
 		ctx.Set(context.SubKey, "987654321")
 		ctx.Set(context.OriginalSubKey, "original-sub-value")
@@ -2215,6 +2225,8 @@ func (s *TestSignupServiceSuite) TestSignupWithAccountVerifierMode() {
 		}, updatedUS))
 		assert.True(s.T(), states.Rejected(updatedUS))
 		assert.Equal(s.T(), "rejected", updatedUS.Annotations[toolchainv1alpha1.UserSignupAccountVerifierResultAnnotationKey])
+		assertGatingOnlyMetric(s.T(), service.GatingOnlyStateRejected, 1)
+		assertGatingRequested(s.T(), fakeClient, updatedUS)
 	})
 
 	s.Run("disabled mode does not call account verifier", func() {

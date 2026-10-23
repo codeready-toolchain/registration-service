@@ -234,18 +234,17 @@ func (p *Proxy) redirectTo(ctx echo.Context, to string) error {
 func (p *Proxy) handleSSORequest(targetURL *url.URL) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		req := ctx.Request()
-		director := func(req *http.Request) {
-			origin := req.URL.String()
-			req.URL.Scheme = targetURL.Scheme
-			req.URL.Host = targetURL.Host
-			req.URL.Path = targetURL.Path
-			req.URL.RawQuery = targetURL.RawQuery
-			req.Host = targetURL.Host
-			log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
+		rewrite := func(req *httputil.ProxyRequest) {
+			req.Out.URL.Scheme = targetURL.Scheme
+			req.Out.URL.Host = targetURL.Host
+			req.Out.Host = targetURL.Host
+			req.Out.URL.Path = targetURL.Path
+			req.Out.URL.RawQuery = targetURL.RawQuery
+			log.InfoEchof(ctx, "forwarding %s to %s", req.In.URL.String(), req.Out.URL.String())
 		}
 		transport := getTransport(req.Header)
 		reverseProxy := &httputil.ReverseProxy{
-			Director:      director,
+			Rewrite:       rewrite,
 			Transport:     transport,
 			FlushInterval: -1,
 		}
@@ -677,43 +676,42 @@ func (p *Proxy) newReverseProxy(ctx echo.Context, target *access.ClusterAccess, 
 	// set username in context for logging purposes
 	ctx.Set(context.ImpersonateUser, target.Username())
 
-	director := func(req *http.Request) {
-		origin := req.URL.String()
-		req.URL.Scheme = target.APIURL().Scheme
-		req.URL.Host = target.APIURL().Host
-		req.URL.Path = singleJoiningSlash(target.APIURL().Path, req.URL.Path)
-		req.Header.Set("X-SSO-User", username)
+	rewrite := func(req *httputil.ProxyRequest) {
+		req.Out.URL.Scheme = target.APIURL().Scheme
+		req.Out.URL.Host = target.APIURL().Host
+		req.Out.URL.Path = singleJoiningSlash(target.APIURL().Path, req.Out.URL.Path)
+		req.Out.Header.Set("X-SSO-User", username)
 
 		if isPlugin {
 			// for non k8s clients testing, like vanilla http clients accessing plugin proxy flows, testing has proven that the request
 			// host needs to be updated in addition to the URL in order to have the reverse proxy contact the openshift
 			// route on the member cluster
-			req.Host = target.APIURL().Host
+			req.Out.Host = target.APIURL().Host
 		}
-		log.InfoEchof(ctx, "forwarding %s to %s", origin, req.URL.String())
-		if targetQuery == "" || req.URL.RawQuery == "" {
-			req.URL.RawQuery = targetQuery + req.URL.RawQuery
+		log.InfoEchof(ctx, "forwarding %s to %s", req.In.URL.String(), req.Out.URL.String())
+		if targetQuery == "" || req.Out.URL.RawQuery == "" {
+			req.Out.URL.RawQuery = targetQuery + req.Out.URL.RawQuery
 		} else {
-			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+			req.Out.URL.RawQuery = targetQuery + "&" + req.Out.URL.RawQuery
 		}
-		if _, ok := req.Header["User-Agent"]; !ok {
+		if _, ok := req.Out.Header["User-Agent"]; !ok {
 			// explicitly disable User-Agent so it's not set to default value
-			req.Header.Set("User-Agent", "")
+			req.Out.Header.Set("User-Agent", "")
 		}
 		// Replace token
-		if wsstream.IsWebSocketRequest(req) {
-			replaceTokenInWebsocketRequest(req, target.ImpersonatorToken())
+		if wsstream.IsWebSocketRequest(req.Out) {
+			replaceTokenInWebsocketRequest(req.Out, target.ImpersonatorToken())
 		} else {
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.ImpersonatorToken()))
+			req.Out.Header.Set("Authorization", fmt.Sprintf("Bearer %s", target.ImpersonatorToken()))
 		}
 
 		// Set impersonation header
-		req.Header.Set("Impersonate-User", target.Username())
+		req.Out.Header.Set("Impersonate-User", target.Username())
 	}
 	transport := getTransport(req.Header)
 	m := &responseModifier{req.Header.Get("Origin")}
 	return &httputil.ReverseProxy{
-		Director:       director,
+		Rewrite:        rewrite,
 		Transport:      transport,
 		FlushInterval:  -1,
 		ModifyResponse: m.addCorsToResponse,

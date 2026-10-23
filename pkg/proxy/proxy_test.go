@@ -798,7 +798,7 @@ func (s *TestProxySuite) checkProxyOK(proxy *Proxy) {
 										for hk, hv := range tc.ExpectedAPIServerRequestHeaders {
 											assert.Len(s.T(), r.Header.Values(hk), len(hv))
 											for i := range hv {
-												assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i])
+												assert.Equal(s.T(), hv[i], r.Header.Values(hk)[i], "Header %s did not match", hk)
 											}
 										}
 										impersonateUser := tc.ExpectedAPIServerRequestHeaders.Get("Impersonate-User")

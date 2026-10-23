@@ -4,6 +4,7 @@ import (
 	"bytes"
 	gocontext "context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -362,6 +363,16 @@ func isAccountVerifierRejected(resp *toolchainv1alpha1.AccountVerifierResponse) 
 // Signup reactivates the deactivated UserSignup resource or creates a new one with the specified username
 // if doesn't exist yet.
 func (s *ServiceImpl) Signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
+	userSignup, err := s.signup(ctx)
+	if errors.Is(err, ForbiddenRejectedError) {
+		s.incGatingOnlyMetricWhenRequested(ctx, s.Client, GatingOnlyStateRejected)
+	} else if errors.Is(err, ForbiddenBannedError) {
+		s.incGatingOnlyMetricWhenRequested(ctx, s.Client, GatingOnlyStateBanned)
+	}
+	return userSignup, err
+}
+
+func (s *ServiceImpl) signup(ctx *gin.Context) (*toolchainv1alpha1.UserSignup, error) {
 	username := ctx.GetString(context.UsernameKey)
 	encodedUsername := signupcommon.EncodeUserIdentifier(username)
 
@@ -485,7 +496,19 @@ func (s *ServiceImpl) reactivateUserSignup(ctx *gin.Context, existing *toolchain
 // such as proxy calls for example.
 // Returns nil, nil if the UserSignup resource is not found or if it's deactivated.
 func (s *ServiceImpl) GetSignup(ctx *gin.Context, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
-	return s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
+	signup, err := s.DoGetSignup(ctx, s.Client, username, checkUserSignupCompleted)
+	if errors.Is(err, ForbiddenRejectedError) {
+		s.incGatingOnlyMetricWhenRequested(ctx, s.Client, GatingOnlyStateRejected)
+	} else if errors.Is(err, ForbiddenBannedError) {
+		s.incGatingOnlyMetricWhenRequested(ctx, s.Client, GatingOnlyStateBanned)
+	} else if signup != nil {
+		gatingOnlyResult := GatingOnlyStateVerified
+		if signup.Status.VerificationRequired {
+			gatingOnlyResult = GatingOnlyStatePhoneRequired
+		}
+		s.incGatingOnlyMetricWhenRequested(ctx, s.Client, gatingOnlyResult)
+	}
+	return signup, err
 }
 
 func (s *ServiceImpl) retrieveAndAuditUserSignup(ctx *gin.Context, cl namespaced.Client, username string) (*toolchainv1alpha1.UserSignup, error) {
@@ -527,10 +550,10 @@ func (s *ServiceImpl) pollUpdateUserSignup(ctx *gin.Context, cl namespaced.Clien
 	return userSignup, err
 }
 
-func (s *ServiceImpl) incGatingOnlyMetricWhenRequested(ctx *gin.Context, cl namespaced.Client, userSignup *toolchainv1alpha1.UserSignup, result string) *toolchainv1alpha1.UserSignup {
+func (s *ServiceImpl) incGatingOnlyMetricWhenRequested(ctx *gin.Context, cl namespaced.Client, result string) {
 	if onlyGatingRequested(ctx) {
 		increment := false
-		latestUserSignup, err := s.pollUpdateUserSignup(ctx, cl, ctx.GetString(context.UsernameKey), func(userSignup *toolchainv1alpha1.UserSignup) bool {
+		_, err := s.pollUpdateUserSignup(ctx, cl, ctx.GetString(context.UsernameKey), func(userSignup *toolchainv1alpha1.UserSignup) bool {
 			increment = false
 			if value, present := userSignup.Annotations[toolchainv1alpha1.UserSignupGatingOnlyKey]; !present || value == "" {
 				if userSignup.Annotations == nil {
@@ -543,18 +566,13 @@ func (s *ServiceImpl) incGatingOnlyMetricWhenRequested(ctx *gin.Context, cl name
 			return false
 		})
 		if err != nil {
-			log.Error(ctx, err, fmt.Sprintf("%s usersignup update adding gating requested annotation failed", userSignup.GetName()))
-			return userSignup
-		}
-		if latestUserSignup == nil {
-			return userSignup
+			log.Error(ctx, err, fmt.Sprintf("usersignup update adding gating requested annotation failed for username %s", ctx.GetString(context.UsernameKey)))
+			return
 		}
 		if increment {
 			IncGatingOnly(result)
 		}
-		return latestUserSignup
 	}
-	return userSignup
 }
 
 func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, username string, checkUserSignupCompleted bool) (*signup.Signup, error) {
@@ -589,23 +607,16 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 
 		case toolchainv1alpha1.UserSignupUserBannedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is banned", userSignup.GetName()))
-			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateBanned)
 			return nil, ForbiddenBannedError
 
 		case toolchainv1alpha1.UserSignupUserRejectedReason:
 			log.Info(nil, fmt.Sprintf("usersignup: %s is rejected", userSignup.GetName()))
-			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, GatingOnlyStateRejected)
 			return nil, ForbiddenRejectedError
 		}
 	}
 
 	// Check UserSignup status to determine whether user signup is complete
 	_, approvedFound := condition.FindConditionByType(userSignup.Status.Conditions, toolchainv1alpha1.UserSignupApproved)
-
-	gatingOnlyResult := GatingOnlyStateVerified
-	if states.VerificationRequired(userSignup) {
-		gatingOnlyResult = GatingOnlyStatePhoneRequired
-	}
 
 	if states.NoProvisioning(userSignup) {
 		if onlyGatingRequested(ctx) {
@@ -615,7 +626,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 				// if verified, but the verification expired, then return "not-found" so the client can trigger reactivation
 				return nil, nil
 			}
-			s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 			signupResponse.Status = signup.Status{
 				VerificationRequired: states.VerificationRequired(userSignup),
 				Verified:             verified,
@@ -626,8 +636,6 @@ func (s *ServiceImpl) DoGetSignup(ctx *gin.Context, cl namespaced.Client, userna
 		// can trigger reactivation and thus complete provisioning
 		return nil, nil
 	}
-
-	userSignup = s.incGatingOnlyMetricWhenRequested(ctx, cl, userSignup, gatingOnlyResult)
 
 	if !approvedFound || !completeFound ||
 		condition.IsFalseWithReason(userSignup.Status.Conditions,

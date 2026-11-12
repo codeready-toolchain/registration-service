@@ -1,6 +1,8 @@
 module github.com/codeready-toolchain/registration-service
 
-go 1.27.4
+go 1.26.0
+
+toolchain go1.27.4
 
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0

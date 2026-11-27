@@ -7,8 +7,8 @@ toolchain go1.27.4
 require (
 	cloud.google.com/go/recaptchaenterprise/v2 v2.13.0
 	github.com/aws/aws-sdk-go v1.44.100
-	github.com/codeready-toolchain/api v0.0.0-20261020083318-44fc690c9723
-	github.com/codeready-toolchain/toolchain-common v0.0.0-20260923150303-c57ad4d44348
+	github.com/codeready-toolchain/api v0.0.0-20261124082612-04e0e4655cee
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20261124090041-0bbe82c4969f
 	github.com/gin-contrib/cors v1.6.0
 	github.com/gin-contrib/gzip v0.0.6
 	github.com/gin-contrib/static v0.0.1
